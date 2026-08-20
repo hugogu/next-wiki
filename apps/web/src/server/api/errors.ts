@@ -163,6 +163,16 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 400);
     case 'SKILL_DISABLED':
       return apiError(code, message, 403);
+    // Page slug routing (035).
+    case 'PAGE_SLUG_INVALID':
+    case 'PAGE_ADDRESS_SELF':
+      return apiError(code, message, 400);
+    case 'PAGE_SLUG_RESERVED':
+    case 'PAGE_SLUG_TAKEN':
+    case 'PAGE_ADDRESS_TAKEN':
+    case 'ADDRESS_ALIAS_RETAINED':
+    case 'PAGE_NOT_DELETED':
+      return apiError(code, message, 409);
     default:
       return apiError('BAD_REQUEST', message, 400);
   }

@@ -193,9 +193,11 @@ export async function seedE2eAdminFixture() {
     admin = created;
   }
 
-  // `slug` alone isn't unique (the schema's uniqueness is space_id + path +
-  // locale); scope this to the default space so an unrelated page named
-  // "welcome" in another space can never make this skip creating this one.
+  // Scoped to the default space so an unrelated page named "welcome" in
+  // another space can never make this skip creating this one. Looks up by
+  // `path`, not `slug` — this checks page identity (has the welcome page
+  // already been seeded?), not its public address, which an owner may have
+  // since changed away from the default (path).
   const existingPage = await db.query.pages.findFirst({
     where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, 'welcome')),
   });

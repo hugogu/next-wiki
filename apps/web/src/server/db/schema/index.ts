@@ -97,6 +97,7 @@ import {
   pageVisibilityEnum,
   rawConversationCaptureStatusEnum,
   analyticsProviderEnum,
+  pageAddressKindEnum,
 } from './enums';
 
 /** PostgreSQL `bytea` column carrying raw image bytes for the Database backend. */
@@ -248,6 +249,11 @@ export const pages = pgTable(
     spaceId: uuid('space_id')
       .notNull()
       .references(() => spaces.id),
+    // 035: the page's canonical public address, space-scoped and prefix-free
+    // (e.g. "getting-started/install"). Independent of `path`, which stays the
+    // organizational tree location. Empty for translation rows, which resolve
+    // as `{locale}/{source.slug}` instead of owning an address of their own.
+    // Soft-deleted rows keep their slug — see `pages_space_slug_unique` below.
     slug: text('slug').notNull(),
     path: text('path').notNull(),
     locale: text('locale').notNull().default('en'),
@@ -304,24 +310,44 @@ export const pages = pgTable(
       'pages_link_kind_target_pair',
       sql`(${t.kind} = 'link') = (${t.linkTargetPageId} is not null)`,
     ),
+    // 035: a page's canonical address is unique within its space. Excludes
+    // translation rows (they own no independent address) but deliberately
+    // includes soft-deleted rows, so a deleted page keeps its address until an
+    // administrator explicitly releases it (FR-014a).
+    spaceSlugUnique: uniqueIndex('pages_space_slug_unique')
+      .on(t.spaceId, t.slug)
+      .where(sql`${t.translationGroupId} is null`),
   }),
 );
 
-/** Address moves which cannot be represented by a simple space-prefix alias. */
-export const pageRouteRedirects = pgTable(
-  'page_route_redirects',
+/**
+ * 035: every public address of a page that is not its canonical slug —
+ * retained automatically when a published page's slug (or space) changes, or
+ * added manually by an owner. Always points at the page itself, never at
+ * another address, so a rename chain can never form (a resolver always
+ * arrives at the current canonical slug in a single hop). Superseded
+ * `page_route_redirects`, which this table's rows absorbed on migration.
+ */
+export const pageAddresses = pgTable(
+  'page_addresses',
   {
     id: uuid('id').primaryKey().defaultRandom(),
-    legacyRoute: text('legacy_route').notNull(),
-    targetPageId: uuid('target_page_id')
+    spaceId: uuid('space_id')
+      .notNull()
+      .references(() => spaces.id, { onDelete: 'restrict' }),
+    // Space-scoped, prefix-free, no leading separator. May carry a leading
+    // locale segment when it addresses a translation row.
+    address: text('address').notNull(),
+    pageId: uuid('page_id')
       .notNull()
       .references(() => pages.id, { onDelete: 'restrict' }),
-    reason: text('reason').notNull(),
+    kind: pageAddressKindEnum('kind').notNull(),
+    reason: text('reason'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    legacyRouteUnique: uniqueIndex('page_route_redirects_legacy_route_unique').on(t.legacyRoute),
-    targetIdx: index('page_route_redirects_target_idx').on(t.targetPageId),
+    spaceAddressUnique: uniqueIndex('page_addresses_space_address_unique').on(t.spaceId, t.address),
+    pageIdx: index('page_addresses_page_idx').on(t.pageId),
   }),
 );
 

@@ -618,7 +618,7 @@ async function execCreatePage(
       // space to pass; without it the href is the only space-bearing handle
       // the model holds, and it ends up back here as a `path`.
       spaceSlug: page.spaceSlug === 'default' ? 'wiki' : page.spaceSlug,
-      href: getSpaceHref(isAdmin ? 'generated' : 'wiki', page.path),
+      href: getSpaceHref(isAdmin ? 'generated' : 'wiki', page.slug),
     },
   };
 }

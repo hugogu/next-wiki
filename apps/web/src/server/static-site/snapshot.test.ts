@@ -36,18 +36,24 @@ async function makePage(options: {
   locale?: string;
   visibility?: 'public' | 'restricted';
   translationGroupId?: string | null;
+  /** 035: set together with translationGroupId on a real translation row
+   * (015 invariant) — a translation owns no independent slug. */
+  sourcePageId?: string | null;
 }) {
   const [page] = await db
     .insert(schema.pages)
     .values({
       spaceId: options.spaceId,
-      slug: options.path.split('/').pop()!,
+      // 035: default slug is the full tree path (FR-004); a translation row
+      // owns no independent slug and is always ''.
+      slug: options.sourcePageId ? '' : options.path,
       path: options.path,
       locale: options.locale ?? 'en',
       title: options.title,
       authorId,
       visibility: options.visibility ?? 'public',
       translationGroupId: options.translationGroupId ?? null,
+      sourcePageId: options.sourcePageId ?? null,
     })
     .returning();
   const body = options.body ?? `# ${options.title}\n\nBody of ${options.title}.`;
@@ -200,8 +206,9 @@ describe('artifact layout', () => {
   it('emits each locale at its own address', async () => {
     const space = await makeSpace('wiki');
     const group = randomUUID();
-    await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup', locale: 'en', translationGroupId: group });
-    await makePage({ spaceId: space, path: 'guides/setup', title: '安装', locale: 'zh', translationGroupId: group });
+    const source = await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup', locale: 'en' });
+    await db.update(schema.pages).set({ translationGroupId: group }).where(eq(schema.pages.id, source.pageId));
+    await makePage({ spaceId: space, path: 'guides/setup', title: '安装', locale: 'zh', translationGroupId: group, sourcePageId: source.pageId });
 
     const root = await stage();
     await snapshot(root);
@@ -219,8 +226,9 @@ describe('artifact layout', () => {
   it('tags every page with the unified search language on multilingual sites', async () => {
     const space = await makeSpace('wiki');
     const group = randomUUID();
-    await makePage({ spaceId: space, path: 'a', title: 'A', locale: 'en', translationGroupId: group });
-    await makePage({ spaceId: space, path: 'a', title: '甲', locale: 'zh', translationGroupId: group });
+    const source = await makePage({ spaceId: space, path: 'a', title: 'A', locale: 'en' });
+    await db.update(schema.pages).set({ translationGroupId: group }).where(eq(schema.pages.id, source.pageId));
+    await makePage({ spaceId: space, path: 'a', title: '甲', locale: 'zh', translationGroupId: group, sourcePageId: source.pageId });
 
     const root = await stage();
     await snapshot(root);

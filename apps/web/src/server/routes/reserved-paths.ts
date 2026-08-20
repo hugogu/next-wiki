@@ -17,6 +17,12 @@
  */
 import { DomainError } from '@/server/errors';
 import { RESERVED_ROUTES } from './manifest';
+import { RESERVED_PREFIXES as STATIC_SITE_RESERVED_PREFIXES, RESERVED_ROOT_FILES as STATIC_SITE_RESERVED_ROOT_FILES } from '@/server/static-site/paths';
+
+/** A leading segment matching this shape is read as a translation's locale
+ * (035) — mirrors `LOCALE_PREFIX_RE` in `services/reader-routing.ts` and the
+ * identical guard in `services/space-routes.ts` for space prefixes. */
+const LOCALE_SEGMENT_RE = /^[a-z]{2}$/;
 
 /**
  * Returns true when every segment of `pattern` matches the candidate at the
@@ -70,5 +76,51 @@ export function assertPathNotReserved(path: string): void {
       'PAGE_PATH_RESERVED',
       `Path "${path}" is reserved by built-in functionality. Please choose a different path.`,
     );
+  }
+}
+
+/**
+ * 035: why a public address (a canonical slug or an alias) may not be used.
+ * Distinct from `isPathReserved` above — the tree `path` is an organizational
+ * location that may legitimately start with any segment (including a
+ * two-letter folder name), while an *address* occupies the same namespace the
+ * reader route resolves, where a two-letter leading segment is read as a
+ * translation locale and a small set of prefixes are reserved by the
+ * published static site.
+ */
+export type AddressReservation =
+  | { kind: 'built_in_route' }
+  | { kind: 'locale_segment'; segment: string }
+  | { kind: 'static_site_prefix'; segment: string };
+
+/** Returns why `address` is reserved, or `null` when it is available. */
+export function addressReservation(address: string): AddressReservation | null {
+  if (isPathReserved(address)) return { kind: 'built_in_route' };
+  const [firstSegment] = address.split('/');
+  if (firstSegment && LOCALE_SEGMENT_RE.test(firstSegment)) {
+    return { kind: 'locale_segment', segment: firstSegment };
+  }
+  if (firstSegment && (STATIC_SITE_RESERVED_PREFIXES as readonly string[]).includes(firstSegment)) {
+    return { kind: 'static_site_prefix', segment: firstSegment };
+  }
+  if ((STATIC_SITE_RESERVED_ROOT_FILES as readonly string[]).includes(address)) {
+    return { kind: 'static_site_prefix', segment: address };
+  }
+  return null;
+}
+
+export function isAddressReserved(address: string): boolean {
+  return addressReservation(address) !== null;
+}
+
+/** Human-readable reason naming the violated rule (FR-015, FR-016). */
+export function describeAddressReservation(reservation: AddressReservation): string {
+  switch (reservation.kind) {
+    case 'built_in_route':
+      return 'This address is reserved by built-in application functionality.';
+    case 'locale_segment':
+      return `"${reservation.segment}" is reserved for translation addresses (a two-letter leading segment is read as a language code).`;
+    case 'static_site_prefix':
+      return `"${reservation.segment}" is reserved by the published static site.`;
   }
 }

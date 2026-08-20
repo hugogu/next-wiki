@@ -837,6 +837,7 @@ export const PublicPageResource = z
     id: z.string().uuid().describe('Stable public page identifier.'),
     spaceSlug: z.string().describe('Slug of the wiki space the page belongs to.'),
     path: PublicPagePath,
+    slug: z.string().describe("Canonical public address (035) — the effective slug this page resolves at. For a translation, this is its source page's slug."),
     locale: z.string().describe('Locale of the page content (e.g. "en", "zh").'),
     title: z.string().describe('Human-readable page title.'),
     canonicalUrl: z.string().optional().describe('Configured public reader URL for this page.'),
@@ -1192,13 +1193,16 @@ export const PublicPagePropertiesInput = z
   .object({
     path: PublicPagePath.optional(),
     title: z.string().min(1).max(200).optional().describe('New page title.'),
+    slug: PublicPagePath.optional().describe(
+      'New canonical public address. Distinct from `path`: changing it never moves the page in the tree, only where it is publicly reachable. A published page\'s former address is retained as a redirect.',
+    ),
     baseRevisionId: z
       .string()
       .uuid()
       .optional()
       .describe('Expected current revision id, used for optimistic concurrency control.'),
   })
-  .describe('Update page properties. Provide at least one of path or title.');
+  .describe('Update page properties. Provide at least one of path, title, or slug.');
 
 export const PublicRevisionListQuery = z
   .object({
@@ -1579,6 +1583,7 @@ export const PublicPageTreeNode: z.ZodType<{
   segment: string;
   title: string | null;
   pageId: string | null;
+  slug: string | null;
   status: 'draft' | 'published' | 'deleted' | null;
   children: unknown[];
 }> = z
@@ -1587,6 +1592,7 @@ export const PublicPageTreeNode: z.ZodType<{
     segment: z.string().describe('Last slash-separated segment of the path.'),
     title: z.string().nullable().describe('Page title when a page exists at this path, otherwise null.'),
     pageId: z.string().uuid().nullable().describe('Page id when a page exists at this path, otherwise null.'),
+    slug: z.string().nullable().describe('Canonical public address (035) when a page exists at this path, otherwise null.'),
     status: z.enum(['draft', 'published', 'deleted']).nullable().describe('Page status when a page exists, otherwise null.'),
     children: z.array(z.lazy(() => PublicPageTreeNode)).describe('Child nodes ordered by path segment.'),
   })
@@ -1711,6 +1717,7 @@ export const PublicBacklink = z
   .object({
     pageId: z.string().uuid().describe('Identifier of the page containing the link.'),
     path: PublicPagePath.describe('Canonical path of the page containing the link.'),
+    slug: z.string().describe('Canonical public address (035) of the page containing the link.'),
     title: z.string().describe('Title of the page containing the link.'),
     linkText: z.string().describe('Link text used in the Markdown link.'),
   })

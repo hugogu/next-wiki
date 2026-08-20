@@ -38,13 +38,18 @@ async function makePage(options: {
   published?: boolean;
   deleted?: boolean;
   translationGroupId?: string | null;
+  /** 035: set together with translationGroupId on a real translation row
+   * (015 invariant) — a translation owns no independent slug. */
+  sourcePageId?: string | null;
   body?: string;
 }): Promise<string> {
   const [page] = await db
     .insert(schema.pages)
     .values({
       spaceId: options.spaceId,
-      slug: options.path.split('/').pop()!,
+      // 035: default slug is the full tree path (FR-004); a translation row
+      // owns no independent slug and is always ''.
+      slug: options.sourcePageId ? '' : options.path,
       path: options.path,
       locale: options.locale ?? 'en',
       title: options.title ?? options.path,
@@ -53,6 +58,7 @@ async function makePage(options: {
       kind: options.kind ?? 'native',
       linkTargetPageId: options.linkTargetPageId,
       translationGroupId: options.translationGroupId ?? null,
+      sourcePageId: options.sourcePageId ?? null,
       deletedAt: options.deleted ? new Date() : null,
     })
     .returning();
@@ -219,8 +225,12 @@ describe('buildPublishableSet', () => {
   it('groups translations so the language switcher only offers what exists', async () => {
     const space = await makeSpace('wiki-open', 'wiki', true);
     const group = randomUUID();
-    await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup', locale: 'en', translationGroupId: group });
-    await makePage({ spaceId: space, path: 'guides/setup', title: '安装', locale: 'zh', translationGroupId: group });
+    // 015/035 invariant: the source row owns translationGroupId=null,
+    // sourcePageId=null; a translation row sets both, pointing back at the
+    // source, and owns no independent slug of its own.
+    const sourceId = await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup', locale: 'en' });
+    await db.update(schema.pages).set({ translationGroupId: group }).where(eq(schema.pages.id, sourceId));
+    await makePage({ spaceId: space, path: 'guides/setup', title: '安装', locale: 'zh', translationGroupId: group, sourcePageId: sourceId });
 
     const set = await buildPublishableSet();
     expect(set.translationGroups.get(group)?.get('en')).toBe('guides/setup');

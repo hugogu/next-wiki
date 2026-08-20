@@ -30,6 +30,11 @@ export type PublishablePage = {
   id: string;
   spaceId: string;
   path: string;
+  // 035: canonical public address this page is published at — its own slug
+  // for an original page, or its source page's slug for a translation (a
+  // translation owns no independent slug). `path` remains the tree-structure
+  // key (nav nesting, breadcrumb ancestry); `slug` is the actual href.
+  slug: string;
   locale: string;
   title: string;
   translationGroupId: string | null;
@@ -41,9 +46,13 @@ export type PublishablePage = {
 
 export type PublishableSet = {
   pages: PublishablePage[];
-  /** `${locale}:${path}` → page id, for resolving internal links. */
+  /** `${locale}:${path}` → page id, for resolving internal (author-written,
+   * tree-path-shaped) Markdown links against the publishable set. */
   pageIdsByAddress: Map<string, string>;
-  /** translation group id → locale → path, for the language switcher. */
+  /** `${locale}:${path}` → the target's canonical slug, for rewriting a
+   * resolved internal link to its actual public address (035). */
+  slugByAddress: Map<string, string>;
+  /** translation group id → locale → slug (035), for the language switcher. */
   translationGroups: Map<string, Map<string, string>>;
   /** Assets referenced by the published revisions of publishable pages only. */
   assetIds: Set<string>;
@@ -106,6 +115,8 @@ export async function buildPublishableSet(defaultLocale = 'en'): Promise<Publish
       id: schema.pages.id,
       spaceId: schema.pages.spaceId,
       path: schema.pages.path,
+      slug: schema.pages.slug,
+      sourcePageId: schema.pages.sourcePageId,
       locale: schema.pages.locale,
       title: schema.pages.title,
       translationGroupId: schema.pages.translationGroupId,
@@ -133,18 +144,38 @@ export async function buildPublishableSet(defaultLocale = 'en'): Promise<Publish
     )
     .orderBy(schema.pages.path);
 
-  const pages: PublishablePage[] = rows.map((row) => ({
+  // 035: a translation row owns no independent slug (always ''); its
+  // canonical address is its source page's slug. Batched once rather than
+  // per row.
+  const sourcePageIds = [...new Set(rows.map((r) => r.sourcePageId).filter((id): id is string => id !== null))];
+  const sourceSlugById = new Map<string, string>();
+  if (sourcePageIds.length) {
+    const sourceRows = await db
+      .select({ id: schema.pages.id, slug: schema.pages.slug })
+      .from(schema.pages)
+      .where(inArray(schema.pages.id, sourcePageIds));
+    for (const row of sourceRows) sourceSlugById.set(row.id, row.slug);
+  }
+
+  const pages: PublishablePage[] = rows.map(({ sourcePageId, ...row }) => ({
     ...row,
+    slug: sourcePageId ? (sourceSlugById.get(sourcePageId) ?? row.slug) : row.slug,
     contentSource: row.contentSource ?? '',
   }));
 
   const pageIdsByAddress = new Map<string, string>();
+  const slugByAddress = new Map<string, string>();
   const translationGroups = new Map<string, Map<string, string>>();
   for (const page of pages) {
-    pageIdsByAddress.set(addressKey(page.locale, page.path), page.id);
+    const key = addressKey(page.locale, page.path);
+    pageIdsByAddress.set(key, page.id);
+    slugByAddress.set(key, page.slug);
     if (page.translationGroupId) {
+      // 035: `page.slug` is already the effective (source) slug for every
+      // row in a translation group, so every locale entry resolves to the
+      // same address — only the locale prefix varies.
       const group = translationGroups.get(page.translationGroupId) ?? new Map<string, string>();
-      group.set(page.locale, page.path);
+      group.set(page.locale, page.slug);
       translationGroups.set(page.translationGroupId, group);
     }
   }
@@ -172,6 +203,7 @@ export async function buildPublishableSet(defaultLocale = 'en'): Promise<Publish
   return {
     pages,
     pageIdsByAddress,
+    slugByAddress,
     translationGroups,
     assetIds,
     exclusions: counts,

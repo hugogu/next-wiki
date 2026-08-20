@@ -13,7 +13,7 @@ import {
 } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { apiPost, type ApiError } from '@/lib/api/client';
-import { getPublicApiPagesUrl } from '@/lib/path';
+import { getPublicApiPagesUrl, getSpaceHref } from '@/lib/path';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { PagePropertiesFields } from '@/components/editor/PagePropertiesFields';
 import { Alert } from '@/components/ui/Alert';
@@ -99,6 +99,9 @@ export function NewPageDialog({
           path={path}
           onPathChange={(v) => setValue('path', v, { shouldValidate: true })}
           pathError={errors.path?.message}
+          // 035 (FR-004): the default slug equals the full tree path at
+          // creation time, so the address preview is simply this path.
+          addressPreview={path ? getSpaceHref(space, path) : undefined}
         />
         {isRaw && (
           <>

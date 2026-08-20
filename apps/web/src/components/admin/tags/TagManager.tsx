@@ -378,7 +378,7 @@ export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?
                       <li key={page.id} className="flex items-center gap-md px-md py-sm hover:bg-surface-elevated/50">
                         <div className="min-w-0 flex-1">
                           <Link
-                            href={getPageHref(page.path)}
+                            href={page.canonicalUrl ?? getPageHref(page.slug)}
                             className="block truncate rounded-sm text-sm font-medium text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
                           >
                             {page.title}

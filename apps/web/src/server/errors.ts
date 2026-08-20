@@ -121,7 +121,15 @@ export type DomainErrorCode =
   | 'SKILL_FILE_CONFLICT'
   | 'SKILL_FILE_NOT_VIEWABLE'
   | 'SKILL_FILE_TOO_LARGE'
-  | 'SKILL_DISABLED';
+  | 'SKILL_DISABLED'
+  // Page slug routing (035).
+  | 'PAGE_SLUG_INVALID' // 400: fails pageAddressSchema — empty, too long, malformed, uppercase, non-ASCII
+  | 'PAGE_SLUG_RESERVED' // 409: leading segment is a built-in route, locale, or static-site prefix
+  | 'PAGE_SLUG_TAKEN' // 409: address is owned by another page's canonical slug (incl. soft-deleted)
+  | 'PAGE_ADDRESS_TAKEN' // 409: address is an existing alias of another page
+  | 'PAGE_ADDRESS_SELF' // 400: alias equals the page's own canonical slug
+  | 'ADDRESS_ALIAS_RETAINED' // 409: retained-alias removal attempted without confirmation
+  | 'PAGE_NOT_DELETED'; // 409: address release attempted on a live (non-deleted) page
 
 export class DomainError extends Error {
   constructor(

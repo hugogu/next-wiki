@@ -42,7 +42,9 @@ This is what makes SC-001 true by construction: every non-translation address
 that worked before the upgrade is now a canonical slug, while every translation
 continues to derive the same locale-prefixed address from its source slug.
 
-**Validation** (`slugSchema` in `packages/shared/src/pages.ts`): identical
+**Validation** (`pageAddressSchema` in `packages/shared/src/pages.ts` — the
+existing `slugSchema` export is unrelated single-segment raw-category
+vocabulary and is not reused here): identical
 character rules to the existing `pathSchema` — `^[a-z0-9][a-z0-9_-]*(/[a-z0-9][a-z0-9_-]*)*$`,
 1–200 characters, no leading/trailing/consecutive separators. Uppercase and
 non-ASCII are **rejected**, never transliterated (FR-006).
@@ -175,7 +177,7 @@ release addresses (space manage only)
 `assertAddressAvailable(tx, spaceId, address, selfPageId?)` is the single
 validation chokepoint (research R2). It rejects when the address:
 
-1. fails `slugSchema`;
+1. fails `pageAddressSchema`;
 2. has a reserved leading segment — built-in route, two-letter locale, or a
    static-site reserved prefix (research R5);
 3. equals a `pages.slug` in that space other than `selfPageId`'s, **including

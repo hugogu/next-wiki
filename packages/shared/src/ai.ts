@@ -542,6 +542,10 @@ export const aiCitationSchema = z.object({
   pageId: z.string().uuid(),
   title: z.string(),
   path: z.string(),
+  // 035: canonical public address (source page's slug for a translation
+  // citation). Optional so citations persisted before this field existed
+  // keep validating; link builders fall back to `path` on absence.
+  slug: z.string().optional(),
   locale: z.string(),
   revisionId: z.string().uuid(),
   revisionHash: z.string(),

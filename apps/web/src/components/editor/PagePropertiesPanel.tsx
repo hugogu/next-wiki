@@ -14,6 +14,9 @@ export function PagePropertiesPanel({
   onPathChange,
   pathError,
   pathReadOnly = false,
+  slug,
+  onSlugChange,
+  slugError,
   date,
   onDateChange,
   tags,
@@ -39,6 +42,11 @@ export function PagePropertiesPanel({
   onPathChange?: (value: string) => void;
   pathError?: string;
   pathReadOnly?: boolean;
+  /** 035: the page's canonical public address. Omitted for a new, unsaved
+   * page — the default slug is captured at creation, not edited here. */
+  slug?: string;
+  onSlugChange?: (value: string) => void;
+  slugError?: string;
   date?: string;
   onDateChange?: (value: string) => void;
   tags?: string;
@@ -70,6 +78,9 @@ export function PagePropertiesPanel({
           onPathChange={onPathChange}
           pathError={pathError}
           pathReadOnly={pathReadOnly}
+          slug={slug}
+          onSlugChange={onSlugChange}
+          slugError={slugError}
           date={date}
           onDateChange={onDateChange}
           tags={tags}

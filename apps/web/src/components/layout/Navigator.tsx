@@ -105,6 +105,7 @@ function withHasChildrenFlag(nodes: PublicPageTreeNode[]): LazyPublicPageTreeNod
     segment: node.segment,
     title: node.title,
     pageId: node.pageId,
+    slug: node.slug,
     status: node.status,
     hasChildren: node.children.length > 0,
     children: withHasChildrenFlag(node.children),
@@ -210,7 +211,7 @@ function TreeItem({
         )}
         {node.pageId ? (
           <Link
-            href={routePrefix ? getConfiguredSpaceHref(routePrefix, node.path) : getSpaceHref(space, node.path)}
+            href={routePrefix ? getConfiguredSpaceHref(routePrefix, node.slug ?? node.path) : getSpaceHref(space, node.slug ?? node.path)}
             onClick={onNavigate}
             className={`flex flex-1 min-w-0 items-center gap-xs rounded-md px-sm py-1 text-sm transition-colors ${
               active

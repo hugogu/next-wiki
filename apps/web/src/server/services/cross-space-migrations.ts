@@ -273,15 +273,32 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
         await addReplicationTasks(tx, 'markdown', replacementId, hash);
       }
     }
-    await tx.insert(schema.pageRouteRedirects).values({ legacyRoute: canonicalSpacePath(source, page.path, page.locale), targetPageId: page.id, reason: 'cross_space_migration' }).onConflictDoUpdate({ target: schema.pageRouteRedirects.legacyRoute, set: { targetPageId: page.id, reason: 'cross_space_migration' } });
-    await tx.update(schema.pages).set({ spaceId: destination.id, path: item.destinationPath, slug: item.destinationPath.split('/').at(-1)!, nature: destination.kind === 'generated' ? 'generated' : page.nature, visibility: row.visibility ?? page.visibility, latestVersionId: replacementId ?? page.latestVersionId, currentPublishedVersionId: replacementId && primaryId === page.currentPublishedVersionId ? replacementId : page.currentPublishedVersionId, updatedAt: new Date() }).where(eq(schema.pages.id, page.id));
+    // 035 (FR-010): a cross-space move MUST NOT change the page's canonical
+    // address — `slug` is deliberately left untouched. The address a reader
+    // could reach this page at before the move (its slug, or for a
+    // translation, `{locale}/{source slug}`) is retained against the
+    // *source* space, since `page_addresses` is space-scoped and the page
+    // has just left it.
+    let legacyAddress = page.slug;
+    if (page.sourcePageId) {
+      const sourcePage = await tx.query.pages.findFirst({ where: eq(schema.pages.id, page.sourcePageId) });
+      legacyAddress = `${page.locale}/${sourcePage?.slug ?? page.slug}`;
+    }
+    await tx
+      .insert(schema.pageAddresses)
+      .values({ spaceId: source.id, address: legacyAddress, pageId: page.id, kind: 'retained', reason: 'cross_space_migration' })
+      .onConflictDoUpdate({
+        target: [schema.pageAddresses.spaceId, schema.pageAddresses.address],
+        set: { pageId: page.id, reason: 'cross_space_migration' },
+      });
+    await tx.update(schema.pages).set({ spaceId: destination.id, path: item.destinationPath, nature: destination.kind === 'generated' ? 'generated' : page.nature, visibility: row.visibility ?? page.visibility, latestVersionId: replacementId ?? page.latestVersionId, currentPublishedVersionId: replacementId && primaryId === page.currentPublishedVersionId ? replacementId : page.currentPublishedVersionId, updatedAt: new Date() }).where(eq(schema.pages.id, page.id));
     await tx.update(schema.crossSpaceMigrationItems).set({ status: 'moved', completedAt: new Date(), updatedAt: new Date() }).where(eq(schema.crossSpaceMigrationItems.id, item.id));
-    return { pageId: page.id, destination, path: item.destinationPath, locale: page.locale, published: page.currentPublishedVersionId !== null };
+    return { pageId: page.id, destination, path: item.destinationPath, slug: page.slug, locale: page.locale, published: page.currentPublishedVersionId !== null };
   });
   invalidatePublicContentCache();
   await reconcilePageAcrossIndexes(effect.pageId, { actor: { kind: 'user', userId: row.requestedBy, role: 'admin' } });
   await notifyPublicContentChanged('publish');
-  if (effect.published) await enqueuePublicPageWarmup(canonicalSpacePath(effect.destination, effect.path, effect.locale));
+  if (effect.published) await enqueuePublicPageWarmup(canonicalSpacePath(effect.destination, effect.slug, effect.locale));
 }
 
 async function finalizeMigration(id: string): Promise<void> {

@@ -142,8 +142,10 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   // failure rather than a silent takedown.
   if (set.pages.length === 0) throw new EmptySnapshotError();
 
+  // 035: conflicts are checked over the published address space (slug),
+  // not the organizational tree path.
   const conflicts = findPathConflicts(
-    set.pages.map((page) => ({ path: page.path, locale: page.locale })),
+    set.pages.map((page) => ({ path: page.slug, locale: page.locale })),
     set.defaultLocale,
   );
   if (conflicts.length > 0) throw new PathConflictError(conflicts.map(describeConflict));
@@ -184,7 +186,7 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
     const bodyHtml = markNonIndexableContent(withAssets);
     for (const id of unresolved) unresolvedAssets.add(id);
 
-    const address = pageAddress(baseUrl, page.path, page.locale, set.defaultLocale);
+    const address = pageAddress(baseUrl, page.slug, page.locale, set.defaultLocale);
     const document = renderDocument({
       title: page.title,
       bodyHtml,

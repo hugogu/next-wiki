@@ -198,6 +198,7 @@ async function minimalDeletedPageResource(space: { slug: string }, page: PageRow
     id: page.id,
     spaceSlug: space.slug,
     path: page.path,
+    slug: page.slug,
     locale: page.locale,
     title: page.title,
     origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
@@ -318,11 +319,20 @@ async function visiblePageResource(
   const content = contentRow ?? '';
   const { frontmatter } = parsePageFrontmatter(content ?? '');
   const metadata = await getRevisionMetadata(current.id);
+  // 035: a translation row owns no independent slug (always ''); its
+  // canonical address is composed from its *source* page's slug instead.
+  const effectiveSlug = page.sourcePageId
+    ? ((await db.query.pages.findFirst({
+        where: eq(schema.pages.id, page.sourcePageId),
+        columns: { slug: true },
+      }))?.slug ?? '')
+    : page.slug;
 
   return {
     id: page.id,
     spaceSlug: space.slug,
     path: page.path,
+    slug: effectiveSlug,
     locale: page.locale,
     title: page.title,
     // A locale segment only routes for a genuine translation row
@@ -330,7 +340,7 @@ async function visiblePageResource(
     // `locale` just records the language it's written in and is always
     // served at the bare path; passing it unconditionally produced a
     // canonicalUrl that 404s for any non-English original page.
-    canonicalUrl: canonicalSpacePath(space, page.path, page.sourcePageId ? page.locale : null),
+    canonicalUrl: canonicalSpacePath(space, effectiveSlug, page.sourcePageId ? page.locale : null),
     origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     humanModified: humanRevision !== undefined,
     visibility: canViewProvenance ? page.visibility : undefined,
@@ -847,9 +857,10 @@ export async function updateProperties(
         title: input.title,
       })
     : null;
-  const updated = input.path
+  const updated = (input.path || input.slug)
     ? await pageService.updateProperties(ctx, metadataUpdated?.path ?? page.path, {
         path: input.path,
+        slug: input.slug,
         baseRevisionId: metadataUpdated?.latestRevision?.id ?? input.baseRevisionId,
       }, space.slug)
     : { pageId, newPath: metadataUpdated?.path ?? page.path };
@@ -1412,6 +1423,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
     .select({
       id: schema.pages.id,
       path: schema.pages.path,
+      slug: schema.pages.slug,
       title: schema.pages.title,
       authorId: schema.pages.authorId,
       visibility: schema.pages.visibility,
@@ -1427,6 +1439,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
   type Row = {
     id: string;
     path: string;
+    slug: string;
     title: string;
     status: 'draft' | 'published';
   };
@@ -1445,6 +1458,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
     visible.push({
       id: row.id,
       path: row.path,
+      slug: row.slug,
       title: row.title,
       status,
     });
@@ -1454,20 +1468,20 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
 }
 
 const readCachedPublishedPageTree = unstable_cache(
-  async () => getPageTree(buildAnonymousCtx(), { status: 'published' }),
+  async (space?: string) => getPageTree(buildAnonymousCtx(), { status: 'published', ...(space ? { space } : {}) }),
   ['published-page-tree'],
   { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
 );
 
 /** Cached tree for the public app shell; authenticated draft visibility is not included. */
-export async function getCachedPublishedPageTree(): Promise<PublicPageTreeResponse> {
+export async function getCachedPublishedPageTree(space?: string): Promise<PublicPageTreeResponse> {
   return shouldUseDataCache()
-    ? readCachedPublishedPageTree()
-    : getPageTree(buildAnonymousCtx(), { status: 'published' });
+    ? readCachedPublishedPageTree(space)
+    : getPageTree(buildAnonymousCtx(), { status: 'published', ...(space ? { space } : {}) });
 }
 
 function emptyNode(path: string): PublicPageTreeNode {
-  return { path, segment: lastSegment(path), title: null, pageId: null, status: null, children: [] };
+  return { path, segment: lastSegment(path), title: null, pageId: null, slug: null, status: null, children: [] };
 }
 
 function lastSegment(path: string): string {
@@ -1478,11 +1492,12 @@ function lastSegment(path: string): string {
 function buildTree(pages: {
   id: string;
   path: string;
+  slug: string;
   title: string;
   status: 'draft' | 'published';
 }[], pathPrefix?: string): PublicPageTreeNode {
   const prefix = pathPrefix ?? '';
-  const root: PublicPageTreeNode = { path: prefix, segment: lastSegment(prefix), title: null, pageId: null, status: null, children: [] };
+  const root: PublicPageTreeNode = { path: prefix, segment: lastSegment(prefix), title: null, pageId: null, slug: null, status: null, children: [] };
 
   for (const page of pages) {
     const full = page.path;
@@ -1497,12 +1512,13 @@ function buildTree(pages: {
       const isLeaf = i === segments.length - 1;
       let child: PublicPageTreeNode | undefined = current.children.find((c) => c.segment === segment);
       if (!child) {
-        child = { path: accumulated, segment, title: null, pageId: null, status: null, children: [] };
+        child = { path: accumulated, segment, title: null, pageId: null, slug: null, status: null, children: [] };
         current.children.push(child);
       }
       if (isLeaf) {
         child.title = page.title;
         child.pageId = page.id;
+        child.slug = page.slug;
         child.status = page.status;
       }
       current = child;
@@ -1566,6 +1582,7 @@ const MARKDOWN_LINK_RE = /\[([^\]]*)\]\(([^)]+)\)/g;
 export type PublicBacklink = {
   pageId: string;
   path: string;
+  slug: string;
   title: string;
   linkText: string;
 };
@@ -1594,6 +1611,7 @@ export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ item
     .select({
       id: schema.pages.id,
       path: schema.pages.path,
+      slug: schema.pages.slug,
       title: schema.pages.title,
       authorId: schema.pages.authorId,
     })
@@ -1624,7 +1642,7 @@ export async function getBacklinks(ctx: PermCtx, pageId: string): Promise<{ item
       }
     }
     if (matched) {
-      items.push({ pageId: row.id, path: row.path, title: row.title, linkText });
+      items.push({ pageId: row.id, path: row.path, slug: row.slug, title: row.title, linkText });
     }
   }
   return { items };
@@ -1881,10 +1899,6 @@ export async function batchCreatePages(
 // 010: AI Curation API — bulk write operations
 // ---------------------------------------------------------------------------
 
-function leafSlugFromPath(path: string): string {
-  return path.split('/').pop() ?? path;
-}
-
 function toItemError(error: unknown): { code: string; message: string } {
   if (error instanceof DomainError) {
     return { code: mapPublicDomainErrorCode(error.code).code, message: error.message };
@@ -1995,11 +2009,11 @@ async function batchUpdateOneItem(
     });
     await syncRevisionAssetRefs(tx, revision.id, nextContent);
     await addReplicationTasks(tx, 'markdown', revision.id, hash);
+    // 035 (FR-002): a path change MUST NOT touch the canonical address.
     await tx
       .update(schema.pages)
       .set({
         path: nextPath,
-        slug: leafSlugFromPath(nextPath),
         title: nextMetadata.title,
         latestVersionId: revision.id,
         updatedAt: new Date(),

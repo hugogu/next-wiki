@@ -65,7 +65,9 @@ export function buildNavTree(set: PublishableSet, baseUrl: string, locale: strin
   };
 
   for (const page of [...pages].sort((a, b) => a.path.localeCompare(b.path))) {
-    const { href } = pageAddress(baseUrl, page.path, page.locale, set.defaultLocale);
+    // 035: the tree is still built from `path` (organizational structure);
+    // only the leaf's href is the page's canonical `slug`-based address.
+    const { href } = pageAddress(baseUrl, page.slug, page.locale, set.defaultLocale);
     ensureNode(page.path, page.title, href);
   }
 
@@ -102,7 +104,7 @@ export function buildBreadcrumbs(
       title: ancestor?.title ?? segments[i]!,
       href:
         ancestor && !isSelf
-          ? pageAddress(baseUrl, ancestor.path, ancestor.locale, set.defaultLocale).href
+          ? pageAddress(baseUrl, ancestor.slug, ancestor.locale, set.defaultLocale).href
           : null,
     });
   }
@@ -139,11 +141,12 @@ export function buildLanguageOptions(
   return locales
     .filter((locale) => locale !== page.locale)
     .map((locale) => {
-      const translatedPath = group?.get(locale);
-      return translatedPath !== undefined
+      // 035: group values are the (shared, source) slug, not a tree path.
+      const translatedSlug = group?.get(locale);
+      return translatedSlug !== undefined
         ? {
             locale,
-            href: pageAddress(baseUrl, translatedPath, locale, set.defaultLocale).href,
+            href: pageAddress(baseUrl, translatedSlug, locale, set.defaultLocale).href,
             available: true,
           }
         : { locale, href: localeHomeHref(baseUrl, locale, set.defaultLocale), available: false };
@@ -169,7 +172,7 @@ export function buildSitemap(set: PublishableSet, baseUrl: string): string {
   const origin = new URL(baseUrl).origin;
   const entries = set.pages
     .map((page) => {
-      const { href } = pageAddress(baseUrl, page.path, page.locale, set.defaultLocale);
+      const { href } = pageAddress(baseUrl, page.slug, page.locale, set.defaultLocale);
       const lastmod = page.publishedAt ? page.publishedAt.toISOString() : null;
       return [
         '  <url>',

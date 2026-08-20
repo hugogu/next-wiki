@@ -1,0 +1,1 @@
+DROP TABLE "page_route_redirects" CASCADE;

@@ -305,10 +305,12 @@
       "metadataTitle": "编辑 {path}",
       "defaultTitle": "未命名",
       "validation": {
-        "invalidPath": "路径无效"
+        "invalidPath": "路径无效",
+        "invalidSlug": "地址无效"
       },
       "error": {
         "invalidPath": "新路径无效。",
+        "invalidSlug": "新地址无效。",
         "pathExists": "该路径的页面已存在。",
         "pathReserved": "该路径已被系统功能占用，请选择其他路径。",
         "stale": "该页面已在其他位置更新，请重新打开后再试。",
@@ -328,6 +330,9 @@
       "error": {
         "pathExists": "该路径的页面已存在。",
         "pathReserved": "该路径已被系统功能占用，请选择其他路径。",
+        "slugTaken": "该地址已被其他页面占用。",
+        "slugReserved": "该地址已被系统功能占用，请选择其他地址。",
+        "slugInvalid": "该地址无效。",
         "forbidden": "你没有权限编辑页面属性。",
         "generic": "更新属性失败。"
       }
@@ -538,7 +543,11 @@
         "frontmatterHint": "关闭时，标题、日期、标签和摘要仅保存在 Wiki 数据库中，不改写 Markdown 原文。",
         "pathLabel": "路径",
         "pathPlaceholder": "path/to/page",
-        "pathHint": "使用斜杠创建目录，例如 {example}。"
+        "pathHint": "使用斜杠创建目录，例如 {example}。",
+        "addressPreview": "该页面发布后的访问地址为 {address}。",
+        "slugLabel": "访问地址",
+        "slugPlaceholder": "docs/getting-started",
+        "slugHint": "读者访问该页面所使用的公开地址。修改后，旧地址仍会作为跳转继续生效。"
       }
     },
     "preview": {

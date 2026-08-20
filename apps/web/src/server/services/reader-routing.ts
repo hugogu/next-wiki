@@ -5,7 +5,8 @@ import type { ServerTranslate } from '@/i18n/server';
 import { buildPageDescription } from '@/lib/seo';
 import * as pageService from '@/server/services/pages';
 import { findRetiredLinkTarget } from '@/server/services/link-pages';
-import { canonicalSpacePath, findPageRouteRedirectTarget, resolveSpacePrefix } from '@/server/services/space-routes';
+import { canonicalSpacePath, resolveSpacePrefix } from '@/server/services/space-routes';
+import { resolveAddressTarget } from '@/server/services/page-addresses';
 import { resolveSpace, type SpaceRow } from '@/server/services/spaces';
 
 const LOCALE_PREFIX_RE = /^[a-z]{2}$/;
@@ -35,32 +36,59 @@ export async function resolveReaderPage(ctx: PermCtx, rawSegments: string[]): Pr
 
   if (resolvedRoute.segments.length >= 2 && LOCALE_PREFIX_RE.test(resolvedRoute.segments[0]!)) {
     const locale = resolvedRoute.segments[0]!;
-    const sourcePath = resolvedRoute.segments.slice(1).join('/');
+    const sourceSlug = resolvedRoute.segments.slice(1).join('/');
     const result = isAnonymous
-      ? await pageService.getCachedPublicLiveTranslation(locale, sourcePath, space.slug)
-      : await pageService.getLiveTranslation(ctx, locale, sourcePath, space.slug);
-    if (result.kind === 'page') return { kind: 'translation', page: result.page, locale, sourcePath, space, legacy };
+      ? await pageService.getCachedPublicLiveTranslationBySlug(locale, sourceSlug, space.slug)
+      : await pageService.getLiveTranslationBySlug(ctx, locale, sourceSlug, space.slug);
+    if (result.kind === 'page') return { kind: 'translation', page: result.page, locale, sourcePath: sourceSlug, space, legacy };
     if (result.kind === 'unavailable') return { kind: 'unavailable', locale, sourcePath: result.sourcePath, space, legacy };
     if (result.kind === 'forbidden') return { kind: 'forbidden', visibility: result.visibility, legacy };
   }
 
+  // 035 (steps 2-3): a live page's current slug always wins over a stale
+  // alias — this must run before the step-4 alias lookup below.
   const original = isAnonymous
-    ? await pageService.getCachedPublicLivePage(fullPath, space.slug)
-    : await pageService.getLive(ctx, fullPath, space.slug);
+    ? await pageService.getCachedPublicLiveBySlug(fullPath, space.slug)
+    : await pageService.getLiveBySlug(ctx, fullPath, space.slug);
   if (original) return { kind: 'original', page: original, sourcePath: fullPath, space, legacy };
 
-  const access = await pageService.getReaderAccessStatus(ctx, fullPath, space.slug);
+  const access = await pageService.getReaderAccessStatusBySlug(ctx, fullPath, space.slug);
   if (access) return { ...access, legacy };
 
-  const movedTarget = await findPageRouteRedirectTarget(`/${segments.join('/')}`);
-  const retiredTarget = movedTarget ?? await findRetiredLinkTarget(fullPath);
+  // 035 (step 4, US2): a retained or manual address. Resolve it to the
+  // *current* canonical slug (never the alias itself, so a rename chain
+  // never forms — research R6) and re-run the ordinary original/translation
+  // lookup, so read permission is re-checked on the final target exactly as
+  // it would be for a direct hit (FR-009).
+  const aliasTarget = await resolveAddressTarget(space.id, fullPath);
+  if (aliasTarget?.locale) {
+    const result = isAnonymous
+      ? await pageService.getCachedPublicLiveTranslationBySlug(aliasTarget.locale, aliasTarget.slug, space.slug)
+      : await pageService.getLiveTranslationBySlug(ctx, aliasTarget.locale, aliasTarget.slug, space.slug);
+    if (result.kind === 'page') {
+      return { kind: 'translation', page: result.page, locale: aliasTarget.locale, sourcePath: aliasTarget.slug, space, legacy: true };
+    }
+    if (result.kind === 'unavailable') {
+      return { kind: 'unavailable', locale: aliasTarget.locale, sourcePath: result.sourcePath, space, legacy: true };
+    }
+    if (result.kind === 'forbidden') return { kind: 'forbidden', visibility: result.visibility, legacy: true };
+  } else if (aliasTarget) {
+    const target = isAnonymous
+      ? await pageService.getCachedPublicLiveBySlug(aliasTarget.slug, space.slug)
+      : await pageService.getLiveBySlug(ctx, aliasTarget.slug, space.slug);
+    if (target) return { kind: 'original', page: target, sourcePath: aliasTarget.slug, space, legacy: true };
+    const targetAccess = await pageService.getReaderAccessStatusBySlug(ctx, aliasTarget.slug, space.slug);
+    if (targetAccess) return { ...targetAccess, legacy: true };
+  }
+
+  const retiredTarget = await findRetiredLinkTarget(fullPath);
   if (!retiredTarget) return { kind: 'not_found' };
   const targetSpace = await resolveSpace(retiredTarget.spaceSlug);
   const target = targetSpace && (isAnonymous
     ? await pageService.getCachedPublicLivePage(retiredTarget.path, targetSpace.slug)
     : await pageService.getLive(ctx, retiredTarget.path, targetSpace.slug));
   return target && targetSpace
-    ? { kind: 'original', page: target, sourcePath: retiredTarget.path, space: targetSpace, legacy: true }
+    ? { kind: 'original', page: target, sourcePath: target.slug, space: targetSpace, legacy: true }
     : { kind: 'not_found' };
 }
 

@@ -109,6 +109,19 @@ export async function projectReadableCandidatePages(
       inArray(schema.pages.id, ids),
     ));
 
+  // 035: a translation row owns no independent slug (always ''); its
+  // canonical address is composed from its *source* page's slug. Batched
+  // once for every translation candidate rather than per row.
+  const sourcePageIds = [...new Set(rows.map((r) => r.page.sourcePageId).filter((id): id is string => id !== null))];
+  const sourceSlugById = new Map<string, string>();
+  if (sourcePageIds.length) {
+    const sourceRows = await db
+      .select({ id: schema.pages.id, slug: schema.pages.slug })
+      .from(schema.pages)
+      .where(inArray(schema.pages.id, sourcePageIds));
+    for (const row of sourceRows) sourceSlugById.set(row.id, row.slug);
+  }
+
   for (const row of rows) {
     const space = spaceById.get(row.page.spaceId);
     if (!space) continue;
@@ -129,6 +142,9 @@ export async function projectReadableCandidatePages(
       const parsed = rawConversationSourceMetadataSchema.safeParse(row.sourceMetadata);
       conversationChannel = parsed.success ? (parsed.data.channel ?? 'wiki-ai') : null;
     }
+    const effectiveSlug = row.page.sourcePageId
+      ? (sourceSlugById.get(row.page.sourcePageId) ?? '')
+      : row.page.slug;
     result.set(row.page.id, {
       contentSource: row.contentSource,
       revisionId: row.revisionId,
@@ -137,6 +153,7 @@ export async function projectReadableCandidatePages(
         id: row.page.id,
         spaceSlug: space.slug,
         path: row.page.path,
+        slug: effectiveSlug,
         locale: row.page.locale,
         title: row.page.title,
         // A locale segment only routes for genuine translation rows
@@ -146,7 +163,7 @@ export async function projectReadableCandidatePages(
         // column just records what language it happens to be written in —
         // e.g. every Wiki.js-imported zh page — and is always served at the
         // bare, unprefixed path; passing it here produced a 404ing link.
-        canonicalUrl: canonicalSpacePath(space, row.page.path, row.page.sourcePageId ? row.page.locale : null),
+        canonicalUrl: canonicalSpacePath(space, effectiveSlug, row.page.sourcePageId ? row.page.locale : null),
         frontmatter,
         metadata: row.page.currentPublishedVersionId ? await getRevisionMetadata(row.page.currentPublishedVersionId) : undefined,
         status: 'published',

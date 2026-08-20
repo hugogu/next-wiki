@@ -8,7 +8,8 @@ import { DomainError } from '@/server/errors';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
 import { assertPathNotReserved } from '@/server/routes/reserved-paths';
-import { pathSchema } from '@next-wiki/shared';
+import { assertAddressAvailable, setSlug } from '@/server/services/page-addresses';
+import { pathSchema, pageAddressSchema } from '@next-wiki/shared';
 import type {
   AdminPageListFilters,
   AdminPageListItem,
@@ -36,8 +37,8 @@ import { buildPageDescription } from '@/lib/seo';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
-import { getPageHref } from '@/lib/path';
-import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind } from '@/server/services/spaces';
+import { getPageHref, getTranslatedPageHref } from '@/lib/path';
+import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind, type SpaceRow } from '@/server/services/spaces';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 
@@ -62,10 +63,6 @@ function deriveNature(input: {
 }): 'original' | 'generated' {
   if (input.spaceKind === 'raw') return 'original';
   return input.explicit ?? (input.actorKind === 'machine' ? 'generated' : 'original');
-}
-
-function leafSlugFromPath(path: string): string {
-  return path.split('/').pop() ?? path;
 }
 
 function assertAdmin(ctx: PermCtx): void {
@@ -210,6 +207,7 @@ export async function listPublished(
     .select({
       pageId: schema.pages.id,
       path: schema.pages.path,
+      slug: schema.pages.slug,
       title: schema.pages.title,
       authorId: schema.pages.authorId,
       visibility: schema.pages.visibility,
@@ -259,6 +257,7 @@ export async function listPublished(
 
   return readableRows.map((r) => ({
       path: r.path,
+      slug: r.slug,
       title: r.title,
       authorDisplayName: r.authorDisplayName,
       publishedAt: r.publishedAt?.toISOString() ?? null,
@@ -376,6 +375,7 @@ export async function listAdminPages(
         .select({
           id: schema.pages.id,
           path: schema.pages.path,
+          slug: schema.pages.slug,
           title: schema.pages.title,
           currentPublishedVersionId: schema.pages.currentPublishedVersionId,
           latestVersionId: schema.pages.latestVersionId,
@@ -395,6 +395,7 @@ export async function listAdminPages(
         .groupBy(
           schema.pages.id,
           schema.pages.path,
+          schema.pages.slug,
           schema.pages.title,
           schema.pages.currentPublishedVersionId,
           schema.pages.latestVersionId,
@@ -410,6 +411,7 @@ export async function listAdminPages(
         .select({
           id: schema.pages.id,
           path: schema.pages.path,
+          slug: schema.pages.slug,
           title: schema.pages.title,
           currentPublishedVersionId: schema.pages.currentPublishedVersionId,
           latestVersionId: schema.pages.latestVersionId,
@@ -467,6 +469,7 @@ export async function listAdminPages(
     items: rows.map((row) => ({
       id: row.id,
       path: row.path,
+      slug: row.slug,
       title: row.title,
       status: !row.currentPublishedVersionId
         ? 'draft'
@@ -532,28 +535,12 @@ export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
   };
 }
 
-export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): Promise<LivePage | null> {
-  const space = await resolveSpace(spaceSlug);
-  if (!space) return null;
+type PageRow = typeof schema.pages.$inferSelect;
 
-  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
-    return null;
-  }
-
-  const page = await db.query.pages.findFirst({
-    where: and(
-      eq(schema.pages.spaceId, space.id),
-      eq(schema.pages.path, path),
-      isNull(schema.pages.deletedAt),
-      // The bare `/{path}` address always resolves the source/original page.
-      // Translated pages share the source path but are only reachable through
-      // their language-prefixed `/{locale}/{path}` address (015).
-      isNull(schema.pages.translationGroupId),
-    ),
-  });
-
-  if (!page) return null;
-
+/** Shared by every `getLive*` lookup once the candidate page row is in hand:
+ * permission checks, link-row exclusion, and published/draft LivePage
+ * assembly. Callers differ only in how they find `page` (by path or by slug). */
+async function livePageForRow(ctx: PermCtx, space: SpaceRow, page: PageRow): Promise<LivePage | null> {
   const userId = getUserId(ctx);
   const isAuthor = userId ? page.authorId === userId : false;
 
@@ -580,6 +567,7 @@ export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): P
       pageId: page.id,
       revisionId: revision.id,
       path: page.path,
+      slug: page.slug,
       title: page.title,
       contentHtml: revision.contentHtml,
       contentHash: revision.contentHash,
@@ -614,6 +602,7 @@ export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): P
     pageId: page.id,
     revisionId: draft.id,
     path: page.path,
+    slug: page.slug,
     title: page.title,
     contentHtml: draft.contentHtml,
     contentHash: draft.contentHash,
@@ -626,6 +615,58 @@ export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): P
     createdAt: page.createdAt.toISOString(),
     metadata,
   };
+}
+
+export async function getLive(ctx: PermCtx, path: string, spaceSlug?: string): Promise<LivePage | null> {
+  const space = await resolveSpace(spaceSlug);
+  if (!space) return null;
+
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
+    return null;
+  }
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, path),
+      isNull(schema.pages.deletedAt),
+      // The bare `/{path}` address always resolves the source/original page.
+      // Translated pages share the source path but are only reachable through
+      // their language-prefixed `/{locale}/{path}` address (015).
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!page) return null;
+  return livePageForRow(ctx, space, page);
+}
+
+/**
+ * 035: the reader route's canonical lookup — resolve a page by its public
+ * address (`pages.slug`) rather than its tree `path`. Internal editor/admin
+ * flows keep using `getLive` (by path); only the reader route resolves by
+ * slug, since the tree path stays the organizational key everywhere else.
+ */
+export async function getLiveBySlug(ctx: PermCtx, slug: string, spaceSlug?: string): Promise<LivePage | null> {
+  const space = await resolveSpace(spaceSlug);
+  if (!space) return null;
+
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
+    return null;
+  }
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.slug, slug),
+      isNull(schema.pages.deletedAt),
+      // Translation rows own no independent slug (always ''), so they can
+      // never match a non-empty candidate here regardless of this filter —
+      // kept for symmetry with getLive's identical exclusion.
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!page) return null;
+  return livePageForRow(ctx, space, page);
 }
 
 /**
@@ -738,6 +779,114 @@ export async function getLiveTranslation(
       // The reader address keeps the shared source path; the language prefix is
       // applied by the route/URL builder.
       path: source.path,
+      // 035: a translation row owns no independent slug (it is always '');
+      // the source's slug is the address the locale prefix composes onto.
+      slug: source.slug,
+      title: translation.title,
+      contentHtml: revision.contentHtml,
+      contentHash: revision.contentHash,
+      version: revision.versionNumber,
+      publishedAt: revision.publishedAt?.toISOString() ?? null,
+      authorDisplayName: author?.displayName ?? null,
+      authorId: translation.authorId,
+      visibility: translation.visibility,
+      status: 'published',
+      createdAt: translation.createdAt.toISOString(),
+      metadata,
+    },
+  };
+}
+
+/**
+ * 035: the reader route's canonical translation lookup — resolve the source
+ * page by its public address (`pages.slug`) rather than its tree `path`.
+ * Otherwise identical to `getLiveTranslation`, which stays path-based for its
+ * other caller (raw Markdown export, an internal/tree-addressed surface).
+ */
+export async function getLiveTranslationBySlug(
+  ctx: PermCtx,
+  locale: string,
+  sourceSlug: string,
+  spaceSlug?: string,
+): Promise<TranslationReadResult> {
+  const space = await resolveSpace(spaceSlug);
+  if (!space) return { kind: 'not_found' };
+
+  const language = await db.query.translationLanguages.findFirst({
+    where: eq(schema.translationLanguages.code, locale),
+  });
+  if (!language || !language.enabled || language.retiredAt) return { kind: 'not_found' };
+
+  if (!can(ctx, 'read', { kind: 'page_list' }, spacePermissionOptions(space))) {
+    return { kind: 'not_found' };
+  }
+
+  // Resolve the source/original page by its canonical address (source pages only).
+  const source = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.slug, sourceSlug),
+      isNull(schema.pages.deletedAt),
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!source || !source.currentPublishedVersionId) return { kind: 'not_found' };
+  const actorUserId = getUserId(ctx);
+  if (!can(
+    ctx,
+    'read',
+    { kind: 'page', pageId: source.id },
+    pagePermissionOptions(space, source, { isAuthor: actorUserId ? source.authorId === actorUserId : false }),
+  )) {
+    return { kind: 'forbidden', visibility: source.visibility };
+  }
+
+  const group = await db.query.translationGroups.findFirst({
+    where: eq(schema.translationGroups.sourcePageId, source.id),
+  });
+  if (!group) return { kind: 'unavailable', sourcePath: source.slug, freshness: null };
+
+  const translation = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.translationGroupId, group.id),
+      eq(schema.pages.locale, locale),
+      isNull(schema.pages.deletedAt),
+    ),
+  });
+  const state = await db.query.pageTranslationStates.findFirst({
+    where: and(
+      eq(schema.pageTranslationStates.sourcePageId, source.id),
+      eq(schema.pageTranslationStates.targetLocale, locale),
+    ),
+  });
+  if (!translation || !translation.currentPublishedVersionId) {
+    return { kind: 'unavailable', sourcePath: source.slug, freshness: state?.freshnessStatus ?? null };
+  }
+  if (!can(
+    ctx,
+    'read',
+    { kind: 'page', pageId: translation.id },
+    pagePermissionOptions(space, translation, { isAuthor: actorUserId ? translation.authorId === actorUserId : false }),
+  )) {
+    return { kind: 'forbidden', visibility: translation.visibility };
+  }
+
+  const revision = await db.query.pageRevisions.findFirst({
+    where: eq(schema.pageRevisions.id, translation.currentPublishedVersionId),
+  });
+  if (!revision) {
+    return { kind: 'unavailable', sourcePath: source.slug, freshness: state?.freshnessStatus ?? null };
+  }
+  const author = await db.query.users.findFirst({ where: eq(schema.users.id, translation.authorId) });
+  const metadata = await getRevisionMetadata(revision.id);
+
+  return {
+    kind: 'page',
+    page: {
+      pageId: translation.id,
+      revisionId: revision.id,
+      path: source.path,
+      slug: source.slug,
       title: translation.title,
       contentHtml: revision.contentHtml,
       contentHash: revision.contentHash,
@@ -777,10 +926,36 @@ export async function getReaderAccessStatus(
   return { kind: 'forbidden', visibility: page.visibility };
 }
 
+/** 035: `getReaderAccessStatus`'s reader-route counterpart, looked up by slug. */
+export async function getReaderAccessStatusBySlug(
+  ctx: PermCtx,
+  slug: string,
+  spaceSlug?: string,
+): Promise<{ kind: 'forbidden'; visibility: 'public' | 'registered' | 'restricted' } | null> {
+  const space = await resolveSpace(spaceSlug);
+  if (!space) return null;
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.slug, slug),
+      isNull(schema.pages.deletedAt),
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!page?.currentPublishedVersionId || page.kind === 'link') return null;
+  const actorUserId = getUserId(ctx);
+  if (can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: actorUserId === page.authorId }))) {
+    return null;
+  }
+  return { kind: 'forbidden', visibility: page.visibility };
+}
+
 /**
  * The enabled target-language codes that have a current published translation
- * for a source path, used to emit hreflang alternates. Returns [] when the path
- * is not a published source page.
+ * for a source page, used to emit hreflang alternates. Returns [] when the
+ * address is not a published source page. 035: looked up by canonical
+ * address (`sourcePath` now holds a slug) — its only two callers are both
+ * reader-route components.
  */
 export async function getPublishedTranslationLocales(sourcePath: string, spaceSlug?: string): Promise<string[]> {
   const space = await resolveSpace(spaceSlug);
@@ -788,7 +963,7 @@ export async function getPublishedTranslationLocales(sourcePath: string, spaceSl
   const source = await db.query.pages.findFirst({
     where: and(
       eq(schema.pages.spaceId, space.id),
-      eq(schema.pages.path, sourcePath),
+      eq(schema.pages.slug, sourcePath),
       isNull(schema.pages.deletedAt),
       isNull(schema.pages.translationGroupId),
     ),
@@ -817,7 +992,8 @@ export async function getPublishedTranslationLocales(sourcePath: string, spaceSl
   return rows.map((r) => r.locale);
 }
 
-/** Published translations visible to a specific actor, including registered-only pages. */
+/** Published translations visible to a specific actor, including
+ * registered-only pages. 035: looked up by canonical address. */
 export async function getReadablePublishedTranslationLocales(
   ctx: PermCtx,
   sourcePath: string,
@@ -828,7 +1004,7 @@ export async function getReadablePublishedTranslationLocales(
   const source = await db.query.pages.findFirst({
     where: and(
       eq(schema.pages.spaceId, space.id),
-      eq(schema.pages.path, sourcePath),
+      eq(schema.pages.slug, sourcePath),
       isNull(schema.pages.deletedAt),
       isNull(schema.pages.translationGroupId),
     ),
@@ -875,6 +1051,18 @@ const readCachedPublicLiveTranslation = unstable_cache(
   { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
 );
 
+const readCachedPublicLiveBySlug = unstable_cache(
+  async (slug: string, spaceSlug?: string) => getLiveBySlug(buildAnonymousCtx(), slug, spaceSlug),
+  ['public-live-page-by-slug'],
+  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
+);
+
+const readCachedPublicLiveTranslationBySlug = unstable_cache(
+  async (locale: string, sourceSlug: string, spaceSlug?: string) => getLiveTranslationBySlug(buildAnonymousCtx(), locale, sourceSlug, spaceSlug),
+  ['public-live-translation-by-slug'],
+  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
+);
+
 const getCachedTranslationLocales = unstable_cache(
   async (sourcePath: string, spaceSlug?: string) => getPublishedTranslationLocales(sourcePath, spaceSlug),
   ['published-translation-locales'],
@@ -897,6 +1085,24 @@ export async function getCachedPublicLiveTranslation(
   return shouldUseDataCache()
     ? readCachedPublicLiveTranslation(locale, path, spaceSlug)
     : getLiveTranslation(buildAnonymousCtx(), locale, path, spaceSlug);
+}
+
+/** 035: the reader route's canonical cached lookup — by public address. */
+export async function getCachedPublicLiveBySlug(slug: string, spaceSlug?: string): Promise<LivePage | null> {
+  return shouldUseDataCache()
+    ? readCachedPublicLiveBySlug(slug, spaceSlug)
+    : getLiveBySlug(buildAnonymousCtx(), slug, spaceSlug);
+}
+
+/** 035: the reader route's canonical cached translation lookup — by public address. */
+export async function getCachedPublicLiveTranslationBySlug(
+  locale: string,
+  sourceSlug: string,
+  spaceSlug?: string,
+): Promise<TranslationReadResult> {
+  return shouldUseDataCache()
+    ? readCachedPublicLiveTranslationBySlug(locale, sourceSlug, spaceSlug)
+    : getLiveTranslationBySlug(buildAnonymousCtx(), locale, sourceSlug, spaceSlug);
 }
 
 export async function getCachedPublishedTranslationLocales(sourcePath: string, spaceSlug?: string): Promise<string[]> {
@@ -1052,13 +1258,17 @@ export async function create(
       throw new DomainError('CONFLICT', 'A page with this path already exists');
     }
 
+    // 035 (FR-004): the default slug is the page's full tree path, captured
+    // once at creation — a later tree move does not re-derive it.
+    await assertAddressAvailable(tx, space.id, input.path);
+
     const { html, hash } = renderMarkdown(contentSource);
 
     const [page] = await tx
       .insert(schema.pages)
       .values({
         spaceId: space.id,
-        slug: leafSlugFromPath(input.path),
+        slug: input.path,
         path: input.path,
         title: sourceMetadata.title,
         authorId: userId,
@@ -1261,9 +1471,9 @@ export async function newDraft(
 export async function updateProperties(
   ctx: PermCtx,
   currentPath: string,
-  input: { path?: string; title?: string; baseRevisionId?: string },
+  input: { path?: string; title?: string; slug?: string; baseRevisionId?: string },
   spaceSlug?: string,
-): Promise<{ pageId: string; newPath: string }> {
+): Promise<{ pageId: string; newPath: string; slug: string; url: string; retainedAlias: string | null }> {
   const userId = getUserId(ctx);
   if (!userId) {
     throw new DomainError('UNAUTHORIZED', 'Sign in to edit page properties');
@@ -1274,8 +1484,8 @@ export async function updateProperties(
   await assertSpaceKindAllowed(space.kind);
   if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
 
-  if (!input.path && !input.title) {
-    throw new DomainError('BAD_REQUEST', 'Provide path or title');
+  if (!input.path && !input.title && !input.slug) {
+    throw new DomainError('BAD_REQUEST', 'Provide path, title, or slug');
   }
 
   if (input.path) {
@@ -1285,6 +1495,13 @@ export async function updateProperties(
     }
     assertPathNotReserved(input.path);
     if (space.kind === 'generated') ensureOkfConceptPath(pathCheck.data);
+  }
+
+  if (input.slug) {
+    const slugCheck = pageAddressSchema.safeParse(input.slug);
+    if (!slugCheck.success) {
+      throw new DomainError('PAGE_SLUG_INVALID', slugCheck.error.issues[0]?.message ?? 'Invalid page address');
+    }
   }
 
   const result = await db.transaction(async (tx) => {
@@ -1323,11 +1540,16 @@ export async function updateProperties(
       }
     }
 
+    // 035 (FR-002): a tree move (path change) MUST leave the canonical
+    // address (slug) untouched — moving a page in the tree changes where it
+    // lives, never where it is publicly reachable. A slug change is the
+    // opposite: it never touches `path`.
+    const slugResult = input.slug ? await setSlug(tx, space.id, page.id, input.slug) : null;
+
     await tx
       .update(schema.pages)
       .set({
         path: nextPath,
-        slug: leafSlugFromPath(nextPath),
         ...(input.title ? { title: input.title } : {}),
         updatedAt: new Date(),
       })
@@ -1336,14 +1558,31 @@ export async function updateProperties(
     return {
       pageId: page.id,
       newPath: nextPath,
+      slug: slugResult?.slug ?? page.slug,
+      previousSlug: slugResult ? page.slug : null,
+      retainedAlias: slugResult?.retainedAlias ?? null,
+      affectedTranslationLocales: slugResult?.affectedTranslationLocales ?? [],
       isPublished: page.currentPublishedVersionId !== null,
     };
   });
+  // Tag-wide invalidation: the page's own document, its slug-addressed URL is
+  // unchanged, but the tree/breadcrumb navigation embedded in every static
+  // shell must refresh to reflect the page's new tree position.
   invalidatePublicContentCache();
-  if (result.isPublished) await enqueuePublicPageWarmup(getPageHref(result.newPath));
-  if (result.newPath !== currentPath) await notifyPublicContentChanged('publish');
+  if (result.isPublished) {
+    await enqueuePublicPageWarmup(getPageHref(result.slug));
+    // The former address must warm too: it now serves a redirect, not the
+    // stale document, and ISR would otherwise keep serving the old page.
+    if (result.previousSlug) {
+      await enqueuePublicPageWarmup(getPageHref(result.previousSlug));
+      for (const locale of result.affectedTranslationLocales) {
+        await enqueuePublicPageWarmup(getTranslatedPageHref(locale, result.previousSlug));
+      }
+    }
+  }
+  if (result.newPath !== currentPath || result.previousSlug) await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
-  return result;
+  return { pageId: result.pageId, newPath: result.newPath, slug: result.slug, url: getPageHref(result.slug), retainedAlias: result.retainedAlias };
 }
 
 /**
@@ -1528,6 +1767,7 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
     pageId: page.id,
     revisionId: revision.id,
     path: page.path,
+    slug: page.slug,
     title: page.title,
     // Editing reads the authoritative source directly: blocking the page load
     // on a remote replica (e.g. S3) is not worth it for the small markdown body.

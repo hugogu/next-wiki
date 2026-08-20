@@ -5,6 +5,7 @@ import {
   publicPageMetadataInputSchema,
   publicPagePropertiesInputSchema,
   updatePagePropertiesSchema,
+  pageAddressSchema,
   type PublicPageResource,
 } from '@next-wiki/shared';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
@@ -21,6 +22,8 @@ type Props = {
   revisionId: string;
   initialTitle: string;
   initialPath: string;
+  /** 035: the page's canonical public address, distinct from `initialPath`. */
+  initialSlug: string;
   initialDate: string | null;
   initialTags: string[];
   initialSummary: string | null;
@@ -41,6 +44,7 @@ export function PagePropertiesDialog({
   revisionId,
   initialTitle,
   initialPath,
+  initialSlug,
   initialDate,
   initialTags,
   initialSummary,
@@ -53,6 +57,7 @@ export function PagePropertiesDialog({
   const { t } = useTranslation();
   const [title, setTitle] = useState(initialTitle);
   const [path, setPath] = useState(initialPath);
+  const [slug, setSlug] = useState(initialSlug);
   const [date, setDate] = useState(initialDate ?? '');
   const [tags, setTags] = useState(initialTags.join(', '));
   const [summary, setSummary] = useState(initialSummary ?? '');
@@ -68,9 +73,10 @@ export function PagePropertiesDialog({
       || summary !== (initialSummary ?? '')
       || normalizedTags.join(',') !== initialTags.join(',');
     const pathChanged = !pathReadOnly && path !== initialPath;
+    const slugChanged = !pathReadOnly && slug !== initialSlug;
     const visibilityChanged = canSetVisibility && visibility !== initialVisibility;
 
-    if (!metadataChanged && !pathChanged && !visibilityChanged) {
+    if (!metadataChanged && !pathChanged && !slugChanged && !visibilityChanged) {
       onClose();
       return;
     }
@@ -79,6 +85,13 @@ export function PagePropertiesDialog({
       const parsedPath = updatePagePropertiesSchema.safeParse({ path });
       if (!parsedPath.success) {
         setError(parsedPath.error.issues[0]?.message ?? t('page.edit.error.invalidPath'));
+        return;
+      }
+    }
+    if (slugChanged) {
+      const parsedSlug = pageAddressSchema.safeParse(slug);
+      if (!parsedSlug.success) {
+        setError(parsedSlug.error.issues[0]?.message ?? t('page.edit.error.invalidSlug'));
         return;
       }
     }
@@ -105,10 +118,14 @@ export function PagePropertiesDialog({
         latestVersion = updated.latestRevision?.version;
       }
 
-      if (pathChanged) {
+      if (pathChanged || slugChanged) {
         const updated = await apiPatch(
           `${getPublicApiPageUrl(pageId)}?include=latestRevision`,
-          publicPagePropertiesInputSchema.parse({ path, baseRevisionId: latestRevisionId }),
+          publicPagePropertiesInputSchema.parse({
+            ...(pathChanged ? { path } : {}),
+            ...(slugChanged ? { slug } : {}),
+            baseRevisionId: latestRevisionId,
+          }),
         ) as PublicPageResource;
         savedPath = updated.path;
         latestRevisionId = updated.latestRevision?.id ?? latestRevisionId;
@@ -136,6 +153,12 @@ export function PagePropertiesDialog({
         setError(t('page.properties.error.pathExists'));
       } else if (apiError.code === 'PAGE_PATH_RESERVED') {
         setError(t('page.properties.error.pathReserved'));
+      } else if (apiError.code === 'PAGE_SLUG_TAKEN' || apiError.code === 'PAGE_ADDRESS_TAKEN') {
+        setError(t('page.properties.error.slugTaken'));
+      } else if (apiError.code === 'PAGE_SLUG_RESERVED') {
+        setError(t('page.properties.error.slugReserved'));
+      } else if (apiError.code === 'PAGE_SLUG_INVALID') {
+        setError(t('page.properties.error.slugInvalid'));
       } else if (apiError.code === 'FORBIDDEN' || apiError.code === 'UNAUTHORIZED') {
         setError(t('page.properties.error.forbidden'));
       } else {
@@ -152,6 +175,8 @@ export function PagePropertiesDialog({
       onTitleChange={setTitle}
       path={pathReadOnly ? undefined : path}
       onPathChange={pathReadOnly ? undefined : setPath}
+      slug={pathReadOnly ? undefined : slug}
+      onSlugChange={pathReadOnly ? undefined : setSlug}
       date={date}
       onDateChange={setDate}
       tags={tags}

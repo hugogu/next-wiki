@@ -101,10 +101,6 @@ function LanguageLink({ href, label, active }: { href: string; label: string; ac
   );
 }
 
-function encodeReaderPath(path: string): string {
-  return path.split('/').map(encodeURIComponent).join('/');
-}
-
 /**
  * Hover/focus-triggered dropdown consolidating the reader-page page actions
  * (edit, history, settings, delete) and — when translations exist — the
@@ -265,7 +261,9 @@ export function Header({
     setPublishing(true);
     try {
       await apiPost<Record<string, never>, unknown>(getPublicApiPagePublicationUrl(pageContext.pageId, pageContext.version), {});
-      window.location.href = pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.path) : getSpaceHref(pageContext.space ?? 'wiki', pageContext.path);
+      // 035: navigate to the reader address (slug), not the tree path.
+      const readerPath = pageContext.sourcePath ?? pageContext.path;
+      window.location.href = pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, readerPath) : getSpaceHref(pageContext.space ?? 'wiki', readerPath);
     } catch {
       setPublishing(false);
     }
@@ -391,31 +389,25 @@ export function Header({
       {translateOpen && pageContext?.pageId && (
         <TranslatePageDialog pageId={pageContext.pageId} onClose={() => setTranslateOpen(false)} />
       )}
-      {settingsOpen && pageContext?.pageId && pageContext.revisionId && (
+      {settingsOpen && pageContext?.pageId && pageContext.revisionId && pageContext.slug !== undefined && (
         <PagePropertiesDialog
           pageId={pageContext.pageId}
           revisionId={pageContext.revisionId}
           initialTitle={pageContext.title}
           initialPath={pageContext.path}
+          initialSlug={pageContext.slug}
           initialDate={pageContext.date ?? null}
           initialTags={pageContext.tags ?? []}
           initialSummary={pageContext.summary ?? null}
           initialVisibility={pageContext.visibility}
           canSetVisibility={role === 'admin'}
           pathReadOnly={Boolean(pageContext.currentLocale)}
-          onSaved={(savedPath) => {
-            if (savedPath === pageContext.path) {
-              window.location.reload();
-              return;
-            }
-            const currentPath = window.location.pathname;
-            const previousPath = encodeReaderPath(pageContext.path);
-            if (currentPath.endsWith(`/${previousPath}`)) {
-              window.location.href = `${currentPath.slice(0, -previousPath.length)}${encodeReaderPath(savedPath)}${window.location.search}${window.location.hash}`;
-              return;
-            }
-            window.location.reload();
-          }}
+          // 035 (FR-002): a path change is a tree move only — it never touches
+          // the page's canonical address (slug), so the reader's current URL
+          // stays valid regardless of what `savedPath` is. A reload is always
+          // correct here; navigating to a URL built from the new tree path
+          // would be wrong now that the address and the path can diverge.
+          onSaved={() => window.location.reload()}
           onClose={() => setSettingsOpen(false)}
         />
       )}

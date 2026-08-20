@@ -7,7 +7,6 @@ import { logger } from '@/server/logger';
 import { QUEUES } from './runtime';
 import { kickReplication } from '@/server/services/storage-replication';
 import { clearPendingSwitchIfMatches, type WritingModeSwitchOptions } from '@/server/services/writing-mode';
-import { canonicalSpacePath } from '@/server/services/space-routes';
 
 type Transaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -28,10 +27,6 @@ export type WritingModeSwitchReport = {
 };
 
 const SETTINGS_ID = 'default';
-
-function leafSlug(path: string): string {
-  return path.split('/').at(-1) ?? path;
-}
 
 function pathWithSuffix(path: string, suffix: number): string {
   const segments = path.split('/');
@@ -125,26 +120,29 @@ async function moveSpacePages(
         destinationPath: path,
       });
     }
+    // 035 (FR-002/FR-010): the switch changes tree location, never the
+    // canonical address — `slug` is deliberately left untouched.
     await tx
       .update(schema.pages)
       .set({
         spaceId: input.defaultSpaceId,
         path,
-        slug: leafSlug(path),
         visibility: input.visibility,
         updatedAt: new Date(),
       })
       .where(eq(schema.pages.id, page.id));
+    // 035: the pre-switch address is the page's own slug — or, for a
+    // translation (which owns no independent slug), `{locale}/{source
+    // slug}` — recorded against the *source* space since `page_addresses`
+    // is space-scoped and the page has just left it.
+    let legacyAddress = page.slug;
+    if (page.sourcePageId) {
+      const sourcePage = await tx.query.pages.findFirst({ where: eq(schema.pages.id, page.sourcePageId) });
+      legacyAddress = `${page.locale}/${sourcePage?.slug ?? page.slug}`;
+    }
     await tx
-      .insert(schema.pageRouteRedirects)
-      .values({
-        // See candidate-projection.ts: only a translation row (sourcePageId
-        // set) routes at a locale-prefixed URL. Passing an original page's
-        // own locale here would record a legacy redirect target that 404s.
-        legacyRoute: canonicalSpacePath(input.sourceSpaceRow, page.path, page.sourcePageId ? page.locale : null),
-        targetPageId: page.id,
-        reason: 'writing_mode_switch',
-      })
+      .insert(schema.pageAddresses)
+      .values({ spaceId: input.sourceSpaceId, address: legacyAddress, pageId: page.id, kind: 'retained', reason: 'writing_mode_switch' })
       .onConflictDoNothing();
   }
   return { count: pages.length, conflicts };

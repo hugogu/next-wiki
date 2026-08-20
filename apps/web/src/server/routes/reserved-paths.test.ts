@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { isPathReserved } from './reserved-paths';
+import { isPathReserved, isAddressReserved, addressReservation, describeAddressReservation } from './reserved-paths';
 import { RESERVED_ROUTE_COUNT } from './manifest';
 
 describe('reserved-paths / manifest discovery', () => {
@@ -50,5 +50,50 @@ describe('reserved-paths / manifest discovery', () => {
     expect(isPathReserved('api/v1/pages/anything/tags')).toBe(true);
     // /api/v1/tags/[id]/merge — same rule.
     expect(isPathReserved('api/v1/tags/anything/merge')).toBe(true);
+  });
+});
+
+describe('isAddressReserved (035: public addresses — slugs and aliases)', () => {
+  it('reserves everything isPathReserved already reserves', () => {
+    expect(isAddressReserved('new')).toBe(true);
+    expect(isAddressReserved('admin/users')).toBe(true);
+    expect(isAddressReserved('getting-started')).toBe(false);
+  });
+
+  it('reserves a two-letter leading segment as a translation locale', () => {
+    expect(isAddressReserved('zh')).toBe(true);
+    expect(isAddressReserved('zh/tutorial')).toBe(true);
+    expect(isAddressReserved('en/getting-started')).toBe(true);
+    // Three or more letters are not a locale collision — 'ai' below is
+    // deliberately exactly two letters and IS correctly caught by this rule.
+    expect(isAddressReserved('faq')).toBe(false);
+    expect(isAddressReserved('models/ai')).toBe(false);
+    expect(isAddressReserved('ai/models')).toBe(true);
+  });
+
+  it('reserves static-site prefixes and root files', () => {
+    expect(isAddressReserved('_static/bundle')).toBe(true);
+    expect(isAddressReserved('_assets/logo.png')).toBe(true);
+    expect(isAddressReserved('pagefind/index')).toBe(true);
+    expect(isAddressReserved('sitemap.xml')).toBe(true);
+    expect(isAddressReserved('404.html')).toBe(true);
+  });
+
+  it('does not flag an ordinary tree path validated by isPathReserved-only rules', () => {
+    // Only the address-specific check adds locale/static-site rules; a tree
+    // path with a leading two-letter folder name is untouched by that check.
+    expect(isPathReserved('zh')).toBe(false);
+    expect(isPathReserved('_static')).toBe(false);
+  });
+
+  it('does not flag a legitimate multi-level address', () => {
+    expect(isAddressReserved('guides/deployment/kubernetes')).toBe(false);
+  });
+
+  it('names the violated rule via addressReservation/describeAddressReservation', () => {
+    expect(describeAddressReservation(addressReservation('admin/users')!)).toMatch(/built-in/i);
+    expect(describeAddressReservation(addressReservation('zh')!)).toMatch(/translation/i);
+    expect(describeAddressReservation(addressReservation('_static/x')!)).toMatch(/static site/i);
+    expect(addressReservation('faq')).toBeNull();
   });
 });

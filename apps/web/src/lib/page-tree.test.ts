@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { PublicPageTreeNode } from '@next-wiki/shared';
-import { getAncestorPaths, sparsifyTree } from './page-tree';
+import { getAncestorPaths, getBreadcrumbNodes, sparsifyTree } from './page-tree';
 
 function leaf(path: string, title = path): PublicPageTreeNode {
-  return { path, segment: path.split('/').pop()!, title, pageId: 'p-' + path, status: 'published', children: [] };
+  return { path, segment: path.split('/').pop()!, title, pageId: 'p-' + path, slug: path, status: 'published', children: [] };
 }
 
 function branch(path: string, children: PublicPageTreeNode[]): PublicPageTreeNode {
-  return { path, segment: path.split('/').pop()!, title: null, pageId: null, status: null, children };
+  return { path, segment: path.split('/').pop()!, title: null, pageId: null, slug: null, status: null, children };
 }
 
 describe('getAncestorPaths', () => {
@@ -32,6 +32,25 @@ describe('getAncestorPaths', () => {
   });
 });
 
+describe('getBreadcrumbNodes', () => {
+  it('follows organizational paths while retaining canonical slugs for links', () => {
+    const root = branch('', [
+      branch('guides', [
+        leaf('guides/install', 'Install'),
+      ]),
+    ]);
+    root.children[0]!.slug = 'getting-started';
+    root.children[0]!.pageId = 'guides-page';
+    root.children[0]!.title = 'Guides';
+    root.children[0]!.children[0]!.slug = 'install';
+
+    expect(getBreadcrumbNodes(root, 'guides/install').map(({ path, slug }) => ({ path, slug }))).toEqual([
+      { path: 'guides', slug: 'getting-started' },
+      { path: 'guides/install', slug: 'install' },
+    ]);
+  });
+});
+
 describe('sparsifyTree', () => {
   // Synthetic tree mirroring a slice of a real wiki:
   // root
@@ -46,6 +65,7 @@ describe('sparsifyTree', () => {
     segment: '',
     title: null,
     pageId: null,
+    slug: null,
     status: null,
     children: [
       branch('ai', [

@@ -154,7 +154,7 @@ export function HeaderHybridSearch() {
         )}
         <ul className="mt-sm space-y-xs">
           {results?.items.map((result) => <li key={result.page.id}>
-            <a href={result.page.canonicalUrl ?? getSpaceHref(readerSpaceFromSlug(result.page.spaceSlug), result.page.path)} className="block rounded-md p-sm hover:bg-surface-elevated"
+            <a href={result.page.canonicalUrl ?? getSpaceHref(readerSpaceFromSlug(result.page.spaceSlug), result.page.slug)} className="block rounded-md p-sm hover:bg-surface-elevated"
               onClick={() => {
                 if (!searchRecordRef.current || !sessionRef.current || terminalEventRef.current) return;
                 terminalEventRef.current = true;

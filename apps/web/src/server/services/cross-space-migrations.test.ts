@@ -1,5 +1,5 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
@@ -54,10 +54,17 @@ describe('cross-space migration workflow', () => {
     await runCrossSpaceMigration(operation.id);
 
     const moved = await db.query.pages.findFirst({ where: eq(schema.pages.id, page.pageId) });
-    expect(moved).toMatchObject({ spaceId: generated!.id, nature: 'generated', visibility: 'restricted' });
+    expect(moved).toMatchObject({ spaceId: generated!.id, nature: 'generated', visibility: 'restricted', slug: 'imports/ai-note' });
     expect(await getHistory(admin, 'imports/ai-note', 'generated')).toHaveLength(2);
     const item = await db.query.crossSpaceMigrationItems.findFirst({ where: eq(schema.crossSpaceMigrationItems.migrationId, operation.id) });
     expect(item?.status).toBe('moved');
+    // 035 (US2/FR-010): the page's pre-move address, keyed against the
+    // *source* space, still resolves to it after the cross-space move.
+    const wiki = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    const retainedAddress = await db.query.pageAddresses.findFirst({
+      where: and(eq(schema.pageAddresses.spaceId, wiki!.id), eq(schema.pageAddresses.address, 'imports/ai-note')),
+    });
+    expect(retainedAddress).toMatchObject({ pageId: page.pageId, kind: 'retained', reason: 'cross_space_migration' });
   });
 
   it('rejects unresolved destination conflicts and paginates by a stable cursor order', async () => {

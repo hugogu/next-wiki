@@ -59,7 +59,9 @@ async function makePage(options: {
     .insert(schema.pages)
     .values({
       spaceId: options.spaceId,
-      slug: options.path.split('/').pop()!,
+      // 035: default slug is the full tree path (FR-004); a translation row
+      // owns no independent slug and is always ''.
+      slug: options.translationGroupId ? '' : options.path,
       path: options.path,
       locale: options.locale ?? 'en',
       title: options.title,

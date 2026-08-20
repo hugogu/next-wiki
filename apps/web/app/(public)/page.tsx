@@ -55,7 +55,7 @@ export default async function HomePage() {
                 {pages.map((page) => (
                   <li key={page.path}>
                     <a
-                      href={getPageHref(page.path)}
+                      href={getPageHref(page.slug)}
                       className="block p-md bg-surface border border-border rounded-lg hover:border-primary transition-colors group"
                     >
                       <span className="font-display text-xl font-medium group-hover:text-primary transition-colors">{page.title}</span>

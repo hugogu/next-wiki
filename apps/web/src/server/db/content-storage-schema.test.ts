@@ -120,6 +120,49 @@ describe('page_revisions.content_source', () => {
   });
 });
 
+describe('pages.slug (035)', () => {
+  it('enforces one canonical slug per space among non-translation pages', async () => {
+    const space = await db.query.spaces.findFirst();
+    await db.insert(schema.pages).values({
+      spaceId: space!.id,
+      slug: `dup-${randomUUID()}`,
+      path: `dup-a/${randomUUID()}`,
+      title: 'A',
+      authorId: userId,
+    });
+    const dupSlug = (await db.query.pages.findFirst({ where: eq(schema.pages.spaceId, space!.id) }))!.slug;
+    await expect(
+      db.insert(schema.pages).values({
+        spaceId: space!.id,
+        slug: dupSlug,
+        path: `dup-b/${randomUUID()}`,
+        title: 'B',
+        authorId: userId,
+      }),
+    ).rejects.toThrow();
+  });
+
+  it('does not constrain empty-slug translation rows against each other', async () => {
+    const space = await db.query.spaces.findFirst();
+    const [source] = await db
+      .insert(schema.pages)
+      .values({ spaceId: space!.id, slug: `src-${randomUUID()}`, path: `src/${randomUUID()}`, title: 'Source', authorId: userId })
+      .returning();
+    const [group] = await db
+      .insert(schema.translationGroups)
+      .values({ sourcePageId: source!.id })
+      .returning();
+    // Two translation rows in the same space, both slug='' (owning no
+    // independent address) — the partial unique index excludes them.
+    await expect(
+      db.insert(schema.pages).values([
+        { spaceId: space!.id, slug: '', path: `src/${randomUUID()}`, locale: 'zh', title: 'ZH', authorId: userId, translationGroupId: group!.id, sourcePageId: source!.id },
+        { spaceId: space!.id, slug: '', path: `src/${randomUUID()}`, locale: 'ja', title: 'JA', authorId: userId, translationGroupId: group!.id, sourcePageId: source!.id },
+      ]),
+    ).resolves.toBeDefined();
+  });
+});
+
 describe('content_migrations', () => {
   it('defaults a new migration to pending with zeroed counters', async () => {
     const [db1] = await db

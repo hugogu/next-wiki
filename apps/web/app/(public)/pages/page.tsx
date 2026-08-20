@@ -60,7 +60,7 @@ export default async function PublishedPagesPage({
               {pages.map((page) => (
                 <li key={page.path}>
                   <Link
-                    href={getPageHref(page.path)}
+                    href={getPageHref(page.slug)}
                     className="block rounded-lg border border-border bg-surface p-md transition-colors hover:border-primary"
                   >
                     <span className="font-display text-xl font-medium text-foreground">{page.title}</span>

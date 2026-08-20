@@ -65,8 +65,12 @@ function resolveInternalHref(
   }
 
   for (const candidate of candidates) {
-    if (set.pageIdsByAddress.has(addressKey(candidate.locale, candidate.path))) {
-      const { href } = pageAddress(baseUrl, candidate.path, candidate.locale, set.defaultLocale);
+    const key = addressKey(candidate.locale, candidate.path);
+    // 035: the author wrote a tree-path-shaped link; once resolved against the
+    // publishable set, the artifact address is the target's canonical slug.
+    const slug = set.slugByAddress.get(key);
+    if (slug !== undefined) {
+      const { href } = pageAddress(baseUrl, slug, candidate.locale, set.defaultLocale);
       return `${href}${fragment}`;
     }
   }

@@ -126,6 +126,7 @@ export async function retrieve(
       pageId,
       title: best.title,
       path: best.path,
+      slug: best.slug,
       locale: best.locale,
       revisionId: best.revisionId,
       revisionHash: best.contentHash,
@@ -138,7 +139,7 @@ export async function retrieve(
       // records what language the page is written in; passing it
       // unconditionally produced a citation link that 404s for any
       // non-English original page.
-      canonicalUrl: canonicalSpacePath({ kind: best.spaceKind, routePrefix: best.routePrefix }, best.path, best.sourcePageId ? best.locale : null),
+      canonicalUrl: canonicalSpacePath({ kind: best.spaceKind, routePrefix: best.routePrefix }, best.slug, best.sourcePageId ? best.locale : null),
       rawCategorySystemKey: best.rawCategorySystemKey,
     };
   });

@@ -10,12 +10,14 @@ import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import { buildPageDescription } from '@/lib/seo';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { getReadablePublishedTranslationLocales, getCachedPublishedTranslationLocales } from '@/server/services/pages';
+import { getCachedPublishedPageTree, getPageTree } from '@/server/services/public-content';
 import type { ResolvedReaderPage } from '@/server/services/reader-routing';
 import { can, pagePermissionOptions, type Actor } from '@/server/permissions';
 import type { Locale } from '@/i18n/config';
 import { getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
 import { env } from '@/server/config';
+import { getBreadcrumbNodes } from '@/lib/page-tree';
 
 type Props = {
   actor: Actor;
@@ -84,6 +86,12 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
   const translationLocales = staticPublic
     ? await getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug)
     : await getReadablePublishedTranslationLocales({ actor }, resolved.sourcePath, resolved.space.slug);
+  const tree = staticPublic
+    ? await getCachedPublishedPageTree(resolved.space.slug)
+    : await getPageTree({ actor }, { status: 'all', space: resolved.space.slug });
+  const breadcrumbAncestors = getBreadcrumbNodes(tree.root, page.path)
+    .slice(0, -1)
+    .filter((node) => node.pageId && node.slug);
   const createdAt = new Date(page.createdAt);
   const siteUrl = env.APP_URL.replace(/\/$/, '');
   const canonicalPath = canonicalSpacePath(resolved.space, resolved.sourcePath, isTranslation ? resolved.locale : null);
@@ -103,7 +111,11 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
   const pageContext = {
     pageId: page.pageId,
     revisionId: page.revisionId,
-    path: resolved.sourcePath,
+    // 035: edit/history operate on the tree path, not the public address —
+    // `page.path` (unchanged by this feature), never `resolved.sourcePath`
+    // (which now holds the canonical slug; see `sourcePath` below for that).
+    path: page.path,
+    slug: page.slug,
     title: page.title,
     status: page.status,
     canEdit,
@@ -138,6 +150,26 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
                 <ShareButton pageId={page.pageId} title={page.title} />
               </div>
             )}
+            <nav
+              aria-label={t('space.reader.breadcrumbs')}
+              className="mb-lg flex flex-wrap items-center gap-xs text-sm text-muted"
+            >
+              <Link className="hover:text-foreground" href={canonicalSpacePath(resolved.space, '')}>
+                {resolved.space.name}
+              </Link>
+              {breadcrumbAncestors.map((node) => (
+                <span key={node.path} className="flex items-center gap-xs">
+                  <span aria-hidden="true">/</span>
+                  <Link className="hover:text-foreground" href={canonicalSpacePath(resolved.space, node.slug!)}>
+                    {node.title ?? node.segment}
+                  </Link>
+                </span>
+              ))}
+              <span className="flex items-center gap-xs">
+                <span aria-hidden="true">/</span>
+                <span className="text-foreground" aria-current="page">{page.title}</span>
+              </span>
+            </nav>
             <PageMetadata
               date={page.metadata.date}
               summary={page.metadata.summary}

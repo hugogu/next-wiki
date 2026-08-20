@@ -305,10 +305,12 @@
       "metadataTitle": "Edit {path}",
       "defaultTitle": "Untitled",
       "validation": {
-        "invalidPath": "Invalid path"
+        "invalidPath": "Invalid path",
+        "invalidSlug": "Invalid address"
       },
       "error": {
         "invalidPath": "The new path is invalid.",
+        "invalidSlug": "The new address is invalid.",
         "pathExists": "A page with this path already exists.",
         "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
         "stale": "The page was updated in another tab or window. Please reopen it and retry.",
@@ -328,6 +330,9 @@
       "error": {
         "pathExists": "A page with this path already exists.",
         "pathReserved": "This path is reserved by built-in functionality. Please choose a different path.",
+        "slugTaken": "This address is already used by another page.",
+        "slugReserved": "This address is reserved by built-in functionality. Please choose a different address.",
+        "slugInvalid": "This address is invalid.",
         "forbidden": "You do not have permission to edit page properties.",
         "generic": "Failed to update properties."
       }
@@ -538,7 +543,11 @@
         "frontmatterHint": "When off, title, date, tags, and summary are stored only in the wiki database without rewriting the Markdown source.",
         "pathLabel": "Path",
         "pathPlaceholder": "path/to/page",
-        "pathHint": "Use slashes to create directories, e.g. {example}."
+        "pathHint": "Use slashes to create directories, e.g. {example}.",
+        "addressPreview": "This page will be published at {address}.",
+        "slugLabel": "Address",
+        "slugPlaceholder": "docs/getting-started",
+        "slugHint": "The public address readers use to reach this page. Changing it keeps the old address working as a redirect."
       }
     },
     "preview": {

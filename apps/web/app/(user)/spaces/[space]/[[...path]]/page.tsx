@@ -73,7 +73,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
     // Reuse the resource's own canonicalUrl rather than recomputing it here
     // with page.locale — that unconditionally added a locale segment even
     // for original (non-translation) pages, which then 404s.
-    redirect(page.canonicalUrl ?? canonicalSpacePath(space, page.path));
+    redirect(page.canonicalUrl ?? canonicalSpacePath(space, page.slug));
   }
 
   const bodyHtml = injectHeadingIds(renderMarkdown(page.contentSource ?? '').html);

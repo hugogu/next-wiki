@@ -12,6 +12,7 @@ import {
   type PublicPageResource,
   type PublicRevisionResource,
   updatePagePropertiesSchema,
+  pageAddressSchema,
 } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import { apiPost, apiPatch, apiPut, apiDelete, type ApiError } from '@/lib/api/client';
@@ -27,6 +28,9 @@ import { buildDraftBody } from '@/lib/page-frontmatter';
 type EditPageInitial = {
   pageId: string;
   revisionId: string;
+  // 035: canonical public address — used to navigate back to the live reader
+  // page. Unaffected by this form's path (tree-move) editing.
+  slug: string;
   title: string;
   contentSource: string;
   canPublish: boolean;
@@ -56,6 +60,11 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
   // subsequent draft save (which fails with STALE_REVISION if title was just
   // updated through PATCH).
   const [committedPath, setCommittedPath] = useState(path);
+  // 035: the page's canonical public address, distinct from `path`/`committedPath`
+  // (tree location). Tracked the same way — `newSlug` is the editable draft,
+  // `committedSlug` is the last value the server confirmed.
+  const [newSlug, setNewSlug] = useState(initial.slug);
+  const [committedSlug, setCommittedSlug] = useState(initial.slug);
   const [committedRevisionId, setCommittedRevisionId] = useState(initial.revisionId);
   const [initialMetadata] = useState(() => ({
     date: initial.metadata.date ?? '',
@@ -132,10 +141,12 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
   const handleSaveProperties = useCallback(async () => {
     setPropertiesError(null);
     const pathChanged = newPath !== committedPath;
+    const slugChanged = newSlug !== committedSlug;
     const visibilityChanged = initial.canSetVisibility && visibility !== initial.visibility;
-    if (!pathChanged && !visibilityChanged) {
+    if (!pathChanged && !slugChanged && !visibilityChanged) {
       // Title and metadata edits in this panel save with the next draft; only
-      // path and administrator visibility settings persist immediately here.
+      // path, address, and administrator visibility settings persist
+      // immediately here.
       setPropertiesOpen(false);
       return;
     }
@@ -148,11 +159,21 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
       }
       nextPath = parsed.data.path;
     }
+    let nextSlug: string | undefined;
+    if (slugChanged) {
+      const parsed = pageAddressSchema.safeParse(newSlug);
+      if (!parsed.success) {
+        setPropertiesError(parsed.error.issues[0]?.message ?? t('page.edit.error.invalidSlug'));
+        return;
+      }
+      nextSlug = parsed.data;
+    }
     setPropertiesSaving(true);
     try {
-      if (nextPath) {
+      if (nextPath || nextSlug) {
         const body = publicPagePropertiesInputSchema.parse({
-          path: nextPath,
+          ...(nextPath ? { path: nextPath } : {}),
+          ...(nextSlug ? { slug: nextSlug } : {}),
           baseRevisionId: committedRevisionId,
         });
         const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(
@@ -161,6 +182,8 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
         );
         setCommittedPath(res.path);
         setNewPath(res.path);
+        setCommittedSlug(res.slug);
+        setNewSlug(res.slug);
         setCommittedRevisionId(res.latestRevision?.id ?? committedRevisionId);
       }
       if (visibilityChanged) {
@@ -176,6 +199,12 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
         setPropertiesError(t('page.properties.error.pathExists'));
       } else if (error.code === 'PAGE_PATH_RESERVED') {
         setPropertiesError(t('page.properties.error.pathReserved'));
+      } else if (error.code === 'PAGE_SLUG_TAKEN' || error.code === 'PAGE_ADDRESS_TAKEN') {
+        setPropertiesError(t('page.properties.error.slugTaken'));
+      } else if (error.code === 'PAGE_SLUG_RESERVED') {
+        setPropertiesError(t('page.properties.error.slugReserved'));
+      } else if (error.code === 'PAGE_SLUG_INVALID') {
+        setPropertiesError(t('page.properties.error.slugInvalid'));
       } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
         setPropertiesError(t('page.properties.error.forbidden'));
       } else if (error.code === 'STALE_REVISION') {
@@ -186,15 +215,15 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
     } finally {
       setPropertiesSaving(false);
     }
-  }, [newPath, committedPath, committedRevisionId, initial.canSetVisibility, initial.pageId, initial.visibility, t, visibility]);
+  }, [newPath, committedPath, newSlug, committedSlug, committedRevisionId, initial.canSetVisibility, initial.pageId, initial.visibility, t, visibility]);
 
   const save = useCallback(() => {
     handleSubmit(onSubmit)();
   }, [handleSubmit, onSubmit]);
 
   const close = useCallback(() => {
-    goBack(getSpaceHref(space, committedPath));
-  }, [goBack, committedPath, space]);
+    goBack(getSpaceHref(space, committedSlug));
+  }, [goBack, committedSlug, space]);
 
   const toggleProperties = useCallback(() => {
     setPropertiesError(null);
@@ -278,6 +307,13 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
             pathError={
               newPath !== committedPath && !updatePagePropertiesSchema.safeParse({ path: newPath }).success
                 ? t('page.edit.validation.invalidPath')
+                : undefined
+            }
+            slug={newSlug}
+            onSlugChange={setNewSlug}
+            slugError={
+              newSlug !== committedSlug && !pageAddressSchema.safeParse(newSlug).success
+                ? t('page.edit.validation.invalidSlug')
                 : undefined
             }
             date={metadata.date}

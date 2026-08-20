@@ -42,6 +42,7 @@ function page(overrides: Partial<PublishablePage> & { path: string }): Publishab
     id: `id-${overrides.path}-${overrides.locale ?? 'en'}`,
     spaceId: 'space',
     title: overrides.path,
+    slug: overrides.path,
     locale: 'en',
     translationGroupId: null,
     revisionId: 'rev',
@@ -54,18 +55,22 @@ function page(overrides: Partial<PublishablePage> & { path: string }): Publishab
 
 function setFrom(pages: PublishablePage[], defaultLocale = 'en'): PublishableSet {
   const pageIdsByAddress = new Map<string, string>();
+  const slugByAddress = new Map<string, string>();
   const translationGroups = new Map<string, Map<string, string>>();
   for (const p of pages) {
-    pageIdsByAddress.set(addressKey(p.locale, p.path), p.id);
+    const key = addressKey(p.locale, p.path);
+    pageIdsByAddress.set(key, p.id);
+    slugByAddress.set(key, p.slug);
     if (p.translationGroupId) {
       const group = translationGroups.get(p.translationGroupId) ?? new Map();
-      group.set(p.locale, p.path);
+      group.set(p.locale, p.slug);
       translationGroups.set(p.translationGroupId, group);
     }
   }
   return {
     pages,
     pageIdsByAddress,
+    slugByAddress,
     translationGroups,
     assetIds: new Set(),
     exclusions: {},
@@ -93,7 +98,8 @@ async function makePage(options: {
     .insert(schema.pages)
     .values({
       spaceId: options.spaceId,
-      slug: options.path.split('/').pop()!,
+      // 035: default slug is the full tree path (FR-004).
+      slug: options.path,
       path: options.path,
       locale: options.locale ?? 'en',
       title: options.title,

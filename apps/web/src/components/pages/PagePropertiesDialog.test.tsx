@@ -12,6 +12,7 @@ function render(props: Partial<React.ComponentProps<typeof PagePropertiesDialog>
         revisionId="00000000-0000-4000-8000-000000000002"
         initialTitle="Guide"
         initialPath="docs/guide"
+        initialSlug="docs/guide"
         initialDate="2026-08-05"
         initialTags={['docs', 'guide']}
         initialSummary="A guide"
@@ -34,14 +35,16 @@ describe('PagePropertiesDialog', () => {
     expect(html).toContain('Tags');
     expect(html).toContain('Summary');
     expect(html).toContain('Path');
+    expect(html).toContain('Address');
     expect(html).toContain('Page visibility');
     expect(html).not.toContain('Write page metadata to Markdown frontmatter');
   });
 
-  it('hides path and visibility controls when they do not apply', () => {
+  it('hides path, address, and visibility controls when they do not apply', () => {
     const html = render({ pathReadOnly: true, canSetVisibility: false });
 
     expect(html).not.toContain('id="prop-path"');
+    expect(html).not.toContain('id="prop-slug"');
     expect(html).not.toContain('Page visibility');
   });
 });

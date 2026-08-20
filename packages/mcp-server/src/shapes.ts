@@ -44,6 +44,7 @@ export type SearchWikiResult = {
   id: string;
   space: string;
   path: string;
+  slug: string;
   title: string;
   matchType: 'path' | 'title' | 'content';
   excerpt: string | null;
@@ -60,6 +61,8 @@ export type SearchWikiResult = {
 function pageProvenance(source: PublicPageResource) {
   return {
     space: source.spaceSlug,
+    // 035: canonical public address. Always present on PublicPageResource.
+    slug: source.slug,
     ...(source.canonicalUrl ? { canonicalUrl: source.canonicalUrl } : {}),
     ...(source.origin ? { origin: source.origin } : {}),
     ...(source.humanModified !== undefined ? { humanModified: source.humanModified } : {}),
@@ -99,6 +102,7 @@ export type PageListItem = {
   id: string;
   space: string;
   path: string;
+  slug: string;
   title: string;
   status: string;
   locale: string;
@@ -132,6 +136,7 @@ export function getPageResponse(source: PublicPageResource): {
   id: string;
   space: string;
   path: string;
+  slug: string;
   title: string;
   locale: string;
   status: string;
@@ -163,6 +168,7 @@ export function createPageResponse(source: PublicPageResource): {
   id: string;
   space: string;
   path: string;
+  slug: string;
   title: string;
   status: string;
   revisionId?: string;
@@ -201,6 +207,7 @@ export function updatePropertiesResponse(source: PublicPageResource): {
   id: string;
   space: string;
   path: string;
+  slug: string;
   title: string;
   updatedAt: string;
   canonicalUrl?: string;
@@ -220,6 +227,7 @@ export function publishPageResponse(source: PublicPageResource): {
   id: string;
   space: string;
   path: string;
+  slug: string;
   title: string;
   status: string;
   publishedRevisionId?: string;
@@ -394,6 +402,7 @@ export type TreeNode = {
   segment: string;
   title: string | null;
   pageId: string | null;
+  slug: string | null;
   status: string | null;
   children: TreeNode[];
 };
@@ -404,6 +413,7 @@ function flattenTree(node: PublicPageTreeNode): TreeNode {
     segment: node.segment,
     title: node.title,
     pageId: node.pageId,
+    slug: node.slug,
     status: node.status,
     children: node.children.map(flattenTree),
   };

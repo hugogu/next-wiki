@@ -39,6 +39,13 @@ export type PublicApiErrorCode =
   | 'MIGRATION_CONFLICT'
   | 'MIGRATION_SELECTION_INVALID'
   | 'MIGRATION_DESTINATION_INVALID'
+  | 'PAGE_SLUG_INVALID'
+  | 'PAGE_SLUG_RESERVED'
+  | 'PAGE_SLUG_TAKEN'
+  | 'PAGE_ADDRESS_TAKEN'
+  | 'PAGE_ADDRESS_SELF'
+  | 'ADDRESS_ALIAS_RETAINED'
+  | 'PAGE_NOT_DELETED'
   | 'INTERNAL_ERROR';
 
 export type PublicApiErrorBody = {
@@ -138,6 +145,20 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'MIGRATION_SELECTION_INVALID', status: 422 };
     case 'MIGRATION_DESTINATION_INVALID':
       return { code: 'MIGRATION_DESTINATION_INVALID', status: 422 };
+    case 'PAGE_SLUG_INVALID':
+      return { code: 'PAGE_SLUG_INVALID', status: 400 };
+    case 'PAGE_SLUG_RESERVED':
+      return { code: 'PAGE_SLUG_RESERVED', status: 409 };
+    case 'PAGE_SLUG_TAKEN':
+      return { code: 'PAGE_SLUG_TAKEN', status: 409 };
+    case 'PAGE_ADDRESS_TAKEN':
+      return { code: 'PAGE_ADDRESS_TAKEN', status: 409 };
+    case 'PAGE_ADDRESS_SELF':
+      return { code: 'PAGE_ADDRESS_SELF', status: 400 };
+    case 'ADDRESS_ALIAS_RETAINED':
+      return { code: 'ADDRESS_ALIAS_RETAINED', status: 409 };
+    case 'PAGE_NOT_DELETED':
+      return { code: 'PAGE_NOT_DELETED', status: 409 };
     default:
       return { code: 'VALIDATION_FAILED', status: 422 };
   }

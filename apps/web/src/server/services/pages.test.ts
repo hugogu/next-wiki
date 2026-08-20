@@ -126,7 +126,8 @@ describe('pageService US3', () => {
         where: eq(schema.pages.id, result.pageId),
       });
       expect(page?.path).toBe('docs/intro');
-      expect(page?.slug).toBe('intro');
+      // 035 (FR-004): default slug is the full tree path, not the leaf segment.
+      expect(page?.slug).toBe('docs/intro');
     });
 
     it('stores the body verbatim in the wiki space: OKF injection is generated-only', async () => {

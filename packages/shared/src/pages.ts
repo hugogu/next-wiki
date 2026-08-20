@@ -26,6 +26,27 @@ export const pathSchema = z
   });
 
 /**
+ * A page's public address (035): its canonical slug or an alias. Same
+ * character grammar as `pathSchema` — ASCII lowercase letters, digits,
+ * hyphens, underscores, and `/` as the level separator, no
+ * leading/trailing/consecutive separators. Uppercase and non-ASCII input is
+ * rejected outright, never transliterated or down-cased.
+ */
+export const pageAddressSchema = pathSchema;
+
+export const pageAddressKindSchema = z.enum(['retained', 'manual']);
+export type PageAddressKind = z.infer<typeof pageAddressKindSchema>;
+
+export const pageAddressSchemaObject = z.object({
+  id: z.string().uuid(),
+  address: pageAddressSchema,
+  kind: pageAddressKindSchema,
+  reason: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type PageAddress = z.infer<typeof pageAddressSchemaObject>;
+
+/**
  * RFC 2046 MIME type (`type/subtype`, structured `+suffix` allowed). Parameters
  * (`; …`) are stripped by the service layer before storage, so this validates a
  * bare type/subtype and mirrors the `page_revisions.content_type` DB CHECK. The
@@ -160,6 +181,10 @@ export const publicPageResourceSchema = z.object({
   id: z.string().uuid(),
   spaceSlug: z.string(),
   path: pathSchema,
+  // 035: canonical public address — the effective slug this page resolves at.
+  // For a translation, this is its source page's slug (translations own no
+  // independent address); `canonicalUrl` is the full address built from it.
+  slug: z.string(),
   locale: z.string(),
   title: z.string(),
   canonicalUrl: z.string().optional(),
@@ -302,6 +327,8 @@ export type AdminPageSortDirection = 'asc' | 'desc';
 export type AdminPageListItem = {
   id: string;
   path: string;
+  /** 035: canonical public address, for reader-view links from the admin list. */
+  slug: string;
   title: string;
   status: 'draft' | 'published' | 'published_with_draft';
   latestVersion: number;
@@ -450,9 +477,12 @@ export type PublicDraftCreateInput = z.infer<typeof publicDraftCreateInputSchema
 export const publicPagePropertiesInputSchema = z.object({
   path: pathSchema.optional(),
   title: z.string().min(1).max(200).optional(),
+  // 035: the canonical public address. Distinct from `path` — changing it
+  // never moves the page in the tree, only where it is publicly reachable.
+  slug: pageAddressSchema.optional(),
   baseRevisionId: z.string().uuid().optional(),
-}).strict().refine((value) => value.path || value.title, {
-  message: 'Provide path or title',
+}).strict().refine((value) => value.path || value.title || value.slug, {
+  message: 'Provide path, title, or slug',
 });
 export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
 
@@ -601,6 +631,9 @@ export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object(
   segment: z.string(),
   title: z.string().nullable(),
   pageId: z.string().uuid().nullable(),
+  // 035: the page's canonical public address. Null for a pure-folder node
+  // (no `pageId` of its own) exactly like `pageId`/`title`/`status`.
+  slug: z.string().nullable(),
   status: publicPageStatusSchema.nullable(),
   children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
 });
@@ -609,6 +642,7 @@ export type PublicPageTreeNode = {
   segment: string;
   title: string | null;
   pageId: string | null;
+  slug: string | null;
   status: PublicPageStatus | null;
   children: PublicPageTreeNode[];
 };
@@ -642,6 +676,7 @@ export type PublicBatchCreateResult = z.infer<typeof publicBatchCreateResultSche
 export const publicBacklinkSchema = z.object({
   pageId: z.string().uuid(),
   path: pathSchema,
+  slug: z.string(),
   title: z.string(),
   linkText: z.string(),
 });

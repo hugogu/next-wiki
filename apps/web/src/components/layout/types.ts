@@ -8,6 +8,8 @@ export type PageContext = {
   pageId?: string;
   revisionId?: string;
   path: string;
+  /** 035: the page's canonical public address, distinct from `path`. */
+  slug?: string;
   title: string;
   status: 'draft' | 'published';
   canEdit: boolean;

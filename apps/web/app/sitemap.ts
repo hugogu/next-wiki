@@ -35,7 +35,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const pages = pagesBySpace.flatMap(({ space, pages }) => pages.map((page) => ({ space, page })));
 
   const entries: MetadataRoute.Sitemap = pages.map(({ space, page }) => ({
-    url: `${siteUrl}${canonicalSpacePath(space, page.path)}`,
+    url: `${siteUrl}${canonicalSpacePath(space, page.slug)}`,
     lastModified: page.updatedAt ?? page.publishedAt ?? undefined,
     changeFrequency: 'weekly',
     priority: 0.7,

@@ -17,6 +17,7 @@ function page(overrides: Partial<PublishablePage> & { path: string }): Publishab
     id: `id-${overrides.path}-${overrides.locale ?? 'en'}`,
     spaceId: 'space',
     title: overrides.path,
+    slug: overrides.path,
     locale: 'en',
     translationGroupId: null,
     revisionId: 'rev',
@@ -29,18 +30,22 @@ function page(overrides: Partial<PublishablePage> & { path: string }): Publishab
 
 function set(pages: PublishablePage[], defaultLocale = 'en'): PublishableSet {
   const pageIdsByAddress = new Map<string, string>();
+  const slugByAddress = new Map<string, string>();
   const translationGroups = new Map<string, Map<string, string>>();
   for (const p of pages) {
-    pageIdsByAddress.set(addressKey(p.locale, p.path), p.id);
+    const key = addressKey(p.locale, p.path);
+    pageIdsByAddress.set(key, p.id);
+    slugByAddress.set(key, p.slug);
     if (p.translationGroupId) {
       const group = translationGroups.get(p.translationGroupId) ?? new Map();
-      group.set(p.locale, p.path);
+      group.set(p.locale, p.slug);
       translationGroups.set(p.translationGroupId, group);
     }
   }
   return {
     pages,
     pageIdsByAddress,
+    slugByAddress,
     translationGroups,
     assetIds: new Set(),
     exclusions: {},

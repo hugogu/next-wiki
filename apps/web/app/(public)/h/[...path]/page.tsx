@@ -132,7 +132,7 @@ export default async function HistoryPage({
     <Layout pageContext={pageContext} space={space}>
       <div className="mx-auto max-w-7xl px-lg py-xl">
         <Link
-          href={getSpaceHref(space ?? 'wiki', path)}
+          href={getSpaceHref(space ?? 'wiki', page?.slug ?? path)}
           className="text-sm text-primary hover:underline mb-md inline-block"
         >
           {t('page.history.backToPage', { title: page?.title ?? path })}

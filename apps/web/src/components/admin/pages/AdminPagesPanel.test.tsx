@@ -59,6 +59,7 @@ function nativePage(overrides: Partial<AdminPageListItem> = {}): AdminPageListIt
   return {
     id: 'page-1',
     path: 'conversations/feishu/2026/07/21/action-1',
+    slug: 'conversations/feishu/2026/07/21/action-1',
     title: 'Conversation: hi',
     status: 'published',
     latestVersion: 1,

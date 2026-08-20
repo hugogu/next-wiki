@@ -209,9 +209,11 @@ export function AdminPagesPanel({
             list.items.map((page) => {
               const pageSpace = readerSpaceFromSlug(page.spaceSlug);
               const hasPendingDraft = page.status !== 'published';
+              // 035: a pending-draft review is a history/revision URL (path-
+              // addressed); a published page's link is its reader address (slug).
               const pageHref = hasPendingDraft
                 ? getSpaceDraftReviewHref(pageSpace, page.path, page.latestVersion)
-                : getSpaceHref(pageSpace, page.path);
+                : getSpaceHref(pageSpace, page.slug);
               return (
                 <DataTableRow key={page.id}>
                   <DataTableCell className="max-w-sm font-medium">

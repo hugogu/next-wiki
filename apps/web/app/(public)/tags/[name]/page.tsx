@@ -55,7 +55,7 @@ export default async function TagPage({ params }: { params: TagPageParams }) {
               // Link into the page's own space; a Generated page is not readable
               // at the bare wiki address.
               const space = readerSpaceFromSlug(page.spaceSlug);
-              const href = getSpaceHref(space, page.path);
+              const href = page.canonicalUrl ?? getSpaceHref(space, page.slug);
               return (
                 <li key={`${page.spaceSlug}:${page.path}`}>
                   <Link

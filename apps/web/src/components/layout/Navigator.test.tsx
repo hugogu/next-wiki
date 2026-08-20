@@ -41,6 +41,7 @@ describe('Navigator hybrid node (page that also has children)', () => {
         segment: 'astronomy',
         title: 'Astronomy',
         pageId: 'pg-astro',
+        slug: 'astronomy',
         status: 'published',
         hasChildren: true,
         children: [
@@ -49,6 +50,7 @@ describe('Navigator hybrid node (page that also has children)', () => {
             segment: 'supernovae',
             title: 'Supernovae',
             pageId: 'pg-sn',
+            slug: 'astronomy/supernovae',
             status: 'published',
             hasChildren: false,
             children: [],

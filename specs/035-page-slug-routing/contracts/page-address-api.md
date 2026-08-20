@@ -117,7 +117,7 @@ live. Writes an audit entry (FR-014a).
 
 | Code | HTTP | When |
 |---|---|---|
-| `PAGE_SLUG_INVALID` | 400 | Fails `slugSchema` — empty, too long, malformed separators, uppercase, or non-ASCII. Message states the allowed form. |
+| `PAGE_SLUG_INVALID` | 400 | Fails `pageAddressSchema` — empty, too long, malformed separators, uppercase, or non-ASCII. Message states the allowed form. |
 | `PAGE_SLUG_RESERVED` | 409 | Leading segment is a built-in route, a two-letter locale, or a static-site reserved prefix. Message names the reserved word. |
 | `PAGE_SLUG_TAKEN` | 409 | Address is owned by another page's canonical slug — including a soft-deleted page. Names the holder only when the caller may read it. |
 | `PAGE_ADDRESS_TAKEN` | 409 | Address is an existing alias of another page. Same disclosure rule. |

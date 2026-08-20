@@ -75,6 +75,7 @@ export function searchResultsToSources(results: AiSearchResult[]): QuestionSourc
     pageId: result.pageId,
     title: result.title,
     path: result.path,
+    slug: result.slug,
     locale: result.locale,
     revisionId: result.revisionId,
     revisionHash: result.revisionHash,

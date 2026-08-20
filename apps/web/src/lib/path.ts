@@ -42,9 +42,11 @@ export function getSpaceHref(space: ReaderSpace, path?: string): string {
  * wiki space, matching every citation's implicit space before that field was
  * added.
  */
-export function getCitationHref(citation: { path: string; spaceSlug?: string }): string {
+export function getCitationHref(citation: { path: string; slug?: string; spaceSlug?: string }): string {
   const space = citation.spaceSlug ? readerSpaceFromSlug(citation.spaceSlug) : 'wiki';
-  return getSpaceHref(space, citation.path);
+  // A translation row owns no independent slug (always ''), so an empty
+  // string — not just a missing field — must also fall back to `path`.
+  return getSpaceHref(space, citation.slug || citation.path);
 }
 
 export function getSpaceNewHref(space: ReaderSpace): string {

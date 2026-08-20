@@ -29,6 +29,25 @@ export function getAncestorPaths(path: string | undefined | null): string[] {
 }
 
 /**
+ * Finds the tree nodes along a page's organizational path. Consumers use the
+ * node slug for reader links and the path only to identify the ancestry, so a
+ * page move changes the breadcrumb hierarchy without changing public URLs.
+ */
+export function getBreadcrumbNodes(root: PublicPageTreeNode, path: string): PublicPageTreeNode[] {
+  const nodes: PublicPageTreeNode[] = [];
+  let current = root;
+
+  for (const segment of path.split('/').filter(Boolean)) {
+    const node = current.children.find((child) => child.segment === segment);
+    if (!node) break;
+    nodes.push(node);
+    current = node;
+  }
+
+  return nodes;
+}
+
+/**
  * Returns true when `path` equals one of the precomputed ancestor paths.
  * Cheap lookup against a small array (≤ page depth, typically ≤ 5).
  */
@@ -56,6 +75,7 @@ export function sparsifyTree(
       segment: node.segment,
       title: node.title,
       pageId: node.pageId,
+      slug: node.slug,
       status: node.status,
       hasChildren: node.children.length > 0,
       children: keepFull ? node.children.map((c) => sparsify(c, false)) : [],

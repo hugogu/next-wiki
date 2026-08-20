@@ -73,7 +73,10 @@ export async function writeImportedRawEntry(input: {
         .insert(schema.pages)
         .values({
           spaceId: space.id,
-          slug: input.page.path.split('/').at(-1) ?? input.page.path,
+          // 035 (FR-025): default address is the full source path; conflict
+          // and invalid-character resolution (deriveImportAddress) lands in
+          // US5.
+          slug: input.page.path,
           path: input.page.path,
           locale: input.page.locale,
           title: input.page.title,
@@ -168,7 +171,10 @@ export async function writeImportedGeneratedPage(input: {
         .insert(schema.pages)
         .values({
           spaceId: space.id,
-          slug: input.page.path.split('/').at(-1) ?? input.page.path,
+          // 035 (FR-025): default address is the full source path; conflict
+          // and invalid-character resolution (deriveImportAddress) lands in
+          // US5.
+          slug: input.page.path,
           path: input.page.path,
           locale: input.page.locale,
           title: input.page.title,
@@ -266,7 +272,10 @@ export async function writeImportedPage(input: {
         .insert(schema.pages)
         .values({
           spaceId: space.id,
-          slug: input.path.split('/').at(-1) ?? input.path,
+          // 035 (FR-025/FR-026): default address is the full path; conflict
+          // and invalid-character resolution (deriveImportAddress) lands in
+          // US5.
+          slug: input.path,
           path: input.path,
           locale: input.locale,
           title: input.title,
@@ -404,7 +413,10 @@ export async function writeImportedPageWithHistory(input: {
         .insert(schema.pages)
         .values({
           spaceId: space.id,
-          slug: input.path.split('/').at(-1) ?? input.path,
+          // 035 (FR-025/FR-026): default address is the full path; conflict
+          // and invalid-character resolution (deriveImportAddress) lands in
+          // US5.
+          slug: input.path,
           path: input.path,
           locale: input.locale,
           title: input.versions.at(-1)!.title,
@@ -556,7 +568,10 @@ export async function writeImportedRawEntryWithHistory(input: {
         .insert(schema.pages)
         .values({
           spaceId: space.id,
-          slug: input.path.split('/').at(-1) ?? input.path,
+          // 035 (FR-025/FR-026): default address is the full path; conflict
+          // and invalid-character resolution (deriveImportAddress) lands in
+          // US5.
+          slug: input.path,
           path: input.path,
           locale: input.locale,
           title: input.title,
@@ -680,7 +695,10 @@ export async function writeImportedGeneratedPageWithHistory(input: {
         .insert(schema.pages)
         .values({
           spaceId: space.id,
-          slug: input.path.split('/').at(-1) ?? input.path,
+          // 035 (FR-025/FR-026): default address is the full path; conflict
+          // and invalid-character resolution (deriveImportAddress) lands in
+          // US5.
+          slug: input.path,
           path: input.path,
           locale: input.locale,
           title: input.versions.at(-1)!.title,

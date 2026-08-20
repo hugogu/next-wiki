@@ -40,6 +40,10 @@ export type ContentType = z.infer<typeof contentTypeSchema>;
 
 export const pageSummarySchema = z.object({
   path: z.string(),
+  // 035: canonical public address (see `livePageSchema.slug`). For a
+  // translation summary this is the source page's slug, matching `path`'s
+  // existing "shared across locale rows" convention.
+  slug: z.string(),
   title: z.string(),
   authorDisplayName: z.string().nullable(),
   publishedAt: z.string().nullable(),
@@ -52,6 +56,12 @@ export const livePageSchema = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   path: z.string(),
+  // 035: the canonical public address this content resolves at — the page's
+  // own `pages.slug` for an original page. A translation row owns no
+  // independent slug, so a translation's `LivePage.slug` carries its
+  // *source* page's slug instead (never the translation row's own empty
+  // column); the reader route composes the final `{locale}/{slug}` address.
+  slug: z.string(),
   title: z.string(),
   contentHtml: z.string(),
   contentHash: z.string(),
@@ -76,6 +86,9 @@ export const editableViewSchema = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   path: z.string(),
+  // 035: canonical public address — the editor's "view live page" action
+  // navigates here, never to a path-built URL (tree moves don't change it).
+  slug: z.string(),
   title: z.string(),
   contentSource: z.string(),
   latestVersion: z.number(),

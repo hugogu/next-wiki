@@ -115,6 +115,8 @@ export const publicPageResourceSchema = z.object({
   id: z.string().uuid(),
   spaceSlug: z.string(),
   path: pathSchema,
+  // 035: canonical public address — the effective slug this page resolves at.
+  slug: z.string(),
   locale: z.string(),
   title: z.string(),
   canonicalUrl: z.string().optional(),
@@ -287,6 +289,7 @@ export type PublicBatchCreateResult = z.infer<typeof publicBatchCreateResultSche
 export const publicBacklinkSchema = z.object({
   pageId: z.string().uuid(),
   path: pathSchema,
+  slug: z.string(),
   title: z.string(),
   linkText: z.string(),
 });
@@ -339,6 +342,7 @@ export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object(
   segment: z.string(),
   title: z.string().nullable(),
   pageId: z.string().uuid().nullable(),
+  slug: z.string().nullable(),
   status: publicPageStatusSchema.nullable(),
   children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
 });
@@ -347,6 +351,7 @@ export type PublicPageTreeNode = {
   segment: string;
   title: string | null;
   pageId: string | null;
+  slug: string | null;
   status: PublicPageStatus | null;
   children: PublicPageTreeNode[];
 };

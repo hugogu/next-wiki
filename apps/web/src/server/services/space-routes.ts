@@ -103,16 +103,3 @@ export async function assertRoutePrefixAvailable(spaceId: string, prefix: string
   return normalized;
 }
 
-/** Resolve a moved-page legacy address without emitting any target metadata. */
-export async function findPageRouteRedirectTarget(legacyRoute: string): Promise<{ path: string; spaceSlug: string } | null> {
-  const redirect = await db.query.pageRouteRedirects.findFirst({
-    where: eq(schema.pageRouteRedirects.legacyRoute, legacyRoute),
-  });
-  if (!redirect) return null;
-  const target = await db.query.pages.findFirst({
-    where: and(eq(schema.pages.id, redirect.targetPageId), eq(schema.pages.visibility, 'public')),
-  });
-  if (!target?.currentPublishedVersionId || target.deletedAt) return null;
-  const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.id, target.spaceId) });
-  return space ? { path: target.path, spaceSlug: space.slug } : null;
-}

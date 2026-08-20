@@ -7,6 +7,9 @@ export type VectorMatch = {
   revisionId: string;
   title: string;
   path: string;
+  // 035: canonical public address — the source page's slug when this row is
+  // a translation (it owns no independent slug), otherwise its own.
+  slug: string;
   locale: string;
   // A locale segment only routes for a genuine translation row (see
   // getLiveTranslation) — null for a source/original page, which is what
@@ -51,6 +54,7 @@ export async function exactCosineSearch(
     revision_id: string;
     title: string;
     path: string;
+    slug: string;
     locale: string;
     source_page_id: string | null;
     content_hash: string;
@@ -69,6 +73,10 @@ export async function exactCosineSearch(
       c.revision_id,
       p.title,
       p.path,
+      -- 035: a translation row owns no independent slug (always ''); fall
+      -- back to its source page's slug, mirroring the existing sourcePageId
+      -- locale-conditional pattern this query already carries.
+      coalesce(nullif(p.slug, ''), sp.slug) as slug,
       p.locale,
       p.source_page_id,
       r.content_hash,
@@ -85,6 +93,7 @@ export async function exactCosineSearch(
     join spaces s on s.id = p.space_id
     join page_revisions r on r.id = c.revision_id
     left join raw_categories rc on rc.id = p.raw_category_id
+    left join pages sp on sp.id = p.source_page_id
     where c.generation_id = ${generationId}
       and p.deleted_at is null
       and p.current_published_version_id = c.revision_id
@@ -99,6 +108,7 @@ export async function exactCosineSearch(
     revisionId: row.revision_id,
     title: row.title,
     path: row.path,
+    slug: row.slug ?? '',
     locale: row.locale,
     sourcePageId: row.source_page_id,
     contentHash: row.content_hash,

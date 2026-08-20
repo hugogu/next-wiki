@@ -91,13 +91,14 @@ write paths, 1 reader route, 1 static-site generator, 1 import pipeline.
 | P5 Permissions first-class | **PASS** | Both permission levels go through the existing `can()` chokepoint (research R10). Alias resolution re-checks read permission on the *final target* and returns the same not-found/forbidden response as a direct request — no existence or address leak (FR-023). |
 | P6 Style system independence | **PASS** | Address-management UI reuses `src/components/ui/` primitives inside the existing page-properties dialog. No new entry point. |
 | P7 Async-first for heavy operations | **PASS** | The one bulk operation (backfill) is a SQL data migration, not a request. Import/migration address derivation already runs inside pg-boss jobs. |
-| P8 Version everything | **PASS** | Address changes are page metadata, not content, so they create no `page_revision` — the established convention for every page-metadata mutation in this codebase (`updateProperties` changes path and title, `setVisibility` changes who may read the page; neither writes a revision). Address history is nonetheless immutable and complete: every retained alias is an append-only row with `created_at` + `reason`, and both irreversible actions emit audit entries. See research R13 for why writing a revision here was evaluated and rejected. |
+| P8 Version source content | **PASS** | Address changes are page metadata, not source content, so they create no `page_revision` — the established convention for every page-metadata mutation in this codebase (`updateProperties` changes path and title, `setVisibility` changes who may read the page; neither writes a revision). Address history is nonetheless immutable and complete: every retained alias is an append-only row with `created_at` + `reason`, and both irreversible actions emit audit entries. See research R13 for why writing a revision here was evaluated and rejected. |
 | P9 Open standards | **PASS** | REST + OpenAPI extended; HTTP 301 and `<link rel="canonical">` are the standard mechanisms. |
 | P10 Explicit over implicit | **PASS** | Reserved-address rules stay in one module (`server/routes/reserved-paths.ts`) fed by the existing route manifest; address validation has exactly one exported chokepoint. |
-| P11 Native navigation & unified entry points | **PASS with mandate amendment** | Strengthens the one-canonical-entry rule (every non-canonical address 301s). But it changes two documented invariants — the public page URL becomes `/<space-prefix>/<slug>` rather than `/<space-prefix>/<path>`, and breadcrumbs derive from the tree rather than from URL segments. See § Complexity Tracking. |
+| P11 Native navigation & unified entry points | **PASS** | Strengthens the one-canonical-entry rule (every non-canonical address 301s). The amended routing mandate makes the public page URL `/<space-prefix>/<slug>` and derives breadcrumbs from the tree rather than URL segments. |
 | P12 Public reading is static by default | **PASS** | Canonical pages keep today's `force-static` + `revalidate = 300`. Aliases resolve in the same route via `permanentRedirect()`, which Next caches like any other static result (research R4). Every address mutation calls the existing `invalidatePublicContentCache()`. |
-| Mandate: Page Tree & Path System | **AMENDMENT REQUIRED** | Currently: "path is … authoritative for routing". Becomes: path authoritative for organization, permissions, import, and export; slug authoritative for routing. |
-| Mandate: Frontend Routing & URL Contract | **AMENDMENT REQUIRED** | URL scheme line and breadcrumb-derivation line. |
+| Mandate: Page Tree & Path System | **PASS** | The amended mandate keeps path authoritative for organization, permissions, import, and export; slug is authoritative for public routing. |
+| Mandate: Content Versioning | **PASS** | The amended mandate scopes revisions to source-content mutations and keeps metadata-only changes transactional domain state. |
+| Mandate: Frontend Routing & URL Contract | **PASS** | The amended URL scheme and breadcrumb derivation match this design. |
 | Anti-pattern: duplicate feature entry points | **PASS** | Exactly one address renders content; all others forward. |
 | Anti-pattern: state without a URL | **PASS** (N/A) | No new user-reachable state. |
 
@@ -153,7 +154,9 @@ specs/035-page-slug-routing/
 
 ```text
 packages/shared/src/
-└── pages.ts                              # slugSchema, aliasSchema, address DTOs
+└── pages.ts                              # pageAddressSchema, address DTOs
+                                          #   (existing slugSchema is unrelated
+                                          #   raw-category vocabulary, untouched)
 
 apps/web/src/server/
 ├── db/
@@ -228,15 +231,18 @@ fail in a way the SQL does not explain.
 
 ## Complexity Tracking
 
-Two documented invariants change. Neither is incidental complexity to be
-designed away — they are the point of the feature — but both require a governed
-amendment before merge, and the constitution's versioning policy makes a change
-to a mandate's one-line invariant a **MAJOR** bump (2.3.0 → 3.0.0).
+P8 and three documented mandate invariants change. None is incidental
+complexity to be designed away — they are the point of the feature or prevent a
+metadata-only update from creating a meaningless source-content revision — and
+all require a governed amendment before merge. The constitution's versioning
+policy makes these principle and mandate redefinitions a **MAJOR** bump
+(2.3.0 → 3.0.0).
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |---|---|---|
 | **Page Tree & Path System**: "path is … authoritative for routing" becomes "slug is authoritative for routing; path is authoritative for organization, permissions, import, and export". | This *is* the feature. Decoupling tree structure from the URL is impossible while the path is the routing key. | Keeping the path authoritative and layering aliases on top was considered: every tree move would still change the canonical URL and merely leave a forward behind, so URLs would churn with every reorganization and the "published address never changes" guarantee would be reduced to "published address always forwards". Rejected — it inverts the guarantee the user asked for. |
 | **Frontend Routing & URL Contract**: public page URL `/<space-prefix>/<path>` becomes `/<space-prefix>/<slug>`; breadcrumb segments derive from the page tree rather than from URL segments. | Follows necessarily from the first amendment. Once the URL no longer mirrors the tree, URL-derived breadcrumbs would describe a hierarchy that does not exist. | Deriving breadcrumbs from slug segments was considered and rejected: a page deliberately given the short slug `faq` would render one meaningless crumb while genuinely sitting three levels deep, losing exactly the organizational signal a breadcrumb exists to carry (research R7). |
+| **P8 / Content Versioning**: revisions are source-content history; metadata-only mutations are transactional domain changes. | A slug or alias mutation does not alter the source snapshot a revision versions and diffs. Its durable state is the canonical slug plus append-only retained aliases, with audits for irreversible removals. | Writing a duplicate source revision was rejected: it makes history imply a content edit that did not happen and still does not explain the address change without separate domain history. |
 
 **Not** treated as complexity requiring justification, because each is a
 narrowing rather than a new capability: the two-table address namespace (R2),

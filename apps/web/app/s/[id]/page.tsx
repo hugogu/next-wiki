@@ -30,7 +30,7 @@ export async function generateMetadata({ params }: { params: ShareParams }): Pro
     description,
     // Canonical points at the primary page so the share link never competes
     // with it for indexing; the share route itself stays noindex.
-    alternates: { canonical: `${siteUrl}${getPageHref(page.path)}` },
+    alternates: { canonical: `${siteUrl}${getPageHref(page.slug)}` },
     robots: { index: false, follow: true },
   };
 }

@@ -254,6 +254,7 @@ export async function loadWikiQuestionSources(input: {
       pageId: candidate.pageId,
       title: entry.page.title,
       path: entry.page.path,
+      slug: entry.page.slug,
       locale: entry.page.locale,
       revisionId: entry.revisionId,
       revisionHash: entry.revisionHash,

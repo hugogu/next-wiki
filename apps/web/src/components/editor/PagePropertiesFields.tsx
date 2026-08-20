@@ -11,6 +11,10 @@ export function PagePropertiesFields({
   onPathChange,
   pathError,
   pathReadOnly = false,
+  addressPreview,
+  slug,
+  onSlugChange,
+  slugError,
   date,
   onDateChange,
   tags,
@@ -29,6 +33,15 @@ export function PagePropertiesFields({
   onPathChange?: (value: string) => void;
   pathError?: string;
   pathReadOnly?: boolean;
+  /** 035: the public address this page will be reachable at, shown before
+   * saving. Only meaningful where the path is still editable (creation). */
+  addressPreview?: string;
+  /** 035: the page's canonical public address (distinct from `path`).
+   * Omitted while creating a new page — the default is captured at creation
+   * and shown via `addressPreview` instead. */
+  slug?: string;
+  onSlugChange?: (value: string) => void;
+  slugError?: string;
   date?: string;
   onDateChange?: (value: string) => void;
   tags?: string;
@@ -111,6 +124,23 @@ export function PagePropertiesFields({
         </div>
       )}
 
+      {slug !== undefined && onSlugChange && (
+        <div>
+          <label htmlFor="prop-slug" className="block text-sm font-medium mb-xs">
+            {t('editor.properties.fields.slugLabel')}
+          </label>
+          <Input
+            id="prop-slug"
+            value={slug}
+            onChange={(e) => onSlugChange(e.target.value)}
+            placeholder={t('editor.properties.fields.slugPlaceholder')}
+            aria-label={t('editor.properties.fields.slugLabel')}
+          />
+          {slugError && <p className="text-danger text-xs mt-xs">{slugError}</p>}
+          {!slugError && <p className="text-xs text-muted mt-xs">{t('editor.properties.fields.slugHint')}</p>}
+        </div>
+      )}
+
       {path !== undefined && onPathChange && (
         <div>
           <label htmlFor="prop-path" className="block text-sm font-medium mb-xs">
@@ -128,6 +158,11 @@ export function PagePropertiesFields({
           {!pathReadOnly && (
             <p className="text-xs text-muted mt-xs">
               {t('editor.properties.fields.pathHint', { example: 'docs/getting-started' })}
+            </p>
+          )}
+          {!pathReadOnly && addressPreview && (
+            <p className="text-xs text-muted mt-xs">
+              {t('editor.properties.fields.addressPreview', { address: addressPreview })}
             </p>
           )}
         </div>

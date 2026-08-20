@@ -611,6 +611,13 @@ export const integrationAuthModeEnum = pgEnum('integration_auth_mode', [
   'ssh',
 ]);
 
+// ---- Page slug routing (035) -------------------------------------------------
+
+/** How a non-canonical page address came to exist: automatically retained
+ * when a published page's slug changed (or its space/prefix moved), or
+ * manually added by an owner. */
+export const pageAddressKindEnum = pgEnum('page_address_kind', ['retained', 'manual']);
+
 // ---- Static site publishing (031) -------------------------------------------
 
 /** Superseded by `integration_auth_mode`; retained until the legacy credential
