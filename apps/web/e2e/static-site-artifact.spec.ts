@@ -62,6 +62,10 @@ test.describe('static site artifact', () => {
     await expect(staticPage.locator('[data-code-block]')).toHaveCount(2);
     await expect(staticPage.locator('[data-mermaid-block]')).toHaveCount(1);
     await expect(staticPage.locator('.katex').first()).toBeVisible();
+    // The diagram renders lazily (IntersectionObserver) once it's near the
+    // viewport, so it needs to actually be scrolled to — the "#what-you-can-do"
+    // anchor jump above lands well above it in the page.
+    await staticPage.locator('[data-mermaid-block]').scrollIntoViewIfNeeded();
     await expect(staticPage.locator('[data-mermaid-block] svg.flowchart')).toBeVisible({ timeout: 10_000 });
 
     await expect(staticPage.locator('html')).toHaveClass(/dark/);
