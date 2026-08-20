@@ -49,6 +49,7 @@ async function clearTaggablePage() {
   const sql = database();
   try {
     await sql`DELETE FROM page_revision_tags WHERE revision_id IN (SELECT id FROM page_revisions WHERE page_id IN (SELECT id FROM pages WHERE path = ${TAG_TEST_PATH}))`;
+    await sql`DELETE FROM page_addresses WHERE page_id IN (SELECT id FROM pages WHERE path = ${TAG_TEST_PATH})`;
     await sql`DELETE FROM page_revisions WHERE page_id IN (SELECT id FROM pages WHERE path = ${TAG_TEST_PATH})`;
     await sql`DELETE FROM pages WHERE path = ${TAG_TEST_PATH}`;
   } finally {

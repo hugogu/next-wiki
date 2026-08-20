@@ -328,8 +328,8 @@ async function visiblePageResource(
     ? ((await db.query.pages.findFirst({
         where: eq(schema.pages.id, page.sourcePageId),
         columns: { slug: true },
-      }))?.slug ?? '')
-    : page.slug;
+      }))?.slug || page.slug || page.path)
+    : (page.slug || page.path);
 
   return {
     id: page.id,
@@ -1567,7 +1567,7 @@ function buildTree(pages: {
       if (isLeaf) {
         child.title = page.title;
         child.pageId = page.id;
-        child.slug = page.slug;
+        child.slug = page.slug || null;
         child.status = page.status;
       }
       current = child;

@@ -121,6 +121,7 @@ async function clearSeededData() {
   try {
     await sql`DELETE FROM ai_actions WHERE feature = 'wiki_question'`;
     await sql`DELETE FROM page_revisions WHERE page_id IN (SELECT id FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw'))`;
+    await sql`DELETE FROM page_addresses WHERE page_id IN (SELECT id FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw'))`;
     await sql`DELETE FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw')`;
     await sql`DELETE FROM raw_categories WHERE system_key = 'conversation'`;
     await sql`DELETE FROM content_data_source_settings WHERE source_key IN ('ai-conversations', 'wiki-ai-conversations')`;

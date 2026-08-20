@@ -77,6 +77,7 @@ async function clearRaw() {
   const sql = database();
   try {
     await sql`DELETE FROM page_revisions WHERE page_id IN (SELECT id FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw'))`;
+    await sql`DELETE FROM page_addresses WHERE page_id IN (SELECT id FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw'))`;
     await sql`DELETE FROM pages WHERE space_id = (SELECT id FROM spaces WHERE slug = 'raw')`;
     await sql`DELETE FROM content_assets WHERE kind = 'raw'`;
     await sql`DELETE FROM raw_categories WHERE slug <> 'reference'`;

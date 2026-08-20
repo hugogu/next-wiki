@@ -83,10 +83,10 @@ export async function publish(
       })
       .where(eq(schema.pages.id, page.id));
 
-    return { versionId: revision.id, pageId: page.id, slug: page.slug };
+    return { versionId: revision.id, pageId: page.id, slug: page.slug, path: page.path };
   });
   invalidatePublicContentCache();
-  await enqueuePublicPageWarmup(getPageHref(result.slug));
+  await enqueuePublicPageWarmup(getPageHref(result.slug || result.path));
   await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   // Publishing a source page invalidates its translations (they now trail the

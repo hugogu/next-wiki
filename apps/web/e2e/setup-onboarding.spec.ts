@@ -68,6 +68,7 @@ const FIRST_RUN_RESET_TABLES = [
   // workaround.
   'search_behaviors',
   'search_records',
+  'page_addresses',
   'page_revisions',
   'pages',
   'sessions',
@@ -111,10 +112,9 @@ async function insertUserAuthoredPage(path: string, title: string, source: strin
   await withDb(async (sql) => {
     const [admin] = await sql<{ id: string }[]>`SELECT id FROM users WHERE role = 'admin' LIMIT 1`;
     const [space] = await sql<{ id: string }[]>`SELECT id FROM spaces WHERE slug = 'default' LIMIT 1`;
-    const slug = path.split('/').pop()!;
     const [page] = await sql<{ id: string }[]>`
       INSERT INTO pages (space_id, slug, path, title, author_id)
-      VALUES (${space!.id}, ${slug}, ${path}, ${title}, ${admin!.id})
+      VALUES (${space!.id}, ${path}, ${path}, ${title}, ${admin!.id})
       RETURNING id`;
     const hash = createHash('sha256').update(source).digest('hex');
     const [revision] = await sql<{ id: string }[]>`

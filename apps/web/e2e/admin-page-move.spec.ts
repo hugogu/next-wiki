@@ -78,7 +78,7 @@ async function clearMoved() {
         SELECT migration_id FROM cross_space_migration_items
         WHERE page_id IN (SELECT id FROM pages WHERE path = ${MOVE_PATH})
       )`;
-    await sql`DELETE FROM page_route_redirects WHERE target_page_id IN (SELECT id FROM pages WHERE path = ${MOVE_PATH})`;
+    await sql`DELETE FROM page_addresses WHERE page_id IN (SELECT id FROM pages WHERE path = ${MOVE_PATH})`;
     await sql`DELETE FROM page_revisions WHERE page_id IN (SELECT id FROM pages WHERE path = ${MOVE_PATH})`;
     await sql`DELETE FROM pages WHERE path = ${MOVE_PATH}`;
   } finally {

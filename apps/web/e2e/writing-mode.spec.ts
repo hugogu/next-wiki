@@ -46,6 +46,7 @@ const RESET_TABLES = [
   // workaround.
   'search_behaviors',
   'search_records',
+  'page_addresses',
   'page_revisions',
   'pages',
   'sessions',
