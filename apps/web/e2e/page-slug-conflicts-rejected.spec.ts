@@ -79,7 +79,7 @@ test.describe('page creation rejects colliding addresses before saving', () => {
     await page.getByRole('button', { name: 'Page properties' }).click();
     const propertiesDialog = page.getByRole('dialog', { name: 'Page properties' });
     await expect(propertiesDialog).toBeVisible();
-    await propertiesDialog.getByLabel('Address', { exact: true }).fill(renamedAddress);
+    await propertiesDialog.getByLabel('Canonical', { exact: true }).fill(renamedAddress);
     await propertiesDialog.getByRole('button', { name: 'Save properties' }).click();
     await expect(page.getByRole('dialog')).toHaveCount(0);
 

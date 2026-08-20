@@ -150,32 +150,30 @@ export function AddressManager({
   return (
     <section aria-label={t('page.addresses.heading')} className="space-y-xs">
       <h2 className="text-sm font-medium text-muted">{t('page.addresses.heading')}</h2>
+      <p className="text-xs text-muted">{t('page.addresses.hint')}</p>
 
-      {editableCanonical ? (
-        <div>
-          <label htmlFor="prop-slug" className="block text-sm font-medium mb-xs">
-            {t('editor.properties.fields.slugLabel')}
-          </label>
-          <Input
-            id="prop-slug"
-            value={currentCanonical}
-            onChange={(event) => onCanonicalAddressChange?.(event.target.value)}
-            placeholder={t('editor.properties.fields.slugPlaceholder')}
-            aria-label={t('editor.properties.fields.slugLabel')}
-          />
-          {canonicalError && <p className="text-danger text-xs mt-xs">{canonicalError}</p>}
-          {!canonicalError && <p className="text-xs text-muted mt-xs">{t('editor.properties.fields.slugHint')}</p>}
-        </div>
-      ) : (
-        <div className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm">
+      {/* One consistent list: the canonical address is the first row (its
+          own pill distinguishes it), aliases follow — not a separate
+          labeled field above a separately labeled list, which read as two
+          "address" fields stacked together. */}
+      <ul className="flex flex-col gap-xs">
+        <li className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm">
           <span className="shrink-0 rounded-full bg-primary/10 px-sm py-0.5 text-xs font-medium text-primary">
             {t('page.addresses.kindCanonical')}
           </span>
-          <span className="min-w-0 flex-1 truncate">{currentCanonical}</span>
-        </div>
-      )}
-
-      {aliases.length > 0 && <ul className="flex flex-col gap-xs">
+          {editableCanonical ? (
+            <Input
+              id="prop-slug"
+              value={currentCanonical}
+              onChange={(event) => onCanonicalAddressChange?.(event.target.value)}
+              placeholder={t('editor.properties.fields.slugPlaceholder')}
+              aria-label={t('page.addresses.kindCanonical')}
+              className="min-w-0 flex-1"
+            />
+          ) : (
+            <span className="min-w-0 flex-1 truncate">{currentCanonical}</span>
+          )}
+        </li>
         {aliases.map((alias) => (
           <li key={alias.id} className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm">
             <span className="shrink-0 rounded-full bg-surface-elevated px-sm py-0.5 text-xs font-medium text-muted">
@@ -192,7 +190,8 @@ export function AddressManager({
             </button>
           </li>
         ))}
-      </ul>}
+      </ul>
+      {editableCanonical && canonicalError && <p className="text-danger text-xs">{canonicalError}</p>}
 
       <div className="flex gap-sm">
         <Input

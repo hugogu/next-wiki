@@ -484,6 +484,7 @@
     },
     "addresses": {
       "heading": "Addresses",
+      "hint": "The public address readers use to reach this page, and every other address that still works. Renaming the canonical address keeps the old one working as a redirect.",
       "kindCanonical": "Canonical",
       "kindRetained": "Retained",
       "kindManual": "Manual",
@@ -572,9 +573,7 @@
         "storagePathLabel": "Storage path",
         "storagePathHint": "The internal tree location used to organize this page. Use slashes to create directories, e.g. {example}.",
         "addressPreview": "This page will be published at {address}.",
-        "slugLabel": "Address",
-        "slugPlaceholder": "docs/getting-started",
-        "slugHint": "The public address readers use to reach this page. Changing it keeps the old address working as a redirect."
+        "slugPlaceholder": "docs/getting-started"
       }
     },
     "preview": {

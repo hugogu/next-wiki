@@ -484,6 +484,7 @@
     },
     "addresses": {
       "heading": "访问地址",
+      "hint": "读者访问该页面所使用的公开地址，以及所有仍然有效的其他地址。修改规范地址后，旧地址仍会作为跳转继续生效。",
       "kindCanonical": "规范地址",
       "kindRetained": "保留",
       "kindManual": "手动添加",
@@ -572,9 +573,7 @@
         "storagePathLabel": "存储路径",
         "storagePathHint": "用于组织页面的内部树形位置。使用斜杠创建目录，例如 {example}。",
         "addressPreview": "该页面发布后的访问地址为 {address}。",
-        "slugLabel": "访问地址",
-        "slugPlaceholder": "docs/getting-started",
-        "slugHint": "读者访问该页面所使用的公开地址。修改后，旧地址仍会作为跳转继续生效。"
+        "slugPlaceholder": "docs/getting-started"
       }
     },
     "preview": {
