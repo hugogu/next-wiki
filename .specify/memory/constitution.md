@@ -1,6 +1,38 @@
 <!--
   Sync Impact Report
   ==================
+  Version change: 2.3.0 -> 3.0.0
+  Bump rationale: MAJOR — redefines page revisions as source-content history,
+  and changes public page routing from tree paths to immutable page slugs.
+
+  Modified principles:
+    - P8: source-content saves create revisions; metadata-only changes do not
+      duplicate source snapshots.
+
+  Modified mandates:
+    - Page Tree & Path System: slug is authoritative for public routing.
+    - Content Versioning: source-content mutations create revisions; metadata
+      changes are transactional domain mutations.
+    - Frontend Routing & URL Contract: public reader URLs use page slugs and
+      breadcrumbs derive from the page tree.
+
+  Added sections: none.
+  Removed sections: none.
+
+  Templates requiring updates:
+    - .specify/templates/plan-template.md  — ✅ reviewed; no revision-specific rule.
+    - .specify/templates/spec-template.md  — ✅ reviewed; no change required.
+    - .specify/templates/tasks-template.md — ✅ reviewed; no change required.
+    - .specify/templates/commands/         — ✅ not present in this repository.
+    - README.md                            — ✅ reviewed; no change required.
+    - CLAUDE.md                            — ✅ reviewed; no change required.
+
+  Follow-up TODOs: none.
+-->
+
+<!--
+  Sync Impact Report
+  ==================
   Version change: 2.2.0 -> 2.3.0
   Bump rationale: MINOR — materially expands the mission and AI memory
   principle to define next-wiki as a conversational, self-growing knowledge
@@ -32,9 +64,9 @@
 
 # next-wiki Project Constitution
 
-**Version**: 2.3.0
+**Version**: 3.0.0
 **Ratification Date**: 2026-05-30
-**Last Amended**: 2026-07-22
+**Last Amended**: 2026-08-20
 
 ---
 
@@ -223,12 +255,18 @@ processing) MUST be executed as a background job via pg-boss. User-facing API
 routes MUST return immediately with a job ID. The UI MUST reflect job status
 asynchronously. Synchronous LLM calls in request handlers are PROHIBITED.
 
-### P8: Version Everything
+### P8: Version Source Content
 
-Every page save MUST create an immutable revision record. Deletion MUST be soft
-by default (tombstone + retention policy). Diff between any two revisions MUST
-be computable without reconstructing full history. The revision model MUST
-support future Git sync without schema changes.
+Every page source-content save MUST create an immutable revision record.
+Metadata-only changes — including title, tree location, visibility, public
+address, and aliases — MUST be transactional but MUST NOT create a duplicate
+content revision when the source snapshot is unchanged. Features that need
+durable metadata history MUST store it in their domain model and audit
+irreversible changes.
+
+Deletion MUST be soft by default (tombstone + retention policy). Diff between
+any two revisions MUST be computable without reconstructing full history. The
+revision model MUST support future Git sync without schema changes.
 
 ### P9: Open Standards Over Proprietary
 
@@ -318,10 +356,10 @@ the linked docs) requires a constitution amendment.
 
 | Mandate | One-line invariant | Detail |
 |---------|--------------------|--------|
-| Page Tree & Path System | Pages addressed by canonical key `(space_id, path, locale)`; path is language-neutral and authoritative for routing, imports, exports, and permissions. | `docs/architecture/mandates.md` |
+| Page Tree & Path System | Pages use `(space_id, path, locale)` for tree identity; path is language-neutral and authoritative for organization, imports, exports, and permissions, while slug is authoritative for public routing. | `docs/architecture/mandates.md` |
 | Rendering Pipeline | Pipeline is `source -> parse -> transform[] -> render` with discrete, typed, registered plugins; transformers never touch the DB directly. | `docs/architecture/mandates.md` |
 | Permission Model | Three axes (subject, resource, action); evaluation order explicit deny > allow > parent > space default > global default; no hardcoded admin bypass; single owner is the zero-config default (P5). | `docs/architecture/mandates.md` |
-| Content Versioning | Every mutation creates an immutable `page_revision`; diff at source level only; revisions never deleted by normal operations. | `docs/architecture/mandates.md` |
+| Content Versioning | Every source-content mutation creates an immutable `page_revision`; metadata-only mutations are transactional domain changes; diff is source-level only; revisions are never deleted by normal operations. | `docs/architecture/mandates.md` |
 | Multi-language Content | Translations keyed by `(space_id, path, locale)` via `translation_group_id`; permissions NOT inherited across translations. | `docs/architecture/mandates.md` |
 | Editor Extensibility | Pluggable editor interface; client-side AST never leaves browser; serialize to raw source only; Markdown is default. | `docs/architecture/mandates.md` |
 | Git Storage Sync | Optional, async, pg-boss job; two-way sync blocked until conflict model specified; DB stays source of truth. | `docs/architecture/mandates.md` |
@@ -330,7 +368,7 @@ the linked docs) requires a constitution amendment.
 | AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations (see P3). | `docs/architecture/mandates.md` |
 | AI Chat Side Pane | Persistent, context-aware, permission-scoped AI surface; SSE streaming; every mutation requires confirmation; hidden when AI disabled. | `docs/architecture/mandates.md` |
 | Search Retrieval Architecture | Search uses explicitly registered, independently enabled capabilities through one permission-safe coordinator; implementations are replaceable behind stable capability IDs. | `docs/architecture/mandates.md` |
-| Frontend Routing & URL Contract | RESTful resource URLs; breadcrumbs derived from route + page tree; browser-native behavior preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |
+| Frontend Routing & URL Contract | Public reader URLs use the space prefix plus page slug; breadcrumbs derive from the matched page tree; browser-native behavior is preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |
 | Public Content Delivery | Anonymous published documents, their metadata, and public navigation are static/ISR; personalized controls are separate; every public-content mutation revalidates the affected paths. | `docs/architecture/mandates.md` |
 | Project Structure | Non-negotiable monorepo layout; `src/server/` server-only; all UI primitives isolated to `src/components/ui/`; `packages/shared/` zero-dep. | `docs/architecture/project-structure.md` |
 | Frontend Data Flow | Server state via TanStack Query; UI state via Zustand; never mix; URL state in search params. | `docs/architecture/frontend-data-flow.md` |

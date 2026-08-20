@@ -14,24 +14,25 @@ boundaries from the first commit.
 
 ## Page Tree & Path System
 
-Pages are addressed by hierarchical paths such as
-`/engineering/backend/auth`. The canonical public page key is
-`(space_id, path, locale)`. The path is language-neutral; the locale selects the
-localized page record. A space MAY have one `/getting-started` page per locale,
-and another space MAY have its own `/getting-started` pages. Internal surrogate
-IDs MAY exist for foreign keys, but routing, imports, exports, permissions, and
-public APIs MUST treat the path key as canonical.
+Pages are organized by hierarchical paths such as
+`/engineering/backend/auth`. The tree identity key is `(space_id, path, locale)`:
+the path is language-neutral and the locale selects the localized page record.
+A space MAY have one `/getting-started` page per locale, and another space MAY
+have its own `/getting-started` pages. Internal surrogate IDs MAY exist for
+foreign keys. Imports, exports, permissions, public APIs, and editor/history
+routes use the path key; public reader routing uses the page's canonical slug
+under its space prefix.
 
 The data model MUST store path and locale as first-class indexed fields. Pages
 in the same translation group share a `translation_group_id`. The tree
 structure MUST be derivable from paths alone, without a separate adjacency
 table.
 
-Moving a page MUST update the path and create redirect records. A redirect
-record contains `(space_id, from_path, to_path, created_at)` and applies to all
-locale variants unless a feature spec defines locale-specific redirects. If a
-new page is created at a previously redirected path, the redirect is deleted.
-Redirect chains are resolved to their final target at write time, not read time.
+Moving a page MUST update its path without changing its canonical slug. Changing
+a published slug or moving a page across a space prefix retains the former
+public address as a redirect record. Redirect chains are resolved to their final
+target at write time, not read time. A new page MUST NOT claim an address owned
+by a retained redirect.
 
 Redirect handling MUST NOT leak protected page existence or destination paths.
 Routing MAY resolve a redirect internally to identify the final target, but the
@@ -90,12 +91,17 @@ token.
 
 ## Content Versioning
 
-Every page mutation creates a `page_revision` row with revision number, author,
-timestamp, locale, content type, content hash, and full content snapshot. The
-current page row holds a foreign key to the latest revision. Diff is always
-computed at the source level (raw Markdown or raw source text), never on
-rendered HTML. This means diff output is meaningful for any registered editor
-format without requiring the editor plugin to be present.
+Every source-content mutation creates a `page_revision` row with revision
+number, author, timestamp, locale, content type, content hash, and full content
+snapshot. The current page row holds a foreign key to the latest revision. A
+metadata-only mutation — title, tree location, visibility, public address, or
+alias — is applied transactionally in its domain model and does not create a
+duplicate content snapshot. Features that need metadata history retain it in
+their domain records and audit irreversible actions.
+
+Diff is always computed at the source level (raw Markdown or raw source text),
+never on rendered HTML. This means diff output is meaningful for any registered
+editor format without requiring the editor plugin to be present.
 
 Revisions are NEVER deleted by normal operations. Only a configurable retention
 policy job MAY prune them, and that job MUST preserve enough metadata to
@@ -284,9 +290,11 @@ rules are non-negotiable; any PR that violates them is an architecture defect.
 
 **URL design:**
 
-- Public page URL: `/<space-slug>/<path>` (for example,
-  `/engineering/backend/auth`). The space slug and the page path together form
-  the canonical resource identifier shown in the address bar.
+- Public reader URL: `/<space-prefix>/<slug>` (for example,
+  `/engineering/backend/auth`). The space prefix and page slug together form
+  the canonical resource identifier shown in the address bar. The page tree
+  path remains the organizational identity used by editor, history, and
+  revision routes.
 - Editor URL for a page: `/<space-slug>/<path>/edit`.
 - Revision URL: `/<space-slug>/<path>/revisions/<n>`. Diff URL:
   `/<space-slug>/<path>/revisions/<a>..<b>`.
@@ -306,8 +314,8 @@ rules are non-negotiable; any PR that violates them is an architecture defect.
 - A breadcrumb component MUST render on every page except the site root and
   full-screen flows that a feature spec explicitly exempts (for example, a
   distraction-free preview mode).
-- Breadcrumb segments are derived from the current URL and the page tree, never
-  hand-coded per page.
+- Breadcrumb segments are derived from the matched page's tree ancestry and the
+  route hierarchy, never from slug segments or hand-coded per page.
 - The final breadcrumb segment represents the current resource. Intermediate
   segments link to their parent collection, space, or dashboard.
 - Breadcrumbs MUST NOT reveal the existence of a resource the current user
