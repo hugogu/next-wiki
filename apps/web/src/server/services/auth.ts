@@ -147,7 +147,11 @@ export async function login(input: { email: string; password: string }): Promise
 // APP_URL is the app's own declared public origin, so derive `secure` from
 // its scheme instead.
 export function isSecureCookieUrl(appUrl: string): boolean {
-  return appUrl.startsWith('https://');
+  // URL schemes are case-insensitive (RFC 3986); a plain `startsWith`
+  // check would miss a validly-cased-but-uppercase `HTTPS://...` APP_URL
+  // and silently weaken the cookie. `env.APP_URL` is already validated by
+  // Zod's `z.string().url()`, so parsing here can't throw.
+  return new URL(appUrl).protocol === 'https:';
 }
 
 export async function establishSession(userId: string): Promise<void> {
