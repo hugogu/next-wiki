@@ -6,11 +6,20 @@ const pagesService = vi.hoisted(() => ({
 const configModule = vi.hoisted(() => ({
   env: { APP_URL: 'https://wiki.example.test' },
 }));
+// 035: sitemap.ts now iterates every space via listSpaces() and addresses
+// each page by its canonical slug (canonicalSpacePath), not just the
+// default wiki space's bare path.
+const spacesService = vi.hoisted(() => ({
+  listSpaces: vi.fn(),
+}));
 
 vi.mock('@/server/services/pages', () => pagesService);
 vi.mock('@/server/config', () => configModule);
+vi.mock('@/server/services/spaces', () => spacesService);
 
 import sitemap, { dynamic } from './sitemap';
+
+const DEFAULT_SPACE = { id: 'space-1', kind: 'wiki' as const, routePrefix: null, slug: 'default' };
 
 describe('sitemap route', () => {
   it('opts out of static prerendering so the route can be built without a database', () => {
@@ -18,9 +27,11 @@ describe('sitemap route', () => {
   });
 
   it('emits the homepage and /pages index ahead of every published page', async () => {
+    spacesService.listSpaces.mockResolvedValue([DEFAULT_SPACE]);
     pagesService.listPublished.mockResolvedValue([
       {
         path: 'docs/a',
+        slug: 'docs/a',
         title: 'A',
         authorDisplayName: 'Author',
         publishedAt: '2026-06-01T00:00:00.000Z',
@@ -28,6 +39,7 @@ describe('sitemap route', () => {
       },
       {
         path: 'docs/b',
+        slug: 'docs/b',
         title: 'B',
         authorDisplayName: 'Author',
         publishedAt: null,
@@ -47,14 +59,16 @@ describe('sitemap route', () => {
       changeFrequency: 'daily',
       priority: 0.8,
     });
+    // Addressed by the space's resolved route prefix ("wiki" — the default
+    // space's own no-prefix fallback), not a bare path.
     expect(entries[2]).toMatchObject({
-      url: 'https://wiki.example.test/docs/a',
+      url: 'https://wiki.example.test/wiki/docs/a',
       lastModified: '2026-06-02T00:00:00.000Z',
       changeFrequency: 'weekly',
       priority: 0.7,
     });
     expect(entries[3]).toMatchObject({
-      url: 'https://wiki.example.test/docs/b',
+      url: 'https://wiki.example.test/wiki/docs/b',
       lastModified: '2026-06-03T00:00:00.000Z',
       changeFrequency: 'weekly',
       priority: 0.7,
@@ -62,6 +76,7 @@ describe('sitemap route', () => {
   });
 
   it('still returns the homepage and /pages index when no pages are published', async () => {
+    spacesService.listSpaces.mockResolvedValue([DEFAULT_SPACE]);
     pagesService.listPublished.mockResolvedValue([]);
 
     const entries = await sitemap();
