@@ -138,6 +138,18 @@ export async function login(input: { email: string; password: string }): Promise
   return { userId: user.id, mustResetPassword: user.mustResetPassword };
 }
 
+// `NODE_ENV === 'production'` is not "served over HTTPS": the packaged
+// Docker image always sets NODE_ENV=production, including for a plain-HTTP
+// LAN/self-hosted deployment (e.g. http://192.168.x.x:3000). A `Secure`
+// cookie set over such a connection is silently dropped by the browser —
+// login appears to succeed (the session row is created) but the client
+// never persists the cookie, so every subsequent request looks anonymous.
+// APP_URL is the app's own declared public origin, so derive `secure` from
+// its scheme instead.
+export function isSecureCookieUrl(appUrl: string): boolean {
+  return appUrl.startsWith('https://');
+}
+
 export async function establishSession(userId: string): Promise<void> {
   const sessionId = generateSessionId();
   const expiresAt = new Date();
@@ -156,7 +168,7 @@ export async function establishSession(userId: string): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, sessionId, {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
+    secure: isSecureCookieUrl(env.APP_URL),
     sameSite: 'lax',
     path: '/',
     expires: expiresAt,
