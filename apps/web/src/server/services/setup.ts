@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, isNull, ne, sql } from 'drizzle-orm';
 import type {
   SetupAiResult,
   SetupAiStatus,
@@ -11,7 +11,7 @@ import { writingModeSchema } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
-import { hasAnyAdmin } from '@/server/services/users';
+import { hasAnyAdmin, SEED_DEMO_ADMIN_EMAIL } from '@/server/services/users';
 import { invalidateWritingModeCache } from '@/server/services/writing-mode';
 import { DomainError } from '@/server/errors';
 import type { Actor } from '@/server/permissions';
@@ -59,8 +59,15 @@ export async function setupAdmin(input: { email: string; password: string }): Pr
   const passwordHash = await bcrypt.hash(input.password, 10);
   const userId = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(${SETUP_ADMIN_LOCK_KEY})`);
+    // Excludes the seed demo account (see SEED_DEMO_ADMIN_EMAIL) — same
+    // exclusion as hasAnyAdmin(), duplicated here rather than calling it
+    // directly so this lookup runs inside the advisory-locked transaction.
     const existingAdmin = await tx.query.users.findFirst({
-      where: and(eq(schema.users.role, 'admin'), isNull(schema.users.deletedAt)),
+      where: and(
+        eq(schema.users.role, 'admin'),
+        isNull(schema.users.deletedAt),
+        ne(schema.users.email, SEED_DEMO_ADMIN_EMAIL),
+      ),
     });
     if (existingAdmin) {
       throw new DomainError('FORBIDDEN', 'An admin account already exists');
@@ -81,6 +88,13 @@ export async function setupAdmin(input: { email: string; password: string }): Pr
       })
       .returning();
     if (!user) throw new Error('SETUP_FAILED');
+    // A real admin now exists: the seed demo account's password is public in
+    // the README, so it must not remain a live login. Disable rather than
+    // delete — preserves its authorship on any demo content it created.
+    await tx
+      .update(schema.users)
+      .set({ status: 'disabled' })
+      .where(and(eq(schema.users.email, SEED_DEMO_ADMIN_EMAIL), eq(schema.users.role, 'admin')));
     await tx
       .insert(schema.setupProgress)
       .values({

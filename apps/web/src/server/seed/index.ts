@@ -8,6 +8,7 @@ import { seedBuiltinSystemThemes } from '@/server/services/system-theme';
 import { DEFAULT_SPACE_SLUG } from '@/server/services/spaces';
 import { WELCOME_PAGE_SOURCE } from '@/server/services/setup-sample-page-definitions';
 import { ensureSystemCategory } from '@/server/services/raw-categories';
+import { SEED_DEMO_ADMIN_EMAIL } from '@/server/services/users';
 import { env } from '@/server/config';
 
 /**
@@ -161,9 +162,10 @@ export async function seedDatabase() {
 
   // Demo/sample data only: a sample admin account and welcome page. This NEVER
   // runs in production unless explicitly opted in via NEXT_WIKI_SEED=true. The
-  // first real admin is created interactively through the /setup first-run
-  // route (see services/setup.ts); shipping a hard-coded admin would both
-  // preempt that flow and expose a publicly-known credential.
+  // seed account's well-known password means it must never preempt the real
+  // first-run /setup flow — hasAnyAdmin()/setupAdmin() exclude it by email
+  // (SEED_DEMO_ADMIN_EMAIL) so a real operator can always still become the
+  // first (real) admin, and setupAdmin() disables this account once they do.
   if (env.NODE_ENV === 'production' && env.NEXT_WIKI_SEED !== 'true') {
     return;
   }
@@ -174,14 +176,14 @@ export async function seedDatabase() {
   if (!space) throw new Error('Seed failed: default space missing');
 
   let admin = await db.query.users.findFirst({
-    where: eq(schema.users.email, 'admin@example.com'),
+    where: eq(schema.users.email, SEED_DEMO_ADMIN_EMAIL),
   });
 
   if (!admin) {
     const [created] = await db
       .insert(schema.users)
       .values({
-        email: 'admin@example.com',
+        email: SEED_DEMO_ADMIN_EMAIL,
         passwordHash: await bcrypt.hash('admin123', 10),
         role: 'admin',
         status: 'active',
