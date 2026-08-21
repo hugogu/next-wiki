@@ -48,7 +48,11 @@ beforeAll(async () => {
   editorCtx = buildUserCtx(editor!.id, 'editor');
 
   // A published page exists before the migration starts.
-  pagePath = `ro/${randomUUID()}`;
+  // 035: a two-letter leading segment is reserved for locale-prefixed
+  // addresses, so this can't be `ro/...` (the obvious "read-only" shorthand)
+  // — it would collide with that rule as soon as create() derives its
+  // default slug from the path.
+  pagePath = `readonly/${randomUUID()}`;
   const { versionId } = await pageService.create(editorCtx, { path: pagePath, title: 'RO', contentSource: '# RO' });
   await db
     .update(schema.pages)
