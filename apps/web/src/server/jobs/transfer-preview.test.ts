@@ -343,6 +343,62 @@ describe('runTransferPreview (archive_preview)', () => {
     expect(items.find((i) => i.kind === 'page')?.action).toBe('replace');
   });
 
+  it('predicts a new page\'s resulting address, adjusting it when the source path collides with an existing address (035 T069)', async () => {
+    await db
+      .insert(schema.pages)
+      .values({
+        spaceId,
+        slug: 'docs/preview-address-taken',
+        path: 'docs/preview-address-taken-holder',
+        locale: 'en',
+        title: 'Existing Holder',
+        authorId: adminId,
+      })
+      .returning();
+    const { run } = await buildArchiveAndRun({
+      pages: [{ id: '50', path: 'docs/preview-address-taken' }],
+    });
+    await runTransferPreview(run!.id);
+
+    const items = await db.query.transferItems.findMany({
+      where: eq(schema.transferItems.runId, run.id),
+    });
+    const item = items.find((i) => i.kind === 'page');
+    expect(item?.action).toBe('create');
+    const metadata = item?.metadata as { address?: string; addressAdjustmentReason?: string };
+    expect(metadata.address).not.toBe('docs/preview-address-taken');
+    expect(metadata.address).toMatch(/^docs\/preview-address-taken-\d+$/);
+    expect(metadata.addressAdjustmentReason).toBe('taken');
+  });
+
+  it('predicts an unchanged page\'s own current address for a skip/replace item, not its source path (035 T069)', async () => {
+    await db
+      .insert(schema.pages)
+      .values({
+        spaceId,
+        slug: 'docs/preview-address-unchanged',
+        path: 'docs/preview-address-existing',
+        locale: 'en',
+        title: 'Existing',
+        authorId: adminId,
+      })
+      .returning();
+    const { run } = await buildArchiveAndRun({
+      pages: [{ id: '51', path: 'docs/preview-address-existing' }],
+      conflictStrategy: 'replace',
+    });
+    await runTransferPreview(run!.id);
+
+    const items = await db.query.transferItems.findMany({
+      where: eq(schema.transferItems.runId, run.id),
+    });
+    const item = items.find((i) => i.kind === 'page');
+    expect(item?.action).toBe('replace');
+    const metadata = item?.metadata as { address?: string; addressAdjustmentReason?: string };
+    expect(metadata.address).toBe('docs/preview-address-unchanged');
+    expect(metadata.addressAdjustmentReason).toBeUndefined();
+  });
+
   it('fails the run when the archive on disk is corrupt', async () => {
     const { artifact } = await buildArchiveAndRun({
       pages: [{ id: '30', path: 'docs/corrupt' }],
@@ -505,6 +561,35 @@ describe('previewArchive includeHistory', () => {
     const item = items.find((i) => i.kind === 'page')!;
     expect(item.action).toBe('replace');
     expect(item.warningCode).toBeNull();
+  });
+});
+
+describe('runTransferPreview (wikijs_preview) address prediction (035 T069)', () => {
+  it('adjusts a new page\'s predicted address when the source path collides with an existing address', async () => {
+    await db
+      .insert(schema.pages)
+      .values({
+        spaceId,
+        slug: 'docs/wikijs-preview-taken',
+        path: 'docs/wikijs-preview-taken-holder',
+        locale: 'en',
+        title: 'Existing Holder',
+        authorId: adminId,
+      })
+      .returning();
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [{ id: 200, path: 'docs/wikijs-preview-taken' }],
+    });
+
+    await runTransferPreview(run.id);
+
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    const item = items.find((i) => i.kind === 'page');
+    expect(item?.action).toBe('create');
+    const metadata = item?.metadata as { address?: string; addressAdjustmentReason?: string };
+    expect(metadata.address).not.toBe('docs/wikijs-preview-taken');
+    expect(metadata.address).toMatch(/^docs\/wikijs-preview-taken-\d+$/);
+    expect(metadata.addressAdjustmentReason).toBe('taken');
   });
 });
 

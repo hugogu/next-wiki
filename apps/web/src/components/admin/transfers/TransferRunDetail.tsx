@@ -266,6 +266,21 @@ export function TransferRunDetail({
               )}
               <span className="shrink-0 text-muted">{item.action} · {item.status}</span>
             </div>
+            {typeof item.metadata.address === 'string' && (
+              <p className="mt-xs text-xs text-muted">
+                {t('admin.transfers.detail.address', { address: item.metadata.address })}
+                {typeof item.metadata.addressAdjustmentReason === 'string' && (
+                  <span className="text-warning">
+                    {' '}· {t(
+                      `admin.transfers.detail.addressReason.${item.metadata.addressAdjustmentReason}` as
+                        | 'admin.transfers.detail.addressReason.invalid_characters'
+                        | 'admin.transfers.detail.addressReason.reserved'
+                        | 'admin.transfers.detail.addressReason.taken',
+                    )}
+                  </span>
+                )}
+              </p>
+            )}
             {item.warningMessage && (
               <p className="mt-xs text-xs text-warning">
                 {item.warningCode ? `${item.warningCode}: ` : ''}{item.warningMessage}

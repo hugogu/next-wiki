@@ -1011,6 +1011,12 @@
         "noItems": "No items yet.",
         "cleanupConfirm": "Delete the {count} page(s) this import created or replaced and remove them from AI indexes? Pages it skipped are left untouched. This cannot be undone.",
         "cleanupDone": "Deleted {count} imported page(s).",
+        "address": "Address: {address}",
+        "addressReason": {
+          "invalid_characters": "adjusted — source path had unsupported characters",
+          "reserved": "adjusted — source path is reserved by built-in functionality",
+          "taken": "adjusted — source path is already in use"
+        },
         "filter": {
           "all": "All",
           "warning": "Warnings",

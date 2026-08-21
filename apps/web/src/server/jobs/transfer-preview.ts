@@ -18,9 +18,48 @@ import { getSpaceByKind, resolveSpace } from '@/server/services/spaces';
 import { getMode } from '@/server/services/writing-mode';
 import { DomainError } from '@/server/errors';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
+import { deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
 import type { NormalizedPortableManifest } from '@next-wiki/shared';
 
 const WIKIJS_PREVIEW_BATCH_SIZE = 50;
+
+/**
+ * 035 (T069/US5): the address a preview item reports is only a prediction —
+ * the real run (transfer-page-writer.ts's own deriveNewPageAddress) re-checks
+ * against the live database at write time. Loading the space's taken
+ * addresses once and reserving each predicted new-page address locally as we
+ * go (rather than re-querying per item) keeps that prediction consistent
+ * *within* one preview — mirroring the real run's sequential, one-page-at-
+ * a-time commits — without a DB round trip per item.
+ */
+async function loadTakenAddresses(spaceId: string): Promise<Set<string>> {
+  const [slugRows, aliasRows] = await Promise.all([
+    db.query.pages.findMany({ where: eq(schema.pages.spaceId, spaceId), columns: { slug: true } }),
+    db.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.spaceId, spaceId), columns: { address: true } }),
+  ]);
+  return new Set([...slugRows.map((r) => r.slug), ...aliasRows.map((r) => r.address)]);
+}
+
+/** Predicts the address a page will resolve to: derived from the source path
+ * for a new page (reserving it so later items in the same preview see it as
+ * taken), or the existing page's own untouched address otherwise (FR-026).
+ * Only the plain "wiki" space kind actually derives — raw/generated writers
+ * default a new page's address to its path unconditionally (see
+ * transfer-page-writer.ts), so this mirrors that instead of predicting an
+ * adjustment that will never happen. */
+function previewAddress(
+  takenAddresses: Set<string>,
+  sourcePath: string,
+  action: 'create' | 'replace' | 'skip',
+  existingSlug: string | undefined,
+  deriveAddress: boolean,
+): { address?: string; reason?: ImportAddressAdjustmentReason } {
+  if (action !== 'create') return { address: existingSlug };
+  if (!deriveAddress) return { address: sourcePath };
+  const derived = deriveImportAddress(sourcePath, (address) => takenAddresses.has(address));
+  takenAddresses.add(derived.address);
+  return { address: derived.address, reason: derived.reason ?? undefined };
+}
 
 async function availableKinds(): Promise<Set<NormalizedPortableManifest['pages'][number]['spaceKind']>> {
   const available: Set<NormalizedPortableManifest['pages'][number]['spaceKind']> = new Set(['wiki']);
@@ -52,6 +91,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
   const sourceMode = inspected.manifest.source.writingMode;
   const hasModeMismatch = sourceMode !== currentMode;
   const kinds = await availableKinds();
+  const takenAddresses = await loadTakenAddresses(space.id);
 
   let created = 0;
   let replaced = 0;
@@ -130,6 +170,14 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
       };
     }
 
+    const { address, reason: addressAdjustmentReason } = previewAddress(
+      takenAddresses,
+      page.path,
+      action,
+      existing?.slug,
+      page.spaceKind === 'wiki',
+    );
+
     if (action === 'create') created += 1;
     else if (action === 'replace') replaced += 1;
     else skipped += 1;
@@ -145,7 +193,13 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
       status: itemStatus,
       warningCode,
       warningMessage,
-      metadata: { entry: page.entry, title: page.title, ...(historyMeta ? { history: historyMeta } : {}) },
+      metadata: {
+        entry: page.entry,
+        title: page.title,
+        ...(historyMeta ? { history: historyMeta } : {}),
+        ...(address ? { address } : {}),
+        ...(addressAdjustmentReason ? { addressAdjustmentReason } : {}),
+      },
       finishedAt: new Date(),
     });
   }
@@ -209,6 +263,7 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   const strategy = options.conflictStrategy ?? 'skip';
   const includeHistory = Boolean(options.includeHistory);
   const historyLimit = normalizeHistoryLimit(options.historyLimit);
+  const takenAddresses = await loadTakenAddresses(space.id);
 
   // Probe history access once, up front, instead of discovering the gap page
   // by page — a missing read:history grant fails the whole run immediately.
@@ -343,6 +398,14 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
       }
       fingerprints.push(itemFingerprint);
 
+      const { address, reason: addressAdjustmentReason } = previewAddress(
+        takenAddresses,
+        summary.path,
+        targetAction,
+        existing?.slug,
+        true,
+      );
+
       const displayAction = targetAction === 'skip' ? 'skip' : isConverted ? 'convert' : targetAction;
       if (displayAction === 'create') created += 1;
       else if (displayAction === 'replace') replaced += 1;
@@ -368,6 +431,8 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
           converted: isConverted,
           targetAction,
           ...(historyMeta ? { history: historyMeta } : {}),
+          ...(address ? { address } : {}),
+          ...(addressAdjustmentReason ? { addressAdjustmentReason } : {}),
         },
         finishedAt: new Date(),
       });
