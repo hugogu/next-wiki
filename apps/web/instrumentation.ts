@@ -15,12 +15,15 @@ export async function register() {
   const { runMigrations } = await import('./src/server/db/migrate');
   const { seedDatabase, seedE2eAdminFixture } = await import('./src/server/seed');
   const { loadDemoReadOnlyFromDb } = await import('./src/server/services/demo-mode');
+  const { env } = await import('./src/server/config');
 
   await runMigrations();
   await seedDatabase();
   // Playwright's webServer sets this; never true for a real deployment. See
   // seedE2eAdminFixture's doc comment for why this fixture only exists here.
-  if (process.env.NEXT_WIKI_E2E === 'true') {
+  // Hard-gated on NODE_ENV too — never let a stray/mistaken NEXT_WIKI_E2E in
+  // a production environment create the well-known admin@example.com login.
+  if (process.env.NEXT_WIKI_E2E === 'true' && env.NODE_ENV !== 'production') {
     await seedE2eAdminFixture();
   }
   await loadDemoReadOnlyFromDb();

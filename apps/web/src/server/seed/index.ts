@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import bcrypt from 'bcryptjs';
 import { AI_CONVERSATIONS_SOURCE_KEY } from '@next-wiki/shared';
 import { db } from '@/server/db';
@@ -165,8 +165,8 @@ export async function seedDatabase() {
  * each have to drive the interactive /setup flow. Never called outside the
  * e2e webServer (see instrumentation.ts's NEXT_WIKI_E2E guard) — there is no
  * seeding concept for a real deployment; every real admin is created through
- * /setup, which is why the homepage/`/auth/login` redirect there whenever no
- * admin exists (see (public)/page.tsx, auth/login/page.tsx).
+ * /setup, which is why the homepage and `/auth/login` both redirect there
+ * whenever no admin exists (see (public)/page.tsx, auth/login/page.tsx).
  */
 export async function seedE2eAdminFixture() {
   const space = await db.query.spaces.findFirst({
@@ -193,8 +193,11 @@ export async function seedE2eAdminFixture() {
     admin = created;
   }
 
+  // `slug` alone isn't unique (the schema's uniqueness is space_id + path +
+  // locale); scope this to the default space so an unrelated page named
+  // "welcome" in another space can never make this skip creating this one.
   const existingPage = await db.query.pages.findFirst({
-    where: eq(schema.pages.slug, 'welcome'),
+    where: and(eq(schema.pages.spaceId, space.id), eq(schema.pages.path, 'welcome')),
   });
 
   if (existingPage) {
