@@ -171,7 +171,9 @@ NEXT_WIKI_SEED=true docker compose up -d --build
 ```
 
 The seeded development account is `admin@example.com` / `admin123`. Do not use
-these credentials in a real deployment.
+these credentials in a real deployment — set `NEXT_WIKI_ADMIN_EMAIL` and
+`NEXT_WIKI_ADMIN_PASSWORD` in `.env` instead to seed your own admin account
+through the same command; see [Admin account recovery](docs/deployment.md#admin-account-recovery).
 
 The default stack only requires PostgreSQL. To experiment with the optional
 S3-compatible content backend, start MinIO with the Compose profile:

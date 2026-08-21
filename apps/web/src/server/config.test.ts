@@ -76,4 +76,55 @@ describe('config env parsing', () => {
     const { env } = await import('./config');
     expect(env.API_KEY_ENCRYPTION_KEY).toBe('0'.repeat(64));
   });
+
+  describe('NEXT_WIKI_ADMIN_EMAIL / NEXT_WIKI_ADMIN_PASSWORD', () => {
+    function stubRequired() {
+      vi.stubEnv('NODE_ENV', 'production');
+      vi.stubEnv('DATABASE_URL', 'postgresql://wiki:wiki@localhost:5432/wiki');
+      vi.stubEnv('API_KEY_ENCRYPTION_KEY', '0'.repeat(64));
+    }
+
+    it('accepts neither being set (falls back to the hard-coded demo admin)', async () => {
+      stubRequired();
+      const { env } = await import('./config');
+      expect(env.NEXT_WIKI_ADMIN_EMAIL).toBeUndefined();
+      expect(env.NEXT_WIKI_ADMIN_PASSWORD).toBeUndefined();
+    });
+
+    it('accepts both being set together', async () => {
+      stubRequired();
+      vi.stubEnv('NEXT_WIKI_ADMIN_EMAIL', 'me@example.com');
+      vi.stubEnv('NEXT_WIKI_ADMIN_PASSWORD', 'a-strong-password');
+
+      const { env } = await import('./config');
+      expect(env.NEXT_WIKI_ADMIN_EMAIL).toBe('me@example.com');
+      expect(env.NEXT_WIKI_ADMIN_PASSWORD).toBe('a-strong-password');
+    });
+
+    it('rejects setting only the email', async () => {
+      stubRequired();
+      vi.stubEnv('NEXT_WIKI_ADMIN_EMAIL', 'me@example.com');
+
+      let caught: unknown;
+      try {
+        await import('./config');
+      } catch (error) {
+        caught = error;
+      }
+      expect((caught as Error).message).toContain('NEXT_WIKI_ADMIN_EMAIL and NEXT_WIKI_ADMIN_PASSWORD');
+    });
+
+    it('rejects setting only the password', async () => {
+      stubRequired();
+      vi.stubEnv('NEXT_WIKI_ADMIN_PASSWORD', 'a-strong-password');
+
+      let caught: unknown;
+      try {
+        await import('./config');
+      } catch (error) {
+        caught = error;
+      }
+      expect((caught as Error).message).toContain('NEXT_WIKI_ADMIN_EMAIL and NEXT_WIKI_ADMIN_PASSWORD');
+    });
+  });
 });

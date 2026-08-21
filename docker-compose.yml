@@ -36,6 +36,12 @@ services:
       # hard-coded, publicly-known admin account. Set NEXT_WIKI_SEED=true to
       # restore the sample data (also auto-enabled when NODE_ENV != production).
       NEXT_WIKI_SEED: ${NEXT_WIKI_SEED:-false}
+      # Optional: when seeding (NEXT_WIKI_SEED=true), use this email/password
+      # for the seeded admin instead of the hard-coded admin@example.com /
+      # admin123 — sign in with your own credentials through the web UI, no
+      # CLI/DB access needed. Must be set together (see config.ts).
+      NEXT_WIKI_ADMIN_EMAIL: ${NEXT_WIKI_ADMIN_EMAIL:-}
+      NEXT_WIKI_ADMIN_PASSWORD: ${NEXT_WIKI_ADMIN_PASSWORD:-}
       # Public read-only demo mode: rejects every write action for every
       # actor, including admins. See docs/deployment.md#public-read-only-demo.
       # Only seeds the setting's initial DB value on first boot; afterward it

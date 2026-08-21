@@ -163,7 +163,10 @@ export async function seedDatabase() {
   // runs in production unless explicitly opted in via NEXT_WIKI_SEED=true. The
   // first real admin is created interactively through the /setup first-run
   // route (see services/setup.ts); shipping a hard-coded admin would both
-  // preempt that flow and expose a publicly-known credential.
+  // preempt that flow and expose a publicly-known credential — unless the
+  // operator opted into their own via NEXT_WIKI_ADMIN_EMAIL/_PASSWORD, in
+  // which case that account is the real admin from the start, entirely
+  // through .env + the normal web sign-in, no CLI/DB access needed.
   if (env.NODE_ENV === 'production' && env.NEXT_WIKI_SEED !== 'true') {
     return;
   }
@@ -173,16 +176,19 @@ export async function seedDatabase() {
   });
   if (!space) throw new Error('Seed failed: default space missing');
 
+  const adminEmail = env.NEXT_WIKI_ADMIN_EMAIL ?? 'admin@example.com';
+  const adminPassword = env.NEXT_WIKI_ADMIN_PASSWORD ?? 'admin123';
+
   let admin = await db.query.users.findFirst({
-    where: eq(schema.users.email, 'admin@example.com'),
+    where: eq(schema.users.email, adminEmail),
   });
 
   if (!admin) {
     const [created] = await db
       .insert(schema.users)
       .values({
-        email: 'admin@example.com',
-        passwordHash: await bcrypt.hash('admin123', 10),
+        email: adminEmail,
+        passwordHash: await bcrypt.hash(adminPassword, 10),
         role: 'admin',
         status: 'active',
         displayName: 'Admin',

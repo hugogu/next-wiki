@@ -86,10 +86,17 @@ that account yourself. This is deliberate: it's what keeps a public demo
 (see [below](#public-read-only-demo)) from showing a "create the admin
 account" form to random visitors.
 
-To get your own admin account without knowing (or using) the seed
-credentials, run this from the host, with server/container access — the
-same trust level as anyone who can already run arbitrary SQL against the
-database directly:
+**If you're setting up a fresh deployment**, the way to get your own admin
+account without ever touching `admin@example.com` / `admin123` is to set
+`NEXT_WIKI_ADMIN_EMAIL` and `NEXT_WIKI_ADMIN_PASSWORD` in `.env` (see
+`.env.example`) before first boot, alongside `NEXT_WIKI_SEED=true`. The seed
+step creates that account instead of the hard-coded one — sign in with it
+through the normal web UI, nothing else to configure or run.
+
+**If you already have a running deployment** seeded with the hard-coded
+account and don't want to reset it, run this from the host, with
+server/container access — the same trust level as anyone who could already
+run arbitrary SQL against the database directly:
 
 ```bash
 # Promote an account you've already registered through the web UI:
@@ -99,9 +106,9 @@ docker exec next-wiki-web node apps/web/scripts/promote-admin.mjs you@example.co
 docker exec next-wiki-web node apps/web/scripts/promote-admin.mjs you@example.com 'a-strong-password'
 ```
 
-Once you have your own admin account, sign in and disable or delete the
-seed `admin@example.com` account from **Admin → Users** — its password is
-public in this README, so it must not stay a live login.
+Either way, once you have your own admin account, sign in and disable or
+delete the seed `admin@example.com` account from **Admin → Users** — its
+password is public in this README, so it must not stay a live login.
 
 ## Backup
 

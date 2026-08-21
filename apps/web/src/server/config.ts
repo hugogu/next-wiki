@@ -10,6 +10,13 @@ const envSchema = z.object({
   APP_INTERNAL_URL: z.string().url().default('http://127.0.0.1:3000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   NEXT_WIKI_SEED: z.enum(['true', 'false']).default('false'),
+  // Optional: when seeding demo data (NEXT_WIKI_SEED=true), create the demo
+  // admin with this email/password instead of the hard-coded, publicly
+  // documented admin@example.com / admin123. Lets an operator become the
+  // real admin purely by configuring .env and signing in through the web
+  // UI — no CLI/DB access needed after boot. Must be set together.
+  NEXT_WIKI_ADMIN_EMAIL: z.string().email().optional(),
+  NEXT_WIKI_ADMIN_PASSWORD: z.string().min(8).optional(),
   API_KEY_ENCRYPTION_KEY: z.string().min(64).max(64),
   // Content storage (003). All optional with safe defaults so the zero-config
   // PostgreSQL-only deployment is unchanged (P1).
@@ -65,6 +72,14 @@ const envSchema = z.object({
   OPENROUTER_API_KEY: z.string().optional(),
   // Optional OpenRouter API base URL override (proxy/mirror/test fixture).
   OPENROUTER_BASE_URL: z.string().url().default('https://openrouter.ai/api/v1'),
+}).superRefine((data, ctx) => {
+  if ((data.NEXT_WIKI_ADMIN_EMAIL === undefined) !== (data.NEXT_WIKI_ADMIN_PASSWORD === undefined)) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['NEXT_WIKI_ADMIN_EMAIL'],
+      message: 'NEXT_WIKI_ADMIN_EMAIL and NEXT_WIKI_ADMIN_PASSWORD must be set together, or not at all',
+    });
+  }
 });
 
 // Local convenience defaults for dev/test only. In production a missing value
