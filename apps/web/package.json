@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "node scripts/migrate.mjs",
+    "admin:promote": "node scripts/promote-admin.mjs",
     "db:studio": "drizzle-kit studio",
     "openapi:generate": "NODE_OPTIONS=--max-old-space-size=4096 openapi-gen generate && node scripts/finalize-openapi.mjs"
   },

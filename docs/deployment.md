@@ -76,6 +76,33 @@ docker compose -f docker-compose.prod.yml logs -f web
 
 Once healthy, open `APP_URL/setup` in a browser to create the first admin.
 
+## Admin account recovery
+
+`/setup`'s account-creation form only shows itself when the database has no
+admin at all. If `NEXT_WIKI_SEED=true` was ever set, the deployment already
+has one — the seed `admin@example.com` account — so `/setup` and
+`/auth/login` stay closed to the public even if you never intended to use
+that account yourself. This is deliberate: it's what keeps a public demo
+(see [below](#public-read-only-demo)) from showing a "create the admin
+account" form to random visitors.
+
+To get your own admin account without knowing (or using) the seed
+credentials, run this from the host, with server/container access — the
+same trust level as anyone who can already run arbitrary SQL against the
+database directly:
+
+```bash
+# Promote an account you've already registered through the web UI:
+docker exec next-wiki-web node apps/web/scripts/promote-admin.mjs you@example.com
+
+# Or create a new admin account directly, with no prior registration:
+docker exec next-wiki-web node apps/web/scripts/promote-admin.mjs you@example.com 'a-strong-password'
+```
+
+Once you have your own admin account, sign in and disable or delete the
+seed `admin@example.com` account from **Admin → Users** — its password is
+public in this README, so it must not stay a live login.
+
 ## Backup
 
 Run `scripts/backup.sh` manually or from cron:
@@ -126,6 +153,13 @@ Follow the normal production setup, then in that deployment's `.env`:
 NEXT_WIKI_SEED=true            # seed once, or restore a snapshot instead
 NEXT_WIKI_DEMO_READONLY=true
 ```
+
+Want to sign in as yourself and prepare content before flipping the switch
+to read-only? Leave `NEXT_WIKI_DEMO_READONLY` off, get your own admin
+account via [Admin account recovery](#admin-account-recovery) (`/setup` is
+closed once the seed admin exists, same as any other `NEXT_WIKI_SEED=true`
+deployment), prepare your content, then set `NEXT_WIKI_DEMO_READONLY=true`
+and redeploy.
 
 ```bash
 docker compose -f docker-compose.prod.yml pull web
