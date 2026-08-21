@@ -61,6 +61,7 @@ describe('buildReaderMetadata', () => {
     pageId: 'page-1',
     revisionId: 'rev-1',
     path: 'welcome',
+    slug: 'welcome',
     title: 'Welcome',
     contentHtml: '<p>Hello world.</p>',
     contentHash: 'hash',
