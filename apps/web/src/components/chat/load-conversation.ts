@@ -12,17 +12,18 @@ import {
 } from './reconstruct-session';
 import { resolveSessionId } from './resolve-session-id';
 import { useChatStore } from './chat-store';
+import { uuid } from '@/lib/uuid';
 
 type ChatMessages = ReturnType<typeof useChatStore.getState>['messages'];
 
 function pushTurn(messages: ChatMessages, turn: ReconstructedSession) {
   messages.push({
-    id: crypto.randomUUID(),
+    id: uuid(),
     role: 'user',
     text: turn.question,
   });
   messages.push({
-    id: crypto.randomUUID(),
+    id: uuid(),
     role: 'assistant',
     text: turn.insufficient ? '' : turn.answer,
     thinking: turn.thinking,

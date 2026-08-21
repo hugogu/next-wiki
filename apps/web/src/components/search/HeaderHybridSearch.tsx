@@ -5,6 +5,7 @@ import { SearchIcon } from '@/components/icons';
 import { useHybridPageSearch } from '@/hooks/useHybridPageSearch';
 import { getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
+import { uuid } from '@/lib/uuid';
 
 function getSearchTerms(query: string): string[] {
   const normalized = query.trim();
@@ -69,7 +70,7 @@ export function HeaderHybridSearch() {
         keepalive: true,
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
-          kind: 'behavior', eventId: crypto.randomUUID(), searchRecordId: searchRecordRef.current,
+          kind: 'behavior', eventId: uuid(), searchRecordId: searchRecordRef.current,
           searchSessionId: sessionRef.current, action: 'escape',
         }),
       });
@@ -97,7 +98,7 @@ export function HeaderHybridSearch() {
   const openSearch = () => {
     if (!open) {
       previousFocusRef.current = document.activeElement as HTMLElement | null;
-      const sessionId = crypto.randomUUID();
+      const sessionId = uuid();
       sessionRef.current = sessionId;
       setSearchSessionId(sessionId);
       terminalEventRef.current = false;
@@ -157,7 +158,7 @@ export function HeaderHybridSearch() {
               onClick={() => {
                 if (!searchRecordRef.current || !sessionRef.current || terminalEventRef.current) return;
                 terminalEventRef.current = true;
-                void fetch('/api/v1/search/pages', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'behavior', eventId: crypto.randomUUID(), searchRecordId: searchRecordRef.current, searchSessionId: sessionRef.current, action: 'result_open', pageId: result.page.id }) });
+                void fetch('/api/v1/search/pages', { method: 'POST', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: 'behavior', eventId: uuid(), searchRecordId: searchRecordRef.current, searchSessionId: sessionRef.current, action: 'result_open', pageId: result.page.id }) });
               }}>
               <span className="flex items-start justify-between gap-md">
                 <span className="min-w-0 font-medium">{renderHighlightedText(result.page.title, terms)}</span>
