@@ -181,7 +181,7 @@ function MoreActionsMenu({
             <>
               <div className="my-xs border-t border-border" />
               <p className="px-md py-xs text-xs font-medium text-muted">{t('page.header.otherLanguages')}</p>
-              <LanguageLink href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath ?? pageContext.path) : getPageHref(pageContext.path)} label={t('page.header.original')} active={!pageContext.currentLocale} />
+              <LanguageLink href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath!) : getPageHref(pageContext.sourcePath!)} label={t('page.header.original')} active={!pageContext.currentLocale} />
               {pageContext.translationLocales!.map((locale) => (
                 <LanguageLink
                   key={locale}

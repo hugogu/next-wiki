@@ -69,4 +69,35 @@ describe('Header localization', () => {
     expect(html).toContain('top-full z-30 min-w-[12rem] pt-xs');
     expect(html).not.toContain('top-full z-30 mt-xs');
   });
+
+  it('links the language switcher\'s "Original" entry to the reader address, not the tree path (035 T083)', () => {
+    const html = renderToStaticMarkup(
+      <I18nProvider initialLocale="en" messages={enMessages}>
+        <Header
+          user={{ kind: 'user', userId: 'user-1', role: 'admin' }}
+          pageContext={{
+            pageId: 'page-1',
+            // Tree path differs from the page's public address — a page
+            // whose slug has diverged from where it lives in the tree.
+            path: 'history/zhuge-liang',
+            slug: 'zhuge-liang',
+            sourcePath: 'zhuge-liang',
+            title: 'Zhuge Liang',
+            status: 'published',
+            canEdit: true,
+            canPublish: false,
+            version: 2,
+            space: 'wiki',
+            translationLocales: ['zh'],
+            currentLocale: 'zh',
+          }}
+          onMenuClick={() => undefined}
+          siteName="next-wiki"
+        />
+      </I18nProvider>,
+    );
+
+    expect(html).toContain('href="/zhuge-liang"');
+    expect(html).not.toContain('href="/history/zhuge-liang"');
+  });
 });
