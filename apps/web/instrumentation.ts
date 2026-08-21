@@ -13,11 +13,16 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
 
   const { runMigrations } = await import('./src/server/db/migrate');
-  const { seedDatabase } = await import('./src/server/seed');
+  const { seedDatabase, seedE2eAdminFixture } = await import('./src/server/seed');
   const { loadDemoReadOnlyFromDb } = await import('./src/server/services/demo-mode');
 
   await runMigrations();
   await seedDatabase();
+  // Playwright's webServer sets this; never true for a real deployment. See
+  // seedE2eAdminFixture's doc comment for why this fixture only exists here.
+  if (process.env.NEXT_WIKI_E2E === 'true') {
+    await seedE2eAdminFixture();
+  }
   await loadDemoReadOnlyFromDb();
 
   // Start the in-process pg-boss worker for migration and cleanup jobs. A

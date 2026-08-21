@@ -162,16 +162,9 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-On a fresh production-style start, open
-[http://localhost:3000/setup](http://localhost:3000/setup) and create the first
-Admin account. Demo data is opt-in:
-
-```bash
-NEXT_WIKI_SEED=true docker compose up -d --build
-```
-
-The seeded development account is `admin@example.com` / `admin123`. Do not use
-these credentials in a real deployment.
+Open [http://localhost:3000](http://localhost:3000) — a fresh instance has no
+admin yet, so it redirects straight to the guided `/setup` flow to create the
+first Admin account and, optionally, generate example pages.
 
 The default stack only requires PostgreSQL. To experiment with the optional
 S3-compatible content backend, start MinIO with the Compose profile:

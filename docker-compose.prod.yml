@@ -23,7 +23,6 @@ services:
       APP_URL: ${APP_URL}
       APP_INTERNAL_URL: ${APP_INTERNAL_URL:-http://127.0.0.1:3000}
       NODE_ENV: production
-      NEXT_WIKI_SEED: ${NEXT_WIKI_SEED:-false}
       # Public read-only demo mode: rejects every write action for every
       # actor, including admins. See docs/deployment.md#public-read-only-demo.
       # Only seeds the setting's initial DB value on first boot; afterward it

@@ -50,14 +50,13 @@ jobs:
       - name: Resolved commit
         run: git --no-pager log -1 --oneline
 
-      - name: Build and start stack (production, no demo seed)
-        # No env overrides needed: docker-compose.yml defaults to production +
-        # NEXT_WIKI_SEED=false. Set them explicitly so an ambient runner env
-        # can never silently flip the instance into dev/seeding mode.
+      - name: Build and start stack (production)
+        # No env overrides needed: docker-compose.yml defaults to production.
+        # Set it explicitly so an ambient runner env can never silently flip
+        # the instance into dev mode.
         run: docker compose up -d --build
         env:
           NODE_ENV: production
-          NEXT_WIKI_SEED: 'false'
 
       - name: Wait for /healthz
         run: |

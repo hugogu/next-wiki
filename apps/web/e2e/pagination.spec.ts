@@ -40,8 +40,9 @@ test.describe('unified pagination', () => {
   test('page lives in the URL, clamps invalid input, and disables boundaries', async ({ page }) => {
     // Logs in as the seeded admin directly — the admin audit log is a global,
     // admin-only view (GET /admin/api-audit 404s for non-admins), and the
-    // seeded admin@example.com is always created first at server boot (via
-    // NEXT_WIKI_SEED), so a freshly registered account is never admin here.
+    // e2e fixture's admin@example.com is always created first at server boot
+    // (see seedE2eAdminFixture), so a freshly registered account is never
+    // admin here.
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     const key = await createApiKey(page, `Pagination View ${Date.now()}`, ['View']);
 

@@ -120,10 +120,11 @@ A demo instance is just another production deployment (see
 above): it runs the same published `docker-compose.prod.yml` image from
 Docker Hub/GHCR, not a local build. No separate pipeline or image is needed.
 
-Follow the normal production setup, then in that deployment's `.env`:
+Follow the normal production setup and complete `/setup` once to create the
+admin account and, optionally, generate example pages (or restore a snapshot
+instead). Then in that deployment's `.env`:
 
 ```ini
-NEXT_WIKI_SEED=true            # seed once, or restore a snapshot instead
 NEXT_WIKI_DEMO_READONLY=true
 ```
 

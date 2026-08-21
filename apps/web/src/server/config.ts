@@ -9,7 +9,6 @@ const envSchema = z.object({
   // Next.js server through its loopback listener.
   APP_INTERNAL_URL: z.string().url().default('http://127.0.0.1:3000'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
-  NEXT_WIKI_SEED: z.enum(['true', 'false']).default('false'),
   API_KEY_ENCRYPTION_KEY: z.string().min(64).max(64),
   // Content storage (003). All optional with safe defaults so the zero-config
   // PostgreSQL-only deployment is unchanged (P1).

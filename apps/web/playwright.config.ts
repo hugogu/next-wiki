@@ -38,7 +38,7 @@ export default defineConfig({
   webServer: {
     command:
       `E2E_DATABASE_URL="${E2E_DATABASE_URL}" node test/prepare-e2e-db.mjs && ` +
-      `DATABASE_URL="${E2E_DATABASE_URL}" NEXT_WIKI_SEED=true ` +
+      `DATABASE_URL="${E2E_DATABASE_URL}" ` +
       `NEXT_WIKI_E2E=true ` +
       `OPENROUTER_BASE_URL=http://127.0.0.1:31987 ` +
       `CONTENT_LOCAL_BASE_PATH=/tmp/next-wiki-e2e-content ` +

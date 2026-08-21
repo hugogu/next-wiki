@@ -8,7 +8,6 @@ import { seedBuiltinSystemThemes } from '@/server/services/system-theme';
 import { DEFAULT_SPACE_SLUG } from '@/server/services/spaces';
 import { WELCOME_PAGE_SOURCE } from '@/server/services/setup-sample-page-definitions';
 import { ensureSystemCategory } from '@/server/services/raw-categories';
-import { env } from '@/server/config';
 
 /**
  * Ensure exactly one active Database primary backend exists. This is core
@@ -158,16 +157,18 @@ export async function seedDatabase() {
   await seedConversationCategory();
   await seedContentDataSources();
   await seedWritingModeSettings();
+}
 
-  // Demo/sample data only: a sample admin account and welcome page. This NEVER
-  // runs in production unless explicitly opted in via NEXT_WIKI_SEED=true. The
-  // first real admin is created interactively through the /setup first-run
-  // route (see services/setup.ts); shipping a hard-coded admin would both
-  // preempt that flow and expose a publicly-known credential.
-  if (env.NODE_ENV === 'production' && env.NEXT_WIKI_SEED !== 'true') {
-    return;
-  }
-
+/**
+ * TEST-ONLY. Creates the fixed admin@example.com / admin123 account and the
+ * welcome page e2e specs share as a login/content shortcut, so they don't
+ * each have to drive the interactive /setup flow. Never called outside the
+ * e2e webServer (see instrumentation.ts's NEXT_WIKI_E2E guard) — there is no
+ * seeding concept for a real deployment; every real admin is created through
+ * /setup, which is why the homepage/`/auth/login` redirect there whenever no
+ * admin exists (see (public)/page.tsx, auth/login/page.tsx).
+ */
+export async function seedE2eAdminFixture() {
   const space = await db.query.spaces.findFirst({
     where: eq(schema.spaces.slug, DEFAULT_SPACE_SLUG),
   });
@@ -200,9 +201,7 @@ export async function seedDatabase() {
     return;
   }
 
-  // Create the system default welcome page on first install. This page is
-  // shipped with next-wiki and demonstrates the supported Markdown extensions.
-  // The content is shared with the first-run onboarding sample-page writer.
+  // Content shared with the first-run onboarding sample-page writer.
   const source = WELCOME_PAGE_SOURCE;
 
   const { html, hash } = renderMarkdown(source);
