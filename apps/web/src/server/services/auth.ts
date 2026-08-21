@@ -138,6 +138,22 @@ export async function login(input: { email: string; password: string }): Promise
   return { userId: user.id, mustResetPassword: user.mustResetPassword };
 }
 
+// `NODE_ENV === 'production'` is not "served over HTTPS": the packaged
+// Docker image always sets NODE_ENV=production, including for a plain-HTTP
+// LAN/self-hosted deployment (e.g. http://192.168.x.x:3000). A `Secure`
+// cookie set over such a connection is silently dropped by the browser —
+// login appears to succeed (the session row is created) but the client
+// never persists the cookie, so every subsequent request looks anonymous.
+// APP_URL is the app's own declared public origin, so derive `secure` from
+// its scheme instead.
+export function isSecureCookieUrl(appUrl: string): boolean {
+  // URL schemes are case-insensitive (RFC 3986); a plain `startsWith`
+  // check would miss a validly-cased-but-uppercase `HTTPS://...` APP_URL
+  // and silently weaken the cookie. `env.APP_URL` is already validated by
+  // Zod's `z.string().url()`, so parsing here can't throw.
+  return new URL(appUrl).protocol === 'https:';
+}
+
 export async function establishSession(userId: string): Promise<void> {
   const sessionId = generateSessionId();
   const expiresAt = new Date();
@@ -156,7 +172,7 @@ export async function establishSession(userId: string): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE, sessionId, {
     httpOnly: true,
-    secure: env.NODE_ENV === 'production',
+    secure: isSecureCookieUrl(env.APP_URL),
     sameSite: 'lax',
     path: '/',
     expires: expiresAt,

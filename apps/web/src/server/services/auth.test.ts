@@ -91,6 +91,21 @@ describe('authService', () => {
     });
   });
 
+  describe('isSecureCookieUrl', () => {
+    it('is true for an https APP_URL', () => {
+      expect(authService.isSecureCookieUrl('https://wiki.example.com')).toBe(true);
+    });
+
+    it('is true for an uppercase HTTPS scheme (schemes are case-insensitive)', () => {
+      expect(authService.isSecureCookieUrl('HTTPS://wiki.example.com')).toBe(true);
+    });
+
+    it('is false for a plain-http APP_URL, e.g. a LAN/self-hosted deployment', () => {
+      expect(authService.isSecureCookieUrl('http://192.168.1.10:3001')).toBe(false);
+      expect(authService.isSecureCookieUrl('http://localhost:3000')).toBe(false);
+    });
+  });
+
   describe('getCurrentActor', () => {
     it('returns anonymous when the session id does not exist', async () => {
       // Seed a user/session so that a buggy "return first row" query would
