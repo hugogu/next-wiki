@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import bcrypt from 'bcryptjs';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -22,7 +21,6 @@ vi.mock('next/headers', () => ({
 
 import * as setupService from '@/server/services/setup';
 import { getMode } from '@/server/services/writing-mode';
-import { SEED_DEMO_ADMIN_EMAIL } from '@/server/services/users';
 
 const anonymous: Actor = { kind: 'anonymous' };
 const adminActor = (userId: string): Actor => ({ kind: 'user', userId, role: 'admin' });
@@ -271,51 +269,6 @@ describe('setupService', () => {
       const progress = await readSetupProgress();
       expect(progress?.accountStatus).toBe('created');
       expect(progress?.adminUserId).toBe(admins[0]!.id);
-    });
-
-    it('lets a real operator complete setup despite a pre-existing NEXT_WIKI_SEED demo admin, and disables it', async () => {
-      // Mirrors what NEXT_WIKI_SEED=true seeds at boot: a demo admin whose
-      // password is public in the README must never occupy the "first admin"
-      // slot that /setup exists to hand to a real operator.
-      await resetSetupOnboardingState();
-      const passwordHash = await bcrypt.hash('admin123', 10);
-      const [seedAdminBefore] = await db
-        .insert(schema.users)
-        .values({
-          email: SEED_DEMO_ADMIN_EMAIL,
-          passwordHash,
-          role: 'admin',
-          status: 'active',
-          displayName: 'Admin',
-        })
-        .returning();
-      // A session someone established with the public seed password before
-      // the real operator finished setup — must not survive as a live login.
-      await db.insert(schema.sessions).values({
-        id: 'seed-admin-preexisting-session-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
-        userId: seedAdminBefore!.id,
-        expiresAt: new Date(Date.now() + 86_400_000),
-      });
-
-      const { userId } = await setupService.setupAdmin({
-        email: SETUP_ADMIN_EMAIL,
-        password: 'Password123!',
-      });
-
-      const realAdmin = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
-      expect(realAdmin?.role).toBe('admin');
-      expect(realAdmin?.status).toBe('active');
-
-      const seedAdmin = await db.query.users.findFirst({
-        where: eq(schema.users.email, SEED_DEMO_ADMIN_EMAIL),
-      });
-      expect(seedAdmin?.status).toBe('disabled');
-
-      const seedAdminSessions = await db
-        .select()
-        .from(schema.sessions)
-        .where(eq(schema.sessions.userId, seedAdminBefore!.id));
-      expect(seedAdminSessions).toHaveLength(0);
     });
   });
 

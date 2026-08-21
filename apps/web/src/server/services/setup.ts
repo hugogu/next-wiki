@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { and, eq, isNull, ne, sql } from 'drizzle-orm';
+import { and, eq, isNull, sql } from 'drizzle-orm';
 import type {
   SetupAiResult,
   SetupAiStatus,
@@ -11,7 +11,7 @@ import { writingModeSchema } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
-import { hasAnyAdmin, SEED_DEMO_ADMIN_EMAIL } from '@/server/services/users';
+import { hasAnyAdmin } from '@/server/services/users';
 import { invalidateWritingModeCache } from '@/server/services/writing-mode';
 import { DomainError } from '@/server/errors';
 import type { Actor } from '@/server/permissions';
@@ -59,15 +59,8 @@ export async function setupAdmin(input: { email: string; password: string }): Pr
   const passwordHash = await bcrypt.hash(input.password, 10);
   const userId = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(${SETUP_ADMIN_LOCK_KEY})`);
-    // Excludes the seed demo account (see SEED_DEMO_ADMIN_EMAIL) — same
-    // exclusion as hasAnyAdmin(), duplicated here rather than calling it
-    // directly so this lookup runs inside the advisory-locked transaction.
     const existingAdmin = await tx.query.users.findFirst({
-      where: and(
-        eq(schema.users.role, 'admin'),
-        isNull(schema.users.deletedAt),
-        ne(schema.users.email, SEED_DEMO_ADMIN_EMAIL),
-      ),
+      where: and(eq(schema.users.role, 'admin'), isNull(schema.users.deletedAt)),
     });
     if (existingAdmin) {
       throw new DomainError('FORBIDDEN', 'An admin account already exists');
@@ -88,23 +81,6 @@ export async function setupAdmin(input: { email: string; password: string }): Pr
       })
       .returning();
     if (!user) throw new Error('SETUP_FAILED');
-    // A real admin now exists: the seed demo account's password is public in
-    // the README, so it must not remain a live login. Disable rather than
-    // delete — preserves its authorship on any demo content it created.
-    // Disabling alone only blocks future logins (see auth.ts's login()); an
-    // already-established session for that account is resolved purely by
-    // session id and would otherwise keep working — someone who logged in
-    // with the public password before setup completed would keep full admin
-    // access. Delete its sessions in the same transaction so it's unusable
-    // immediately, not just un-loggable-into.
-    const [disabledSeedAdmin] = await tx
-      .update(schema.users)
-      .set({ status: 'disabled' })
-      .where(and(eq(schema.users.email, SEED_DEMO_ADMIN_EMAIL), eq(schema.users.role, 'admin')))
-      .returning({ id: schema.users.id });
-    if (disabledSeedAdmin) {
-      await tx.delete(schema.sessions).where(eq(schema.sessions.userId, disabledSeedAdmin.id));
-    }
     await tx
       .insert(schema.setupProgress)
       .values({

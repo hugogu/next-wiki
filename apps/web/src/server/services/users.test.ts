@@ -254,16 +254,5 @@ describe('userService US5', () => {
       await createUser('admin-hasanyadmin@example.com', 'admin');
       expect(await userService.hasAnyAdmin()).toBe(true);
     });
-
-    it('does not count the NEXT_WIKI_SEED demo admin account', async () => {
-      // The seed account's password (admin123) is public in the README, so it
-      // must never preempt a real operator's first-run /setup flow.
-      await cleanup();
-      await createUser(userService.SEED_DEMO_ADMIN_EMAIL, 'admin');
-      expect(await userService.hasAnyAdmin()).toBe(false);
-
-      await createUser('real-admin@example.com', 'admin');
-      expect(await userService.hasAnyAdmin()).toBe(true);
-    });
   });
 });

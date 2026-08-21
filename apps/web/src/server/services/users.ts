@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { and, eq, isNull, ne } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
@@ -17,18 +17,7 @@ function requireAdmin(ctx: PermCtx): void {
 }
 
 /**
- * Email of the demo admin account created by `seedDatabase()` when
- * NEXT_WIKI_SEED=true (server/seed/index.ts). Its password (`admin123`) is
- * public in the README, so it must never count as "the" admin for onboarding
- * purposes — otherwise seeding demo content on a real deployment silently
- * closes `/setup` and hands the real operator's admin slot to a well-known
- * credential instead of letting them create their own account.
- */
-export const SEED_DEMO_ADMIN_EMAIL = 'admin@example.com';
-
-/**
- * Shared first-admin check: returns true if at least one *real* admin account
- * exists (excludes the seed demo account — see SEED_DEMO_ADMIN_EMAIL).
+ * Shared first-admin check: returns true if at least one admin account exists.
  *
  * This is the single source of truth for the "first-run / onboarding" decision
  * used by the `/setup` bootstrap route and by registration (which grants admin
@@ -37,11 +26,7 @@ export const SEED_DEMO_ADMIN_EMAIL = 'admin@example.com';
  */
 export async function hasAnyAdmin(): Promise<boolean> {
   const existingAdmin = await db.query.users.findFirst({
-    where: and(
-      eq(schema.users.role, 'admin'),
-      isNull(schema.users.deletedAt),
-      ne(schema.users.email, SEED_DEMO_ADMIN_EMAIL),
-    ),
+    where: and(eq(schema.users.role, 'admin'), isNull(schema.users.deletedAt)),
   });
   return Boolean(existingAdmin);
 }
