@@ -279,12 +279,22 @@ describe('setupService', () => {
       // slot that /setup exists to hand to a real operator.
       await resetSetupOnboardingState();
       const passwordHash = await bcrypt.hash('admin123', 10);
-      await db.insert(schema.users).values({
-        email: SEED_DEMO_ADMIN_EMAIL,
-        passwordHash,
-        role: 'admin',
-        status: 'active',
-        displayName: 'Admin',
+      const [seedAdminBefore] = await db
+        .insert(schema.users)
+        .values({
+          email: SEED_DEMO_ADMIN_EMAIL,
+          passwordHash,
+          role: 'admin',
+          status: 'active',
+          displayName: 'Admin',
+        })
+        .returning();
+      // A session someone established with the public seed password before
+      // the real operator finished setup — must not survive as a live login.
+      await db.insert(schema.sessions).values({
+        id: 'seed-admin-preexisting-session-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+        userId: seedAdminBefore!.id,
+        expiresAt: new Date(Date.now() + 86_400_000),
       });
 
       const { userId } = await setupService.setupAdmin({
@@ -300,6 +310,12 @@ describe('setupService', () => {
         where: eq(schema.users.email, SEED_DEMO_ADMIN_EMAIL),
       });
       expect(seedAdmin?.status).toBe('disabled');
+
+      const seedAdminSessions = await db
+        .select()
+        .from(schema.sessions)
+        .where(eq(schema.sessions.userId, seedAdminBefore!.id));
+      expect(seedAdminSessions).toHaveLength(0);
     });
   });
 

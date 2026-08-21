@@ -91,10 +91,20 @@ export async function setupAdmin(input: { email: string; password: string }): Pr
     // A real admin now exists: the seed demo account's password is public in
     // the README, so it must not remain a live login. Disable rather than
     // delete — preserves its authorship on any demo content it created.
-    await tx
+    // Disabling alone only blocks future logins (see auth.ts's login()); an
+    // already-established session for that account is resolved purely by
+    // session id and would otherwise keep working — someone who logged in
+    // with the public password before setup completed would keep full admin
+    // access. Delete its sessions in the same transaction so it's unusable
+    // immediately, not just un-loggable-into.
+    const [disabledSeedAdmin] = await tx
       .update(schema.users)
       .set({ status: 'disabled' })
-      .where(and(eq(schema.users.email, SEED_DEMO_ADMIN_EMAIL), eq(schema.users.role, 'admin')));
+      .where(and(eq(schema.users.email, SEED_DEMO_ADMIN_EMAIL), eq(schema.users.role, 'admin')))
+      .returning({ id: schema.users.id });
+    if (disabledSeedAdmin) {
+      await tx.delete(schema.sessions).where(eq(schema.sessions.userId, disabledSeedAdmin.id));
+    }
     await tx
       .insert(schema.setupProgress)
       .values({
