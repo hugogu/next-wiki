@@ -185,6 +185,7 @@ export function PagePropertiesDialog({
       onSummaryChange={setSummary}
       visibility={canSetVisibility ? visibility : undefined}
       onVisibilityChange={canSetVisibility ? setVisibility : undefined}
+      showAttachments={false}
       error={error}
       saving={saving}
       onSave={() => void handleSave()}

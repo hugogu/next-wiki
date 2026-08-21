@@ -28,6 +28,7 @@ export function PagePropertiesPanel({
   onWriteMetadataToFrontmatterChange,
   visibility,
   onVisibilityChange,
+  showAttachments = true,
   error,
   saving = false,
   onSave,
@@ -58,6 +59,10 @@ export function PagePropertiesPanel({
   onWriteMetadataToFrontmatterChange?: (value: boolean) => void;
   visibility?: 'public' | 'registered' | 'restricted';
   onVisibilityChange?: (value: 'public' | 'registered' | 'restricted') => void;
+  /** Reader pages already show attachments inline on the page itself
+   * (see ReaderPageView.tsx); the editor has no such view of its own, so it
+   * defaults to showing them here instead. */
+  showAttachments?: boolean;
   error?: string | null;
   saving?: boolean;
   /** Called when the user clicks "Save properties". Triggers path validation
@@ -104,7 +109,7 @@ export function PagePropertiesPanel({
           </div>
         )}
 
-        {pageId && (
+        {pageId && showAttachments && (
           <div className="border-t border-border pt-md">
             <AttachmentsPanel pageId={pageId} canManage />
           </div>

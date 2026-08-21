@@ -7,6 +7,7 @@ import { useTranslation } from '@/i18n/client';
 import { PlusIcon, XIcon } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
+import { Tooltip } from '@/components/ui/Tooltip';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { addAddressAlias, listAddresses, removeAddressAlias } from '@/lib/api/addresses';
 import type { ApiError } from '@/lib/api/client';
@@ -152,33 +153,40 @@ export function AddressManager({
       <h2 className="text-sm font-medium text-muted">{t('page.addresses.heading')}</h2>
       <p className="text-xs text-muted">{t('page.addresses.hint')}</p>
 
-      {/* One consistent list: the canonical address is the first row (its
-          own pill distinguishes it), aliases follow — not a separate
-          labeled field above a separately labeled list, which read as two
-          "address" fields stacked together. */}
-      <ul className="flex flex-col gap-xs">
-        <li className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm">
-          <span className="shrink-0 rounded-full bg-primary/10 px-sm py-0.5 text-xs font-medium text-primary">
-            {t('page.addresses.kindCanonical')}
-          </span>
+      {/* One consistent list, in a single bordered card: the canonical
+          address is the first row (its own pill distinguishes it), aliases
+          follow as hairline-divided rows below it — not a separate box per
+          row, which read as a stack of unrelated cards. */}
+      <ul className="divide-y divide-border overflow-hidden rounded-md border border-border">
+        <li className="flex items-center gap-sm px-sm py-xs text-sm">
+          <Tooltip label={t('page.addresses.kindCanonicalHint')} className="shrink-0">
+            <span className="cursor-help rounded-full bg-primary/10 px-sm py-0.5 text-xs font-medium text-primary">
+              {t('page.addresses.kindCanonical')}
+            </span>
+          </Tooltip>
           {editableCanonical ? (
-            <Input
+            <input
               id="prop-slug"
               value={currentCanonical}
               onChange={(event) => onCanonicalAddressChange?.(event.target.value)}
               placeholder={t('editor.properties.fields.slugPlaceholder')}
               aria-label={t('page.addresses.kindCanonical')}
-              className="min-w-0 flex-1"
+              className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-foreground focus:outline-none focus:ring-0"
             />
           ) : (
             <span className="min-w-0 flex-1 truncate">{currentCanonical}</span>
           )}
         </li>
         {aliases.map((alias) => (
-          <li key={alias.id} className="flex items-center gap-sm rounded-md border border-border px-sm py-xs text-sm">
-            <span className="shrink-0 rounded-full bg-surface-elevated px-sm py-0.5 text-xs font-medium text-muted">
-              {alias.kind === 'retained' ? t('page.addresses.kindRetained') : t('page.addresses.kindManual')}
-            </span>
+          <li key={alias.id} className="flex items-center gap-sm px-sm py-xs text-sm">
+            <Tooltip
+              label={alias.kind === 'retained' ? t('page.addresses.kindRetainedHint') : t('page.addresses.kindManualHint')}
+              className="shrink-0"
+            >
+              <span className="cursor-help rounded-full bg-surface-elevated px-sm py-0.5 text-xs font-medium text-muted">
+                {alias.kind === 'retained' ? t('page.addresses.kindRetained') : t('page.addresses.kindManual')}
+              </span>
+            </Tooltip>
             <span className="min-w-0 flex-1 truncate">{alias.address}</span>
             <button
               type="button"
@@ -193,14 +201,21 @@ export function AddressManager({
       </ul>
       {editableCanonical && canonicalError && <p className="text-danger text-xs">{canonicalError}</p>}
 
-      <div className="flex gap-sm">
+      <div className="flex items-center gap-sm">
         <Input
           value={newAddress}
           onChange={(e) => setNewAddress(e.target.value)}
           placeholder={t('page.addresses.addPlaceholder')}
           aria-label={t('page.addresses.addLabel')}
+          className="min-w-0 flex-1"
         />
-        <Button type="button" variant="secondary" disabled={adding || !newAddress} onClick={() => void handleAdd()}>
+        <Button
+          type="button"
+          variant="secondary"
+          disabled={adding || !newAddress}
+          onClick={() => void handleAdd()}
+          className="shrink-0 whitespace-nowrap"
+        >
           <PlusIcon className="h-3.5 w-3.5" />
           {adding ? t('page.addresses.adding') : t('page.addresses.add')}
         </Button>
