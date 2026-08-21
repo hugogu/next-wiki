@@ -162,6 +162,8 @@ export async function writePortableArchive(input: {
         return asset ? [asset.hash] : [];
       }),
       ...(historyEntries.length ? { historyEntries } : {}),
+      slug: page.slug,
+      aliases: page.aliases,
     };
   });
 

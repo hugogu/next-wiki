@@ -251,6 +251,8 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
           locale: page.locale,
           versions,
           action,
+          slug: page.slug,
+          aliases: page.aliases,
         });
         writeResult = {
           pageId: result.pageId,
@@ -293,6 +295,8 @@ async function runArchiveImport(run: typeof schema.transferRuns.$inferSelect) {
         title: page.title,
         markdown,
         action,
+        slug: page.slug,
+        aliases: page.aliases,
       });
     }
     if (writeResult.action === 'create') created += 1;

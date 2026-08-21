@@ -44,6 +44,12 @@ export type ExportPage = {
    * captured above. Only populated when the capture was called with
    * includeHistory:true; absent (not empty) otherwise. */
   historyVersions?: ExportPageHistoryVersion[];
+  /** 035 (T070/US5): the page's current canonical address and every other
+   * address it still resolves through, carried into the portable manifest so
+   * a re-import can restore the exact same addresses rather than re-deriving
+   * fresh ones from `path`. */
+  slug: string;
+  aliases: Array<{ address: string; kind: 'retained' | 'manual' }>;
 };
 
 export type ExportPageHistoryVersion = {
@@ -161,6 +167,17 @@ async function captureSnapshot(args: {
     ))
     .orderBy(schema.pages.locale, schema.pages.path);
 
+  const pageIds = rows.map((row) => row.page.id);
+  const aliasRows = pageIds.length
+    ? await db.query.pageAddresses.findMany({ where: inArray(schema.pageAddresses.pageId, pageIds) })
+    : [];
+  const aliasesByPageId = new Map<string, Array<{ address: string; kind: 'retained' | 'manual' }>>();
+  for (const alias of aliasRows) {
+    const list = aliasesByPageId.get(alias.pageId) ?? [];
+    list.push({ address: alias.address, kind: alias.kind });
+    aliasesByPageId.set(alias.pageId, list);
+  }
+
   const pages: ExportPage[] = await Promise.all(
     rows.map(async (row) => {
       const markdown = await readMarkdownFromDatabase(row.revision);
@@ -196,6 +213,8 @@ async function captureSnapshot(args: {
         createdAt: row.page.createdAt.toISOString(),
         updatedAt: row.page.updatedAt.toISOString(),
         assetIds: referenced,
+        slug: row.page.slug,
+        aliases: aliasesByPageId.get(row.page.id) ?? [],
         spaceKind: kind,
         spaceSlug: space.slug,
         markdownContentType: row.revision.contentType ?? 'text/markdown',

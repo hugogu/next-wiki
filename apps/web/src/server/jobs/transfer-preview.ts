@@ -172,7 +172,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
 
     const { address, reason: addressAdjustmentReason } = previewAddress(
       takenAddresses,
-      page.path,
+      page.slug || page.path,
       action,
       existing?.slug,
       page.spaceKind === 'wiki',

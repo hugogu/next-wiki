@@ -401,6 +401,17 @@ export type PortableArchiveManifestV1 = z.infer<typeof portableArchiveManifestSc
  * own zip entry under `pages/{locale}/{path}/history/{versionNumber}.md`.
  * Never includes the current version — that stays on the page's own
  * top-level fields, matching the pre-existing single-version shape. */
+/** 035 (T070/US5): a non-canonical address the page also resolves through —
+ * a former canonical address retired by a rename ('retained') or one an
+ * owner registered by hand ('manual'). Carried alongside the page's current
+ * `slug` so an export → import round trip preserves every inbound link, not
+ * just the current address. */
+export const portableAddressSchema = z.object({
+  address: z.string().min(1),
+  kind: z.enum(['retained', 'manual']),
+});
+export type PortableAddress = z.infer<typeof portableAddressSchema>;
+
 export const portableHistoryEntrySchema = z.object({
   entry: z.string().min(1),
   versionNumber: z.number().int().positive(),
@@ -462,6 +473,11 @@ export const portableArchiveManifestSchemaV2 = z
         // exported with includeHistory:false both parse identically to the
         // pre-existing shape — absent means "single version, as before".
         historyEntries: z.array(portableHistoryEntrySchema).optional(),
+        // 035 (T070/US5): the page's current canonical address and every
+        // other address it still resolves through. Defaults so an archive
+        // written before this field existed still parses.
+        slug: z.string().min(1).default(''),
+        aliases: z.array(portableAddressSchema).default([]),
       }),
     ),
     assets: z.array(
@@ -521,6 +537,8 @@ export interface NormalizedPortableManifest {
     updatedAt: string;
     assetIds: string[];
     historyEntries?: PortableHistoryEntry[];
+    slug: string;
+    aliases: PortableAddress[];
   }>;
   assets: Array<{
     id: string;
@@ -579,6 +597,10 @@ function liftV1Manifest(v1: PortableArchiveManifestV1): NormalizedPortableManife
       createdAt: page.createdAt,
       updatedAt: page.updatedAt,
       assetIds: page.assetIds,
+      // v1 archives predate the address concept — default to the path, same
+      // as any other page that has never had its address changed.
+      slug: page.path,
+      aliases: [],
     })),
     assets: v1.assets.map((asset) => ({
       id: asset.id,

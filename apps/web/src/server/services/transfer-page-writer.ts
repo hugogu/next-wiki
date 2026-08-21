@@ -11,7 +11,7 @@ import { persistRevisionMetadata } from './page-metadata';
 import { resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 import { ensureOkfConformance } from '@/server/services/okf';
-import { deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
+import { assertAddressAvailable, deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -34,6 +34,29 @@ async function deriveNewPageAddress(
   ]);
   const taken = new Set([...slugRows.map((r) => r.slug), ...aliasRows.map((r) => r.address)]);
   return deriveImportAddress(sourcePath, (address) => taken.has(address));
+}
+
+/**
+ * 035 (T070/US5): best-effort restoration of a new page's non-canonical
+ * addresses from an archive round trip. An alias that collides with
+ * something already in this instance is skipped rather than failing the
+ * whole page import — it is a convenience redirect, not the canonical
+ * address the import already resolved through `deriveNewPageAddress`.
+ */
+async function restoreAliases(
+  tx: Tx,
+  spaceId: string,
+  pageId: string,
+  aliases: Array<{ address: string; kind: 'retained' | 'manual' }>,
+): Promise<void> {
+  for (const alias of aliases) {
+    try {
+      await assertAddressAvailable(tx, spaceId, alias.address);
+    } catch {
+      continue;
+    }
+    await tx.insert(schema.pageAddresses).values({ spaceId, address: alias.address, pageId, kind: alias.kind });
+  }
 }
 
 export async function writeImportedRawEntry(input: {
@@ -256,6 +279,12 @@ export async function writeImportedPage(input: {
   title: string;
   markdown: string;
   action: 'create' | 'replace' | 'skip';
+  /** 035 (T070/US5): an archive round trip's carried canonical address and
+   * alias list — takes priority over `path` for a new page's default
+   * address (still subject to the same collision adjustment). Absent for a
+   * Wiki.js import, which has no separate address concept of its own. */
+  slug?: string;
+  aliases?: Array<{ address: string; kind: 'retained' | 'manual' }>;
 }): Promise<{
   pageId: string | null;
   revisionId: string | null;
@@ -299,10 +328,11 @@ export async function writeImportedPage(input: {
       pageId = existing.id;
       restoredDeletedPage = Boolean(existing.deletedAt);
     } else {
-      // 035 (FR-025/FR-026): default address is the Wiki.js source path,
-      // adjusted only when it collides or is otherwise unusable — never
-      // touching whatever page already holds a candidate.
-      derivedAddress = await deriveNewPageAddress(tx, space.id, input.path);
+      // 035 (FR-025/FR-026): default address is the archive's carried slug
+      // if present, else the Wiki.js/import source path — adjusted only when
+      // it collides or is otherwise unusable, never touching whatever page
+      // already holds a candidate.
+      derivedAddress = await deriveNewPageAddress(tx, space.id, input.slug || input.path);
       const [page] = await tx
         .insert(schema.pages)
         .values({
@@ -316,6 +346,7 @@ export async function writeImportedPage(input: {
         })
         .returning({ id: schema.pages.id });
       pageId = page!.id;
+      if (input.aliases?.length) await restoreAliases(tx, space.id, pageId, input.aliases);
     }
     await tx.insert(schema.pageRevisions).values({
       id: revisionId,
@@ -382,6 +413,9 @@ export async function writeImportedPageWithHistory(input: {
     sourceMetadata: Record<string, unknown>;
   }>;
   action: 'create' | 'replace' | 'skip';
+  /** 035 (T070/US5): see `writeImportedPage`. */
+  slug?: string;
+  aliases?: Array<{ address: string; kind: 'retained' | 'manual' }>;
 }): Promise<{
   pageId: string | null;
   revisionIds: string[];
@@ -450,7 +484,7 @@ export async function writeImportedPageWithHistory(input: {
       await tx.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, existing.id));
       pageId = existing.id;
     } else {
-      derivedAddress = await deriveNewPageAddress(tx, space.id, input.path);
+      derivedAddress = await deriveNewPageAddress(tx, space.id, input.slug || input.path);
       const [page] = await tx
         .insert(schema.pages)
         .values({
@@ -464,6 +498,7 @@ export async function writeImportedPageWithHistory(input: {
         })
         .returning({ id: schema.pages.id });
       pageId = page!.id;
+      if (input.aliases?.length) await restoreAliases(tx, space.id, pageId, input.aliases);
     }
 
     // Insert the full trail strictly in order — versionNumber is a per-page

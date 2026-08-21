@@ -53,6 +53,9 @@ type PageInput = {
   inputKind?: 'chat-transcript' | 'external-fetch' | 'script-run' | 'manual-note' | null;
   rawSource?: Record<string, unknown> | null;
   historyVersions?: HistoryVersionInput[];
+  /** Defaults to `path`, matching a page whose address has never diverged. */
+  slug?: string;
+  aliases?: Array<{ address: string; kind: 'retained' | 'manual' }>;
 };
 
 beforeAll(async () => {
@@ -115,6 +118,8 @@ async function buildArchiveAndImport(opts: {
       createdAt: NOW,
       updatedAt: NOW,
       assetIds: [] as string[],
+      slug: p.slug ?? p.path,
+      aliases: p.aliases ?? [],
       spaceKind: p.spaceKind,
       spaceSlug,
       markdownContentType,
@@ -195,6 +200,90 @@ describe('runTransferImport (archive_import)', () => {
     });
     expect(page).toBeTruthy();
     expect(page!.title).toBe('Wiki Page');
+  });
+
+  it('preserves a page\'s carried canonical address and aliases through an export/import round trip (035 T070)', async () => {
+    await buildArchiveAndImport({
+      pages: [{
+        id: 'w2',
+        path: 'docs/round-trip-source-path',
+        title: 'Round Trip',
+        markdown: '# Round Trip\n\nBody',
+        spaceKind: 'wiki',
+        slug: 'docs/round-trip-current-address',
+        aliases: [
+          { address: 'docs/round-trip-old-address', kind: 'retained' },
+          { address: 'docs/round-trip-extra', kind: 'manual' },
+        ],
+      }],
+    });
+
+    const page = await db.query.pages.findFirst({
+      where: eq(schema.pages.path, 'docs/round-trip-source-path'),
+    });
+    expect(page).toBeTruthy();
+    // The imported page's address is its carried slug, not its source path.
+    expect(page!.slug).toBe('docs/round-trip-current-address');
+
+    const aliases = await db.query.pageAddresses.findMany({
+      where: eq(schema.pageAddresses.pageId, page!.id),
+    });
+    expect(aliases.map((a) => ({ address: a.address, kind: a.kind })).sort((a, b) => a.address.localeCompare(b.address))).toEqual([
+      { address: 'docs/round-trip-extra', kind: 'manual' },
+      { address: 'docs/round-trip-old-address', kind: 'retained' },
+    ]);
+  });
+
+  it('adjusts a carried address that collides in the target instance, and skips a colliding alias, without failing the import (035 T070)', async () => {
+    await db.insert(schema.spaces).values({ slug: 'default', name: 'Default' }).onConflictDoNothing();
+    const space = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    await db.insert(schema.pages).values([
+      {
+        spaceId: space!.id,
+        slug: 'docs/round-trip-taken-address',
+        path: 'docs/round-trip-taken-holder',
+        locale: 'en',
+        title: 'Address Holder',
+        authorId: adminId,
+      },
+      {
+        spaceId: space!.id,
+        slug: 'docs/round-trip-alias-taken',
+        path: 'docs/round-trip-alias-holder',
+        locale: 'en',
+        title: 'Alias Holder',
+        authorId: adminId,
+      },
+    ]);
+
+    await buildArchiveAndImport({
+      pages: [{
+        id: 'w3',
+        path: 'docs/round-trip-collision-source',
+        title: 'Collision',
+        markdown: '# Collision\n\nBody',
+        spaceKind: 'wiki',
+        slug: 'docs/round-trip-taken-address',
+        aliases: [{ address: 'docs/round-trip-alias-taken', kind: 'manual' }],
+      }],
+    });
+
+    const page = await db.query.pages.findFirst({
+      where: eq(schema.pages.path, 'docs/round-trip-collision-source'),
+    });
+    expect(page).toBeTruthy();
+    expect(page!.slug).not.toBe('docs/round-trip-taken-address');
+    expect(page!.slug).toMatch(/^docs\/round-trip-taken-address-\d+$/);
+
+    // The colliding alias was skipped, not written — and did not fail the import.
+    const aliases = await db.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.pageId, page!.id) });
+    expect(aliases).toHaveLength(0);
+
+    // Neither pre-existing holder's own address was touched.
+    const originalHolder = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'docs/round-trip-taken-holder') });
+    expect(originalHolder?.slug).toBe('docs/round-trip-taken-address');
+    const aliasHolder = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'docs/round-trip-alias-holder') });
+    expect(aliasHolder?.slug).toBe('docs/round-trip-alias-taken');
   });
 
   it('imports a raw entry into the raw space with category and metadata', async () => {

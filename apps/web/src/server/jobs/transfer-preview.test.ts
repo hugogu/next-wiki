@@ -198,6 +198,8 @@ async function buildArchiveAndRun(opts: {
       createdAt: NOW,
       updatedAt: NOW,
       assetIds: [] as string[],
+      slug: p.path,
+      aliases: [] as { address: string; kind: 'retained' | 'manual' }[],
       spaceKind: 'wiki' as const,
       spaceSlug: 'default',
       markdownContentType: 'text/markdown',
