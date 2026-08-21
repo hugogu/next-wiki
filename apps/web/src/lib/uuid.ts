@@ -42,9 +42,10 @@ export function uuid(): string {
       hex.slice(10, 16).join('')
     );
   }
-  // Non-cryptographic last-resort fallback. UUID-shaped, unique in practice
-  // (collisions at 2^122 are negligible), but not suitable for security
-  // sensitive identifiers.
+  // Non-cryptographic, best-effort last resort: Math.random() is not a
+  // uniform 122-bit source, so this offers no real collision or
+  // predictability guarantee. UUID-shaped only to keep callers happy; never
+  // use it for anything security-sensitive.
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (ch) => {
     const r = (Math.random() * 16) | 0;
     const v = ch === 'x' ? r : (r & 0x3) | 0x8;
