@@ -94,6 +94,38 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     })();
   `;
 
+  // `crypto.randomUUID()` is a secure-context-only API: browsers expose it on
+  // `https:` origins and on `localhost`, but not on a plain `http://` origin
+  // reached by IP or hostname (e.g. a self-hosted LAN deployment at
+  // `http://192.168.x.x:3000`) — regardless of browser version. Unguarded
+  // calls throw `TypeError: crypto.randomUUID is not a function` on every
+  // page load there. Runs synchronously in <head> before any client bundle so
+  // that third-party or future first-party code calling `crypto.randomUUID()`
+  // directly still works; first-party code should prefer the `uuid()` helper
+  // in @/lib/uuid, which falls back the same way.
+  const cryptoRandomUuidPolyfillScript = `
+    (function() {
+      try {
+        var c = window.crypto;
+        if (!c || typeof c.randomUUID === 'function') return;
+        var getRandomValues = c.getRandomValues;
+        if (typeof getRandomValues !== 'function') return;
+        c.randomUUID = function() {
+          var b = new Uint8Array(16);
+          getRandomValues.call(c, b);
+          b[6] = (b[6] & 0x0f) | 0x40;
+          b[8] = (b[8] & 0x3f) | 0x80;
+          var hex = '';
+          for (var i = 0; i < 16; i++) {
+            var h = b[i].toString(16);
+            hex += (h.length === 1 ? '0' + h : h);
+          }
+          return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20, 32);
+        };
+      } catch (e) {}
+    })();
+  `;
+
   return (
     <html
       lang={initialLocale}
@@ -102,6 +134,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <style id="app-system-theme" dangerouslySetInnerHTML={{ __html: systemCss }} />
         <style id="app-reading-theme" dangerouslySetInnerHTML={{ __html: readingThemeCss }} />
+        <script dangerouslySetInnerHTML={{ __html: cryptoRandomUuidPolyfillScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {analyticsScriptContent ? (
           <script id="app-analytics" dangerouslySetInnerHTML={{ __html: analyticsScriptContent }} />

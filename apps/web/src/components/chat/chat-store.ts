@@ -8,9 +8,10 @@ import type {
   AiToolCallEventPayload,
   AiToolProposalEventPayload,
 } from '@next-wiki/shared';
+import { uuid } from '@/lib/uuid';
 
 export function createChatSessionId(): string {
-  return crypto.randomUUID();
+  return uuid();
 }
 
 export type ChatRetrievalResult = {
@@ -178,8 +179,8 @@ export const useChatStore = create<ChatState>()(
         mode,
         open: true,
         messages: [
-          { id: crypto.randomUUID(), role: 'user', text: question },
-          { id: crypto.randomUUID(), role: 'assistant', text: answer, citations, insufficient },
+          { id: uuid(), role: 'user', text: question },
+          { id: uuid(), role: 'assistant', text: answer, citations, insufficient },
         ],
       }),
       restoreSession: ({ sessionId, mode, messages, latestQueuedAt }) => set({

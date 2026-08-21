@@ -14,6 +14,7 @@ import {
 } from '@next-wiki/shared';
 import type { TranslationKey } from '@/i18n/keys';
 import { useTranslation } from '@/i18n/client';
+import { uuid } from '@/lib/uuid';
 
 const THINK_OPEN = '<think>';
 const THINK_CLOSE = '</think>';
@@ -199,8 +200,8 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
   }
 
   async function ask(question: string, mode: AiQuestionMode) {
-    const userId = crypto.randomUUID();
-    const assistantId = crypto.randomUUID();
+    const userId = uuid();
+    const assistantId = uuid();
     stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
     store.add({ id: userId, role: 'user', text: question });
     store.add({ id: assistantId, role: 'assistant', text: '' });
