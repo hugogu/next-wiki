@@ -94,6 +94,35 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     })();
   `;
 
+  // Defensive polyfill for environments where `crypto.randomUUID` is missing
+  // (some legacy embedded WebViews, strict browser extensions, or older user
+  // agents). Runs synchronously in <head> before any client bundle so that
+  // third-party or future first-party code calling `crypto.randomUUID()`
+  // directly still works. First-party code should prefer the `uuid()` helper
+  // in @/lib/uuid, which falls back automatically.
+  const cryptoRandomUuidPolyfillScript = `
+    (function() {
+      try {
+        var c = window.crypto;
+        if (!c || typeof c.randomUUID === 'function') return;
+        var getRandomValues = c.getRandomValues;
+        if (typeof getRandomValues !== 'function') return;
+        c.randomUUID = function() {
+          var b = new Uint8Array(16);
+          getRandomValues.call(c, b);
+          b[6] = (b[6] & 0x0f) | 0x40;
+          b[8] = (b[8] & 0x3f) | 0x80;
+          var hex = '';
+          for (var i = 0; i < 16; i++) {
+            var h = b[i].toString(16);
+            hex += (h.length === 1 ? '0' + h : h);
+          }
+          return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20, 32);
+        };
+      } catch (e) {}
+    })();
+  `;
+
   return (
     <html
       lang={initialLocale}
@@ -102,6 +131,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <style id="app-system-theme" dangerouslySetInnerHTML={{ __html: systemCss }} />
         <style id="app-reading-theme" dangerouslySetInnerHTML={{ __html: readingThemeCss }} />
+        <script dangerouslySetInnerHTML={{ __html: cryptoRandomUuidPolyfillScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
         {analyticsScriptContent ? (
           <script id="app-analytics" dangerouslySetInnerHTML={{ __html: analyticsScriptContent }} />

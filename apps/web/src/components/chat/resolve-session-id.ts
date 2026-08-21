@@ -1,4 +1,5 @@
 import type { AiConversationDetail, AiConversationSummary } from '@next-wiki/shared';
+import { uuid } from '@/lib/uuid';
 
 /**
  * When continuing a historical conversation, keep the original `webSessionId` so
@@ -16,5 +17,5 @@ export function resolveSessionId(conversation: AiConversationSummary, detail: Ai
   const latest = detail.turns[0]?.action;
   const metadata = latest?.requestMetadata as { webSessionId?: string } | undefined;
   if (metadata?.webSessionId) return metadata.webSessionId;
-  return crypto.randomUUID();
+  return uuid();
 }

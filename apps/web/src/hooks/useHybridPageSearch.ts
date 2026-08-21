@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { HybridPageSearchResponse } from '@next-wiki/shared';
+import { uuid } from '@/lib/uuid';
 
 export const HYBRID_SEARCH_DEBOUNCE_MS = 250;
 export const HYBRID_SEARCH_POLL_MS = 350;
@@ -36,7 +37,7 @@ export function useHybridPageSearch({ enabled, query, searchSessionId }: UseHybr
   const debouncedQuery = useDebouncedValue(canSearch ? normalizedQuery : '', HYBRID_SEARCH_DEBOUNCE_MS);
   const active = canSearch && debouncedQuery === normalizedQuery;
   const attemptKey = active ? JSON.stringify([searchSessionId, debouncedQuery]) : null;
-  const searchRecordId = useMemo(() => (attemptKey ? crypto.randomUUID() : null), [attemptKey]);
+  const searchRecordId = useMemo(() => (attemptKey ? uuid() : null), [attemptKey]);
 
   const search = useQuery({
     queryKey: ['hybrid-page-search', searchSessionId, searchRecordId, debouncedQuery],

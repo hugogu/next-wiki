@@ -13,6 +13,7 @@ import {
   type AiToolProposalEventPayload,
 } from '@next-wiki/shared';
 import type { TranslationKey } from '@/i18n/keys';
+import { uuid } from '@/lib/uuid';
 import { useTranslation } from '@/i18n/client';
 
 const THINK_OPEN = '<think>';
@@ -199,8 +200,8 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
   }
 
   async function ask(question: string, mode: AiQuestionMode) {
-    const userId = crypto.randomUUID();
-    const assistantId = crypto.randomUUID();
+    const userId = uuid();
+    const assistantId = uuid();
     stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
     store.add({ id: userId, role: 'user', text: question });
     store.add({ id: assistantId, role: 'assistant', text: '' });
