@@ -1921,10 +1921,48 @@ export async function getDiff(
 // Phase 4: Batch Create
 // ---------------------------------------------------------------------------
 
+/**
+ * 035 (T075): each `createPage()` call below commits in its own transaction —
+ * `pageService.create()` opens a fresh `db.transaction()` regardless of an
+ * ambient one, so wrapping the loop in a transaction here does not actually
+ * make the batch atomic. Pre-validating every target address up front,
+ * including collisions *within* the batch itself, closes the one failure
+ * mode a caller can predict and reproduce: a colliding address rejects the
+ * whole batch before any page is created, rather than creating everything
+ * up to the colliding item and only failing on it.
+ */
+async function assertNoAddressCollisions(ctx: PermCtx, pages: PublicPageCreateInput[]): Promise<void> {
+  const reserved = new Set<string>();
+  // A single read-only transaction just to obtain a handle assertAddressAvailable
+  // accepts — this check runs entirely before the write transaction below.
+  await db.transaction(async (tx) => {
+    for (const pageInput of pages) {
+      const targetSpaceSlug = pageInput.space ?? (
+        ctx.actor.kind === 'api_key' && await isLlmWikiMode() ? 'generated' : undefined
+      );
+      const targetSpace = await resolveSpace(targetSpaceSlug);
+      if (!targetSpace) throw new DomainError('NOT_FOUND', 'Space not found');
+      // Raw entries have no independent slug/address concept (see
+      // pageService.create()'s RAW_SPACE_IMMUTABLE guard) — nothing to
+      // pre-validate here.
+      if (targetSpace.kind === 'raw') continue;
+      const address = pageInput.slug ?? pageInput.path;
+      const key = `${targetSpace.id}:${address}`;
+      if (reserved.has(key)) {
+        throw new DomainError('PAGE_SLUG_TAKEN', `Multiple pages in this batch would use the address "${address}"`);
+      }
+      await pageAddresses.assertAddressAvailable(tx, targetSpace.id, address, undefined, ctx);
+      reserved.add(key);
+    }
+  });
+}
+
 export async function batchCreatePages(
   ctx: PermCtx,
   input: { pages: PublicPageCreateInput[] },
 ): Promise<PublicBatchCreateResult> {
+  await assertNoAddressCollisions(ctx, input.pages);
+
   const created: PublicBatchCreateResult['created'] = [];
   await db.transaction(async () => {
     for (const pageInput of input.pages) {

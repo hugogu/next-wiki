@@ -134,7 +134,7 @@ describe('public content write facade', () => {
   });
 });
 
-describe('public content batch create facade (035 T071)', () => {
+describe('public content batch create facade (035 T071/T075)', () => {
   beforeEach(async () => {
     await cleanup();
     await ensurePublicApiDefaultSpace();
@@ -162,6 +162,28 @@ describe('public content batch create facade (035 T071)', () => {
     const explicitItem = result.created.find((item) => item.path === 'batch/address-explicit');
     expect(explicitItem?.slug).toBe('batch/custom-address');
     expect(explicitItem?.url).toContain('batch/custom-address');
+  });
+
+  it('never partially applies a batch containing a conflicting address (035 T075)', async () => {
+    const editor = await createPublicApiUser('batch-create-atomic-editor@example.com', 'editor');
+    const ctx = buildApiKeyCtx(editor.id, 'editor', ['view', 'create'], 'editor-key');
+
+    await expect(
+      publicContent.batchCreatePages(ctx, {
+        pages: [
+          { path: 'batch/atomic-a', title: 'A', contentSource: '# A' },
+          { path: 'batch/atomic-b', title: 'B', contentSource: '# B' },
+          // Collides with the first item's own address — the whole batch
+          // must reject, not create A and B while rejecting only this one.
+          { path: 'batch/atomic-c', slug: 'batch/atomic-a', title: 'C', contentSource: '# C' },
+        ],
+      }),
+    ).rejects.toBeTruthy();
+
+    const survivors = await db.query.pages.findMany({
+      where: (p, { inArray: inArr }) => inArr(p.path, ['batch/atomic-a', 'batch/atomic-b', 'batch/atomic-c']),
+    });
+    expect(survivors).toHaveLength(0);
   });
 });
 
