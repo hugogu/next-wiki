@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asc, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -9,6 +9,14 @@ import * as revisions from '@/server/services/revisions';
 import * as linkPages from '@/server/services/link-pages';
 import { setModeInternal } from '@/server/services/writing-mode';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
+
+// 035 (T081): pg-boss is not running in tests (getBoss() returns null there),
+// so enqueuePublicPageWarmup silently no-ops on the real path — mock it to
+// observe which routes a move asks to be warmed.
+const enqueuePublicPageWarmupMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('@/server/services/public-page-warmup', () => ({
+  enqueuePublicPageWarmup: enqueuePublicPageWarmupMock,
+}));
 
 async function ensureSpaces() {
   await db
@@ -41,6 +49,7 @@ describe('pages.moveToSpace', () => {
       .values({ email: 'move-editor@example.com', passwordHash: 'HASH', role: 'editor', status: 'active' })
       .returning();
     editorCtx = buildUserCtx(editor!.id, 'editor');
+    enqueuePublicPageWarmupMock.mockClear();
   });
 
   afterAll(async () => {
@@ -135,6 +144,52 @@ describe('pages.moveToSpace', () => {
     await expect(
       pageService.moveToSpace(adminCtx, created.pageId, { targetSpace: 'generated' }),
     ).rejects.toMatchObject({ code: 'PAGE_PATH_CONFLICT' } satisfies Partial<DomainError>);
+  });
+
+  it('rejects a target-space address collision even when the path itself is free (035 T081)', async () => {
+    const created = await publishedWikiPage(adminCtx, 'concepts/address-move-source', 'wiki body');
+    // A different path in the target space, but a colliding *address*.
+    const holder = await pageService.create(
+      adminCtx,
+      { path: 'concepts/address-move-holder', slug: 'concepts/address-move-source', title: 'Holder', contentSource: '---\ntype: Note\n---\n\nx' },
+      'generated',
+    );
+    await revisions.publish(adminCtx, { path: 'concepts/address-move-holder', version: 1, space: 'generated' });
+    expect(holder).toBeTruthy();
+
+    await expect(
+      pageService.moveToSpace(adminCtx, created.pageId, { targetSpace: 'generated' }),
+    ).rejects.toMatchObject({ code: 'PAGE_SLUG_TAKEN' } satisfies Partial<DomainError>);
+
+    // Neither page moved or was otherwise altered by the rejected attempt.
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, created.pageId) });
+    const wiki = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    expect(page?.spaceId).toBe(wiki!.id);
+  });
+
+  it('retains the page\'s pre-move address in the source space after a cross-space move (035 T081)', async () => {
+    const created = await publishedWikiPage(adminCtx, 'concepts/address-move-retain', 'wiki body');
+
+    await pageService.moveToSpace(adminCtx, created.pageId, { targetSpace: 'generated' });
+
+    const wiki = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    const retained = await db.query.pageAddresses.findFirst({
+      where: (t, { and: andOp, eq: eqOp }) => andOp(eqOp(t.spaceId, wiki!.id), eqOp(t.address, 'concepts/address-move-retain')),
+    });
+    expect(retained).toMatchObject({ pageId: created.pageId, kind: 'retained', reason: 'cross_space_migration' });
+  });
+
+  it('warms both the new address and the retained old-space address after moving a published page (035 T081)', async () => {
+    await publishedWikiPage(adminCtx, 'concepts/address-move-warmup', 'wiki body');
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'concepts/address-move-warmup') });
+
+    await pageService.moveToSpace(adminCtx, page!.id, { targetSpace: 'generated' });
+
+    const warmedHrefs = enqueuePublicPageWarmupMock.mock.calls.map((call) => call[0]);
+    expect(warmedHrefs).toContainEqual(expect.stringContaining('concepts/address-move-warmup'));
+    // Two distinct routes: the new one (generated space) and the retained
+    // old one (wiki space) — not just the new address alone.
+    expect(new Set(warmedHrefs).size).toBeGreaterThanOrEqual(2);
   });
 
   it('rejects moving a generated page that is published through a wiki link', async () => {

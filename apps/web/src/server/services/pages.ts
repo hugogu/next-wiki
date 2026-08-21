@@ -39,6 +39,7 @@ import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCa
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind, type SpaceRow } from '@/server/services/spaces';
+import { canonicalSpacePath } from '@/server/services/space-routes';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 
@@ -1648,6 +1649,11 @@ export async function moveToSpace(
     });
     if (conflict) throw new DomainError('PAGE_PATH_CONFLICT', 'A page with this path already exists in the target space');
 
+    // 035 (FR-010): page_addresses/pages.slug uniqueness is space-scoped, so
+    // moving into a different space can collide with an address already
+    // claimed there even when the path above did not.
+    await assertAddressAvailable(tx, target.id, page.slug, undefined, ctx);
+
     // Content-format adaptation: only the generated space requires OKF; inject it
     // when the live/latest content lacks it, as a new revision preserving status.
     const primaryRevId = page.currentPublishedVersionId ?? page.latestVersionId;
@@ -1711,7 +1717,19 @@ export async function moveToSpace(
       })
       .where(eq(schema.pages.id, page.id));
 
-    return { pageId: page.id, path: page.path, isPublished: page.currentPublishedVersionId !== null || movedRevisionId !== null };
+    // 035 (FR-010): retain the page's pre-move address in the *source*
+    // space, matching the batch cross-space-migration flow (moveItem in
+    // cross-space-migrations.ts) — page_addresses is space-scoped, and the
+    // page has just left this space.
+    await tx
+      .insert(schema.pageAddresses)
+      .values({ spaceId: source.id, address: page.slug, pageId: page.id, kind: 'retained', reason: 'cross_space_migration' })
+      .onConflictDoUpdate({
+        target: [schema.pageAddresses.spaceId, schema.pageAddresses.address],
+        set: { pageId: page.id, reason: 'cross_space_migration' },
+      });
+
+    return { pageId: page.id, path: page.path, slug: page.slug, locale: page.locale, source, isPublished: page.currentPublishedVersionId !== null || movedRevisionId !== null };
   });
 
   invalidatePublicContentCache();
@@ -1720,6 +1738,12 @@ export async function moveToSpace(
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   await notifyPublicContentChanged('publish');
   await kickReplication();
+  if (result.isPublished) {
+    await enqueuePublicPageWarmup(canonicalSpacePath(target, result.slug, result.locale));
+    // The address a reader could reach this page at before the move is now a
+    // retained alias in the source space — warm it too (035 T081).
+    await enqueuePublicPageWarmup(canonicalSpacePath(result.source, result.slug, result.locale));
+  }
   return { pageId: result.pageId, targetSpace: target.slug, path: result.path };
 }
 

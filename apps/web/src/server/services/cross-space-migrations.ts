@@ -293,12 +293,22 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
       });
     await tx.update(schema.pages).set({ spaceId: destination.id, path: item.destinationPath, nature: destination.kind === 'generated' ? 'generated' : page.nature, visibility: row.visibility ?? page.visibility, latestVersionId: replacementId ?? page.latestVersionId, currentPublishedVersionId: replacementId && primaryId === page.currentPublishedVersionId ? replacementId : page.currentPublishedVersionId, updatedAt: new Date() }).where(eq(schema.pages.id, page.id));
     await tx.update(schema.crossSpaceMigrationItems).set({ status: 'moved', completedAt: new Date(), updatedAt: new Date() }).where(eq(schema.crossSpaceMigrationItems.id, item.id));
-    return { pageId: page.id, destination, path: item.destinationPath, slug: page.slug, locale: page.locale, published: page.currentPublishedVersionId !== null };
+    return { pageId: page.id, source, destination, path: item.destinationPath, slug: page.slug, locale: page.locale, legacyAddress, published: page.currentPublishedVersionId !== null };
   });
   invalidatePublicContentCache();
   await reconcilePageAcrossIndexes(effect.pageId, { actor: { kind: 'user', userId: row.requestedBy, role: 'admin' } });
   await notifyPublicContentChanged('publish');
-  if (effect.published) await enqueuePublicPageWarmup(canonicalSpacePath(effect.destination, effect.slug, effect.locale));
+  if (effect.published) {
+    await enqueuePublicPageWarmup(canonicalSpacePath(effect.destination, effect.slug, effect.locale));
+    // 035 (T081): the address a reader could reach this page at before the
+    // move is now a retained alias in the *source* space — warm it too, or
+    // the first visitor to follow an old bookmark or search result hits a
+    // cold cache instead of an instantly-cached redirect. `legacyAddress` is
+    // already locale-prefixed as text where applicable (see its definition
+    // above), so it is passed through with `locale: null` rather than
+    // letting `canonicalSpacePath` prefix it a second time.
+    await enqueuePublicPageWarmup(canonicalSpacePath(effect.source, effect.legacyAddress, null));
+  }
 }
 
 async function finalizeMigration(id: string): Promise<void> {

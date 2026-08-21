@@ -96,8 +96,8 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `submit_semantic_search` | Submit a natural-language semantic search |
 | `get_semantic_search_results` | Poll results from `submit_semantic_search` |
 | `list_pages` | List visible pages |
-| `get_page` | Get page details and Markdown source |
-| `create_page` | Create a new page (raw entries: verbatim body + optional original bytes) |
+| `get_page` | Get page details and Markdown source, including its canonical address and alias list |
+| `create_page` | Create a new page (raw entries: verbatim body + optional original bytes); response includes the resulting address |
 | `append_raw_entry` | Append an immutable chunk to a raw entry |
 | `list_raw_categories` | List the raw taxonomy categories (LLM Wiki mode) |
 | `create_raw_category` | Create a raw taxonomy category (LLM Wiki mode) |
@@ -116,7 +116,7 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `get_page_outbound_links` | List outbound links, dangling links, and external links |
 | `get_neighborhood` | Walk the link graph around a page |
 | `get_diff` | Diff two revisions of a page |
-| `batch_create_pages` | Create up to 50 pages atomically |
+| `batch_create_pages` | Create up to 50 pages atomically; each result includes the address it landed at |
 | `batch_update_pages` | Update up to 50 pages atomically |
 | `batch_soft_delete_pages` | Soft-delete up to 50 pages atomically |
 | `get_stats` | Wiki health overview and orphan detection |
@@ -147,6 +147,24 @@ because auth, parameter validation, and permission checks are handled internally
 `edit` scopes. It is asynchronous: poll with `get_image_generation`, then use
 `promote_generated_image` to receive ordinary Markdown for a later `save_draft`
 operation. Promotion never writes or publishes a page automatically.
+
+### Page addresses
+
+A page has two distinct locations: `path` is where it lives in the tree
+(organizational, used for browsing/permissions/import), and `slug` is its
+canonical public address — the URL a reader actually reaches it at. Moving a
+page (`update_page_properties`) never changes its address; only an explicit
+`slug` does, and doing so retains the page's previous address as a permanent
+alias so old links keep working.
+
+- `create_page` and `batch_create_pages` accept an optional `slug`, defaulting
+  to `path` when omitted, and report the resulting `slug`/address in their
+  response.
+- `get_page` returns the page's current `slug` plus its `aliases` — every
+  other address it still resolves through (retained from a rename, or added
+  by hand in the web UI).
+- There is no MCP tool yet to add or remove an alias directly; that
+  management currently lives only in the web UI's Page Properties dialog.
 
 ### LLM Wiki mode
 

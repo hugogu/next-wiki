@@ -37,6 +37,25 @@ conventions; see `.specify/memory/constitution.md` for binding principles.
 
 ## Recent Changes
 
+- 035-page-slug-routing: Decouples a page's public URL from its tree path.
+  Every page has a `pages.slug` — the canonical public address — separate
+  from `pages.path`, which now only describes where the page lives for
+  organizing, browsing, permissions, import, and export. Moving a page in
+  the tree never changes its URL. Renaming a published page's slug retains
+  the previous address as a permanent `kind = 'retained'` alias in the new
+  `page_addresses` table (which absorbs and replaces the old
+  `page_route_redirects` mechanism); an owner may also register additional
+  `kind = 'manual'` aliases. One address namespace per space — every
+  canonical slug, every alias, and every reserved built-in prefix — is
+  validated through a single chokepoint (`assertAddressAvailable` in
+  `apps/web/src/server/services/page-addresses.ts`) before any write, so a
+  new or changed address can never silently steal one a reader, bookmark, or
+  crawler already depends on. Wiki.js and archive imports derive a new
+  page's address from its source path (or the archive's carried slug/alias
+  list on a round trip), adjusting only on collision — never touching an
+  existing page's address. The static site generator emits a redirect stub
+  per alias. Management UI: a single `AddressManager` component shared by
+  the reader's Page Properties dialog and the in-editor properties panel.
 - 034-page-attachments: Lets a page have arbitrary-type file attachments
   (documents/video/images, distinct from inline-embedded images), reusing
   the existing `content_assets`/`content_blobs` storage foundation via a new

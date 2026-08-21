@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -8,6 +8,14 @@ import { publish } from '@/server/services/revisions';
 import { setModeInternal } from '@/server/services/writing-mode';
 import { confirmCrossSpaceMigration, listCrossSpaceMigrationItems, previewCrossSpaceMigration, runCrossSpaceMigration } from './cross-space-migrations';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
+
+// 035 (T081): pg-boss is not running in tests (getBoss() returns null there),
+// so enqueuePublicPageWarmup silently no-ops on the real path — mock it to
+// observe which routes a migration asks to be warmed.
+const enqueuePublicPageWarmupMock = vi.hoisted(() => vi.fn().mockResolvedValue(undefined));
+vi.mock('@/server/services/public-page-warmup', () => ({
+  enqueuePublicPageWarmup: enqueuePublicPageWarmupMock,
+}));
 
 /** The authorization boundary is intentionally covered without a database: a
  * real service invocation additionally validates source/destination visibility. */
@@ -34,6 +42,7 @@ describe('cross-space migration workflow', () => {
     await setModeInternal('llm-wiki', null);
     const account = await createAdminUser({ email: 'cross-space-admin@example.com' });
     admin = buildUserCtx(account.userId, 'admin');
+    enqueuePublicPageWarmupMock.mockClear();
   });
 
   afterAll(async () => {
@@ -65,6 +74,26 @@ describe('cross-space migration workflow', () => {
       where: and(eq(schema.pageAddresses.spaceId, wiki!.id), eq(schema.pageAddresses.address, 'imports/ai-note')),
     });
     expect(retainedAddress).toMatchObject({ pageId: page.pageId, kind: 'retained', reason: 'cross_space_migration' });
+  });
+
+  it('warms both the new address and the retained old-space address after moving a published page (035 T081)', async () => {
+    const page = await create(admin, { path: 'imports/warmup-note', title: 'Warmup note', contentSource: '# Note' });
+    await publish(admin, { path: 'imports/warmup-note', version: 1 });
+    const generated = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'generated') });
+    const preview = await previewCrossSpaceMigration(admin, {
+      selection: { kind: 'page', pageId: page.pageId }, destinationSpaceId: generated!.id,
+      adaptOkf: true,
+    });
+    const operation = await confirmCrossSpaceMigration(admin, { previewId: preview.id, fingerprint: preview.fingerprint });
+
+    await runCrossSpaceMigration(operation.id);
+
+    const warmedHrefs = enqueuePublicPageWarmupMock.mock.calls.map((call) => call[0]);
+    // The new address, in the destination (generated) space.
+    expect(warmedHrefs).toContainEqual(expect.stringContaining('imports/warmup-note'));
+    // At least two distinct routes were warmed: the new one and the retained
+    // old one in the source space — not just the new address alone.
+    expect(new Set(warmedHrefs).size).toBeGreaterThanOrEqual(2);
   });
 
   it('rejects unresolved destination conflicts and paginates by a stable cursor order', async () => {
