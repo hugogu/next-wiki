@@ -6,6 +6,7 @@ import * as schema from '@/server/db/schema';
 import type {
   PublicAssetResource,
   PublicAttachmentResource,
+  PublicBatchCreateResult,
   PublicBatchItemResult,
   PublicDanglingLink,
   PublicDraftCreateInput,
@@ -1920,11 +1921,6 @@ export async function getDiff(
 // Phase 4: Batch Create
 // ---------------------------------------------------------------------------
 
-export type PublicBatchCreateResult = {
-  created: { id: string; path: string; title: string; revisionId: string }[];
-  count: number;
-};
-
 export async function batchCreatePages(
   ctx: PermCtx,
   input: { pages: PublicPageCreateInput[] },
@@ -1938,6 +1934,8 @@ export async function batchCreatePages(
         path: page.path,
         title: page.title,
         revisionId: page.latestRevision?.id ?? '',
+        slug: page.slug,
+        url: page.canonicalUrl,
       });
     }
   });

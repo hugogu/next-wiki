@@ -375,6 +375,18 @@ describe('tools', () => {
     });
   });
 
+  it('batch_create_pages surfaces each created page\'s resulting address (035 T071)', async () => {
+    const batchCreatePagesClient = vi.fn().mockResolvedValue({
+      created: [{ id: 'p1', path: 'docs/a', title: 'A', revisionId: 'r1', slug: 'docs/a', url: 'https://wiki.example.com/docs/a' }],
+      count: 1,
+    });
+    const client = createClient({ batchCreatePages: batchCreatePagesClient });
+
+    const result = await batchCreatePages(client, { pages: [{ path: 'docs/a', title: 'A', contentSource: '# A' }] });
+
+    expect(result.created[0]).toMatchObject({ slug: 'docs/a', url: 'https://wiki.example.com/docs/a' });
+  });
+
   it('create_page defaults space to generated when caller omits it', async () => {
     const createPageClient = vi.fn().mockResolvedValue({
       id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',

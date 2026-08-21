@@ -134,6 +134,37 @@ describe('public content write facade', () => {
   });
 });
 
+describe('public content batch create facade (035 T071)', () => {
+  beforeEach(async () => {
+    await cleanup();
+    await ensurePublicApiDefaultSpace();
+  });
+
+  afterAll(async () => {
+    await cleanup();
+  });
+
+  it('reports each created page\'s resulting address, defaulting to path when no slug was supplied', async () => {
+    const editor = await createPublicApiUser('batch-create-address-editor@example.com', 'editor');
+    const ctx = buildApiKeyCtx(editor.id, 'editor', ['view', 'create'], 'editor-key');
+
+    const result = await publicContent.batchCreatePages(ctx, {
+      pages: [
+        { path: 'batch/address-default', title: 'Default Address', contentSource: '# Default' },
+        { path: 'batch/address-explicit', slug: 'batch/custom-address', title: 'Explicit Address', contentSource: '# Explicit' },
+      ],
+    });
+
+    expect(result.count).toBe(2);
+    const defaultItem = result.created.find((item) => item.path === 'batch/address-default');
+    expect(defaultItem?.slug).toBe('batch/address-default');
+    expect(defaultItem?.url).toBeTruthy();
+    const explicitItem = result.created.find((item) => item.path === 'batch/address-explicit');
+    expect(explicitItem?.slug).toBe('batch/custom-address');
+    expect(explicitItem?.url).toContain('batch/custom-address');
+  });
+});
+
 describe('public content batch write facade (US5)', () => {
   beforeEach(async () => {
     await cleanup();

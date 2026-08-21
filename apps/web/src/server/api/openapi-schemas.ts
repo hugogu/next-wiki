@@ -1690,6 +1690,8 @@ export const PublicBatchCreateResult = z
         path: PublicPagePath.describe('Canonical path of the created page.'),
         title: z.string().describe('Title of the created page.'),
         revisionId: z.string().uuid().describe('Identifier of the initial draft revision.'),
+        slug: z.string().describe('The public address the page was created at (defaults to path when not supplied).'),
+        url: z.string().optional().describe('Full reader URL built from the slug.'),
       }),
     ),
     count: z.number().int().nonnegative().describe('Number of pages created.'),

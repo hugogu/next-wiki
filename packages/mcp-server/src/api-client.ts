@@ -301,6 +301,8 @@ export const publicBatchCreateResultSchema = z.object({
       path: pathSchema,
       title: z.string(),
       revisionId: z.string().uuid(),
+      slug: z.string(),
+      url: z.string().optional(),
     }),
   ),
   count: z.number().int().nonnegative(),

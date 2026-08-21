@@ -684,6 +684,11 @@ export const publicBatchCreateResultSchema = z.object({
       path: pathSchema,
       title: z.string(),
       revisionId: z.string().uuid(),
+      // 035 (T071): the address the page actually landed at (its slug
+      // defaults to path when the caller didn't supply one) and the full
+      // reader URL built from it.
+      slug: z.string(),
+      url: z.string().optional(),
     }),
   ),
   count: z.number().int().nonnegative(),
