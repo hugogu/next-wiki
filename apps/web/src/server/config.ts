@@ -72,15 +72,29 @@ const envSchema = z.object({
 const DEV_DATABASE_URL = 'postgresql://wiki:wiki@127.0.0.1:15433/wiki';
 const DEV_API_KEY_ENCRYPTION_KEY = '0'.repeat(64);
 
+// Some deployment platforms (PaaS docker-compose importers, blank-by-default
+// secret stores) surface an unconfigured variable as an empty string rather
+// than omitting it. Zod's `.default()` and the `??` fallbacks below only
+// trigger on `undefined`, so treat "" the same as "not set" up front.
+function withoutEmptyStrings(
+  source: NodeJS.ProcessEnv
+): Record<string, string | undefined> {
+  const result: Record<string, string | undefined> = {};
+  for (const [key, value] of Object.entries(source)) {
+    result[key] = value === '' ? undefined : value;
+  }
+  return result;
+}
+
 function parseEnv() {
+  const rawEnv = withoutEmptyStrings(process.env);
   const result = envSchema.safeParse({
-    ...process.env,
+    ...rawEnv,
     DATABASE_URL:
-      process.env.DATABASE_URL ??
-      (process.env.NODE_ENV === 'production' ? undefined : DEV_DATABASE_URL),
+      rawEnv.DATABASE_URL ?? (rawEnv.NODE_ENV === 'production' ? undefined : DEV_DATABASE_URL),
     API_KEY_ENCRYPTION_KEY:
-      process.env.API_KEY_ENCRYPTION_KEY ??
-      (process.env.NODE_ENV === 'production' ? undefined : DEV_API_KEY_ENCRYPTION_KEY),
+      rawEnv.API_KEY_ENCRYPTION_KEY ??
+      (rawEnv.NODE_ENV === 'production' ? undefined : DEV_API_KEY_ENCRYPTION_KEY),
   });
   if (!result.success) {
     // Rethrow as a plain Error rather than let the raw ZodError escape: zod's

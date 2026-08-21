@@ -38,4 +38,16 @@ describe('config env parsing', () => {
     const { env } = await import('./config');
     expect(env.DATABASE_URL).toBe('postgresql://wiki:wiki@localhost:5432/wiki');
   });
+
+  it('falls back to the schema default when APP_URL is set but empty', async () => {
+    // Some deployment platforms pre-create every declared env var as an empty
+    // string rather than omitting it; that must not bypass the URL default.
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DATABASE_URL', 'postgresql://wiki:wiki@localhost:5432/wiki');
+    vi.stubEnv('API_KEY_ENCRYPTION_KEY', '0'.repeat(64));
+    vi.stubEnv('APP_URL', '');
+
+    const { env } = await import('./config');
+    expect(env.APP_URL).toBe('http://localhost:3000');
+  });
 });
