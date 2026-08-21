@@ -75,11 +75,17 @@ const DEV_API_KEY_ENCRYPTION_KEY = '0'.repeat(64);
 // Some deployment platforms (PaaS docker-compose importers, blank-by-default
 // secret stores) surface an unconfigured variable as an empty string rather
 // than omitting it. Zod's `.default()` and the `??` fallbacks below only
-// trigger on `undefined`, so treat "" the same as "not set" up front.
+// trigger on `undefined`, so treat "" the same as "not set" up front. This
+// does not weaken the production guard below: API_KEY_ENCRYPTION_KEY set to
+// "" in production is treated the same as fully unset, so it still fails
+// loudly rather than silently picking up the dev/test default.
 function withoutEmptyStrings(
   source: NodeJS.ProcessEnv
 ): Record<string, string | undefined> {
-  const result: Record<string, string | undefined> = {};
+  // Null-prototype object: process.env is attacker-influenced in principle
+  // (container/orchestrator config), and a key literally named `__proto__`
+  // must not be able to touch Object.prototype via plain-object assignment.
+  const result: Record<string, string | undefined> = Object.create(null);
   for (const [key, value] of Object.entries(source)) {
     result[key] = value === '' ? undefined : value;
   }

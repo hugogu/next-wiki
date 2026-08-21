@@ -50,4 +50,30 @@ describe('config env parsing', () => {
     const { env } = await import('./config');
     expect(env.APP_URL).toBe('http://localhost:3000');
   });
+
+  it('still fails loudly in production when API_KEY_ENCRYPTION_KEY is set but empty', async () => {
+    // The empty-string normalization must not reopen the "unsafe default in
+    // production" hole: a blank key is exactly as missing as no key at all.
+    vi.stubEnv('NODE_ENV', 'production');
+    vi.stubEnv('DATABASE_URL', 'postgresql://wiki:wiki@localhost:5432/wiki');
+    vi.stubEnv('APP_URL', 'https://wiki.example.com');
+    vi.stubEnv('API_KEY_ENCRYPTION_KEY', '');
+
+    let caught: unknown;
+    try {
+      await import('./config');
+    } catch (error) {
+      caught = error;
+    }
+    expect((caught as Error).message).toContain('API_KEY_ENCRYPTION_KEY');
+  });
+
+  it('falls back to the dev/test key outside production when API_KEY_ENCRYPTION_KEY is set but empty', async () => {
+    vi.stubEnv('NODE_ENV', 'development');
+    vi.stubEnv('APP_URL', 'https://wiki.example.com');
+    vi.stubEnv('API_KEY_ENCRYPTION_KEY', '');
+
+    const { env } = await import('./config');
+    expect(env.API_KEY_ENCRYPTION_KEY).toBe('0'.repeat(64));
+  });
 });

@@ -87,14 +87,5 @@ COPY docker/start.mjs ./start.mjs
 
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-# Quick-start placeholders so the published image runs standalone (docker run,
-# a PaaS docker-compose import, etc.) without any env config, not only under
-# the bundled docker-compose.yml. Real deployments set both explicitly per
-# docs/deployment.md; an explicit env var always overrides an image ENV, so
-# that path is unaffected. This is the same trade-off docker-compose.yml
-# already makes for the zero-config trial path — see docker-compose.yml's
-# API_KEY_ENCRYPTION_KEY default and config.ts's production-fail-loudly guard.
-ENV API_KEY_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000
-ENV APP_URL=http://localhost:3000
 EXPOSE 3000
 CMD ["node", "start.mjs"]
