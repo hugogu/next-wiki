@@ -31,6 +31,8 @@ const RUNTIME_DEFAULTS = {
 };
 
 export type AiRuntimeConfig = {
+  /** Whether visitors without an account may ask read-only Wiki AI questions. */
+  anonymousWikiAiEnabled: boolean;
   /** Whether answers are told to follow the asker's language. */
   answerLanguage: AiAnswerLanguage;
   maxToolCalls: number;
@@ -48,6 +50,7 @@ export type AiRuntimeConfig = {
 export async function resolveAiRuntimeConfig(): Promise<AiRuntimeConfig> {
   const row = await db.query.aiSettings.findFirst({ where: eq(schema.aiSettings.id, 'default') });
   return {
+    anonymousWikiAiEnabled: row?.anonymousWikiAiEnabled ?? false,
     answerLanguage: row?.answerLanguage ?? RUNTIME_DEFAULTS.answerLanguage,
     maxToolCalls: row?.toolMaxCalls ?? RUNTIME_DEFAULTS.maxToolCalls,
     toolResultMaxChars: row?.toolResultMaxChars ?? RUNTIME_DEFAULTS.toolResultMaxChars,
@@ -69,6 +72,7 @@ export async function getAiRuntimeSettings(ctx: PermCtx): Promise<AiRuntimeSetti
   const config = await resolveAiRuntimeConfig();
   return {
     params: {
+      anonymousWikiAiEnabled: config.anonymousWikiAiEnabled,
       answerLanguage: config.answerLanguage,
       toolMaxCalls: config.maxToolCalls,
       toolResultMaxChars: config.toolResultMaxChars,
@@ -103,6 +107,7 @@ export async function updateAiRuntimeSettings(
     updatedAt: new Date(),
   };
   if (input.answerLanguage !== undefined) patch.answerLanguage = input.answerLanguage;
+  if (input.anonymousWikiAiEnabled !== undefined) patch.anonymousWikiAiEnabled = input.anonymousWikiAiEnabled;
   if (input.toolMaxCalls !== undefined) patch.toolMaxCalls = input.toolMaxCalls;
   if (input.toolResultMaxChars !== undefined) patch.toolResultMaxChars = input.toolResultMaxChars;
   if (input.plannerTemperature !== undefined) {

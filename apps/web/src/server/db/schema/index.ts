@@ -1313,6 +1313,9 @@ export const contentDataSourceSettings = pgTable('content_data_source_settings',
 export const aiSettings = pgTable('ai_settings', {
   id: text('id').primaryKey().default('default'),
   enabled: boolean('enabled').notNull().default(false),
+  // Whether visitors without an authenticated account may use Wiki AI Q&A.
+  // Disabled by default because anonymous prompts consume provider capacity.
+  anonymousWikiAiEnabled: boolean('anonymous_wiki_ai_enabled').notNull().default(false),
   // 30 days. The event log is the only record of a conversation that was never
   // captured as a Raw page, so the default keeps chat history readable for a
   // sensible stretch rather than for the streaming session alone.

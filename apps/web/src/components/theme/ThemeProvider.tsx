@@ -1,6 +1,7 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { useSearchParams } from 'next/navigation';
 
 type ThemeMode = 'light' | 'dark' | 'auto';
 
@@ -43,38 +44,47 @@ function applyTheme(mode: ThemeMode) {
 export function ThemeProvider({
   children,
   initialMode,
+  forcedMode,
 }: {
   children: React.ReactNode;
   initialMode?: ThemeMode;
+  /** Transient `?theme=` override. It intentionally never updates storage. */
+  forcedMode?: ThemeMode;
 }) {
+  const searchParams = useSearchParams();
+  const urlTheme = searchParams?.get('theme') ?? null;
+  const queryMode: ThemeMode | undefined = urlTheme === 'light' || urlTheme === 'dark' || urlTheme === 'auto'
+    ? urlTheme
+    : undefined;
+  const override = queryMode ?? forcedMode;
   const [mode, setModeState] = useState<ThemeMode>(() => {
-    if (typeof window === 'undefined') return initialMode ?? 'auto';
+    if (typeof window === 'undefined') return forcedMode ?? initialMode ?? 'auto';
     const stored = getStoredTheme();
     return stored ?? initialMode ?? 'auto';
   });
-  const [resolved, setResolved] = useState<'light' | 'dark'>(() =>
-    resolve(mode),
-  );
+  // Re-render on an OS colour-scheme change while the effective mode is auto.
+  // The resolved value itself is derived, avoiding a stale frame on URL changes.
+  const [, refreshResolvedTheme] = useState(0);
+  const resolved = resolve(override ?? mode);
 
   useEffect(() => {
-    applyTheme(mode);
-  }, [mode]);
+    applyTheme(override ?? mode);
+  }, [mode, override]);
 
   useEffect(() => {
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const listener = () => {
-      if (mode === 'auto') {
-        setResolved(resolve('auto'));
+      if ((override ?? mode) === 'auto') {
+        refreshResolvedTheme((version) => version + 1);
         applyTheme('auto');
       }
     };
     mq.addEventListener('change', listener);
     return () => mq.removeEventListener('change', listener);
-  }, [mode]);
+  }, [mode, override]);
 
   const setMode = useCallback((next: ThemeMode) => {
     setModeState(next);
-    setResolved(resolve(next));
     setStoredTheme(next);
     applyTheme(next);
   }, []);
@@ -88,7 +98,7 @@ export function ThemeProvider({
     setMode(next);
   }, [mode, setMode]);
 
-  return <ThemeContext.Provider value={{ mode, resolved, setMode, cycle }}>{children}</ThemeContext.Provider>;
+  return <ThemeContext.Provider value={{ mode: override ?? mode, resolved, setMode, cycle }}>{children}</ThemeContext.Provider>;
 }
 
 export function useTheme() {

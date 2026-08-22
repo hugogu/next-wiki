@@ -2,6 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { parseAcceptLanguage, resolveUiLocale } from './resolve';
 
 describe('resolveUiLocale', () => {
+  it('lets a valid URL language override every stored or browser preference', () => {
+    expect(resolveUiLocale({ urlValue: 'en', persistedPreference: 'zh', cookieValue: 'zh', acceptLanguage: 'zh-CN' })).toBe('en');
+  });
+
   it('uses persisted preference before cookie and browser signals', () => {
     expect(
       resolveUiLocale({ persistedPreference: 'zh', cookieValue: 'en', acceptLanguage: 'en-US' }),
@@ -11,12 +15,12 @@ describe('resolveUiLocale', () => {
   it('ignores invalid persisted and cookie values', () => {
     expect(
       resolveUiLocale({ persistedPreference: 'fr', cookieValue: 'obsolete', acceptLanguage: 'zh-CN' }),
-    ).toBe('zh');
+    ).toBe('en');
   });
 
-  it('honours weighted Accept-Language values', () => {
-    expect(resolveUiLocale({ acceptLanguage: 'en;q=0.2, zh-CN;q=0.9' })).toBe('zh');
-    expect(resolveUiLocale({ acceptLanguage: 'fr-CA, en-GB;q=0.8' })).toBe('en');
+  it('uses English by default instead of inferring a browser language', () => {
+    expect(resolveUiLocale({ acceptLanguage: 'zh-CN' })).toBe('en');
+    expect(resolveUiLocale({ acceptLanguage: 'en;q=0.2, zh-CN;q=0.9' })).toBe('en');
   });
 
   it('falls back safely when no supported signal exists', () => {

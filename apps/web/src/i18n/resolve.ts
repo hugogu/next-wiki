@@ -1,13 +1,13 @@
-import { match } from '@formatjs/intl-localematcher';
 import {
   defaultLocale,
   isLocale,
   normalizeUiLocale,
-  uiLocales,
   type UiLocale,
 } from './config';
 
 export interface LocaleResolutionInput {
+  /** Explicit request override (`?lang=en` / `?lang=zh`). */
+  urlValue?: unknown;
   persistedPreference?: unknown;
   cookieValue?: unknown;
   acceptLanguage?: string | null;
@@ -36,18 +36,19 @@ function parseAcceptLanguage(value: string | null | undefined): string[] {
 }
 
 export function resolveUiLocale(input: LocaleResolutionInput = {}): UiLocale {
+  const url = normalizeUiLocale(input.urlValue);
+  if (url && isLocale(url)) return url;
+
   const persisted = normalizeUiLocale(input.persistedPreference);
   if (persisted && isLocale(persisted)) return persisted;
 
   const cookie = normalizeUiLocale(input.cookieValue);
   if (cookie && isLocale(cookie)) return cookie;
 
-  const requested = parseAcceptLanguage(input.acceptLanguage);
-  if (requested.length > 0) {
-    const matched = match(requested, uiLocales, defaultLocale, { algorithm: 'best fit' });
-    if (isLocale(matched)) return matched;
-  }
-
+  // English is the product default. Browser language is intentionally not a
+  // selector: a shared workstation or Chinese browser must not silently
+  // change the initial UI language. Visitors can still choose a persisted
+  // preference or use `?lang=` for a transient link-level override.
   return defaultLocale;
 }
 

@@ -20,8 +20,9 @@ export async function createActionEventStream(
   ctx: PermCtx,
   actionId: string,
   after = 0,
+  anonymousToken?: string,
 ): Promise<ReadableStream<Uint8Array>> {
-  await requireActionAccess(ctx, actionId);
+  await requireActionAccess(ctx, actionId, anonymousToken);
   let cursor = after;
   let closed = false;
   return new ReadableStream<Uint8Array>({
@@ -55,7 +56,7 @@ export async function createActionEventStream(
             break;
           }
 
-          const events = await getActionEvents(ctx, actionId, cursor);
+          const events = await getActionEvents(ctx, actionId, cursor, 100, anonymousToken);
           for (const event of events) {
             cursor = event.id;
             controller.enqueue(serializeSseEvent(event));

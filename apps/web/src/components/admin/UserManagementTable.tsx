@@ -28,6 +28,7 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
   const [resetResult, setResetResult] = useState<{ email: string; password: string } | null>(null);
   const [aiUser, setAiUser] = useState<UserView | null>(null);
   const [deletingUser, setDeletingUser] = useState<UserView | null>(null);
+  const [newUser, setNewUser] = useState({ email: '', password: '', role: 'reader' as UserView['role'] });
 
   const setRole = useApiMutation<{ userId: string; role: UserView['role'] }, { ok: true }>(
     ({ userId }) => `/api/users/${encodeURIComponent(userId)}/role`,
@@ -61,6 +62,12 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
       },
     },
   );
+  const createUser = useApiMutation<typeof newUser, UserView>('/api/users', {
+    onSuccess: () => {
+      setNewUser({ email: '', password: '', role: 'reader' });
+      router.refresh();
+    },
+  });
 
   const handleSetRole = (userId: string, role: UserView['role']) => {
     setRole.mutate({ userId, role });
@@ -86,6 +93,33 @@ export function UserManagementTable({ users }: { users: UserView[] }) {
 
   return (
     <div className="space-y-md">
+      <form
+        className="flex flex-wrap items-end gap-sm rounded-md border border-border bg-surface p-md"
+        onSubmit={(event) => {
+          event.preventDefault();
+          createUser.mutate(newUser);
+        }}
+      >
+        <label className="min-w-52 flex-1 text-sm">
+          <span className="mb-xs block font-medium">{t('admin.users.create.email')}</span>
+          <Input type="email" autoComplete="email" required value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
+        </label>
+        <label className="min-w-52 flex-1 text-sm">
+          <span className="mb-xs block font-medium">{t('admin.users.create.password')}</span>
+          <Input type="password" autoComplete="new-password" minLength={8} required value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
+        </label>
+        <label className="w-32 text-sm">
+          <span className="mb-xs block font-medium">{t('admin.users.create.role')}</span>
+          <Select value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value as UserView['role'] })}>
+            <option value="reader">{t('admin.users.role.reader')}</option>
+            <option value="editor">{t('admin.users.role.editor')}</option>
+            <option value="admin">{t('admin.users.role.admin')}</option>
+          </Select>
+        </label>
+        <Button type="submit" disabled={createUser.isPending}>{t('admin.users.create.submit')}</Button>
+        {createUser.error ? <p role="alert" className="w-full text-sm text-danger">{createUser.error.message}</p> : null}
+        <p className="w-full text-xs text-muted">{t('admin.users.create.hint')}</p>
+      </form>
       {resetResult && (
         <div className="p-md bg-surface border border-border rounded-md" role="status">
           <p className="text-sm font-medium">{t('admin.users.resetPassword.successMessage', { email: resetResult.email })}</p>

@@ -87,6 +87,7 @@ export async function createWikiQuestion(
       hasCurrentPage: Boolean(input.currentPage),
       providerName: provider.name,
     },
+    allowAnonymous: ctx.actor.kind === 'anonymous',
     rawConversationCaptureStatus: captureEnabled ? 'pending' : 'disabled',
   });
 }
@@ -161,6 +162,7 @@ export async function createToolEnabledWikiQuestion(
       toolEnabled: true,
       requestedReview: input.requestedReview,
     },
+    allowAnonymous: ctx.actor.kind === 'anonymous',
     rawConversationCaptureStatus: captureEnabled ? 'pending' : 'disabled',
   });
   return { fallback: false, action };

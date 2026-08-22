@@ -10,6 +10,7 @@ export async function getLocale(persistedPreference?: unknown): Promise<Locale> 
   const headersList = await headers();
 
   return resolveUiLocale({
+    urlValue: headersList.get('x-next-wiki-lang'),
     persistedPreference,
     cookieValue: cookieStore.get(localeCookieName)?.value,
     acceptLanguage: headersList.get('accept-language'),

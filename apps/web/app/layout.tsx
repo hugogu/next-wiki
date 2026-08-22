@@ -4,6 +4,7 @@ import { EditorProvider } from '@/components/editor/EditorContext';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { ApplicationI18nProvider } from '@/components/i18n/ApplicationI18nProvider';
 import { getDictionary, getLocale } from '@/i18n/server';
+import { headers } from 'next/headers';
 import { getMessages } from '@/i18n/catalog';
 import { getCurrentActor } from '@/server/services/auth';
 import * as userCenterService from '@/server/services/user-center';
@@ -61,6 +62,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const requestHeaders = await headers();
   const actor = await getCurrentActor();
   const preferences = actor.kind === 'user'
     ? await userCenterService.getPreferences({ actor })
@@ -77,6 +79,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     }
   }
 
+  const requestedTheme = requestHeaders.get('x-next-wiki-theme');
+  const urlTheme = requestedTheme === 'light' || requestedTheme === 'dark' || requestedTheme === 'auto'
+    ? requestedTheme
+    : undefined;
   const initialTheme = preferences?.theme ?? undefined;
   const initialLocale = locale;
 
@@ -84,7 +90,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     (function() {
       try {
         var stored = localStorage.getItem('next-wiki-theme');
-        var mode = stored || '${initialTheme ?? 'auto'}';
+        var mode = '${urlTheme ?? ''}' || stored || '${initialTheme ?? 'auto'}';
         var resolved = mode === 'auto'
           ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
           : mode;
@@ -142,7 +148,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </head>
       <body className="antialiased" suppressHydrationWarning>
         <ApplicationI18nProvider initialLocale={initialLocale} messages={getMessages(initialLocale)}>
-          <ThemeProvider initialMode={initialTheme}>
+          <ThemeProvider initialMode={initialTheme} forcedMode={urlTheme}>
             <ApiProvider>
               <HistoryProvider>
                 <EditorProvider>{children}</EditorProvider>

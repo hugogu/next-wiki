@@ -83,6 +83,25 @@ describe('userService US5', () => {
     });
   });
 
+  describe('createUser', () => {
+    it('creates an active account that must reset its temporary password', async () => {
+      const admin = await createUser('admin-create-user@example.com', 'admin');
+      const result = await userService.createUser(buildUserCtx(admin.id, 'admin'), {
+        email: 'New.User@example.com', password: 'temporary-password', role: 'editor',
+      });
+      const row = await db.query.users.findFirst({ where: eq(schema.users.id, result.id) });
+      expect(row).toMatchObject({ email: 'new.user@example.com', role: 'editor', status: 'active', mustResetPassword: true });
+      expect(await bcrypt.compare('temporary-password', row!.passwordHash)).toBe(true);
+    });
+
+    it('requires an administrator and rejects duplicate email addresses', async () => {
+      const admin = await createUser('admin-create-duplicate@example.com', 'admin');
+      await createUser('exists@example.com', 'reader');
+      await expect(userService.createUser(buildAnonymousCtx(), { email: 'new@example.com', password: 'temporary-password', role: 'reader' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+      await expect(userService.createUser(buildUserCtx(admin.id, 'admin'), { email: 'EXISTS@example.com', password: 'temporary-password', role: 'reader' })).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
+  });
+
   describe('setRole', () => {
     it('is effective on the next request (no stale elevation)', async () => {
       const admin = await createUser('admin-setrole@example.com', 'admin');

@@ -18,6 +18,16 @@ const enabled = {
   imageGenerationEnabled: true,
 };
 
+const ANONYMOUS_ENTITLEMENTS: AiEntitlementView = {
+  // UI-only sentinel; anonymous users never receive account-history APIs.
+  userId: '00000000-0000-4000-8000-000000000000',
+  questionAnsweringEnabled: true,
+  textOptimizationEnabled: false,
+  imageGenerationEnabled: false,
+  aiEnabled: true,
+  reasons: [],
+};
+
 /**
  * Per-user feature toggles applied when no explicit entitlement row exists.
  *
@@ -107,10 +117,25 @@ export async function getMyEntitlements(ctx: PermCtx): Promise<AiEntitlementView
   };
 }
 
+/** Availability shape consumed by the shared reader shell for an anonymous
+ * visitor. Only Wiki questions are exposed; no account-scoped history or
+ * editing features are granted. */
+export async function getAnonymousQuestionEntitlements(): Promise<AiEntitlementView | null> {
+  const settings = await getAiSettings();
+  return settings.enabled && settings.anonymousWikiAiEnabled ? ANONYMOUS_ENTITLEMENTS : null;
+}
+
 export async function assertAiFeature(
   ctx: PermCtx,
   feature: 'question' | 'text' | 'image' | 'search',
 ): Promise<AiEntitlementView> {
+  if (ctx.actor.kind === 'anonymous') {
+    const settings = await getAiSettings();
+    if (feature !== 'question' || !settings.enabled || !settings.anonymousWikiAiEnabled) {
+      throw new DomainError('AI_FEATURE_DISABLED', 'Wiki AI is not enabled for anonymous visitors');
+    }
+    return ANONYMOUS_ENTITLEMENTS;
+  }
   const entitlements = await getMyEntitlements(ctx);
   if (!entitlements.aiEnabled) throw new DomainError('AI_DISABLED', 'AI features are disabled');
   if (feature === 'question' && !entitlements.questionAnsweringEnabled) {

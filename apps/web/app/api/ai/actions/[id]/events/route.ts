@@ -14,7 +14,12 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);
   const cursor = Number(request.headers.get('last-event-id') ?? request.nextUrl.searchParams.get('after') ?? 0);
   try {
-    const stream = await createActionEventStream(ctx, id, Number.isSafeInteger(cursor) && cursor >= 0 ? cursor : 0);
+    const stream = await createActionEventStream(
+      ctx,
+      id,
+      Number.isSafeInteger(cursor) && cursor >= 0 ? cursor : 0,
+      request.nextUrl.searchParams.get('access_token') ?? undefined,
+    );
     return new Response(stream, {
       headers: {
         'content-type': 'text/event-stream',

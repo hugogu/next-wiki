@@ -5,7 +5,7 @@ import * as publicContent from '@/server/services/public-content';
 import { AppShell } from './AppShell';
 import type { PageContext } from './types';
 import { buildAnonymousCtx, isDemoReadOnly } from '@/server/permissions';
-import { getMyEntitlements } from '@/server/services/ai-entitlements';
+import { getAnonymousQuestionEntitlements, getMyEntitlements } from '@/server/services/ai-entitlements';
 import { getSiteView } from '@/server/services/site-settings';
 import { Footer } from '@/components/ui/Footer';
 import { sparsifyTree } from '@/lib/page-tree';
@@ -59,7 +59,7 @@ export async function Layout({
   const aiEntitlements =
     actor.kind === 'user'
       ? await getMyEntitlements({ actor }).catch(() => null)
-      : null;
+      : await getAnonymousQuestionEntitlements().catch(() => null);
   const site = await getSiteView();
   const writingMode = staticPublic ? undefined : await getMode();
   // staticPublic output is cached/shared (see actor note above): resolve the

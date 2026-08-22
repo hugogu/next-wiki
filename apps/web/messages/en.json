@@ -1324,6 +1324,13 @@
       "metadataTitle": "User management",
       "title": "User management",
       "description": "Manage roles, status, and passwords.",
+      "create": {
+        "email": "Email",
+        "password": "Temporary password",
+        "role": "Role",
+        "submit": "Add user",
+        "hint": "The user must choose a new password the first time they sign in."
+      },
       "table": {
         "email": "Email",
         "role": "Role",
@@ -1893,6 +1900,8 @@
         "runtime": {
           "title": "AI runtime parameters",
           "description": "Tune the Wiki AI tool loop. A per-provider tool policy limit still takes precedence over the max tool calls set here.",
+          "anonymousWikiAi": "Allow Wiki AI for visitors",
+          "anonymousWikiAiHint": "Lets people who are not signed in ask Wiki AI questions. Their conversations are not saved to account history.",
           "answerLanguage": "Answer language",
           "answerLanguageHint": "Applies to every generated answer, including bots.",
           "answerLanguageModelDefault": "Default (no constraint)",

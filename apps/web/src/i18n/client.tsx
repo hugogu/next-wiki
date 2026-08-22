@@ -6,6 +6,7 @@ import {
   useTranslations,
 } from 'next-intl';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { localeCookieName, defaultLocale, type Locale, isLocale } from './config';
 import { getMessagePath } from './message-path';
 import type { AppMessages } from './catalog';
@@ -63,37 +64,40 @@ export function I18nProvider({
   messages?: AppMessages;
   children: React.ReactNode;
 }) {
+  const searchParams = useSearchParams();
+  const urlLocale = searchParams?.get('lang') ?? null;
   const [locale, setLocaleState] = useState<Locale>(() =>
     isLocale(initialLocale) ? initialLocale : defaultLocale,
   );
+  const activeLocale = isLocale(urlLocale) ? urlLocale : locale;
 
   if (providedMessages) seedMessages(initialLocale, providedMessages);
 
-  const [catalogLocale, setCatalogLocale] = useState(locale);
+  const [catalogLocale, setCatalogLocale] = useState(activeLocale);
   const [catalog, setCatalog] = useState<AppMessages>(
-    () => providedMessages ?? getCachedMessages(locale) ?? ({} as AppMessages),
+    () => providedMessages ?? getCachedMessages(activeLocale) ?? ({} as AppMessages),
   );
 
   // Derived-during-render update (not an effect): when `locale` changes and
   // its catalog is already cached, adopt it in the same render pass instead
   // of committing a stale frame first. See:
   // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
-  if (locale !== catalogLocale) {
-    const cached = getCachedMessages(locale);
+  if (activeLocale !== catalogLocale) {
+    const cached = getCachedMessages(activeLocale);
     if (cached) {
-      setCatalogLocale(locale);
+      setCatalogLocale(activeLocale);
       setCatalog(cached);
     }
   }
 
   useEffect(() => {
-    if (getCachedMessages(locale)) return;
+    if (getCachedMessages(activeLocale)) return;
     let cancelled = false;
-    loadMessages(locale)
+    loadMessages(activeLocale)
       .then((loaded) => {
         if (!cancelled) {
           setCatalog(loaded);
-          setCatalogLocale(locale);
+          setCatalogLocale(activeLocale);
         }
       })
       .catch(() => {
@@ -103,25 +107,29 @@ export function I18nProvider({
     return () => {
       cancelled = true;
     };
-  }, [locale]);
+  }, [activeLocale]);
 
   // Warm the other locale in the background so a later switch has no
   // visible load, without shipping both dictionaries on the critical path.
   useEffect(() => {
-    prefetchOtherLocale(locale);
-  }, [locale]);
+    prefetchOtherLocale(activeLocale);
+  }, [activeLocale]);
+
+  useEffect(() => {
+    document.documentElement.lang = activeLocale;
+  }, [activeLocale]);
 
   const setLocale = useCallback((next: Locale) => {
     if (!isLocale(next)) return;
     setLocaleState(next);
     setLocaleCookie(next);
-    if (typeof document !== 'undefined') {
+    if (!isLocale(urlLocale) && typeof document !== 'undefined') {
       document.documentElement.lang = next;
     }
-  }, []);
+  }, [urlLocale, setLocaleState]);
 
   return (
-    <NextIntlClientProvider locale={locale} messages={catalog} timeZone="UTC">
+    <NextIntlClientProvider locale={activeLocale} messages={catalog} timeZone="UTC">
       <LegacyTranslationBridge setLocale={setLocale} catalog={catalog}>
         {children}
       </LegacyTranslationBridge>

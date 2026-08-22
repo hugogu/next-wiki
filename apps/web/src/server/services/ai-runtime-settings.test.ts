@@ -36,6 +36,7 @@ describe('ai runtime settings (026)', () => {
     expect(config.assistantSystemPrompt).toBeNull();
     expect(config.toolSystemPrompt).toBeNull();
     expect(config.answerLanguage).toBe('model_default');
+    expect(config.anonymousWikiAiEnabled).toBe(false);
   });
 
   it('persists the answer language and reflects it in the admin view', async () => {
@@ -45,6 +46,12 @@ describe('ai runtime settings (026)', () => {
 
     await updateAiRuntimeSettings(adminCtx, { answerLanguage: 'model_default' });
     expect((await resolveAiRuntimeConfig()).answerLanguage).toBe('model_default');
+  });
+
+  it('persists the anonymous Wiki AI access switch', async () => {
+    await updateAiRuntimeSettings(adminCtx, { anonymousWikiAiEnabled: true });
+    expect((await resolveAiRuntimeConfig()).anonymousWikiAiEnabled).toBe(true);
+    expect((await getAiRuntimeSettings(adminCtx)).params.anonymousWikiAiEnabled).toBe(true);
   });
 
   it('leaves the answer language untouched when another param is saved', async () => {

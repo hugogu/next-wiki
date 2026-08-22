@@ -5,8 +5,8 @@ import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
 import { assertFullContextCapacity, estimateFullContextTokens } from '@/server/ai/retrieval/full-context';
 import { closeDb, db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
-import { readActionInput } from '@/server/services/ai-actions';
+import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
+import { hashAnonymousActionToken, readActionInput, requireActionAccess } from '@/server/services/ai-actions';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 
 const jobsRuntime = vi.hoisted(() => ({
@@ -17,7 +17,7 @@ vi.mock('@/server/jobs/runtime', async (importOriginal) => {
   return { ...actual, enqueue: jobsRuntime.enqueue };
 });
 
-import { createToolEnabledWikiQuestion, modelSupportsToolCalling } from './ai-question';
+import { createToolEnabledWikiQuestion, createWikiQuestion, modelSupportsToolCalling } from './ai-question';
 
 const source = (id: string, content: string): QuestionSource => ({
   id,
@@ -156,5 +156,23 @@ describe('modelSupportsToolCalling', () => {
       await clearAiData();
       await removeAiTestUser(userId);
     }
+  });
+
+  it('allows an anonymous question only when the Bots setting is enabled and its stream token matches', async () => {
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true, anonymousWikiAiEnabled: true });
+    const modelId = await createModel();
+    await assignWikiTextModel(modelId);
+    const token = 'anonymous-stream-token';
+
+    const action = await createWikiQuestion(buildAnonymousCtx(), {
+      question: 'What is in this wiki?',
+      mode: 'retrieval',
+      requestMetadata: { origin: 'web', anonymousAccessTokenHash: hashAnonymousActionToken(token) },
+    });
+
+    const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action.id) });
+    expect(row?.actorUserId).toBeNull();
+    await expect(requireActionAccess(buildAnonymousCtx(), action.id, token)).resolves.toMatchObject({ id: action.id });
+    await expect(requireActionAccess(buildAnonymousCtx(), action.id, 'wrong-token')).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

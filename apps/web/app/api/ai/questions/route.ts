@@ -6,6 +6,8 @@ import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { logger } from '@/server/logger';
 import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/services/ai-question';
+import { hashAnonymousActionToken } from '@/server/services/ai-actions';
+import { randomBytes } from 'node:crypto';
 
 /** @openapi @summary Ask a grounded Wiki question @tag AI @auth bearer */
 export async function POST(request: NextRequest) {
@@ -14,9 +16,11 @@ export async function POST(request: NextRequest) {
   const { tools, sessionId, ...question } = parsed.data;
   try {
     const ctx = await createApiContext();
+    const anonymousToken = ctx.actor.kind === 'anonymous' ? randomBytes(32).toString('base64url') : undefined;
     const requestMetadata = {
       origin: 'web',
       ...(sessionId ? { webSessionId: sessionId } : {}),
+      ...(anonymousToken ? { anonymousAccessTokenHash: hashAnonymousActionToken(anonymousToken) } : {}),
     };
     // 026: additive tool-enabled question handling. Falls back to ordinary Q&A when tools
     // are unavailable or the selected model cannot call tools (recoverable).
@@ -30,10 +34,17 @@ export async function POST(request: NextRequest) {
         requestMetadata,
       });
       if (!result.fallback) {
-        return NextResponse.json(result.action, { status: 202 });
+        return NextResponse.json({
+          ...result.action,
+          ...(anonymousToken ? { eventsUrl: `${result.action.eventsUrl}?access_token=${encodeURIComponent(anonymousToken)}` } : {}),
+        }, { status: 202 });
       }
     }
-    return NextResponse.json(await createWikiQuestion(ctx, { ...question, requestMetadata }), { status: 202 });
+    const action = await createWikiQuestion(ctx, { ...question, requestMetadata });
+    return NextResponse.json({
+      ...action,
+      ...(anonymousToken ? { eventsUrl: `${action.eventsUrl}?access_token=${encodeURIComponent(anonymousToken)}` } : {}),
+    }, { status: 202 });
   } catch (error) {
     if (error instanceof DomainError) {
       logger.warn('Wiki AI action creation rejected', { code: error.code });

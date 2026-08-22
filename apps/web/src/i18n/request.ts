@@ -11,6 +11,7 @@ export default getRequestConfig(async ({ locale: explicitLocale }) => {
     const cookieStore = await cookies();
     const headersList = await headers();
     locale = resolveUiLocale({
+      urlValue: headersList.get('x-next-wiki-lang'),
       cookieValue: cookieStore.get(localeCookieName)?.value,
       acceptLanguage: headersList.get('accept-language'),
     });

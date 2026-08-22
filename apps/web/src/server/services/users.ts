@@ -4,7 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import type { UserView } from '@next-wiki/shared';
+import type { CreateUserInput, UserView } from '@next-wiki/shared';
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -60,6 +60,36 @@ async function listInternal(): Promise<UserView[]> {
     createdAt: u.createdAt.toISOString(),
     lastLoginAt: u.lastLoginAt?.toISOString() ?? null,
   }));
+}
+
+/** Create an account directly from Admin > Users. The supplied password is
+ * temporary, so the first successful sign-in is routed through password setup. */
+export async function createUser(ctx: PermCtx, input: CreateUserInput): Promise<UserView> {
+  requireAdmin(ctx);
+  const email = input.email.trim().toLowerCase();
+  const existing = await db.query.users.findFirst({ where: eq(schema.users.email, email) });
+  if (existing) throw new DomainError('CONFLICT', 'An account with this email already exists');
+
+  const [user] = await db
+    .insert(schema.users)
+    .values({
+      email,
+      passwordHash: await bcrypt.hash(input.password, 10),
+      role: input.role ?? 'reader',
+      status: 'active',
+      mustResetPassword: true,
+    })
+    .returning();
+  if (!user) throw new Error('CREATE_USER_FAILED');
+  return {
+    id: user.id,
+    email: user.email,
+    role: user.role,
+    status: user.status,
+    displayName: user.displayName,
+    createdAt: user.createdAt.toISOString(),
+    lastLoginAt: null,
+  };
 }
 
 export async function setRole(ctx: PermCtx, userId: string, role: 'admin' | 'editor' | 'reader'): Promise<void> {

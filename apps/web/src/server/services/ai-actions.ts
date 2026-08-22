@@ -27,6 +27,7 @@ import { DomainError } from '@/server/errors';
 import { decryptAiJson, encryptAiJson, hashAiPayload } from '@/server/crypto/ai-encryption';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { logger } from '@/server/logger';
+import { createHash } from 'node:crypto';
 
 /**
  * Knowledge-index rebuilds go to a dedicated queue so a bulk import cannot
@@ -58,6 +59,8 @@ type CreateActionInput = {
   questionMode?: AiQuestionMode | null;
   requestMetadata?: Record<string, unknown>;
   allowWhenDisabled?: boolean;
+  /** Reserved for the anonymous Wiki AI path after its site-level flag was checked. */
+  allowAnonymous?: boolean;
   /**
    * pg-boss job priority (higher runs first). Lets a user-triggered full index
    * rebuild jump ahead of a backlog of low-priority incremental reconcile jobs
@@ -111,7 +114,7 @@ export async function createAction(ctx: PermCtx, input: CreateActionInput): Prom
   // in permissions/index.ts, so accepting any authenticated actor with a
   // userId here does not widen what an api_key can actually do.
   const userId = getActorUserId(ctx);
-  if (!userId) {
+  if (!userId && !(ctx.actor.kind === 'anonymous' && input.allowAnonymous)) {
     throw new DomainError('UNAUTHORIZED', 'A signed-in user session is required');
   }
   if (!input.allowWhenDisabled) await assertAiEnabled();
@@ -164,6 +167,10 @@ export async function createAction(ctx: PermCtx, input: CreateActionInput): Prom
     status: 'queued',
     eventsUrl: `/api/ai/actions/${created.id}/events`,
   };
+}
+
+export function hashAnonymousActionToken(token: string): string {
+  return createHash('sha256').update(token).digest('base64url');
 }
 
 /**
@@ -289,8 +296,9 @@ export async function getActionEvents(
   actionId: string,
   after = 0,
   limit = 100,
+  anonymousToken?: string,
 ): Promise<AiActionEvent[]> {
-  await requireActionAccess(ctx, actionId);
+  await requireActionAccess(ctx, actionId, anonymousToken);
   const rows = await db
     .select()
     .from(schema.aiActionEvents)
@@ -331,14 +339,19 @@ export async function getAllActionEvents(ctx: PermCtx, actionId: string, pageSiz
   return all;
 }
 
-export async function requireActionAccess(ctx: PermCtx, actionId: string) {
+export async function requireActionAccess(ctx: PermCtx, actionId: string, anonymousToken?: string) {
   const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
   if (!row) throw new DomainError('NOT_FOUND', 'AI action not found');
   const actorUserId = getActorUserId(ctx);
-  if (
+  const storedTokenHash = (row.requestMetadata as { anonymousAccessTokenHash?: unknown })?.anonymousAccessTokenHash;
+  const anonymousAccess = ctx.actor.kind === 'anonymous'
+    && typeof storedTokenHash === 'string'
+    && typeof anonymousToken === 'string'
+    && hashAnonymousActionToken(anonymousToken) === storedTokenHash;
+  if (!anonymousAccess && (
     ctx.actor.kind !== 'user' ||
     (row.actorUserId !== actorUserId && !can(ctx, 'manage_ai', { kind: 'ai_settings' }))
-  ) {
+  )) {
     throw new DomainError('NOT_FOUND', 'AI action not found');
   }
   return row;

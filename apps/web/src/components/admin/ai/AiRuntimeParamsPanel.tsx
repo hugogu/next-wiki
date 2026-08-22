@@ -10,6 +10,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Switch } from '@/components/ui/Switch';
 import { useTranslation } from '@/i18n/client';
 
 /**
@@ -19,6 +20,7 @@ import { useTranslation } from '@/i18n/client';
 export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsView }) {
   const { t } = useTranslation();
   const [answerLanguage, setAnswerLanguage] = useState<AiAnswerLanguage>(initial.params.answerLanguage);
+  const [anonymousWikiAiEnabled, setAnonymousWikiAiEnabled] = useState(initial.params.anonymousWikiAiEnabled);
   const [maxCalls, setMaxCalls] = useState(String(initial.params.toolMaxCalls));
   const [resultChars, setResultChars] = useState(String(initial.params.toolResultMaxChars));
   const [temperature, setTemperature] = useState(String(initial.params.plannerTemperature));
@@ -34,6 +36,7 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
         method: 'PATCH',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({
+          anonymousWikiAiEnabled,
           answerLanguage,
           toolMaxCalls: Number(maxCalls),
           toolResultMaxChars: Number(resultChars),
@@ -59,6 +62,17 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
         <p className="mt-xs text-sm text-muted">{t('admin.bots.general.runtime.description')}</p>
       </div>
       <div className="grid gap-md sm:grid-cols-2">
+        <div className="flex items-start justify-between gap-md rounded-md border border-border p-sm sm:col-span-2">
+          <div>
+            <p className="text-sm font-medium">{t('admin.bots.general.runtime.anonymousWikiAi')}</p>
+            <p className="mt-xs text-xs text-muted">{t('admin.bots.general.runtime.anonymousWikiAiHint')}</p>
+          </div>
+          <Switch
+            checked={anonymousWikiAiEnabled}
+            onClick={() => setAnonymousWikiAiEnabled((value) => !value)}
+            aria-label={t('admin.bots.general.runtime.anonymousWikiAi')}
+          />
+        </div>
         <Field
           label={t('admin.bots.general.runtime.answerLanguage')}
           hint={t('admin.bots.general.runtime.answerLanguageHint')}

@@ -1324,6 +1324,13 @@
       "metadataTitle": "用户管理",
       "title": "用户管理",
       "description": "管理角色、状态和密码。",
+      "create": {
+        "email": "邮箱",
+        "password": "临时密码",
+        "role": "角色",
+        "submit": "添加用户",
+        "hint": "用户首次登录时必须设置新密码。"
+      },
       "table": {
         "email": "邮箱",
         "role": "角色",
@@ -1893,6 +1900,8 @@
         "runtime": {
           "title": "AI 运行参数",
           "description": "调整 Wiki AI 工具循环。此处设置的最大工具调用次数会被单个提供方的工具策略上限覆盖。",
+          "anonymousWikiAi": "向未登录访客提供 Wiki AI",
+          "anonymousWikiAiHint": "允许未登录用户向 Wiki AI 提问；这些对话不会保存到账号历史中。",
           "answerLanguage": "回答语言",
           "answerLanguageHint": "对所有生成的回答生效，包括机器人。",
           "answerLanguageModelDefault": "默认（不控制）",

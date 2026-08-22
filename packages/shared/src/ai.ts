@@ -298,6 +298,7 @@ export type AiAnswerLanguage = z.infer<typeof aiAnswerLanguageSchema>;
 export const AI_ANSWER_LANGUAGE_DEFAULT: AiAnswerLanguage = 'model_default';
 
 export const aiRuntimeParamsUpdateSchema = z.object({
+  anonymousWikiAiEnabled: z.boolean().optional(),
   answerLanguage: aiAnswerLanguageSchema.optional(),
   toolMaxCalls: z.number().int().min(TOOL_MAX_CALLS_MIN).max(TOOL_MAX_CALLS_MAX).optional(),
   toolResultMaxChars: z
@@ -334,6 +335,7 @@ export type AiRuntimeSettingsUpdate = z.infer<typeof aiRuntimeSettingsUpdateSche
 
 export const aiRuntimeSettingsViewSchema = z.object({
   params: z.object({
+    anonymousWikiAiEnabled: z.boolean(),
     answerLanguage: aiAnswerLanguageSchema,
     toolMaxCalls: z.number().int(),
     toolResultMaxChars: z.number().int(),

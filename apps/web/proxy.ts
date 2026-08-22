@@ -20,6 +20,18 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
     return NextResponse.next();
   }
 
+  // Root layouts do not receive `searchParams`. Forward only the supported
+  // appearance overrides as request headers so the first HTML paint respects
+  // `?lang=` and `?theme=` without storing a transient shared-link choice.
+  const requestHeaders = new Headers(request.headers);
+  const lang = request.nextUrl.searchParams.get('lang');
+  const theme = request.nextUrl.searchParams.get('theme');
+  if (lang) requestHeaders.set('x-next-wiki-lang', lang);
+  if (theme === 'light' || theme === 'dark' || theme === 'auto') {
+    requestHeaders.set('x-next-wiki-theme', theme);
+  }
+  const next = () => NextResponse.next({ request: { headers: requestHeaders } });
+
   const start = Date.now();
   const path = request.nextUrl.pathname;
   const ip = audit.clientIp(request.headers);
@@ -66,10 +78,10 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (readerActor?.kind === 'user') {
     const destination = request.nextUrl.clone();
     destination.pathname = `/registered-reader${path}`;
-    return NextResponse.rewrite(destination);
+    return NextResponse.rewrite(destination, { request: { headers: requestHeaders } });
   }
 
-  return NextResponse.next();
+  return next();
 }
 
 export const config = {

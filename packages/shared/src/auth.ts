@@ -12,6 +12,14 @@ export const registerInputSchema = z.object({
 });
 export type RegisterInput = z.infer<typeof registerInputSchema>;
 
+/** Admin-created accounts always start with a temporary password. */
+export const createUserInputSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(8).max(128),
+  role: userRoleSchema.default('reader'),
+});
+export type CreateUserInput = z.infer<typeof createUserInputSchema>;
+
 export const loginInputSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1),
