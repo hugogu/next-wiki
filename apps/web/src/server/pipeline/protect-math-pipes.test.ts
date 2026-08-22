@@ -4,11 +4,33 @@ import { renderMarkdown } from './index';
 
 const PLACEHOLDER = String.fromCharCode(0xe000);
 
+/** Minimal one-column table whose body row holds `cell`. */
+const tableWith = (cell: string) => `| h |\n| --- |\n| ${cell} |`;
+/** The body row of a protected table, which is where the rewriting happens. */
+const protectedRow = (cell: string) => protectMathPipes(tableWith(cell)).split('\n')[2]!;
+
 describe('protectMathPipes', () => {
   it('is a no-op without both `$` and `|`', () => {
     expect(protectMathPipes('plain text')).toBe('plain text');
     expect(protectMathPipes('$x$ only, no pipes')).toBe('$x$ only, no pipes');
     expect(protectMathPipes('a | b, no math')).toBe('a | b, no math');
+  });
+
+  it('rewrites nothing outside a table, where a pipe splits no cell', () => {
+    // The scanner is not run at all here: a `|` in a paragraph, a link
+    // destination or an image title is not a delimiter, so there is nothing to
+    // protect — and touching it is how a placeholder ends up somewhere
+    // restoration cannot reach.
+    for (const source of [
+      'a $|x|$ paragraph',
+      '[example]($|x|$)',
+      '[example](/url "$|x|$")',
+      '![$|x|$](/img "$|a|b$")',
+      '> quoted $|x|$',
+      '- list item $|x|$',
+    ]) {
+      expect(protectMathPipes(source)).toBe(source);
+    }
   });
 
   it('protects pipes inside a math span but not the table delimiters around it', () => {
@@ -21,47 +43,46 @@ describe('protectMathPipes', () => {
     expect(row).toContain(PLACEHOLDER);
   });
 
+  it('protects the header row too, not just the body', () => {
+    const rows = protectMathPipes('| $a|b$ | c |\n| --- | --- |\n| x | y |').split('\n');
+    expect(rows[0]).toContain(PLACEHOLDER);
+    expect(rows[1]).toBe('| --- | --- |'); // the delimiter row is never touched
+  });
+
   it('treats an escaped dollar as literal, so it never opens a math span', () => {
-    // remark-math sees no math here at all (`\$` is a character escape and the
-    // trailing `$` has nothing to pair with), so protecting these pipes would
-    // strand placeholders in a plain text node.
-    expect(protectMathPipes('\\$|x|$')).toBe('\\$|x|$');
+    // remark-math sees no math here (`\$` is a character escape and the trailing
+    // `$` has nothing to pair with), so protecting these pipes would strand
+    // placeholders in a plain text node — and would wrongly join two cells.
+    expect(protectedRow('\\$|x|$')).toBe('| \\$|x|$ |');
     // An escaped backslash is consumed as its own escape, leaving the `$` free
     // to open a span — matching remark-math.
-    expect(protectMathPipes('a \\\\$|x|$')).toContain(PLACEHOLDER);
+    expect(protectedRow('a \\\\$|x|$')).toContain(PLACEHOLDER);
   });
 
   it('does not treat a backslash as escaping a closing delimiter', () => {
     // Verified against remark-math: `$a \$ b$` is math with the body `a \`,
     // i.e. the span ends at the `\$`, not past it.
-    const protectedSource = protectMathPipes('$a |b| \\$ c|d|$');
-    expect(protectedSource).toContain(`a ${PLACEHOLDER}b${PLACEHOLDER} \\`);
-    expect(protectedSource).toContain('c|d|');
+    const row = protectedRow('$a |b| \\$ c|d|$');
+    expect(row).toContain(`a ${PLACEHOLDER}b${PLACEHOLDER} \\`);
+    expect(row).toContain('c|d|');
   });
 
   it('only closes a delimiter run of matching length', () => {
     // `$$…$$$` is not math to remark-math, so nothing should be protected.
-    expect(protectMathPipes('$$a|b$$$')).toBe('$$a|b$$$');
-    expect(protectMathPipes('$$$a|b$$')).toBe('$$$a|b$$');
-    expect(protectMathPipes('$$$a|b$$$')).toContain(PLACEHOLDER);
+    expect(protectedRow('$$a|b$$$')).toBe('| $$a|b$$$ |');
+    expect(protectedRow('$$$a|b$$')).toBe('| $$$a|b$$ |');
+    expect(protectedRow('$$$a|b$$$')).toContain(PLACEHOLDER);
   });
 
   it('leaves an unclosed delimiter run alone', () => {
-    expect(protectMathPipes('$foo |x| bar')).toBe('$foo |x| bar');
-    // A blank line ends the block, so the later `$` cannot close the earlier one.
-    expect(protectMathPipes('$foo\n\n|x| bar$')).toBe('$foo\n\n|x| bar$');
+    // A table row is a single line, so a span that does not close on it is not
+    // a span at all as far as this row is concerned.
+    expect(protectedRow('$foo |x| bar')).toBe('| $foo |x| bar |');
   });
 
   it('skips code spans of any backtick-run length', () => {
-    expect(protectMathPipes('text `$|x|$` more')).toBe('text `$|x|$` more');
-    expect(protectMathPipes('text ``$|x|$`` more')).toBe('text ``$|x|$`` more');
-  });
-
-  it('skips a code span that spans multiple lines', () => {
-    // Code spans are inline constructs and may cross line boundaries, so this
-    // cannot be decided one line at a time.
-    const source = 'text `foo\n$|x|$\nbar` more';
-    expect(protectMathPipes(source)).toBe(source);
+    expect(protectedRow('text `$|x|$` more')).toBe('| text `$|x|$` more |');
+    expect(protectedRow('text ``$|x|$`` more')).toBe('| text ``$|x|$`` more |');
   });
 
   it('bails out entirely if the source already contains the placeholder codepoint', () => {
@@ -77,18 +98,27 @@ describe('renderMarkdown pipe-protection regressions', () => {
   const texOf = (html: string) =>
     html.match(/<annotation encoding="application\/x-tex">([\s\S]*?)<\/annotation>/)?.[1] ?? null;
 
-  // Every one of these exercises a construct where the source scanner could
-  // disagree with remark about what is math. None may leak the placeholder.
+  // Every one of these is somewhere a placeholder must never appear — either a
+  // construct outside any table (which protection must not touch at all), or a
+  // table row where the scanner could disagree with remark about what is math.
   const leakCases: Record<string, string> = {
+    'link destination': '[example]($|x|$)',
+    'link title': '[example](/url "$|x|$")',
+    'image alt and title': '![$|x|$](/img "$|a|b$")',
+    'footnote definition': 'ref[^1]\n\n[^1]: $|x|$',
+    'raw HTML attribute': '<span title="$|x|$">example</span>',
+    'raw HTML attribute inside a table cell': '| a |\n| --- |\n| <span title="$|x|$">e</span> |',
     'escaped dollar before pipes': '\\$|x|$',
     'escaped dollar in a table cell': '| a | b |\n| --- | --- |\n| \\$|x|$ | y |',
     'multi-line code span containing math': 'text `foo\n$|x|$\nbar` more',
     'double-backtick code span': 'text ``$|x|$`` more',
+    'code span in a table cell': '| a |\n| --- |\n| `$|x|$` |',
     'indented code block': '    $|x|$',
     'unclosed math run': '$foo |x| bar',
     'mismatched dollar runs': '$$a|b$$$',
     'math split by a blank line': '$foo\n\n|x| bar$',
     'pipes in a fenced code block': '```\n$|x|$\n```',
+    'delimiter-like line that is not a table': 'text\n\n| --- |\n\n$|x|$',
   };
 
   for (const [name, source] of Object.entries(leakCases)) {
@@ -124,14 +154,24 @@ describe('renderMarkdown pipe-protection regressions', () => {
     };
 
     for (const [name, entity] of Object.entries(entityForms)) {
-      it(`preserves an authored character reference (${name}) while still fixing math`, () => {
-        const { html } = renderMarkdown(`| a | b |\n| --- | --- |\n| $|x|$ | ${entity} |`);
+      it(`preserves an authored character reference (${name})`, () => {
+        const { html } = renderMarkdown(`text ${entity} here\n\n| a | b |\n| --- | --- |\n| $|x|$ | y |`);
 
         expect(html).toContain(PLACEHOLDER); // the author's character, intact
-        expect(html).not.toContain('katex-error');
-        expect(texOf(html)).toContain('|x|'); // and the table fix still applied
+        expect(html).not.toContain('text | here'); // and never turned into a pipe
       });
     }
+
+    it('gives up the table fix rather than risk a document with an authored placeholder', () => {
+      // The output check in `renderMarkdown` cannot tell an author's decoded
+      // entity from a placeholder restoration missed, so it conservatively
+      // falls back to the unprotected render. Same trade as the source guard:
+      // one document loses the fix, nothing is ever corrupted.
+      const { html } = renderMarkdown('text &#xE000; here\n\n| a | b |\n| --- | --- |\n| $|x|$ | y |');
+
+      expect(html).toContain(PLACEHOLDER);
+      expect(html).not.toContain('katex'); // the fix was skipped, not applied
+    });
 
     it('leaves a literal authored placeholder alone by declining to protect', () => {
       // Protection bails out here, so restoration must be skipped too —
@@ -149,13 +189,23 @@ describe('renderMarkdown pipe-protection regressions', () => {
     });
   });
 
-  it('restores pipes inside raw HTML, which the scanner also protects', () => {
-    // The scanner sees `$…$` in an attribute value and protects it like any
-    // other math span, so `html` nodes have to be restored as well — their
-    // value is still verbatim source at this stage, entities and all.
+  it('leaves raw HTML outside a table completely untouched', () => {
     const { html } = renderMarkdown('<span title="$|x|$">example</span>');
-    expect(html).not.toContain(PLACEHOLDER);
     expect(html).toContain('title="$|x|$"');
+  });
+
+  it('restores pipes in raw HTML inside a table cell, which is protected', () => {
+    // Here the scanner does rewrite the attribute, because the line is a table
+    // row. `html` nodes are restored for exactly this case — their value is
+    // still verbatim source at that stage, entities and all.
+    const { html } = renderMarkdown('| a |\n| --- |\n| <span title="$|x|$">e</span> |');
+    expect(html).toContain('title="$|x|$"');
+  });
+
+  it('fixes math with pipes in a table header row', () => {
+    const { html } = renderMarkdown('| $a|b$ | c |\n| --- | --- |\n| x | y |');
+    expect(html).toContain('<table');
+    expect(texOf(html)).toBe('a|b');
   });
 
   describe('CRLF line endings', () => {

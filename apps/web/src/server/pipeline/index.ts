@@ -16,7 +16,7 @@ import { env } from '@/server/config';
 import { validateImage } from '@/server/content-store/image-validation';
 import { markdownBody } from '@/server/metadata/frontmatter';
 import { normalizeDisplayMath } from './normalize-display-math';
-import { protectMathPipes, restoreMathPipes } from './protect-math-pipes';
+import { hasUnrestoredPlaceholder, protectMathPipes, restoreMathPipes } from './protect-math-pipes';
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -172,19 +172,12 @@ function wrapCodeBlocks(tree: Root) {
   }
 }
 
-export function renderMarkdown(source: string): { html: string; hash: string } {
-  const normalized = normalizeDisplayMath(markdownBody(source));
-  const body = protectMathPipes(normalized);
-  // `protectMathPipes` returns the source untouched when it declines to run, so
-  // a changed body is what distinguishes "these placeholders are ours" from "the
-  // author wrote one and we must not touch it".
-  const protectionRan = body !== normalized;
-
-  const html = unified()
+function toHtml(body: string, restorePipes: boolean): string {
+  return unified()
     .use(remarkParse)
     .use(remarkMath)
     .use(remarkGfm)
-    .use(() => restoreMathPipes(protectionRan))
+    .use(() => restoreMathPipes(restorePipes))
     // Parse raw HTML so imported Markdown can retain safe elements such as
     // `<img>`. rehypeSanitize immediately following this step is the security
     // boundary: scripts, event handlers, and unsafe URL protocols are removed.
@@ -202,6 +195,26 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
     .use(rehypeStringify)
     .processSync(body)
     .toString();
+}
+
+export function renderMarkdown(source: string): { html: string; hash: string } {
+  const normalized = normalizeDisplayMath(markdownBody(source));
+  const body = protectMathPipes(normalized);
+  // `protectMathPipes` returns the source untouched when it declines to run, so
+  // a changed body is what distinguishes "these placeholders are ours" from "the
+  // author wrote one and we must not touch it".
+  const protectionRan = body !== normalized;
+
+  const rendered = toHtml(body, protectionRan);
+
+  // Protection is confined to table rows and restoration covers everywhere it
+  // can reach, so this should not happen. If it ever does, the placeholder is
+  // in some construct restoration cannot see — render again without protection
+  // rather than emit it. That costs this document the table fix and nothing
+  // else, and makes a stray character impossible for any construct, including
+  // ones added to Markdown later.
+  const html =
+    protectionRan && hasUnrestoredPlaceholder(rendered) ? toHtml(normalized, false) : rendered;
 
   const hash = createHash('sha256').update(source).digest('hex');
   return { html, hash };

@@ -13,24 +13,25 @@
  *
  * ## Why this is safe
  *
- * Rewriting Markdown source by hand always risks disagreeing with the real
- * parser, so restoration must never rewrite a character the author actually
- * typed. Two properties bound it:
+ * Rewriting Markdown source by hand risks disagreeing with the real parser, and
+ * a disagreement means a placeholder ends up somewhere restoration does not
+ * look. Three properties bound that:
  *
- * 1. `protectMathPipes` refuses to run at all if the source already contains a
- *    literal placeholder, and the caller only restores when it did run. An
- *    author's literal placeholder is therefore never touched.
- * 2. Restoration is confined to node types whose content is verbatim — math and
- *    code. This is the part that matters: character references such as
- *    `&#xE000;` are decoded *after* this module has scanned the source, so a
- *    global restore would silently turn an authored `&#xE000;` into a `|`.
- *    Those decode only in text positions, which restoration deliberately skips.
+ * 1. **Only table rows are rewritten.** A `|` anywhere else does not split a
+ *    cell, so there is nothing to protect and no reason to touch it. This is
+ *    what keeps the module from needing an exception for every construct that
+ *    can hold a `$…$` — a link destination, an image title, and so on.
+ * 2. `protectMathPipes` refuses to run at all if the source already contains a
+ *    literal placeholder, and the caller only restores when it did run, so an
+ *    author's own placeholder is never rewritten.
+ * 3. Restoration is confined to node types whose content is verbatim. Character
+ *    references such as `&#xE000;` are decoded *after* this module has scanned
+ *    the source, so a global restore would turn an authored `&#xE000;` into a
+ *    `|`. Those decode only in text positions, which restoration skips.
  *
- * A placeholder can therefore only be restored where this module could have put
- * one. If the scanner ever disagrees with the parser badly enough to strand a
- * placeholder in a text node, that shows up as a stray character rather than as
- * corrupted content — the scanner below mirrors micromark's tokenization
- * closely to keep even that from happening.
+ * `renderMarkdown` additionally discards a protected render whose output still
+ * contains a placeholder, falling back to the unprotected one — so even a
+ * mis-scan can only cost a document the table fix, never show a stray character.
  */
 
 import type { Root } from 'mdast';
@@ -44,6 +45,17 @@ import { mapRegionsOutsideFences } from './code-fence-utils';
 // visible in source and in diffs instead of being an invisible byte.
 const MATH_PIPE_PLACEHOLDER = String.fromCharCode(0xe000);
 
+/**
+ * A GFM delimiter row — the `| --- | --- |` line that turns the line above it
+ * into a table header. Being the one part of a table that cannot contain math,
+ * it is a reliable anchor for finding the rows that can.
+ */
+const TABLE_DELIMITER_ROW = /^[ \t]{0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+
+const stripCarriageReturn = (line: string) => (line.endsWith('\r') ? line.slice(0, -1) : line);
+
+const isBlank = (line: string) => line.trim() === '';
+
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
   let end = start;
@@ -52,38 +64,19 @@ function runLength(text: string, start: number, char: string): number {
 }
 
 /**
- * Length of the line ending at `index`, or 0 if there is not one there.
- * CRLF counts as a single ending, so a CRLF blank line (`\r\n\r\n`) is still
- * recognised as one rather than mistaken for ordinary content.
- */
-function lineEndingLength(text: string, index: number): number {
-  if (text[index] === '\r') return text[index + 1] === '\n' ? 2 : 1;
-  return text[index] === '\n' ? 1 : 0;
-}
-
-/**
  * Index of the run of exactly `length` `char`s that closes a span opened at
- * `from`, or -1 if the span is never closed.
+ * `from`, or -1 if the span is never closed within the line.
  *
  * Mirrors micromark on two points verified against remark-math's actual output:
  * a delimiter run only closes a run of the same length (`$$a$$$` is not math),
  * and a backslash does *not* escape the closing delimiter (`$a \$ b$` parses as
- * math with the body `a \`). A blank line ends the enclosing block, so nothing
- * past one can close the span.
+ * math with the body `a \`). A table row is a single line by definition, so a
+ * span that does not close on this line cannot be one that affects this row.
  */
 function findClosingRun(text: string, from: number, char: string, length: number): number {
   let index = from;
   while (index < text.length) {
-    const current = text[index];
-    const eol = lineEndingLength(text, index);
-    if (eol > 0) {
-      let next = index + eol;
-      while (next < text.length && (text[next] === ' ' || text[next] === '\t')) next++;
-      if (next >= text.length || lineEndingLength(text, next) > 0) return -1;
-      index = next;
-      continue;
-    }
-    if (current === char) {
+    if (text[index] === char) {
       const run = runLength(text, index, char);
       if (run === length) return index;
       index += run;
@@ -94,40 +87,40 @@ function findClosingRun(text: string, from: number, char: string, length: number
   return -1;
 }
 
-function protectPipesInRegion(region: string): string {
+function protectPipesInRow(line: string): string {
   let out = '';
   let index = 0;
 
-  while (index < region.length) {
-    const char = region[index]!;
+  while (index < line.length) {
+    const char = line[index]!;
 
     // A character escape consumes both characters, so `\$` and `` \` `` never
-    // open a span — this is what makes `\$|x|$` correctly parse as plain text
-    // with pipes that still split table cells.
+    // open a span — this is what makes `\$|x|$` correctly stay plain text whose
+    // pipes still split the cell.
     if (char === '\\') {
-      out += region.slice(index, index + 2);
+      out += line.slice(index, index + 2);
       index += 2;
       continue;
     }
 
     if (char === '`' || char === '$') {
-      const run = runLength(region, index, char);
-      const close = findClosingRun(region, index + run, char, run);
+      const run = runLength(line, index, char);
+      const close = findClosingRun(line, index + run, char, run);
 
       if (close === -1) {
         // Never closed, so the run is literal text rather than a delimiter.
-        out += region.slice(index, index + run);
+        out += line.slice(index, index + run);
         index += run;
         continue;
       }
 
-      const body = region.slice(index + run, close);
-      out += region.slice(index, index + run);
-      // Code spans are skipped, not protected: GFM splits table cells before
-      // inline parsing, so a pipe inside a code span genuinely does split the
-      // cell. Protecting it would change existing behaviour.
+      const body = line.slice(index + run, close);
+      out += line.slice(index, index + run);
+      // Code spans are skipped, not protected: GFM splits cells before inline
+      // parsing, so a pipe inside a code span genuinely does split the cell.
+      // Protecting it would change existing behaviour.
       out += char === '$' ? body.replaceAll('|', MATH_PIPE_PLACEHOLDER) : body;
-      out += region.slice(close, close + run);
+      out += line.slice(close, close + run);
       index = close + run;
       continue;
     }
@@ -139,6 +132,31 @@ function protectPipesInRegion(region: string): string {
   return out;
 }
 
+/**
+ * Rewrite only the header and body rows of GFM tables, located by their
+ * delimiter row. The delimiter row itself is left alone — it cannot contain
+ * math — and so is every line that is not part of a table.
+ */
+function protectTableRowsInRegion(region: string): string {
+  const lines = region.split('\n');
+  const isTableRow = new Array<boolean>(lines.length).fill(false);
+
+  for (let index = 1; index < lines.length; index++) {
+    const delimiter = stripCarriageReturn(lines[index]!);
+    // A delimiter row needs a pipe; without one this is a thematic break.
+    if (!delimiter.includes('|') || !TABLE_DELIMITER_ROW.test(delimiter)) continue;
+    // The header is the line directly above, and it has to exist.
+    if (isBlank(lines[index - 1]!)) continue;
+
+    isTableRow[index - 1] = true;
+    for (let body = index + 1; body < lines.length && !isBlank(lines[body]!); body++) {
+      isTableRow[body] = true;
+    }
+  }
+
+  return lines.map((line, index) => (isTableRow[index] ? protectPipesInRow(line) : line)).join('\n');
+}
+
 export function protectMathPipes(source: string): string {
   if (!source.includes('$') || !source.includes('|')) return source;
   // Without this guard, restoration could not tell a placeholder this module
@@ -146,7 +164,7 @@ export function protectMathPipes(source: string): string {
   // character into a `|` it never was. Skipping protection only costs the
   // table-splitting fix for that one document.
   if (source.includes(MATH_PIPE_PLACEHOLDER)) return source;
-  return mapRegionsOutsideFences(source, protectPipesInRegion);
+  return mapRegionsOutsideFences(source, protectTableRowsInRegion);
 }
 
 type HastLike = { value?: unknown; children?: HastLike[] };
@@ -173,9 +191,8 @@ function restorePipesInHastChildren(children: unknown): void {
  * until later — so a placeholder found here cannot have come from an author
  * writing an entity. It is one this module inserted.
  *
- * `text` is deliberately absent for exactly that reason. `html` must be present
- * because the scanner sees `$…$` inside raw HTML (an attribute value, say) and
- * protects it like any other math span.
+ * `text` is deliberately absent for exactly that reason. `html` is present
+ * because a table cell may contain raw HTML whose attribute holds a `$…$`.
  */
 const VERBATIM_NODE_TYPES = new Set(['math', 'inlineMath', 'code', 'inlineCode', 'html']);
 
@@ -198,4 +215,9 @@ export function restoreMathPipes(enabled: boolean) {
       restorePipesInHastChildren(candidate.data?.hChildren);
     });
   };
+}
+
+/** Whether rendered output still carries a placeholder that restoration missed. */
+export function hasUnrestoredPlaceholder(html: string): boolean {
+  return html.includes(MATH_PIPE_PLACEHOLDER);
 }
