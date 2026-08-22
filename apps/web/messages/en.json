@@ -485,6 +485,7 @@
     "addresses": {
       "heading": "Addresses",
       "hint": "Every address readers can use to reach this page. The canonical address is the current one; the others redirect to it.",
+      "hintLabel": "About addresses",
       "kindCanonical": "Canonical",
       "kindCanonicalHint": "This page's current primary address. Renaming it keeps the old one working as a redirect.",
       "kindRetained": "Retained",
@@ -573,6 +574,7 @@
         "pathLabel": "Path",
         "pathPlaceholder": "path/to/page",
         "pathHint": "Use slashes to create directories, e.g. {example}.",
+        "pathHintLabel": "About this field",
         "storagePathLabel": "Storage path",
         "storagePathHint": "The internal tree location used to organize this page. Use slashes to create directories, e.g. {example}.",
         "addressPreview": "This page will be published at {address}.",

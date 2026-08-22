@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { PublicPageAddress, PublicPageAddressList } from '@next-wiki/shared';
 import { pageAddressSchema } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
-import { PlusIcon, XIcon } from '@/components/icons';
+import { InfoIcon, PlusIcon, XIcon } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -150,8 +150,18 @@ export function AddressManager({
 
   return (
     <section aria-label={t('page.addresses.heading')} className="space-y-xs">
-      <h2 className="text-sm font-medium text-muted">{t('page.addresses.heading')}</h2>
-      <p className="text-xs text-muted">{t('page.addresses.hint')}</p>
+      <div className="flex items-center gap-xs">
+        <h2 className="text-sm font-medium text-muted">{t('page.addresses.heading')}</h2>
+        <Tooltip label={t('page.addresses.hint')}>
+          <button
+            type="button"
+            className="inline-flex rounded-sm text-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+            aria-label={t('page.addresses.hintLabel')}
+          >
+            <InfoIcon className="h-3.5 w-3.5" aria-hidden="true" />
+          </button>
+        </Tooltip>
+      </div>
 
       {/* One consistent list, in a single bordered card: the canonical
           address is the first row (its own pill distinguishes it), aliases

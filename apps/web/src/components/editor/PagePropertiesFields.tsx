@@ -1,5 +1,7 @@
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
+import { Tooltip } from '@/components/ui/Tooltip';
+import { InfoIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 import { TagPicker } from '@/components/pages/TagPicker';
 
@@ -121,9 +123,22 @@ export function PagePropertiesFields({
 
       {path !== undefined && onPathChange && (
         <div>
-          <label htmlFor="prop-path" className="block text-sm font-medium mb-xs">
-            {pathLabel ?? t('editor.properties.fields.pathLabel')}
-          </label>
+          <div className="flex items-center gap-xs mb-xs">
+            <label htmlFor="prop-path" className="block text-sm font-medium">
+              {pathLabel ?? t('editor.properties.fields.pathLabel')}
+            </label>
+            {!pathReadOnly && (
+              <Tooltip label={pathHint ?? t('editor.properties.fields.pathHint', { example: 'docs/getting-started' })}>
+                <button
+                  type="button"
+                  className="inline-flex rounded-sm text-muted hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                  aria-label={t('editor.properties.fields.pathHintLabel')}
+                >
+                  <InfoIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                </button>
+              </Tooltip>
+            )}
+          </div>
           <Input
             id="prop-path"
             value={path}
@@ -133,11 +148,6 @@ export function PagePropertiesFields({
             disabled={pathReadOnly}
           />
           {pathError && <p className="text-danger text-xs mt-xs">{pathError}</p>}
-          {!pathReadOnly && (
-            <p className="text-xs text-muted mt-xs">
-              {pathHint ?? t('editor.properties.fields.pathHint', { example: 'docs/getting-started' })}
-            </p>
-          )}
           {!pathReadOnly && addressPreview && (
             <p className="text-xs text-muted mt-xs">
               {t('editor.properties.fields.addressPreview', { address: addressPreview })}

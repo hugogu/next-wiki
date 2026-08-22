@@ -485,6 +485,7 @@
     "addresses": {
       "heading": "访问地址",
       "hint": "读者可以用来访问该页面的所有地址。规范地址是当前生效的地址，其余地址都会跳转到它。",
+      "hintLabel": "关于访问地址",
       "kindCanonical": "规范地址",
       "kindCanonicalHint": "该页面当前对外生效的主地址。修改它后，旧地址仍会作为跳转继续生效。",
       "kindRetained": "保留",
@@ -573,6 +574,7 @@
         "pathLabel": "路径",
         "pathPlaceholder": "path/to/page",
         "pathHint": "使用斜杠创建目录，例如 {example}。",
+        "pathHintLabel": "关于此字段",
         "storagePathLabel": "存储路径",
         "storagePathHint": "用于组织页面的内部树形位置。使用斜杠创建目录，例如 {example}。",
         "addressPreview": "该页面发布后的访问地址为 {address}。",
