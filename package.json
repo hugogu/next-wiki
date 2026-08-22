@@ -10,6 +10,7 @@
     "lint": "turbo run lint",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
+    "quickstart": "bash scripts/start-local.sh",
     "db:generate": "pnpm --filter @next-wiki/web exec drizzle-kit generate",
     "db:migrate": "pnpm --filter @next-wiki/web db:migrate",
     "db:studio": "pnpm --filter @next-wiki/web exec drizzle-kit studio"

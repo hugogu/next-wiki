@@ -1817,6 +1817,8 @@ export const translationKeys = [
   "ai.chat.history.continue",
   "ai.chat.history.loading",
   "ai.chat.history.loadError",
+  "ai.chat.history.localOnly",
+  "ai.chat.history.localUnavailable",
   "ai.chat.history.contentExpired",
   "ai.chat.history.delete",
   "ai.chat.history.deleteConfirmTitle",

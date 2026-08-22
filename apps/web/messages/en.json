@@ -2463,6 +2463,8 @@
         "continue": "Continue",
         "loading": "Loading...",
         "loadError": "Could not load conversation history.",
+        "localOnly": "Saved only in this browser. Private browsing may clear it when the window closes.",
+        "localUnavailable": "This browser cannot save local conversation history. This conversation will be kept only while this page remains open.",
         "contentExpired": "Content expired",
         "delete": "Delete",
         "deleteConfirmTitle": "Delete conversation?",

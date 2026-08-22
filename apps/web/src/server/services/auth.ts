@@ -1,6 +1,6 @@
 import { cookies, headers } from 'next/headers';
 import bcrypt from 'bcryptjs';
-import { and, eq, gt } from 'drizzle-orm';
+import { and, eq, gt, isNull, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { env } from '@/server/config';
@@ -9,6 +9,7 @@ import type { Actor, PermCtx } from '@/server/permissions';
 import * as apiKeys from '@/server/services/api-keys';
 import { hasAnyAdmin } from '@/server/services/users';
 import { normalizeEmail } from '@/server/services/email';
+import { hashAnonymousActionToken } from '@/server/services/ai-actions';
 
 export const SESSION_COOKIE = 'next-wiki-session';
 export const ANONYMOUS_AI_COOKIE = 'next-wiki-anonymous-ai';
@@ -91,7 +92,10 @@ export async function resolveActor(): Promise<ResolvedActor> {
   return { actor };
 }
 
-export async function register(input: { email: string; password: string }): Promise<{ userId: string }> {
+export async function register(
+  input: { email: string; password: string },
+  anonymousAiToken?: string,
+): Promise<{ userId: string; migratedActionCount: number }> {
   const email = normalizeEmail(input.email);
   const existing = await db.query.users.findFirst({
     where: eq(schema.users.email, email),
@@ -109,21 +113,39 @@ export async function register(input: { email: string; password: string }): Prom
   // path. Both share this single source of truth (see users.hasAnyAdmin).
   const adminExists = await hasAnyAdmin();
 
-  const [user] = await db
-    .insert(schema.users)
-    .values({
-      email,
-      passwordHash,
-      role: adminExists ? 'reader' : 'admin',
-      status: 'active',
-    })
-    .returning({ id: schema.users.id });
+  const result = await db.transaction(async (tx) => {
+    const [user] = await tx
+      .insert(schema.users)
+      .values({
+        email,
+        passwordHash,
+        role: adminExists ? 'reader' : 'admin',
+        status: 'active',
+      })
+      .returning({ id: schema.users.id });
 
-  if (!user) {
-    throw new Error('REGISTER_FAILED');
-  }
+    if (!user) throw new Error('REGISTER_FAILED');
 
-  return { userId: user.id };
+    // The browser never exposes this HttpOnly capability to JavaScript. Its
+    // hash was recorded with each anonymous question, so registration can
+    // atomically claim only this browser's anonymous AI actions without
+    // accepting a user-controlled conversation payload.
+    const claimed = anonymousAiToken
+      ? await tx
+          .update(schema.aiActions)
+          .set({ actorUserId: user.id })
+          .where(and(
+            eq(schema.aiActions.feature, 'wiki_question'),
+            isNull(schema.aiActions.actorUserId),
+            sql`${schema.aiActions.requestMetadata} ->> 'anonymousAccessTokenHash' = ${hashAnonymousActionToken(anonymousAiToken)}`,
+          ))
+          .returning({ id: schema.aiActions.id })
+      : [];
+
+    return { userId: user.id, migratedActionCount: claimed.length };
+  });
+
+  return result;
 }
 
 export async function login(input: { email: string; password: string }): Promise<{ userId: string; mustResetPassword: boolean }> {

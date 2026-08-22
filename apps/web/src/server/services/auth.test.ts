@@ -4,6 +4,7 @@ import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
+import { hashAnonymousActionToken } from '@/server/services/ai-actions';
 
 describe('authService', () => {
   beforeAll(async () => {
@@ -60,6 +61,38 @@ describe('authService', () => {
       const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
       expect(user?.email).toBe('mixed.case@example.com');
       await expect(authService.register({ email: 'MIXED.CASE@example.com', password: 'Password123!' })).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
+
+    it('claims only this browser\'s anonymous Wiki AI actions during registration', async () => {
+      const token = 'anonymous-browser-capability';
+      const otherToken = 'other-browser-capability';
+      const expiresAt = new Date(Date.now() + 60_000);
+      const [matching, other] = await db
+        .insert(schema.aiActions)
+        .values([
+          {
+            feature: 'wiki_question',
+            requestMetadata: { anonymousAccessTokenHash: hashAnonymousActionToken(token) },
+            expiresAt,
+          },
+          {
+            feature: 'wiki_question',
+            requestMetadata: { anonymousAccessTokenHash: hashAnonymousActionToken(otherToken) },
+            expiresAt,
+          },
+        ])
+        .returning({ id: schema.aiActions.id });
+
+      const result = await authService.register(
+        { email: 'anonymous-history@example.com', password: 'Password123!' },
+        token,
+      );
+
+      expect(result.migratedActionCount).toBe(1);
+      expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, matching!.id) }))
+        .toMatchObject({ actorUserId: result.userId });
+      expect(await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, other!.id) }))
+        .toMatchObject({ actorUserId: null });
     });
   });
 

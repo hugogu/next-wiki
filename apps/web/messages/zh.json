@@ -2463,6 +2463,8 @@
         "continue": "继续",
         "loading": "加载中…",
         "loadError": "无法加载历史会话。",
+        "localOnly": "仅保存在当前浏览器中；无痕浏览可能会在关闭窗口后自动清除。",
+        "localUnavailable": "此浏览器无法保存本地会话历史；当前会话仅会在此页面打开期间保留。",
         "contentExpired": "内容已过期",
         "delete": "删除",
         "deleteConfirmTitle": "删除会话？",

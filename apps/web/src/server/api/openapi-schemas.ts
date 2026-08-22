@@ -686,7 +686,10 @@ export const previewOutputSchema = z
   .describe('Rendered HTML output');
 
 export const registerOutputSchema = z
-  .object({ userId: z.string() })
+  .object({
+    userId: z.string(),
+    migratedActionCount: z.number().int().nonnegative().describe('Anonymous Wiki AI actions claimed by this registration.'),
+  })
   .describe('Registration response');
 
 export const changeEmailOutputSchema = z

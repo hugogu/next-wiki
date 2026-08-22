@@ -722,7 +722,7 @@ export function Navigator({
           className="flex-1 overflow-y-auto p-sm"
         >
           {aiChatMaximized ? (
-            <AiChatHistory />
+            <AiChatHistory anonymous={user.kind === 'anonymous'} />
           ) : userCenter ? (
             <ul className="space-y-xs">
               {USER_CENTER_ITEMS.map((item) => {
