@@ -19,6 +19,10 @@ ENV API_KEY_ENCRYPTION_KEY=00000000000000000000000000000000000000000000000000000
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=postgresql://localhost:5432/next_wiki
+# Standalone output traces files relative to the monorepo root. Making this
+# explicit guarantees server.js lands at apps/web/server.js inside the bundle,
+# matching the runtime image layout and the start.mjs entry point.
+ENV NEXT_PRIVATE_OUTPUT_TRACE_ROOT=/app
 # Generate migrations and OpenAPI spec in parallel; they write to disjoint paths.
 RUN pnpm --filter @next-wiki/web exec drizzle-kit generate & \
     pnpm --filter @next-wiki/web openapi:generate & \
