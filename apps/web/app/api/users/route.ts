@@ -27,5 +27,7 @@ async function handlePOST(request: NextRequest) {
  * @description Creates a user with a temporary password. Admin only.
  * @tag Users
  * @auth bearer
+ * @body CreateUserInput
+ * @response 201:UserView
  */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

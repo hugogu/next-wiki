@@ -54,6 +54,13 @@ describe('authService', () => {
         authService.register({ email: 'dup@example.com', password: 'Password123!' }),
       ).rejects.toMatchObject({ code: 'CONFLICT' });
     });
+
+    it('normalizes email casing before checking duplicates and storing accounts', async () => {
+      const { userId } = await authService.register({ email: 'Mixed.Case@Example.com', password: 'Password123!' });
+      const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
+      expect(user?.email).toBe('mixed.case@example.com');
+      await expect(authService.register({ email: 'MIXED.CASE@example.com', password: 'Password123!' })).rejects.toMatchObject({ code: 'CONFLICT' });
+    });
   });
 
   describe('login', () => {
@@ -69,6 +76,11 @@ describe('authService', () => {
       });
 
       expect(result.userId).toBe(userId);
+    });
+
+    it('matches the email case-insensitively', async () => {
+      const { userId } = await authService.register({ email: 'admin-created@example.com', password: 'Password123!' });
+      await expect(authService.login({ email: 'ADMIN-CREATED@EXAMPLE.COM', password: 'Password123!' })).resolves.toMatchObject({ userId });
     });
 
     it('rejects wrong password', async () => {

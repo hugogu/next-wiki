@@ -71,6 +71,26 @@ export const RegisterInput = z
   })
   .describe('Registration input.');
 
+export const CreateUserInput = z
+  .object({
+    email: z.string().email().describe('Email address for the new account.'),
+    password: z.string().min(8).max(128).describe('Temporary password (8-128 characters).'),
+    role: z.enum(['admin', 'editor', 'reader']).default('reader').describe('Initial account role.'),
+  })
+  .describe('Administrator-created account input.');
+
+export const UserView = z
+  .object({
+    id: z.string().uuid().describe('User identifier.'),
+    email: z.string().email().describe('Canonical email address.'),
+    role: z.enum(['admin', 'editor', 'reader']).describe('Assigned role.'),
+    status: z.enum(['active', 'disabled']).describe('Account status.'),
+    displayName: z.string().nullable().describe('Display name, or null when unset.'),
+    createdAt: z.string().datetime().describe('Account creation timestamp.'),
+    lastLoginAt: z.string().datetime().nullable().describe('Most recent successful sign-in, or null.'),
+  })
+  .describe('User account view.');
+
 export const LoginInput = z
   .object({
     email: z.string().email().describe('Account email address.'),

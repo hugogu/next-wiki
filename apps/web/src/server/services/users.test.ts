@@ -92,6 +92,9 @@ describe('userService US5', () => {
       const row = await db.query.users.findFirst({ where: eq(schema.users.id, result.id) });
       expect(row).toMatchObject({ email: 'new.user@example.com', role: 'editor', status: 'active', mustResetPassword: true });
       expect(await bcrypt.compare('temporary-password', row!.passwordHash)).toBe(true);
+      await expect(authService.login({ email: 'NEW.USER@EXAMPLE.COM', password: 'temporary-password' })).resolves.toMatchObject({
+        userId: result.id,
+      });
     });
 
     it('requires an administrator and rejects duplicate email addresses', async () => {

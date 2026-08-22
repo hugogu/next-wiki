@@ -5,15 +5,18 @@ const services = vi.hoisted(() => ({
   createToolEnabledWikiQuestion: vi.fn(),
   createWikiQuestion: vi.fn(),
 }));
+const apiSession = vi.hoisted(() => ({ createApiContext: vi.fn() }));
+const auth = vi.hoisted(() => ({ getOrCreateAnonymousAiAccessToken: vi.fn() }));
 const log = vi.hoisted(() => ({
   error: vi.fn(),
   warn: vi.fn(),
 }));
 vi.mock('@/server/api/session', () => ({
-  createApiContext: vi.fn(async () => ({ actor: { kind: 'user', userId: 'u1', role: 'editor' } })),
+  createApiContext: apiSession.createApiContext,
 }));
 vi.mock('@/server/services/ai-question', () => services);
 vi.mock('@/server/logger', () => ({ logger: log }));
+vi.mock('@/server/services/auth', () => auth);
 
 import * as questionsRoute from './route';
 
@@ -29,6 +32,8 @@ function post(body: unknown) {
 
 describe('POST /api/ai/questions — additive tools option', () => {
   beforeEach(() => {
+    apiSession.createApiContext.mockResolvedValue({ actor: { kind: 'user', userId: 'u1', role: 'editor' } });
+    auth.getOrCreateAnonymousAiAccessToken.mockReset();
     services.createWikiQuestion.mockReset();
     services.createToolEnabledWikiQuestion.mockReset();
     log.error.mockReset();
@@ -104,5 +109,22 @@ describe('POST /api/ai/questions — additive tools option', () => {
     expect(log.error).toHaveBeenCalledWith('Wiki AI action creation failed', {
       error: 'database unavailable',
     });
+  });
+
+  it('keeps anonymous action capabilities in an HttpOnly cookie, not the events URL', async () => {
+    apiSession.createApiContext.mockResolvedValue({ actor: { kind: 'anonymous' } });
+    auth.getOrCreateAnonymousAiAccessToken.mockResolvedValue('browser-only-capability');
+
+    const response = await post({ question: 'What is X?', mode: 'retrieval' });
+
+    expect(response.status).toBe(202);
+    expect(await response.json()).toMatchObject({ eventsUrl: '/e' });
+    expect(auth.getOrCreateAnonymousAiAccessToken).toHaveBeenCalledOnce();
+    expect(services.createWikiQuestion).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        requestMetadata: expect.objectContaining({ anonymousAccessTokenHash: expect.any(String) }),
+      }),
+    );
   });
 });

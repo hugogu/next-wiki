@@ -8,9 +8,13 @@ import { DomainError } from '@/server/errors';
 import type { Actor, PermCtx } from '@/server/permissions';
 import * as apiKeys from '@/server/services/api-keys';
 import { hasAnyAdmin } from '@/server/services/users';
+import { normalizeEmail } from '@/server/services/email';
 
 export const SESSION_COOKIE = 'next-wiki-session';
+export const ANONYMOUS_AI_COOKIE = 'next-wiki-anonymous-ai';
 const SESSION_MAX_AGE_DAYS = 30;
+
+export { normalizeEmail } from '@/server/services/email';
 
 export type ResolvedActor = {
   actor: Actor | null;
@@ -88,8 +92,9 @@ export async function resolveActor(): Promise<ResolvedActor> {
 }
 
 export async function register(input: { email: string; password: string }): Promise<{ userId: string }> {
+  const email = normalizeEmail(input.email);
   const existing = await db.query.users.findFirst({
-    where: eq(schema.users.email, input.email),
+    where: eq(schema.users.email, email),
   });
 
   if (existing) {
@@ -107,7 +112,7 @@ export async function register(input: { email: string; password: string }): Prom
   const [user] = await db
     .insert(schema.users)
     .values({
-      email: input.email,
+      email,
       passwordHash,
       role: adminExists ? 'reader' : 'admin',
       status: 'active',
@@ -122,8 +127,9 @@ export async function register(input: { email: string; password: string }): Prom
 }
 
 export async function login(input: { email: string; password: string }): Promise<{ userId: string; mustResetPassword: boolean }> {
+  const email = normalizeEmail(input.email);
   const user = await db.query.users.findFirst({
-    where: eq(schema.users.email, input.email),
+    where: eq(schema.users.email, email),
   });
 
   if (!user || user.status === 'disabled' || user.deletedAt) {
@@ -177,6 +183,32 @@ export async function establishSession(userId: string): Promise<void> {
     path: '/',
     expires: expiresAt,
   });
+}
+
+/**
+ * A browser-local capability for anonymous Wiki AI actions. It is HttpOnly so
+ * it cannot leak through client-side URLs, history, referrers, or scripts.
+ */
+export async function getOrCreateAnonymousAiAccessToken(): Promise<string> {
+  const cookieStore = await cookies();
+  const existing = cookieStore.get(ANONYMOUS_AI_COOKIE)?.value;
+  if (existing) return existing;
+
+  const token = generateSessionId();
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + SESSION_MAX_AGE_DAYS);
+  cookieStore.set(ANONYMOUS_AI_COOKIE, token, {
+    httpOnly: true,
+    secure: isSecureCookieUrl(env.APP_URL),
+    sameSite: 'lax',
+    path: '/',
+    expires: expiresAt,
+  });
+  return token;
+}
+
+export async function getAnonymousAiAccessToken(): Promise<string | undefined> {
+  return (await cookies()).get(ANONYMOUS_AI_COOKIE)?.value;
 }
 
 function generateSessionId(): string {

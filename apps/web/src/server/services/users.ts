@@ -4,6 +4,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
+import { normalizeEmail } from '@/server/services/email';
 import type { CreateUserInput, UserView } from '@next-wiki/shared';
 
 function getUserId(ctx: PermCtx): string | null {
@@ -66,7 +67,7 @@ async function listInternal(): Promise<UserView[]> {
  * temporary, so the first successful sign-in is routed through password setup. */
 export async function createUser(ctx: PermCtx, input: CreateUserInput): Promise<UserView> {
   requireAdmin(ctx);
-  const email = input.email.trim().toLowerCase();
+  const email = normalizeEmail(input.email);
   const existing = await db.query.users.findFirst({ where: eq(schema.users.email, email) });
   if (existing) throw new DomainError('CONFLICT', 'An account with this email already exists');
 

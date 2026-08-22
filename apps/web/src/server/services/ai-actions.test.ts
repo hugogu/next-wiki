@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import { vi } from 'vitest';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 import { clearAiData, createAiTestUser, createWikiQuestionAction, removeAiTestUser } from '../../../test/ai-fixtures';
 
 const jobsRuntime = vi.hoisted(() => ({
@@ -28,6 +28,8 @@ import {
   readActionInput,
   recordTerminalAction,
   requestActionCancellation,
+  getConversationDetail,
+  hashAnonymousActionToken,
   indexRebuildExpireSeconds,
   expireSecondsForFeature,
 } from './ai-actions';
@@ -59,6 +61,24 @@ describe('AI actions', () => {
     const cancelled = await requestActionCancellation(ctx, action.id);
     expect(cancelled.status).toBe('queued');
     expect((await getAction(ctx, action.id)).id).toBe(action.id);
+  });
+
+  it('authorizes an anonymous action across status, cancellation, and recovery with its capability', async () => {
+    const ctx = buildAnonymousCtx();
+    const token = 'anonymous-browser-capability';
+    const action = await createAction(ctx, {
+      feature: 'wiki_question',
+      allowAnonymous: true,
+      requestMetadata: { anonymousAccessTokenHash: hashAnonymousActionToken(token) },
+    });
+    await appendActionEvent(action.id, 'question', { text: 'What is Wiki AI?' });
+
+    await expect(getAction(ctx, action.id, token)).resolves.toMatchObject({ id: action.id });
+    await expect(requestActionCancellation(ctx, action.id, token)).resolves.toMatchObject({ id: action.id });
+    await expect(getConversationDetail(ctx, `legacy:turn:${action.id}`, token)).resolves.toMatchObject({
+      conversation: { latestActionId: action.id },
+    });
+    await expect(getAction(ctx, action.id, 'wrong-capability')).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('resolves the page path for actions tied to a page', async () => {

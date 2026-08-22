@@ -5,11 +5,13 @@ const actions = vi.hoisted(() => ({
   deleteConversation: vi.fn(),
 }));
 const rawConversations = vi.hoisted(() => ({ getLatestConversationSnapshot: vi.fn() }));
+const auth = vi.hoisted(() => ({ getAnonymousAiAccessToken: vi.fn(async () => undefined) }));
 vi.mock('@/server/api/session', () => ({
   createApiContext: vi.fn(async () => ({ actor: { kind: 'user', userId: 'u1', role: 'editor' } })),
 }));
 vi.mock('@/server/services/ai-actions', () => actions);
 vi.mock('@/server/services/raw-conversations', () => rawConversations);
+vi.mock('@/server/services/auth', () => auth);
 
 import * as sessionRoute from './route';
 
@@ -31,6 +33,7 @@ describe('GET /api/ai/sessions/{id} — durable snapshot', () => {
   beforeEach(() => {
     actions.getConversationDetail.mockReset();
     rawConversations.getLatestConversationSnapshot.mockReset();
+    auth.getAnonymousAiAccessToken.mockResolvedValue(undefined);
   });
 
   it('attaches the captured snapshot so a conversation past event retention still renders', async () => {

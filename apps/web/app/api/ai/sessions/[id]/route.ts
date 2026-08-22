@@ -4,6 +4,7 @@ import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { deleteConversation, getConversationDetail } from '@/server/services/ai-actions';
 import { getLatestConversationSnapshot } from '@/server/services/raw-conversations';
+import { getAnonymousAiAccessToken } from '@/server/services/auth';
 
 /**
  * Full conversation payload (summary + every turn's action + events) for
@@ -18,7 +19,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   if (!id) return apiError('NOT_FOUND', 'Not found', 404);
   try {
-    const detail = await getConversationDetail(ctx, id);
+    const detail = await getConversationDetail(ctx, id, await getAnonymousAiAccessToken());
     if (!detail) return apiError('NOT_FOUND', 'Not found', 404);
     // Action events are purged at `ai_settings.event_retention_hours` (24h by
     // default), so a conversation older than that reconstructs to nothing even

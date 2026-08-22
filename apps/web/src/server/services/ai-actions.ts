@@ -326,11 +326,16 @@ export async function getActionEvents(
  * streamed answer (and could drop the trailing `citations`/`completed`
  * events entirely), unlike the live SSE path which keeps polling until done.
  */
-export async function getAllActionEvents(ctx: PermCtx, actionId: string, pageSize = 500): Promise<AiActionEvent[]> {
+export async function getAllActionEvents(
+  ctx: PermCtx,
+  actionId: string,
+  pageSize = 500,
+  anonymousToken?: string,
+): Promise<AiActionEvent[]> {
   const all: AiActionEvent[] = [];
   let after = 0;
   for (;;) {
-    const page = await getActionEvents(ctx, actionId, after, pageSize);
+    const page = await getActionEvents(ctx, actionId, after, pageSize, anonymousToken);
     if (page.length === 0) break;
     all.push(...page);
     after = page[page.length - 1]!.id;
@@ -402,8 +407,8 @@ async function toView(row: typeof schema.aiActions.$inferSelect): Promise<AiActi
   };
 }
 
-export async function getAction(ctx: PermCtx, actionId: string): Promise<AiActionView> {
-  return toView(await requireActionAccess(ctx, actionId));
+export async function getAction(ctx: PermCtx, actionId: string, anonymousToken?: string): Promise<AiActionView> {
+  return toView(await requireActionAccess(ctx, actionId, anonymousToken));
 }
 
 /** 025: extracts the `channel` marker from a captured page's current
@@ -768,8 +773,8 @@ export async function deleteSession(ctx: PermCtx, actionId: string): Promise<voi
 export async function getConversationDetail(
   ctx: PermCtx,
   conversationKey: string,
+  anonymousToken?: string,
 ): Promise<AiConversationDetail | null> {
-  const userId = requireSessionUserId(ctx);
   const legacyPrefix = 'legacy:';
   const isLegacy = conversationKey.startsWith(legacyPrefix);
   const legacyId = isLegacy ? conversationKey.slice(legacyPrefix.length) : null;
@@ -779,15 +784,31 @@ export async function getConversationDetail(
   const isSingleTurnKey = legacyId?.startsWith('turn:') === true;
   const turnActionId = isSingleTurnKey ? legacyId!.slice('turn:'.length) : null;
 
-  const predicates = and(
-    eq(schema.aiActions.actorUserId, userId),
-    eq(schema.aiActions.feature, 'wiki_question' as const),
-    isSingleTurnKey
-      ? eq(schema.aiActions.id, turnActionId!)
-      : isLegacy
-        ? sql`(${schema.aiActions.requestMetadata} ->> 'webSessionId') = ${legacyId}`
-        : eq(schema.aiActions.rawConversationPageId, conversationKey),
-  );
+  // Anonymous access is intentionally limited to a single action authorized
+  // by the browser's HttpOnly capability cookie. It supports recovery after a
+  // dropped SSE connection without exposing the user-history API.
+  const isAnonymous = ctx.actor.kind === 'anonymous';
+  if (isAnonymous) {
+    if (!isSingleTurnKey || !turnActionId) throw new DomainError('NOT_FOUND', 'AI action not found');
+    const action = await requireActionAccess(ctx, turnActionId, anonymousToken);
+    if (action.feature !== 'wiki_question') throw new DomainError('NOT_FOUND', 'AI action not found');
+  }
+  const userId = isAnonymous ? null : requireSessionUserId(ctx);
+
+  const predicates = isAnonymous
+    ? and(
+        eq(schema.aiActions.id, turnActionId!),
+        eq(schema.aiActions.feature, 'wiki_question' as const),
+      )
+    : and(
+        eq(schema.aiActions.actorUserId, userId!),
+        eq(schema.aiActions.feature, 'wiki_question' as const),
+        isSingleTurnKey
+          ? eq(schema.aiActions.id, turnActionId!)
+          : isLegacy
+            ? sql`(${schema.aiActions.requestMetadata} ->> 'webSessionId') = ${legacyId}`
+            : eq(schema.aiActions.rawConversationPageId, conversationKey),
+      );
 
   const turnRows = await db
     .select()
@@ -943,8 +964,12 @@ export async function deleteConversation(ctx: PermCtx, conversationKey: string):
   }
 }
 
-export async function requestActionCancellation(ctx: PermCtx, actionId: string): Promise<AiActionView> {
-  const row = await requireActionAccess(ctx, actionId);
+export async function requestActionCancellation(
+  ctx: PermCtx,
+  actionId: string,
+  anonymousToken?: string,
+): Promise<AiActionView> {
+  const row = await requireActionAccess(ctx, actionId, anonymousToken);
   if (!['queued', 'running'].includes(row.status)) {
     throw new DomainError('CONFLICT', 'AI action is not cancellable');
   }

@@ -56,6 +56,7 @@ export async function setupAdmin(input: { email: string; password: string }): Pr
   if (input.password.length < 8) {
     throw new DomainError('BAD_REQUEST', 'Password must be at least 8 characters');
   }
+  const email = authService.normalizeEmail(input.email);
   const passwordHash = await bcrypt.hash(input.password, 10);
   const userId = await db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(${SETUP_ADMIN_LOCK_KEY})`);
@@ -66,7 +67,7 @@ export async function setupAdmin(input: { email: string; password: string }): Pr
       throw new DomainError('FORBIDDEN', 'An admin account already exists');
     }
     const existingEmail = await tx.query.users.findFirst({
-      where: eq(schema.users.email, input.email),
+      where: eq(schema.users.email, email),
     });
     if (existingEmail) {
       throw new DomainError('CONFLICT', 'An account with this email already exists');
@@ -74,7 +75,7 @@ export async function setupAdmin(input: { email: string; password: string }): Pr
     const [user] = await tx
       .insert(schema.users)
       .values({
-        email: input.email,
+        email,
         passwordHash,
         role: 'admin',
         status: 'active',

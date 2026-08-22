@@ -4,6 +4,7 @@ import { createApiContext } from '@/server/api/session';
 import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import * as actions from '@/server/services/ai-actions';
+import { getAnonymousAiAccessToken } from '@/server/services/auth';
 
 const idSchema = z.string().uuid();
 
@@ -13,7 +14,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);
   try {
-    return NextResponse.json(await actions.getAction(ctx, id));
+    return NextResponse.json(await actions.getAction(ctx, id, await getAnonymousAiAccessToken()));
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);
     return internalError();
@@ -26,7 +27,7 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);
   try {
-    return NextResponse.json(await actions.requestActionCancellation(ctx, id), { status: 202 });
+    return NextResponse.json(await actions.requestActionCancellation(ctx, id, await getAnonymousAiAccessToken()), { status: 202 });
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);
     return internalError();

@@ -4,6 +4,7 @@ import { createApiContext } from '@/server/api/session';
 import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { createActionEventStream } from '@/server/ai/events/action-events';
+import { getAnonymousAiAccessToken } from '@/server/services/auth';
 
 const idSchema = z.string().uuid();
 
@@ -18,7 +19,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       ctx,
       id,
       Number.isSafeInteger(cursor) && cursor >= 0 ? cursor : 0,
-      request.nextUrl.searchParams.get('access_token') ?? undefined,
+      await getAnonymousAiAccessToken(),
     );
     return new Response(stream, {
       headers: {
