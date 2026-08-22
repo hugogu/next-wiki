@@ -1754,6 +1754,38 @@
           "sourceThemeId"
         ]
       },
+      "CreateUserInput": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Email address for the new account."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 128,
+            "description": "Temporary password (8-128 characters)."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reader"
+            ],
+            "default": "reader",
+            "description": "Initial account role."
+          }
+        },
+        "required": [
+          "email",
+          "password",
+          "role"
+        ],
+        "description": "Administrator-created account input."
+      },
       "deleteQuerySchema": {
         "type": "object",
         "properties": {
@@ -2869,13 +2901,22 @@
                   "type": "string",
                   "format": "uuid",
                   "description": "Identifier of the initial draft revision."
+                },
+                "slug": {
+                  "type": "string",
+                  "description": "The public address the page was created at (defaults to path when not supplied)."
+                },
+                "url": {
+                  "type": "string",
+                  "description": "Full reader URL built from the slug."
                 }
               },
               "required": [
                 "id",
                 "path",
                 "title",
-                "revisionId"
+                "revisionId",
+                "slug"
               ]
             }
           },
@@ -10045,6 +10086,68 @@
           "id"
         ],
         "description": "User ID path parameter"
+      },
+      "UserView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User identifier."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "Canonical email address."
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin",
+              "editor",
+              "reader"
+            ],
+            "description": "Assigned role."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ],
+            "description": "Account status."
+          },
+          "displayName": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Display name, or null when unset."
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time",
+            "description": "Account creation timestamp."
+          },
+          "lastLoginAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time",
+            "description": "Most recent successful sign-in, or null."
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "role",
+          "status",
+          "displayName",
+          "createdAt",
+          "lastLoginAt"
+        ],
+        "description": "User account view."
       },
       "WritingModeSettingsView": {
         "type": "object",
@@ -23239,6 +23342,43 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyReveal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users": {
+      "post": {
+        "operationId": "post-users",
+        "summary": "Create user",
+        "description": "Creates a user with a temporary password. Admin only.",
+        "tags": [
+          "Users"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateUserInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserView"
                 }
               }
             }

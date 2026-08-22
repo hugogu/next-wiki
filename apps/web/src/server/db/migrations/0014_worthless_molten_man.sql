@@ -1,0 +1,1 @@
+ALTER TABLE "ai_settings" ADD COLUMN "anonymous_wiki_ai_enabled" boolean DEFAULT false NOT NULL;
