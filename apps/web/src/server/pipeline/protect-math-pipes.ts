@@ -11,8 +11,10 @@
  * Two invariants keep a placeholder from ever reaching the output or an author's
  * own text:
  *
- * - Only table rows are rewritten. Elsewhere a `|` splits nothing, so touching
- *   it could only strand a placeholder in some other construct.
+ * - Only table rows are rewritten, and which lines those are comes from the
+ *   parser rather than from matching row syntax here. Elsewhere a `|` splits
+ *   nothing, so touching it could only strand a placeholder in some other
+ *   construct.
  * - Restoration is limited to verbatim node types, and only runs when
  *   protection did. See `VERBATIM_NODE_TYPES` for why that matters.
  *
@@ -20,53 +22,73 @@
  * output anyway, so a mis-scan costs a document the fix but never shows.
  */
 
+import { unified } from 'unified';
+import remarkParse from 'remark-parse';
+import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
 import type { Root } from 'mdast';
 import { visit } from 'unist-util-visit';
-import { mapRegionsOutsideFences } from './code-fence-utils';
 
 // U+E000, the first Private Use Area codepoint. A single character rather than a
 // longer sentinel, so the parser cannot tokenize it apart mid-flight; spelled via
 // `fromCharCode` so it stays visible in diffs.
 const MATH_PIPE_PLACEHOLDER = String.fromCharCode(0xe000);
 
-/** The `| --- |` row: the one part of a table that cannot contain math. */
-const TABLE_DELIMITER_ROW = /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+/**
+ * The `| --- |` row. Pipes cannot appear inside one, so it survives the bug
+ * intact and identifies a table that failed to parse as such. Leading `>` and
+ * indentation are tolerated so a quoted or nested row still matches.
+ */
+const TABLE_DELIMITER_ROW = /^[ \t>]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
 
-/** Appears only on a list item's opening line; continuations are indented. */
-const LIST_MARKER = /^(?:[-*+]|\d{1,9}[.)])[ \t]+/;
+const isDelimiterRow = (line: string) => {
+  // CRLF input leaves a trailing `\r` that the anchored pattern would reject.
+  const content = line.endsWith('\r') ? line.slice(0, -1) : line;
+  return content.includes('|') && TABLE_DELIMITER_ROW.test(content);
+};
 
-const stripCarriageReturn = (line: string) => (line.endsWith('\r') ? line.slice(0, -1) : line);
-
-const isBlank = (line: string) => line.trim() === '';
-
-type LineParts = { prefix: string; content: string; depth: number };
+const rowFinder = unified().use(remarkParse).use(remarkMath).use(remarkGfm);
 
 /**
- * Split off the prefix container blocks repeat on every line they enclose, so a
- * nested table's rows look like rows again. CommonMark has exactly two container
- * blocks — block quotes and list items — so indentation, `>` and list markers
- * are the complete vocabulary.
+ * The 1-indexed lines making up table rows.
+ *
+ * Asking the parser is what keeps this from having to know where a table ends —
+ * a heading, a thematic break, a nested list item and a blank line all stop one,
+ * and remark already applies those rules, in every container block, correctly.
+ *
+ * The one table it cannot report is the one this module exists to fix: when a
+ * header's math contains pipes its cell count disagrees with the delimiter row,
+ * so no table forms and remark yields a paragraph. Those are recovered by
+ * looking for a delimiter row inside a paragraph, which is safe because a
+ * paragraph ends wherever a block interrupts it — the same question, answered
+ * by the parser again.
  */
-function splitContainerPrefix(line: string): LineParts {
-  let index = 0;
-  let depth = 0;
+function tableRowLines(source: string): Set<number> {
+  const lines = source.split('\n');
+  const rows = new Set<number>();
 
-  for (;;) {
-    while (index < line.length && (line[index] === ' ' || line[index] === '\t')) index++;
+  visit(rowFinder.parse(source), (node) => {
+    const position = node.position;
+    if (!position) return;
 
-    if (line[index] === '>') {
-      index += 1;
-      depth += 1;
-      if (line[index] === ' ' || line[index] === '\t') index += 1;
-      continue;
+    if (node.type === 'table') {
+      for (let line = position.start.line; line <= position.end.line; line++) rows.add(line);
+      return;
     }
 
-    const marker = LIST_MARKER.exec(line.slice(index));
-    if (!marker) break;
-    index += marker[0].length;
-  }
+    if (node.type !== 'paragraph') return;
+    for (let line = position.start.line; line <= position.end.line; line++) {
+      if (!isDelimiterRow(lines[line - 1] ?? '')) continue;
+      // A table needs a header row above the delimiter, in the same paragraph.
+      // Without one this is not a table that failed to form, just a line that
+      // looks like a delimiter.
+      if (line - 1 < position.start.line) continue;
+      // Header directly above, body running to the paragraph's end.
+      for (let row = line - 1; row <= position.end.line; row++) rows.add(row);
+    }
+  });
 
-  return { prefix: line.slice(0, index), content: line.slice(index), depth };
+  return rows;
 }
 
 function runLength(text: string, start: number, char: string): number {
@@ -95,6 +117,10 @@ function findClosingRun(text: string, from: number, char: string, length: number
   return -1;
 }
 
+/**
+ * Rewrite the pipes inside this row's math spans. A container prefix (`> `, a
+ * list marker) holds no `$`, so scanning the whole line is harmless.
+ */
 function protectPipesInRow(line: string): string {
   let out = '';
   let index = 0;
@@ -137,46 +163,19 @@ function protectPipesInRow(line: string): string {
   return out;
 }
 
-/** Rewrite the header and body rows of each table, located by its delimiter row. */
-function protectTableRowsInRegion(region: string): string {
-  const lines = region.split('\n');
-  const parts = lines.map((line) => splitContainerPrefix(stripCarriageReturn(line)));
-  const isTableRow = new Array<boolean>(lines.length).fill(false);
-
-  for (let index = 1; index < lines.length; index++) {
-    const delimiter = parts[index]!;
-    // Without a pipe this is a thematic break, not a delimiter row.
-    if (!delimiter.content.includes('|') || !TABLE_DELIMITER_ROW.test(delimiter.content)) continue;
-
-    // Rows belong to the same table only at the same container depth. Skipping
-    // mismatched ones keeps an unrelated `> | --- |` elsewhere in the document
-    // from dragging its neighbours into a needless rewrite.
-    const header = parts[index - 1]!;
-    if (isBlank(header.content) || header.depth !== delimiter.depth) continue;
-
-    isTableRow[index - 1] = true;
-    for (let body = index + 1; body < lines.length; body++) {
-      const row = parts[body]!;
-      if (isBlank(row.content) || row.depth !== delimiter.depth) break;
-      isTableRow[body] = true;
-    }
-  }
-
-  return lines
-    .map((line, index) => {
-      if (!isTableRow[index]) return line;
-      const { prefix } = parts[index]!;
-      return prefix + protectPipesInRow(line.slice(prefix.length));
-    })
-    .join('\n');
-}
-
 export function protectMathPipes(source: string): string {
   if (!source.includes('$') || !source.includes('|')) return source;
   // With an authored placeholder present, restoration could not tell it from
   // one of ours. Declining costs this document the fix, nothing more.
   if (source.includes(MATH_PIPE_PLACEHOLDER)) return source;
-  return mapRegionsOutsideFences(source, protectTableRowsInRegion);
+
+  const rows = tableRowLines(source);
+  if (rows.size === 0) return source;
+
+  return source
+    .split('\n')
+    .map((line, index) => (rows.has(index + 1) ? protectPipesInRow(line) : line))
+    .join('\n');
 }
 
 type HastLike = { value?: unknown; children?: HastLike[] };
@@ -198,12 +197,12 @@ function restorePipesInHastChildren(children: unknown): void {
 /**
  * Node types holding verbatim source. Character references are decoded *after*
  * this module scans the source and only in text positions, so restoring `text`
- * would turn an authored `&#xE000;` into a `|`. `html` is included because its
- * value is still unparsed at this stage; `code` because an indented block can
- * look enough like a table to be rewritten. `inlineCode` is absent: the scanner
- * skips code spans, so a placeholder never reaches one.
+ * would turn an authored `&#xE000;` into a `|`. `html` is here because a table
+ * cell can hold raw HTML and its value is still unparsed at this stage. Code
+ * nodes are not: the parser never reports a code block as a table row, and the
+ * scanner skips code spans, so a placeholder cannot reach either.
  */
-const VERBATIM_NODE_TYPES = new Set(['math', 'inlineMath', 'code', 'html']);
+const VERBATIM_NODE_TYPES = new Set(['math', 'inlineMath', 'html']);
 
 /**
  * `enabled` must be false whenever `protectMathPipes` declined, so a document

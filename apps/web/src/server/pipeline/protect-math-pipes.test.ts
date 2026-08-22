@@ -249,6 +249,45 @@ describe('renderMarkdown pipe-protection regressions', () => {
     expect(texOf(html)).toBe('|x|');
   });
 
+  // Everything that ends a table. The trailing construct puts `$|z|$` in a link
+  // URL — the most leak-prone spot — so a row scanned past the table's end costs
+  // the table its fix. Which lines are rows comes from the parser, so this is a
+  // guard on that delegation rather than a list of cases to keep extending.
+  const TABLE = '| a | b |\n| --- | --- |\n| $|x|$ | y |';
+  const LINK = '[link]($|z|$)';
+  const tableEndCases: Record<string, string> = {
+    'nested list item': `- ${TABLE.replace(/\n/g, '\n  ')}\n  - ${LINK}`,
+    'sibling list item': `- ${TABLE.replace(/\n/g, '\n  ')}\n- ${LINK}`,
+    'ordered sibling item': `1. ${TABLE.replace(/\n/g, '\n   ')}\n2. ${LINK}`,
+    'blockquote after the table': `${TABLE}\n> ${LINK}`,
+    'atx heading after the table': `${TABLE}\n# head ${LINK}`,
+    'setext heading after the table': `${TABLE}\n\nhead\n====\n\n${LINK}`,
+    'thematic break': `${TABLE}\n***\n${LINK}`,
+    'html block': `${TABLE}\n<div>${LINK}</div>`,
+    'deeper indented line': `${TABLE}\n    ${LINK}`,
+    'list inside a blockquoted table': `> ${TABLE.replace(/\n/g, '\n> ')}\n> - ${LINK}`,
+    'blank line': `${TABLE}\n\n${LINK}`,
+    'fenced code block': `${TABLE}\n\n\`\`\`\n${LINK}\n\`\`\``,
+    'unrelated delimiter row later on': `${TABLE}\n\ntext\n> | --- |\n${LINK}`,
+    'table-shaped indented code later': `${TABLE}\n\ntext\n\n    | c |\n    | --- |\n    | $|q|$ |`,
+  };
+
+  for (const [name, source] of Object.entries(tableEndCases)) {
+    it(`keeps the fix when the table ends at: ${name}`, () => {
+      const { html } = renderMarkdown(source);
+      expect(html).not.toContain(PLACEHOLDER);
+      expect(html.toUpperCase()).not.toContain(encodeURIComponent(PLACEHOLDER));
+      expect(texOf(html)).toBe('|x|');
+    });
+  }
+
+  it('leaves a link that follows a nested list marker untouched', () => {
+    const { html } = renderMarkdown(
+      '- | a | b |\n  | --- | --- |\n  | $|x|$ | y |\n  - [link]($|z|$)',
+    );
+    expect(html).toContain('<a href="$%7Cz%7C$"'); // pipes intact, not rewritten
+  });
+
   // Both of these guard machinery that no other test distinguishes: without it
   // an unrelated part of the document triggers the unprotected-render fallback,
   // and a real table silently loses its fix.
@@ -274,7 +313,16 @@ describe('renderMarkdown pipe-protection regressions', () => {
   });
 
   it('fixes math with pipes in a table header row', () => {
+    // Until the pipes are protected the header's cell count disagrees with the
+    // delimiter row, so no table forms at all — asserting on the rendered math
+    // alone would pass on a paragraph.
     const { html } = renderMarkdown('| $a|b$ | c |\n| --- | --- |\n| x | y |');
+    expect(html).toContain('<table');
+    expect(texOf(html)).toBe('a|b');
+  });
+
+  it('fixes a header-row formula written with CRLF line endings', () => {
+    const { html } = renderMarkdown('| $a|b$ | c |\r\n| --- | --- |\r\n| x | y |');
     expect(html).toContain('<table');
     expect(texOf(html)).toBe('a|b');
   });
