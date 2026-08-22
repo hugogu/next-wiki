@@ -7,7 +7,7 @@ import {
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import {
@@ -157,23 +157,27 @@ async function runWikiQuestionActionWithoutDataCache(actionId: string): Promise<
 async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
   const input = await readActionInput<QuestionInput>(actionId);
   const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
-  if (!input || !action?.actorUserId || !action.modelId || !action.providerId) {
+  if (!input || !action?.modelId || !action.providerId) {
     throw new DomainError('CANCELLED', 'Question input expired');
   }
   const [user, textModel] = await Promise.all([
-    db.query.users.findFirst({ where: eq(schema.users.id, action.actorUserId) }),
+    action.actorUserId
+      ? db.query.users.findFirst({ where: eq(schema.users.id, action.actorUserId) })
+      : Promise.resolve(null),
     db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, action.modelId) }),
   ]);
-  if (!user || user.status !== 'active' || !textModel)
+  if ((action.actorUserId && (!user || user.status !== 'active')) || !textModel)
     throw new DomainError('CANCELLED', 'Question action is no longer authorized');
-  const ctx = buildUserCtx(user.id, user.role);
+  const ctx = user ? buildUserCtx(user.id, user.role) : buildAnonymousCtx();
   await assertAiFeature(ctx, 'question');
-  const conversation = await loadWebConversationContext({
-    actorUserId: user.id,
-    queuedAt: action.queuedAt,
-    requestMetadata: action.requestMetadata,
-    clientConversation: input.conversation,
-  });
+  const conversation = user
+    ? await loadWebConversationContext({
+        actorUserId: user.id,
+        queuedAt: action.queuedAt,
+        requestMetadata: action.requestMetadata,
+        clientConversation: input.conversation,
+      })
+    : input.conversation ?? [];
 
   // Recorded once, up front, so the session history panel can show what was
   // asked even though the encrypted raw input is purged as soon as the action

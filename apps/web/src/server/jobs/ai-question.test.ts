@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm';
 import { vi } from 'vitest';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 
 const streamText = vi.hoisted(() => vi.fn());
@@ -206,6 +206,26 @@ describe('Wiki question worker', () => {
     if (created.fallback) throw new Error('Expected a tool-enabled action');
     await runToolEnabledWikiQuestionAction(created.action.id);
     expect(cache.runWithoutDataCache).toHaveBeenCalledTimes(1);
+  });
+
+  it('runs an anonymous Wiki question with public-content permissions', async () => {
+    await db
+      .update(schema.aiSettings)
+      .set({ anonymousWikiAiEnabled: true })
+      .where(eq(schema.aiSettings.id, 'default'));
+    const action = await createWikiQuestion(buildAnonymousCtx(), {
+      question: 'Where is the answer?',
+      mode: 'retrieval',
+    });
+
+    await runWikiQuestionAction(action.id);
+
+    const storedAction = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action.id) });
+    expect(storedAction).toMatchObject({
+      actorUserId: null,
+      status: 'completed',
+      rawConversationCaptureStatus: 'disabled',
+    });
   });
 
   it('records raw conversation capture eligibility from the data source setting at create time (023)', async () => {

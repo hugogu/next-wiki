@@ -24,7 +24,12 @@ export async function POST(request: NextRequest) {
     };
     // 026: additive tool-enabled question handling. Falls back to ordinary Q&A when tools
     // are unavailable or the selected model cannot call tools (recoverable).
-    if (tools?.enabled) {
+    // Anonymous Wiki AI is read-only. The browser currently requests the
+    // tool-capable protocol for every chat turn, but a visitor has no account
+    // identity for tool workflows or mutations. Route it through the ordinary
+    // grounded Q&A worker, which evaluates retrieval with anonymous page
+    // permissions instead.
+    if (tools?.enabled && ctx.actor.kind !== 'anonymous') {
       const result = await createToolEnabledWikiQuestion(ctx, {
         question: question.question,
         mode: question.mode,

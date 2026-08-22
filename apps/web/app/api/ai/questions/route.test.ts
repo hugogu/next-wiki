@@ -111,15 +111,20 @@ describe('POST /api/ai/questions — additive tools option', () => {
     });
   });
 
-  it('keeps anonymous action capabilities in an HttpOnly cookie, not the events URL', async () => {
+  it('keeps anonymous action capabilities in an HttpOnly cookie and sends visitors to read-only Q&A', async () => {
     apiSession.createApiContext.mockResolvedValue({ actor: { kind: 'anonymous' } });
     auth.getOrCreateAnonymousAiAccessToken.mockResolvedValue('browser-only-capability');
 
-    const response = await post({ question: 'What is X?', mode: 'retrieval' });
+    const response = await post({
+      question: 'What is X?',
+      mode: 'retrieval',
+      tools: { enabled: true, requestedReview: 'admin_review' },
+    });
 
     expect(response.status).toBe(202);
     expect(await response.json()).toMatchObject({ eventsUrl: '/e' });
     expect(auth.getOrCreateAnonymousAiAccessToken).toHaveBeenCalledOnce();
+    expect(services.createToolEnabledWikiQuestion).not.toHaveBeenCalled();
     expect(services.createWikiQuestion).toHaveBeenCalledWith(
       expect.anything(),
       expect.objectContaining({

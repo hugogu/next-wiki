@@ -171,7 +171,7 @@ describe('modelSupportsToolCalling', () => {
     });
 
     const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, action.id) });
-    expect(row?.actorUserId).toBeNull();
+    expect(row).toMatchObject({ actorUserId: null, rawConversationCaptureStatus: 'disabled' });
     await expect(requireActionAccess(buildAnonymousCtx(), action.id, token)).resolves.toMatchObject({ id: action.id });
     await expect(requireActionAccess(buildAnonymousCtx(), action.id, 'wrong-token')).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });

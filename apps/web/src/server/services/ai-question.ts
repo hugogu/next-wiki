@@ -73,7 +73,9 @@ export async function createWikiQuestion(
   // 023/025: capture eligibility is decided once, at create time, from the
   // AI Conversations data-source setting — later toggles only affect
   // conversations created after the change (see content-data-sources.ts).
-  const captureEnabled = await isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY);
+  // Raw Conversation pages require an attributable account owner. Anonymous
+  // turns remain available through their short-lived action events only.
+  const captureEnabled = ctx.actor.kind !== 'anonymous' && await isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY);
   return createAction(ctx, {
     feature: 'wiki_question',
     input,
@@ -140,7 +142,7 @@ export async function createToolEnabledWikiQuestion(
   if (!(await modelSupportsToolCalling(model.id))) {
     return { fallback: true };
   }
-  const captureEnabled = await isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY);
+  const captureEnabled = ctx.actor.kind !== 'anonymous' && await isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY);
   const action = await createAction(ctx, {
     feature: 'wiki_question',
     input: {
