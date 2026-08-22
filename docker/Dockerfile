@@ -30,6 +30,10 @@ RUN pnpm --filter @next-wiki/web exec drizzle-kit generate & \
 # apply. The output lands in apps/web/public/ and is copied to the runner with
 # the rest of that directory.
 RUN pnpm --filter @next-wiki/web build:static-site-assets
+# Keep a self-contained migration entry point in the runtime image. Deployment
+# scripts invoke it directly, and start.mjs runs it before accepting traffic.
+RUN pnpm --filter @next-wiki/web exec esbuild scripts/migrate.mjs \
+    --bundle --platform=node --format=esm --outfile=/tmp/migrate.mjs
 # Mount Next.js build cache so incremental Docker builds reuse previous work.
 RUN --mount=type=cache,target=/app/apps/web/.next/cache,id=next-cache-${TARGETARCH} \
     pnpm --filter @next-wiki/web exec next build --webpack
@@ -70,13 +74,14 @@ COPY --from=builder /app/apps/web/.next/standalone ./
 COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
 COPY --from=builder /app/apps/web/src/server/db/migrations ./apps/web/src/server/db/migrations
+COPY --from=builder /tmp/migrate.mjs ./apps/web/scripts/migrate.mjs
 # The background worker discovers reserved routes from the App Router's file
 # layout at startup. These small source files are runtime metadata, not a
 # replacement for the traced standalone server bundle.
 COPY --from=builder /app/apps/web/app ./apps/web/app
+COPY docker/start.mjs ./start.mjs
 
-WORKDIR /app/apps/web
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 EXPOSE 3000
-CMD ["node", "server.js"]
+CMD ["node", "start.mjs"]
