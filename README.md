@@ -166,6 +166,17 @@ Open [http://localhost:3000](http://localhost:3000) — a fresh instance has no
 admin yet, so it redirects straight to the guided `/setup` flow to create the
 first Admin account and, optionally, generate example pages.
 
+Or, for a one-command version that also waits for startup and opens the
+browser for you:
+
+```bash
+pnpm install && pnpm quickstart
+```
+
+This is the same Docker Compose stack above — `.env` is optional since every
+variable has a working default — just with progress feedback and an
+auto-opened tab once the app is healthy.
+
 The default stack only requires PostgreSQL. To experiment with the optional
 S3-compatible content backend, start MinIO with the Compose profile:
 

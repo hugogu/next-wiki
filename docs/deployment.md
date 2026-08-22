@@ -180,12 +180,28 @@ the deployment. Fresh installations need no special step: they run the new
 
 ## Local development
 
-Local development still uses the original `docker-compose.yml`:
+Local development still uses the original `docker-compose.yml`. Every
+variable it reads has an inline default, so no `.env` file is required to
+get started — copy `.env.example` only if you want to change a port or
+supply an API key:
 
 ```bash
-cp .env.example .env   # keep defaults or adjust ports as needed
+cp .env.example .env   # optional — keep defaults or adjust ports as needed
 docker compose up -d --build
 ```
+
+For a one-command version of the same thing — build, wait for the health
+check, and open a browser — run:
+
+```bash
+pnpm quickstart
+```
+
+This wraps the same `docker compose up -d --build` above; it does not
+change how the stack is deployed, it only adds progress feedback and
+auto-opens `http://localhost:3000` (or `/setup` on first run) once the web
+container reports healthy. Stop the stack the normal way: `docker compose
+down`.
 
 ## Static site publishing dependencies
 
