@@ -108,6 +108,10 @@ describe('renderMarkdown pipe-protection regressions', () => {
     'footnote definition': 'ref[^1]\n\n[^1]: $|x|$',
     'raw HTML attribute': '<span title="$|x|$">example</span>',
     'raw HTML attribute inside a table cell': '| a |\n| --- |\n| <span title="$|x|$">e</span> |',
+    // A URL is percent-encoded on the way out, so a placeholder reaching one
+    // does not show up as the literal character.
+    'link destination inside a table cell': '| a |\n| --- |\n| [x]($|y|$) |',
+    'image title inside a table cell': '| a |\n| --- |\n| ![x](/i "$|y|$") |',
     'escaped dollar before pipes': '\\$|x|$',
     'escaped dollar in a table cell': '| a | b |\n| --- | --- |\n| \\$|x|$ | y |',
     'multi-line code span containing math': 'text `foo\n$|x|$\nbar` more',
@@ -131,7 +135,10 @@ describe('renderMarkdown pipe-protection regressions', () => {
 
   for (const [name, source] of Object.entries(leakCases)) {
     it(`never leaks the placeholder: ${name}`, () => {
-      expect(renderMarkdown(source).html).not.toContain(PLACEHOLDER);
+      const { html } = renderMarkdown(source);
+      expect(html).not.toContain(PLACEHOLDER);
+      // URLs are percent-encoded, so check that spelling of it too.
+      expect(html.toUpperCase()).not.toContain(encodeURIComponent(PLACEHOLDER));
     });
   }
 
@@ -239,6 +246,23 @@ describe('renderMarkdown pipe-protection regressions', () => {
   it('fixes the reported blockquote-in-a-list case end to end', () => {
     const { html } = renderMarkdown('- > | a |\n  > | --- |\n  > | $|x|$ |');
     expect(html).toContain('<blockquote');
+    expect(texOf(html)).toBe('|x|');
+  });
+
+  // Both of these guard machinery that no other test distinguishes: without it
+  // an unrelated part of the document triggers the unprotected-render fallback,
+  // and a real table silently loses its fix.
+  it('keeps the fix when an unrelated delimiter sits at a different depth', () => {
+    const { html } = renderMarkdown(
+      '| a | b |\n| --- | --- |\n| $|x|$ | y |\n\ntext\n> | --- |\n[a]($|z|$)',
+    );
+    expect(texOf(html)).toBe('|x|');
+  });
+
+  it('keeps the fix when the document also holds a table-shaped indented code block', () => {
+    const { html } = renderMarkdown(
+      '| a | b |\n| --- | --- |\n| $|x|$ | y |\n\ntext\n\n    | c |\n    | --- |\n    | $|q|$ |',
+    );
     expect(texOf(html)).toBe('|x|');
   });
 
