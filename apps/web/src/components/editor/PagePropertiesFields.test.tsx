@@ -28,6 +28,23 @@ describe('PagePropertiesFields', () => {
     expect(html).toContain('checked=""');
   });
 
+  it('renders tags as chips from the shared EditableTagList, not a free-text field', () => {
+    const html = renderWithI18n(
+      <PagePropertiesFields
+        title="Guide"
+        onTitleChange={() => undefined}
+        tags="devops, docker"
+        onTagsChange={() => undefined}
+      />,
+    );
+
+    expect(html).toContain('devops');
+    expect(html).toContain('docker');
+    // The old free-text picker's affordances must be gone.
+    expect(html).not.toContain('Separate tags with commas');
+    expect(html).not.toContain('id="prop-tags"');
+  });
+
   it('can expose page visibility while omitting properties that do not apply', () => {
     const html = renderWithI18n(
       <PagePropertiesFields

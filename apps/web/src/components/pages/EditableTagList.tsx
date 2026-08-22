@@ -11,8 +11,16 @@ import type { PageTag } from './TagList';
 /**
  * Flow-layout tag chips shared across the reader and admin lists. Read-only by
  * default; when `canEdit` and a `pageId` are provided, each chip gains a remove
- * (×) control and a `+` adder with autocomplete over existing tags. Edits are
- * persisted (draft + immediate publish) via the page tags endpoint.
+ * (×) control and a `+` adder with autocomplete over existing tags.
+ *
+ * By default (`autoSave: true`) each add/remove is persisted immediately
+ * (draft + immediate publish) via the page tags endpoint — right for a
+ * standalone chip list like the reader sidebar. Pass `autoSave: false` for a
+ * field embedded in a larger form (e.g. Page properties) that batches this
+ * with other unsaved edits and owns when everything actually persists;
+ * add/remove then only update local state and call `onChange`, with a
+ * synthetic id (the tag name) standing in for the real one the server
+ * assigns once the form is actually submitted.
  */
 export function EditableTagList({
   tags,
@@ -21,6 +29,7 @@ export function EditableTagList({
   tagHref,
   ariaLabel,
   onChange,
+  autoSave = true,
 }: {
   tags: PageTag[];
   pageId?: string;
@@ -28,6 +37,7 @@ export function EditableTagList({
   tagHref?: (tag: PageTag) => string;
   ariaLabel?: string;
   onChange?: (tags: PageTag[]) => void;
+  autoSave?: boolean;
 }) {
   const { t } = useTranslation();
   const listId = useId();
@@ -39,7 +49,7 @@ export function EditableTagList({
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const editable = canEdit && Boolean(pageId);
+  const editable = canEdit && (autoSave ? Boolean(pageId) : true);
 
   // Re-sync from props when the parent supplies a genuinely different tag set
   // (e.g. after a list refresh). Comparing by id signature avoids reacting to
@@ -66,6 +76,16 @@ export function EditableTagList({
   }, [adding]);
 
   async function save(nextNames: string[]) {
+    if (!autoSave) {
+      // No server round trip yet — the caller's form owns when this
+      // actually persists. A synthetic id (the name itself) stands in for
+      // the real one the server assigns on submit; nothing here depends on
+      // it beyond the React key and (when supplied) tagHref.
+      const next = nextNames.map((name) => ({ id: name, name, normalizedName: name.toLocaleLowerCase() }));
+      setCurrent(next);
+      onChange?.(next);
+      return;
+    }
     if (!pageId) return;
     setSaving(true);
     setError(null);

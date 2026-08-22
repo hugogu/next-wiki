@@ -91,4 +91,42 @@ test.describe('page tags', () => {
     const reloadedRow = page.locator('tr', { hasText: 'Page Tags Target' });
     await expect(reloadedRow.getByText(tagName)).toBeVisible();
   });
+
+  test('Page properties uses the same chip-based tag picker, but defers saving until Save properties (035)', async ({ page }) => {
+    await seedTaggablePage();
+    await login(page);
+    // The seeded page's slug (its public address, distinct from its storage
+    // path per 035) is 'target' — see seedTaggablePage.
+    await page.goto('/wiki/target');
+
+    await page.getByRole('button', { name: 'More actions' }).hover();
+    await page.getByRole('button', { name: 'Page settings' }).click();
+    const dialog = page.getByRole('dialog', { name: 'Page properties' });
+    await expect(dialog).toBeVisible();
+
+    const tagName = `e2e-props-tag-${Date.now()}`;
+    await dialog.getByLabel('Add tag').click();
+    await dialog.getByLabel('Add tag').fill(tagName);
+    await dialog.getByLabel('Add tag').press('Enter');
+    await expect(dialog.getByText(tagName)).toBeVisible();
+
+    // Cancelling out must not have persisted it — the chip list here defers
+    // to the form's own Save properties button, unlike the always-live
+    // Admin Pages row above.
+    await dialog.getByRole('button', { name: 'Cancel' }).click();
+    await page.reload();
+    await expect(page.getByText(tagName)).toHaveCount(0);
+
+    await page.getByRole('button', { name: 'More actions' }).hover();
+    await page.getByRole('button', { name: 'Page settings' }).click();
+    const dialogAgain = page.getByRole('dialog', { name: 'Page properties' });
+    await dialogAgain.getByLabel('Add tag').click();
+    await dialogAgain.getByLabel('Add tag').fill(tagName);
+    await dialogAgain.getByLabel('Add tag').press('Enter');
+    await dialogAgain.getByRole('button', { name: 'Save properties' }).click();
+    await expect(page.getByRole('dialog')).toHaveCount(0);
+
+    await page.reload();
+    await expect(page.getByText(tagName)).toBeVisible();
+  });
 });

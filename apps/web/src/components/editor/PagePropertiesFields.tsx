@@ -3,7 +3,21 @@ import { Select } from '@/components/ui/Select';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { InfoIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
-import { TagPicker } from '@/components/pages/TagPicker';
+import { EditableTagList } from '@/components/pages/EditableTagList';
+import type { PageTag } from '@/components/pages/TagList';
+
+/** `tags`/`onTagsChange` here stay a comma-joined string — the wire format
+ * every caller (and the frontmatter it eventually feeds) already uses —
+ * while `EditableTagList` itself works in terms of tag objects. Converting
+ * at this boundary means no caller needs to change to get the shared
+ * chip-based picker instead of free-text entry. */
+function parseTagsString(value: string): PageTag[] {
+  return value
+    .split(',')
+    .map((name) => name.trim())
+    .filter(Boolean)
+    .map((name) => ({ id: name, name, normalizedName: name.toLocaleLowerCase() }));
+}
 
 export function PagePropertiesFields({
   title,
@@ -76,9 +90,14 @@ export function PagePropertiesFields({
       )}
       {onTagsChange && (
         <div>
-          <label htmlFor="prop-tags" className="block text-sm font-medium mb-xs">{t('editor.properties.fields.tagsLabel')}</label>
-          <TagPicker value={tags ?? ''} onChange={onTagsChange} />
-          <p className="text-xs text-muted mt-xs">{t('editor.properties.fields.tagsHint')}</p>
+          <label className="block text-sm font-medium mb-xs">{t('editor.properties.fields.tagsLabel')}</label>
+          <EditableTagList
+            tags={parseTagsString(tags ?? '')}
+            canEdit
+            autoSave={false}
+            ariaLabel={t('editor.properties.fields.tagsLabel')}
+            onChange={(next) => onTagsChange(next.map((tag) => tag.name).join(', '))}
+          />
         </div>
       )}
       {onSummaryChange && (

@@ -562,8 +562,6 @@
         "titlePlaceholder": "Page title",
         "dateLabel": "Date",
         "tagsLabel": "Tags",
-        "tagsPlaceholder": "devops, docker",
-        "tagsHint": "Separate tags with commas.",
         "summaryLabel": "Summary",
         "visibilityLabel": "Page visibility",
         "visibilityPublic": "Public",

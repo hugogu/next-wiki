@@ -372,8 +372,6 @@ export const translationKeys = [
   "editor.properties.fields.titlePlaceholder",
   "editor.properties.fields.dateLabel",
   "editor.properties.fields.tagsLabel",
-  "editor.properties.fields.tagsPlaceholder",
-  "editor.properties.fields.tagsHint",
   "editor.properties.fields.summaryLabel",
   "editor.properties.fields.visibilityLabel",
   "editor.properties.fields.visibilityPublic",

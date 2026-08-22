@@ -562,8 +562,6 @@
         "titlePlaceholder": "页面标题",
         "dateLabel": "日期",
         "tagsLabel": "标签",
-        "tagsPlaceholder": "devops, docker",
-        "tagsHint": "使用逗号分隔标签。",
         "summaryLabel": "摘要",
         "visibilityLabel": "页面可见性",
         "visibilityPublic": "公开",
