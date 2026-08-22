@@ -92,4 +92,20 @@ describe('renderMarkdown display-math regression', () => {
     expect(html).not.toContain('katex');
     expect(html).toContain('$$x = 1');
   });
+
+  it('renders a table cell whose inline math contains absolute-value bars', () => {
+    const source =
+      '| Symbol | Definition |\n' +
+      '| --- | --- |\n' +
+      '| rect(x) | $\\mathrm{rect}(x) = \\begin{cases} 1 & |x| < 1/2 \\\\ 0 & |x| \\geq 1/2 \\end{cases}$ |';
+    const { html } = renderMarkdown(source);
+
+    expect(html).not.toContain('katex-error');
+    expect(html).toContain('<table');
+    // The row must still have both cells — a broken table would drop the
+    // second `<td>` (and the trailing `$…$` would show up as literal text).
+    expect(html).toMatch(/<td>[\s\S]*rect[\s\S]*<\/td>\s*<td>[\s\S]*katex[\s\S]*<\/td>/);
+    expect(texOf(html)).toContain('|x|');
+    expect(html).not.toContain('');
+  });
 });

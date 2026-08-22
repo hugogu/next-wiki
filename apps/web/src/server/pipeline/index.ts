@@ -16,6 +16,7 @@ import { env } from '@/server/config';
 import { validateImage } from '@/server/content-store/image-validation';
 import { markdownBody } from '@/server/metadata/frontmatter';
 import { normalizeDisplayMath } from './normalize-display-math';
+import { protectMathPipes, restoreMathPipes } from './protect-math-pipes';
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -172,11 +173,12 @@ function wrapCodeBlocks(tree: Root) {
 }
 
 export function renderMarkdown(source: string): { html: string; hash: string } {
-  const body = normalizeDisplayMath(markdownBody(source));
+  const body = protectMathPipes(normalizeDisplayMath(markdownBody(source)));
   const html = unified()
     .use(remarkParse)
     .use(remarkMath)
     .use(remarkGfm)
+    .use(() => restoreMathPipes)
     // Parse raw HTML so imported Markdown can retain safe elements such as
     // `<img>`. rehypeSanitize immediately following this step is the security
     // boundary: scripts, event handlers, and unsafe URL protocols are removed.

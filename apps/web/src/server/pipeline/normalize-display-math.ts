@@ -18,7 +18,7 @@
  * math) and anything inside fenced code blocks are left untouched.
  */
 
-const CODE_FENCE = /^([ \t]*)(`{3,}|~{3,})/;
+import { CODE_FENCE } from './code-fence-utils';
 
 /** Move the delimiters of every multi-line `$$…$$` block onto their own lines. */
 function rewriteBlocks(text: string): string {
