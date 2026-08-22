@@ -19,6 +19,10 @@ ENV API_KEY_ENCRYPTION_KEY=00000000000000000000000000000000000000000000000000000
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV DATABASE_URL=postgresql://localhost:5432/next_wiki
+# Standalone output traces files relative to the monorepo root. Making this
+# explicit guarantees server.js lands at apps/web/server.js inside the bundle,
+# matching the runtime image layout and the start.mjs entry point.
+ENV NEXT_PRIVATE_OUTPUT_TRACE_ROOT=/app
 # Generate migrations and OpenAPI spec in parallel; they write to disjoint paths.
 RUN pnpm --filter @next-wiki/web exec drizzle-kit generate & \
     pnpm --filter @next-wiki/web openapi:generate & \
@@ -30,6 +34,10 @@ RUN pnpm --filter @next-wiki/web exec drizzle-kit generate & \
 # apply. The output lands in apps/web/public/ and is copied to the runner with
 # the rest of that directory.
 RUN pnpm --filter @next-wiki/web build:static-site-assets
+# Keep a self-contained migration entry point in the runtime image. Deployment
+# scripts invoke it directly, and start.mjs runs it before accepting traffic.
+RUN pnpm --filter @next-wiki/web exec esbuild scripts/migrate.mjs \
+    --bundle --platform=node --format=esm --outfile=/tmp/migrate.mjs
 # Mount Next.js build cache so incremental Docker builds reuse previous work.
 RUN --mount=type=cache,target=/app/apps/web/.next/cache,id=next-cache-${TARGETARCH} \
     pnpm --filter @next-wiki/web exec next build --webpack
@@ -62,27 +70,19 @@ RUN set -eux; \
     rm -f "${archive}" "${archive}.sha256"; \
     pagefind_extended --version
 
-RUN npm install -g pnpm@10.33.0
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
-COPY apps/web/package.json ./apps/web/
-COPY packages/shared/package.json ./packages/shared/
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-
-COPY --from=builder /app/apps/web/.next ./apps/web/.next
+# Next's standalone build contains only the production files and dependencies
+# traced from the server entry point. Copy static assets separately because
+# Next intentionally leaves them outside that bundle.
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/next.config.ts ./apps/web/next.config.ts
-COPY --from=builder /app/apps/web/postcss.config.mjs ./apps/web/postcss.config.mjs
-COPY --from=builder /app/apps/web/tailwind.config.ts ./apps/web/tailwind.config.ts
-COPY --from=builder /app/apps/web/tsconfig.json ./apps/web/tsconfig.json
-COPY --from=builder /app/apps/web/src ./apps/web/src
-COPY --from=builder /app/apps/web/app ./apps/web/app
-COPY --from=builder /app/packages/shared/src ./packages/shared/src
 COPY --from=builder /app/apps/web/src/server/db/migrations ./apps/web/src/server/db/migrations
-
-COPY --from=builder /app/apps/web/scripts ./apps/web/scripts
+COPY --from=builder /tmp/migrate.mjs ./apps/web/scripts/migrate.mjs
+# The background worker discovers reserved routes from the App Router's file
+# layout at startup. These small source files are runtime metadata, not a
+# replacement for the traced standalone server bundle.
+COPY --from=builder /app/apps/web/app ./apps/web/app
 COPY docker/start.mjs ./start.mjs
 
 ENV NODE_ENV=production
