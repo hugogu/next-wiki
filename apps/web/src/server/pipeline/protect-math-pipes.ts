@@ -18,7 +18,11 @@ import type { Root } from 'mdast';
 import { visit } from 'unist-util-visit';
 import { mapLinesOutsideFences } from './code-fence-utils';
 
-const MATH_PIPE_PLACEHOLDER = '';
+// U+E000, the first Private Use Area codepoint — no keyboard produces it and
+// no legitimate TeX needs it, so it's a safe stand-in for a `|` mid-parse.
+// Spelled via `fromCharCode` rather than a literal so the character stays
+// visible (and diffable) in source instead of an invisible byte.
+const MATH_PIPE_PLACEHOLDER = String.fromCharCode(0xe000);
 
 // `$$…$$` first so it isn't mistaken for two adjacent `$…$` spans; neither
 // alternative crosses a backtick code span (handled separately below) or a
@@ -38,6 +42,11 @@ function protectPipesOnLine(line: string): string {
 
 export function protectMathPipes(source: string): string {
   if (!source.includes('$') || !source.includes('|')) return source;
+  // The placeholder is a private-use codepoint no one types by hand, but if
+  // it's already present, `restoreMathPipes` can't tell "was a `|`" from
+  // "was already this character" — bail out rather than risk turning a
+  // user's own character into a `|` it never was.
+  if (source.includes(MATH_PIPE_PLACEHOLDER)) return source;
   return mapLinesOutsideFences(source, protectPipesOnLine);
 }
 
