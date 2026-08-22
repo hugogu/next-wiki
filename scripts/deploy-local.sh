@@ -154,5 +154,41 @@ curl -s -m 5 -o /dev/null -w '  /api/v1/stats          HTTP %{http_code}  %{time
   'http://127.0.0.1:3000/api/v1/stats'
 
 echo
+# ---- 13. Cleanup old next-wiki-web images (keep 5 most recent; remove older unused) ----
+# Safety: only deletes images that are NOT referenced by any container (running or
+# stopped), AND are older than the 5 most recent versions. Prevents the
+# 2026-08-22 disk-full failure mode by trimming old builds on every deploy.
+echo "==> [13/13] cleanup: keep 5 most recent hugogu/next-wiki-web:*; remove older unused"
+WEB_IMAGES=$(sudo -n docker image ls --format '{{.Repository}}:{{.Tag}}|{{.CreatedAt}}' 2>/dev/null \
+  | grep '^hugogu/next-wiki-web:' \
+  | grep -v ':<none>$' \
+  | sort -t'|' -k2,2 -r)
+TOTAL=0
+[ -n "$WEB_IMAGES" ] && TOTAL=$(echo "$WEB_IMAGES" | wc -l)
+KEEP=5
+REMOVED=0
+SKIPPED=0
+i=0
+while IFS='|' read -r IMG CREATED; do
+  [ -z "$IMG" ] && continue
+  i=$((i+1))
+  if [ "$i" -le "$KEEP" ]; then
+    echo "  keep [newer $i/$KEEP]: $IMG ($CREATED)"
+    continue
+  fi
+  if sudo -n docker ps -a --format '{{.Image}}' 2>/dev/null | grep -qFx "$IMG"; then
+    echo "  skip (in use by container): $IMG"
+    SKIPPED=$((SKIPPED+1))
+    continue
+  fi
+  if sudo -n docker image rm "$IMG" 2>/dev/null; then
+    echo "  removed: $IMG"
+    REMOVED=$((REMOVED+1))
+  else
+    echo "  WARN: failed to remove $IMG"
+  fi
+done <<< "$WEB_IMAGES"
+echo "  cleanup summary: total=$TOTAL, kept=$KEEP, removed=$REMOVED, skipped-in-use=$SKIPPED"
+
 echo "==> DEPLOY COMPLETE"
 git log --oneline -3
