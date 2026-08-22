@@ -2,6 +2,10 @@ import type { NextConfig } from 'next';
 import createNextIntlPlugin from 'next-intl/plugin';
 
 const nextConfig: NextConfig = {
+  // Docker copies Next's traced standalone output to the runtime image. This
+  // keeps development tooling and unreferenced workspace dependencies out of
+  // the production image while retaining every module the server needs.
+  output: 'standalone',
   typedRoutes: true,
   // The Feishu SDK owns a persistent WebSocket connection and loads `ws` via
   // CommonJS at runtime. Bundling it into a Next server chunk can corrupt the

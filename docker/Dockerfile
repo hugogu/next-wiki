@@ -62,30 +62,21 @@ RUN set -eux; \
     rm -f "${archive}" "${archive}.sha256"; \
     pagefind_extended --version
 
-RUN npm install -g pnpm@10.33.0
 WORKDIR /app
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json tsconfig.base.json ./
-COPY apps/web/package.json ./apps/web/
-COPY packages/shared/package.json ./packages/shared/
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
-COPY --from=deps /app/packages/shared/node_modules ./packages/shared/node_modules
-
-COPY --from=builder /app/apps/web/.next ./apps/web/.next
+# Next's standalone build contains only the production files and dependencies
+# traced from the server entry point. Copy static assets separately because
+# Next intentionally leaves them outside that bundle.
+COPY --from=builder /app/apps/web/.next/standalone ./
+COPY --from=builder /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder /app/apps/web/public ./apps/web/public
-COPY --from=builder /app/apps/web/next.config.ts ./apps/web/next.config.ts
-COPY --from=builder /app/apps/web/postcss.config.mjs ./apps/web/postcss.config.mjs
-COPY --from=builder /app/apps/web/tailwind.config.ts ./apps/web/tailwind.config.ts
-COPY --from=builder /app/apps/web/tsconfig.json ./apps/web/tsconfig.json
-COPY --from=builder /app/apps/web/src ./apps/web/src
-COPY --from=builder /app/apps/web/app ./apps/web/app
-COPY --from=builder /app/packages/shared/src ./packages/shared/src
 COPY --from=builder /app/apps/web/src/server/db/migrations ./apps/web/src/server/db/migrations
+# The background worker discovers reserved routes from the App Router's file
+# layout at startup. These small source files are runtime metadata, not a
+# replacement for the traced standalone server bundle.
+COPY --from=builder /app/apps/web/app ./apps/web/app
 
-COPY --from=builder /app/apps/web/scripts ./apps/web/scripts
-COPY docker/start.mjs ./start.mjs
-
+WORKDIR /app/apps/web
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 EXPOSE 3000
-CMD ["node", "start.mjs"]
+CMD ["node", "server.js"]
