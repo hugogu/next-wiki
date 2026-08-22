@@ -52,6 +52,16 @@ function runLength(text: string, start: number, char: string): number {
 }
 
 /**
+ * Length of the line ending at `index`, or 0 if there is not one there.
+ * CRLF counts as a single ending, so a CRLF blank line (`\r\n\r\n`) is still
+ * recognised as one rather than mistaken for ordinary content.
+ */
+function lineEndingLength(text: string, index: number): number {
+  if (text[index] === '\r') return text[index + 1] === '\n' ? 2 : 1;
+  return text[index] === '\n' ? 1 : 0;
+}
+
+/**
  * Index of the run of exactly `length` `char`s that closes a span opened at
  * `from`, or -1 if the span is never closed.
  *
@@ -65,10 +75,11 @@ function findClosingRun(text: string, from: number, char: string, length: number
   let index = from;
   while (index < text.length) {
     const current = text[index];
-    if (current === '\n') {
-      let next = index + 1;
+    const eol = lineEndingLength(text, index);
+    if (eol > 0) {
+      let next = index + eol;
       while (next < text.length && (text[next] === ' ' || text[next] === '\t')) next++;
-      if (next >= text.length || text[next] === '\n') return -1;
+      if (next >= text.length || lineEndingLength(text, next) > 0) return -1;
       index = next;
       continue;
     }
@@ -157,12 +168,16 @@ function restorePipesInHastChildren(children: unknown): void {
 
 /**
  * Node types whose value is verbatim source text. Markdown character references
- * are decoded only in text positions, never in these, so a placeholder found
- * here cannot have come from an author writing `&#xE000;` — it is one this
- * module inserted. `text` and `html` are deliberately absent for exactly that
- * reason.
+ * are decoded only in text positions, never in these — an `html` node still
+ * holds the literal `&#xE000;` at this stage, since rehype-raw does not parse it
+ * until later — so a placeholder found here cannot have come from an author
+ * writing an entity. It is one this module inserted.
+ *
+ * `text` is deliberately absent for exactly that reason. `html` must be present
+ * because the scanner sees `$…$` inside raw HTML (an attribute value, say) and
+ * protects it like any other math span.
  */
-const VERBATIM_NODE_TYPES = new Set(['math', 'inlineMath', 'code', 'inlineCode']);
+const VERBATIM_NODE_TYPES = new Set(['math', 'inlineMath', 'code', 'inlineCode', 'html']);
 
 /**
  * Turn this module's placeholders back into pipes.

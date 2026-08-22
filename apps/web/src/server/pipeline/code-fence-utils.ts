@@ -23,15 +23,22 @@ export function mapRegionsOutsideFences(source: string, transform: (region: stri
   };
 
   for (const line of source.split('\n')) {
+    // CRLF input leaves a trailing `\r` on every line, which would stop the
+    // `$`-anchored closing-fence pattern from ever matching — leaving the fence
+    // stuck open and silently skipping every transform for the rest of the
+    // document. Match against the line without it, but keep the original text
+    // so the source still round-trips byte for byte.
+    const content = line.endsWith('\r') ? line.slice(0, -1) : line;
+
     if (openFence) {
       out.push(line);
       // A closing fence is the same marker character, at least as long.
-      if (new RegExp(`^[ \\t]*${openFence[0]}{${openFence.length},}[ \\t]*$`).test(line)) {
+      if (new RegExp(`^[ \\t]*${openFence[0]}{${openFence.length},}[ \\t]*$`).test(content)) {
         openFence = null;
       }
       continue;
     }
-    const fence = CODE_FENCE.exec(line);
+    const fence = CODE_FENCE.exec(content);
     if (fence) {
       flush();
       out.push(line);

@@ -149,6 +149,36 @@ describe('renderMarkdown pipe-protection regressions', () => {
     });
   });
 
+  it('restores pipes inside raw HTML, which the scanner also protects', () => {
+    // The scanner sees `$…$` in an attribute value and protects it like any
+    // other math span, so `html` nodes have to be restored as well — their
+    // value is still verbatim source at this stage, entities and all.
+    const { html } = renderMarkdown('<span title="$|x|$">example</span>');
+    expect(html).not.toContain(PLACEHOLDER);
+    expect(html).toContain('title="$|x|$"');
+  });
+
+  describe('CRLF line endings', () => {
+    it('does not get stuck inside a fence, so later content is still fixed', () => {
+      // A trailing `\r` used to stop the closing fence from matching, which
+      // silently disabled every transform for the rest of the document.
+      const source =
+        '```\r\ncode\r\n```\r\n\r\n| a | b |\r\n| --- | --- |\r\n| $|x|$ | y |';
+      const { html } = renderMarkdown(source);
+
+      expect(html).not.toContain(PLACEHOLDER);
+      expect(html).toContain('<table');
+      expect(texOf(html)).toContain('|x|');
+    });
+
+    it('recognises a CRLF blank line as ending the block', () => {
+      // `\r\n\r\n` must terminate the search for a closing `$`, or the scanner
+      // protects across a paragraph break the parser honours.
+      const { html } = renderMarkdown('$foo\r\n\r\n|x| bar$');
+      expect(html).not.toContain(PLACEHOLDER);
+    });
+  });
+
   it('still renders the reported rect(x) table formula', () => {
     const source =
       '| Symbol | Definition |\n' +
