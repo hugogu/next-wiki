@@ -25,6 +25,16 @@ describe('protectMathPipes', () => {
     expect(row).toContain(PLACEHOLDER);
   });
 
+  it('leaves a double-backtick code span untouched, even one that looks like math with pipes', () => {
+    // A single-backtick-only guard would treat the leading/trailing `` `` ``
+    // pairs as two empty code spans and "protect" the `$|x|$` in between —
+    // but this is one code span end to end, never math, so it must survive
+    // byte-for-byte (no leaked placeholder for `restoreMathPipes` to miss,
+    // since it never visits `inlineCode` nodes).
+    const source = 'text ``$|x|$`` more';
+    expect(protectMathPipes(source)).toBe(source);
+  });
+
   it('bails out entirely if the source already contains the placeholder codepoint', () => {
     // A user's TeX could legitimately contain a private-use codepoint (e.g.
     // a custom symbol font). If it collides with our placeholder,

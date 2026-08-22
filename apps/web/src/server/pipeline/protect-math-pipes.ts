@@ -30,14 +30,28 @@ const MATH_PIPE_PLACEHOLDER = String.fromCharCode(0xe000);
 // this matters).
 const MATH_SPAN = /\$\$[^$]*?\$\$|\$[^$]*?\$/g;
 
+// A CommonMark code span opens with a run of N backticks and closes at the
+// next run of exactly N backticks (`` `` `` `` a `` `` `` `` fences off " ` a ` "
+// as literal text, not a nested span) — a fixed single-backtick pattern
+// mismatches any multi-backtick span. `\1` enforces the matching run length;
+// `(?!`)` rejects a "close" that's really a prefix of a longer run.
+const CODE_SPAN = /(`+)[\s\S]*?\1(?!`)/g;
+
+function protectMathInSegment(segment: string): string {
+  return segment.replace(MATH_SPAN, (span) => span.replaceAll('|', MATH_PIPE_PLACEHOLDER));
+}
+
 function protectPipesOnLine(line: string): string {
-  return line
-    .split(/(`[^`]*`)/)
-    .map((segment, index) =>
-      // Odd indices are the captured backtick spans: verbatim code, never math.
-      index % 2 === 1 ? segment : segment.replace(MATH_SPAN, (span) => span.replaceAll('|', MATH_PIPE_PLACEHOLDER)),
-    )
-    .join('');
+  let result = '';
+  let lastIndex = 0;
+  for (const match of line.matchAll(CODE_SPAN)) {
+    const start = match.index;
+    result += protectMathInSegment(line.slice(lastIndex, start));
+    result += match[0]; // code span: verbatim, never math
+    lastIndex = start + match[0].length;
+  }
+  result += protectMathInSegment(line.slice(lastIndex));
+  return result;
 }
 
 export function protectMathPipes(source: string): string {
