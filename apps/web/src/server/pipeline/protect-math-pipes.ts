@@ -53,11 +53,11 @@ const MATH_PIPE_PLACEHOLDER = String.fromCharCode(0xe000);
 const TABLE_DELIMITER_ROW = /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
 
 /**
- * Indentation and blockquote markers that a container block repeats on every
- * line it encloses. A table nested in one is still a table, but its rows only
- * look like rows once this is set aside.
+ * A bullet or ordered list marker. It appears only on an item's opening line —
+ * continuation lines are indented instead — so a table that starts a list item
+ * has `- >` on its first row and `  >` on the rest.
  */
-const CONTAINER_PREFIX = /^[ \t]*(?:>[ \t]?)*/;
+const LIST_MARKER = /^(?:[-*+]|\d{1,9}[.)])[ \t]+/;
 
 const stripCarriageReturn = (line: string) => (line.endsWith('\r') ? line.slice(0, -1) : line);
 
@@ -65,14 +65,34 @@ const isBlank = (line: string) => line.trim() === '';
 
 type LineParts = { prefix: string; content: string; depth: number };
 
+/**
+ * Split off the prefix that container blocks repeat on every line they enclose,
+ * so a nested table's rows look like rows again. CommonMark has exactly two
+ * container blocks — block quotes and list items — so consuming indentation,
+ * `>` markers and list markers covers all of them; everything else is a leaf
+ * block that cannot wrap a table.
+ */
 function splitContainerPrefix(line: string): LineParts {
-  const prefix = CONTAINER_PREFIX.exec(line)?.[0] ?? '';
-  return {
-    prefix,
-    content: line.slice(prefix.length),
-    // Rows only belong to the same table if they sit at the same quote depth.
-    depth: (prefix.match(/>/g) ?? []).length,
-  };
+  let index = 0;
+  // Rows only belong to the same table if they sit at the same quote depth.
+  let depth = 0;
+
+  for (;;) {
+    while (index < line.length && (line[index] === ' ' || line[index] === '\t')) index++;
+
+    if (line[index] === '>') {
+      index += 1;
+      depth += 1;
+      if (line[index] === ' ' || line[index] === '\t') index += 1;
+      continue;
+    }
+
+    const marker = LIST_MARKER.exec(line.slice(index));
+    if (!marker) break;
+    index += marker[0].length;
+  }
+
+  return { prefix: line.slice(0, index), content: line.slice(index), depth };
 }
 
 /** Length of the run of `char` starting at `start`. */

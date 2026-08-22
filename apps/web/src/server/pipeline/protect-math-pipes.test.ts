@@ -210,27 +210,35 @@ describe('renderMarkdown pipe-protection regressions', () => {
     expect(html).toContain('title="$|x|$"');
   });
 
-  it('fixes a table nested in a blockquote', () => {
-    // Container blocks prefix every line, so the delimiter row only looks like
-    // one after the `> ` is set aside.
-    const { html } = renderMarkdown(
-      '> | Symbol | Definition |\n> | --- | --- |\n> | rect(x) | $|x|$ |',
-    );
+  // CommonMark has exactly two container blocks — block quotes and list items
+  // — so this enumerates the ways a table can be nested, rather than waiting to
+  // discover them one at a time. Each cell holds `$|x|$`.
+  const containerCases: Record<string, string> = {
+    'blockquote': '> | a |\n> | --- |\n> | $|x|$ |',
+    'blockquote, no space after >': '>| a |\n>| --- |\n>| $|x|$ |',
+    'nested blockquote': '> > | a |\n> > | --- |\n> > | $|x|$ |',
+    'list, table indented under the item': '- item\n\n  | a |\n  | --- |\n  | $|x|$ |',
+    'list, table as the first child': '- | a |\n  | --- |\n  | $|x|$ |',
+    'list item opening with a blockquote': '- > | a |\n  > | --- |\n  > | $|x|$ |',
+    'ordered list item opening with a blockquote': '1. > | a |\n   > | --- |\n   > | $|x|$ |',
+    'blockquote containing a list': '> - | a |\n>   | --- |\n>   | $|x|$ |',
+    'nested list': '- outer\n  - | a |\n    | --- |\n    | $|x|$ |',
+    'table without leading pipes': 'a | b\n--- | ---\nc | $|x|$',
+    'blockquoted header holding the math': '> | $a|b$ | c |\n> | --- | --- |\n> | x | y |',
+  };
 
+  for (const [name, source] of Object.entries(containerCases)) {
+    it(`fixes a table nested in a container: ${name}`, () => {
+      const { html } = renderMarkdown(source);
+      expect(html).not.toContain(PLACEHOLDER);
+      expect(html).toContain('<table');
+      expect(texOf(html)).toContain('|');
+    });
+  }
+
+  it('fixes the reported blockquote-in-a-list case end to end', () => {
+    const { html } = renderMarkdown('- > | a |\n  > | --- |\n  > | $|x|$ |');
     expect(html).toContain('<blockquote');
-    expect(html).not.toContain(PLACEHOLDER);
-    expect(texOf(html)).toBe('|x|');
-  });
-
-  it('fixes a table nested two blockquotes deep', () => {
-    const { html } = renderMarkdown('> > | a |\n> > | --- |\n> > | $|x|$ |');
-    expect(html).not.toContain(PLACEHOLDER);
-    expect(texOf(html)).toBe('|x|');
-  });
-
-  it('fixes a table indented inside a list item', () => {
-    const { html } = renderMarkdown('- item\n\n  | a |\n  | --- |\n  | $|x|$ |');
-    expect(html).not.toContain(PLACEHOLDER);
     expect(texOf(html)).toBe('|x|');
   });
 
