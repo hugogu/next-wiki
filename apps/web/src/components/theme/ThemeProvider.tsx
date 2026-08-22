@@ -61,6 +61,7 @@ export function ThemeProvider({
   }, [mode]);
 
   useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const listener = () => {
       if (mode === 'auto') {
