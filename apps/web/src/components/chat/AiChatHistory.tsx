@@ -9,10 +9,23 @@ import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { PlusIcon, SparklesIcon, TrashIcon } from '@/components/icons';
 import { useChatStore } from './chat-store';
 import { loadConversationFromKey } from './load-conversation';
+import {
+  deleteAnonymousChatSession,
+  getAnonymousChatHistoryStatus,
+  listAnonymousChatSessions,
+  probeAnonymousChatHistory,
+  subscribeAnonymousChatHistoryStatus,
+  type AnonymousChatHistoryStatus,
+  type AnonymousChatSession,
+} from './anonymous-chat-history';
 
 const PAGE_SIZE = 50;
 
-export function AiChatHistory() {
+export function AiChatHistory({ anonymous = false }: { anonymous?: boolean }) {
+  return anonymous ? <AnonymousAiChatHistory /> : <AccountAiChatHistory />;
+}
+
+function AccountAiChatHistory() {
   const { t } = useTranslation();
   const newSession = useChatStore((state) => state.newSession);
 
@@ -142,6 +155,127 @@ export function AiChatHistory() {
           onCancel={() => {
             if (!deleting) setDeleteKey(null);
           }}
+        />
+      )}
+    </div>
+  );
+}
+
+function AnonymousAiChatHistory() {
+  const { t } = useTranslation();
+  const newSession = useChatStore((state) => state.newSession);
+  const restoreSession = useChatStore((state) => state.restoreSession);
+  const [items, setItems] = useState<AnonymousChatSession[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [storageStatus, setStorageStatus] = useState<AnonymousChatHistoryStatus>(
+    getAnonymousChatHistoryStatus,
+  );
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const refresh = async () => {
+      const [nextStatus, sessions] = await Promise.all([
+        probeAnonymousChatHistory(),
+        listAnonymousChatSessions(),
+      ]);
+      if (cancelled) return;
+      setStorageStatus(nextStatus);
+      setItems(sessions);
+      setLoading(false);
+    };
+    const unsubscribe = subscribeAnonymousChatHistoryStatus(setStorageStatus);
+    void refresh();
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
+  }, []);
+
+  const handleContinue = (session: AnonymousChatSession) => {
+    restoreSession({
+      sessionId: session.sessionId,
+      mode: session.mode,
+      messages: session.messages,
+      latestQueuedAt: session.latestQueuedAt,
+    });
+  };
+
+  const handleDelete = async () => {
+    if (!deleteId) return;
+    await deleteAnonymousChatSession(deleteId);
+    setItems((previous) => previous.filter((item) => item.sessionId !== deleteId));
+    setDeleteId(null);
+  };
+
+  return (
+    <div className="space-y-sm">
+      <div className="flex items-center justify-between px-md py-sm">
+        <h2 className="font-display text-sm font-semibold">{t('ai.chat.history.title')}</h2>
+        <Button
+          type="button"
+          size="icon"
+          variant="ghost"
+          onClick={() => newSession()}
+          aria-label={t('ai.chat.history.newSession')}
+          title={t('ai.chat.history.newSession')}
+        >
+          <PlusIcon className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {storageStatus === 'unavailable' && (
+        <p className="px-md text-sm text-warning">{t('ai.chat.history.localUnavailable')}</p>
+      )}
+      {storageStatus !== 'unavailable' && (
+        <p className="px-md text-xs text-muted">{t('ai.chat.history.localOnly')}</p>
+      )}
+      {loading && <p className="px-md text-sm text-muted">{t('common.status.loading')}</p>}
+      {!loading && items.length === 0 && (
+        <p className="px-md text-sm text-muted">{t('ai.chat.history.empty')}</p>
+      )}
+
+      {items.length > 0 && (
+        <ul className="space-y-1">
+          {items.map((session) => {
+            const firstQuestion = session.messages.find((message) => message.role === 'user')?.text;
+            return (
+              <li
+                key={session.sessionId}
+                className="group flex items-center gap-1 rounded-md transition-colors hover:bg-surface-elevated"
+              >
+                <button
+                  type="button"
+                  onClick={() => handleContinue(session)}
+                  className="min-w-0 flex-1 rounded-md px-md py-2 text-left text-sm transition-colors focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <span className="block truncate font-medium">
+                    {firstQuestion ?? t('ai.chat.history.contentExpired')}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleteId(session.sessionId)}
+                  aria-label={t('ai.chat.history.delete')}
+                  title={t('ai.chat.history.delete')}
+                  className="shrink-0 rounded-md px-sm text-muted transition-colors hover:text-danger focus:outline-none focus:ring-2 focus:ring-primary/50"
+                >
+                  <TrashIcon className="h-4 w-4" />
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {deleteId && (
+        <ConfirmDialog
+          title={t('ai.chat.history.deleteConfirmTitle')}
+          message={t('ai.chat.history.deleteConfirmMessage')}
+          confirmLabel={t('ai.chat.history.delete')}
+          confirmVariant="danger"
+          onConfirm={() => void handleDelete()}
+          onCancel={() => setDeleteId(null)}
         />
       )}
     </div>

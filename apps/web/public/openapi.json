@@ -6190,10 +6190,16 @@
         "properties": {
           "userId": {
             "type": "string"
+          },
+          "migratedActionCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Anonymous Wiki AI actions claimed by this registration."
           }
         },
         "required": [
-          "userId"
+          "userId",
+          "migratedActionCount"
         ],
         "description": "Registration response"
       },
@@ -6202,10 +6208,16 @@
         "properties": {
           "userId": {
             "type": "string"
+          },
+          "migratedActionCount": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Anonymous Wiki AI actions claimed by this registration."
           }
         },
         "required": [
-          "userId"
+          "userId",
+          "migratedActionCount"
         ],
         "description": "Registration response"
       },

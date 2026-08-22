@@ -152,6 +152,7 @@ export function AppShell({
               pageContext={resolvedPageContext}
               maximized={aiMaximized}
               onMaximizedChange={setAiMaximized}
+              anonymous={user.kind === 'anonymous'}
             />
           ) : (
             <main className="min-h-0 min-w-0 flex-1 relative flex flex-col">
@@ -187,6 +188,7 @@ export function AppShell({
               pageContext={resolvedPageContext}
               maximized={aiMaximized}
               onMaximizedChange={setAiMaximized}
+              anonymous={user.kind === 'anonymous'}
             />
           )}
         </div>

@@ -9,12 +9,17 @@ import { useTranslation } from '@/i18n/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Alert } from '@/components/ui/Alert';
+import { clearAnonymousChatHistory } from '@/components/chat/anonymous-chat-history';
 
 export function RegisterForm() {
   const { t } = useTranslation();
   const [serverError, setServerError] = useState<string | null>(null);
-  const register = useApiMutation<RegisterInput, { userId: string }>('/api/auth/register', {
-    onSuccess: () => {
+  const register = useApiMutation<RegisterInput, { userId: string; migratedActionCount: number }>('/api/auth/register', {
+    onSuccess: async () => {
+      // The server already claimed this browser's anonymous actions. Remove
+      // only the local display cache so another account on this device cannot
+      // reopen the pre-registration transcript.
+      await clearAnonymousChatHistory();
       window.location.href = '/';
     },
     onError: (err: ApiError) => {

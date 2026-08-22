@@ -10,6 +10,37 @@ import type {
 } from '@next-wiki/shared';
 import { uuid } from '@/lib/uuid';
 
+const sessionFallback = new Map<string, string>();
+
+// Storage access itself can throw in a privacy-restricted browser. The active
+// chat remains usable in memory; durable anonymous history is handled by the
+// IndexedDB-backed anonymous-chat-history module.
+const safeSessionStorage = {
+  getItem: (key: string) => {
+    try {
+      return sessionStorage.getItem(key);
+    } catch {
+      return sessionFallback.get(key) ?? null;
+    }
+  },
+  setItem: (key: string, value: string) => {
+    sessionFallback.set(key, value);
+    try {
+      sessionStorage.setItem(key, value);
+    } catch {
+      // The in-memory fallback above keeps this page's active conversation.
+    }
+  },
+  removeItem: (key: string) => {
+    sessionFallback.delete(key);
+    try {
+      sessionStorage.removeItem(key);
+    } catch {
+      // Nothing else to clean up when browser storage is disabled.
+    }
+  },
+};
+
 export function createChatSessionId(): string {
   return uuid();
 }
@@ -193,7 +224,7 @@ export const useChatStore = create<ChatState>()(
     }),
     {
       name: 'ai-chat',
-      storage: createJSONStorage(() => sessionStorage),
+      storage: createJSONStorage(() => safeSessionStorage),
       skipHydration: true,
       partialize: (state) => ({ sessionId: state.sessionId, mode: state.mode, messages: state.messages, open: state.open, latestQueuedAt: state.latestQueuedAt }),
     },

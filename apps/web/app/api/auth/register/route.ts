@@ -23,9 +23,13 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { userId } = await authService.register(parsed.data);
+    // Read the anonymous capability before the session cookie is created.
+    // Registration claims matching server-side actions transactionally; the
+    // client only clears its IndexedDB copy after this response succeeds.
+    const anonymousAiToken = await authService.getAnonymousAiAccessToken();
+    const { userId, migratedActionCount } = await authService.register(parsed.data, anonymousAiToken);
     await authService.establishSession(userId);
-    return NextResponse.json({ userId }, { status: 201 });
+    return NextResponse.json({ userId, migratedActionCount }, { status: 201 });
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);
     return internalError();

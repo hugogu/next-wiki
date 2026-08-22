@@ -25,6 +25,13 @@ import { ChatCitations } from './ChatCitations';
 import { ChatRetrieval } from './ChatRetrieval';
 import { ChatThinking } from './ChatThinking';
 import { ToolCallTimeline } from './ToolCallTimeline';
+import {
+  getAnonymousChatHistoryStatus,
+  probeAnonymousChatHistory,
+  saveAnonymousChatSession,
+  subscribeAnonymousChatHistoryStatus,
+  type AnonymousChatHistoryStatus,
+} from './anonymous-chat-history';
 
 export { buildMessagesFromDetail } from './load-conversation';
 
@@ -32,6 +39,22 @@ const AI_CHAT_WIDTH_STORAGE_KEY = 'next-wiki:ai-chat-width';
 const AI_CHAT_DEFAULT_WIDTH = 384;
 const AI_CHAT_MIN_WIDTH = 320;
 const AI_CHAT_MAX_WIDTH = 720;
+
+function readChatScrollTop(key: string): number {
+  try {
+    return Number(sessionStorage.getItem(key) ?? 0);
+  } catch {
+    return 0;
+  }
+}
+
+function saveChatScrollTop(key: string, value: number): void {
+  try {
+    sessionStorage.setItem(key, String(value));
+  } catch {
+    // Scroll restoration is optional when privacy settings disable storage.
+  }
+}
 
 export function aiChatPaneClassName(maximized: boolean): string {
   const position = maximized
@@ -45,14 +68,19 @@ export function AiChatPane({
   pageContext,
   maximized: maximizedProp,
   onMaximizedChange,
+  anonymous = false,
 }: {
   entitlements: AiEntitlementView;
   pageContext?: PageContext;
   maximized?: boolean;
   onMaximizedChange?: (maximized: boolean) => void;
+  anonymous?: boolean;
 }) {
   const { t, locale } = useTranslation();
   const [rehydrated, setRehydrated] = useState(false);
+  const [anonymousHistoryStatus, setAnonymousHistoryStatus] = useState<AnonymousChatHistoryStatus>(
+    getAnonymousChatHistoryStatus,
+  );
   const [question, setQuestion] = useState('');
   const [internalMaximized, setInternalMaximized] = useState(false);
   const maximized = maximizedProp ?? internalMaximized;
@@ -93,7 +121,7 @@ export function AiChatPane({
     if (hasLoadedRef.current) return;
     const list = scrollRef.current;
     if (!list || chat.messages.length === 0) return;
-    const saved = Number(sessionStorage.getItem(SCROLL_STORAGE_KEY) ?? 0);
+    const saved = readChatScrollTop(SCROLL_STORAGE_KEY);
     if (saved > 0) {
       // Defer one frame so the browser has laid out the restored messages.
       requestAnimationFrame(() => {
@@ -117,7 +145,7 @@ export function AiChatPane({
     if (!list || !hasLoadedRef.current) return;
     if (chat.messages.length > prevCountRef.current) {
       list.scrollTop = list.scrollHeight;
-      sessionStorage.setItem(SCROLL_STORAGE_KEY, String(list.scrollHeight));
+      saveChatScrollTop(SCROLL_STORAGE_KEY, list.scrollHeight);
     }
     prevCountRef.current = chat.messages.length;
   }, [chat.messages.length]);
@@ -130,7 +158,7 @@ export function AiChatPane({
     const list = scrollRef.current;
     if (!list) return;
     requestAnimationFrame(() => {
-      sessionStorage.setItem(SCROLL_STORAGE_KEY, String(list.scrollTop));
+      saveChatScrollTop(SCROLL_STORAGE_KEY, list.scrollTop);
     });
   };
 
@@ -183,6 +211,26 @@ export function AiChatPane({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!anonymous) return;
+    const unsubscribe = subscribeAnonymousChatHistoryStatus(setAnonymousHistoryStatus);
+    void probeAnonymousChatHistory().then(setAnonymousHistoryStatus);
+    return unsubscribe;
+  }, [anonymous]);
+
+  // The active pane is still kept in sessionStorage for a fast same-tab
+  // restore. Anonymous history is additionally snapshotted in IndexedDB so
+  // completed sessions can be listed and reopened across browser sessions.
+  useEffect(() => {
+    if (!anonymous || !rehydrated || chat.messages.length === 0) return;
+    void saveAnonymousChatSession({
+      sessionId: chat.sessionId,
+      mode: chat.mode,
+      messages: chat.messages,
+      latestQueuedAt: chat.latestQueuedAt,
+    });
+  }, [anonymous, chat.latestQueuedAt, chat.messages, chat.mode, chat.sessionId, rehydrated]);
 
   const formatDate = (value: string) => new Date(value).toLocaleString(locale);
 
@@ -275,6 +323,13 @@ export function AiChatPane({
             >
               {formatDate(chat.latestQueuedAt)}
             </time>
+          )}
+          {anonymous && (
+            <p className="mt-0.5 text-xs text-muted">
+              {anonymousHistoryStatus === 'unavailable'
+                ? t('ai.chat.history.localUnavailable')
+                : t('ai.chat.history.localOnly')}
+            </p>
           )}
         </div>
         <div className="flex items-center gap-xs">
