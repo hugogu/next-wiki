@@ -1,30 +1,46 @@
-/** Matches a fenced code block's opening line (\`\`\` or ~~~), capturing the fence marker. */
+/** Matches a fenced code block's opening line (``` or ~~~), capturing the fence marker. */
 export const CODE_FENCE = /^([ \t]*)(`{3,}|~{3,})/;
 
 /**
- * Run `transform` over every line of `source` that sits outside a fenced code
- * block, leaving fenced lines (including the fence markers themselves)
- * untouched. Shared by preprocessing steps that rewrite inline Markdown/TeX
- * syntax before it reaches remark, so they never mangle a literal example
- * inside a code fence.
+ * Run `transform` over each contiguous region of `source` that sits outside a
+ * fenced code block, leaving fenced lines (including the fence markers
+ * themselves) untouched.
+ *
+ * Regions are passed whole rather than line by line: the inline constructs
+ * these preprocessing steps care about — code spans, math spans, multi-line
+ * `$$…$$` blocks — can all span several lines, and a per-line view would
+ * mis-parse them.
  */
-export function mapLinesOutsideFences(source: string, transform: (line: string) => string): string {
+export function mapRegionsOutsideFences(source: string, transform: (region: string) => string): string {
+  const out: string[] = [];
+  let buffer: string[] = [];
   let openFence: string | null = null;
-  return source
-    .split('\n')
-    .map((line) => {
-      if (openFence) {
-        if (new RegExp(`^[ \\t]*${openFence[0]}{${openFence.length},}[ \\t]*$`).test(line)) {
-          openFence = null;
-        }
-        return line;
+
+  const flush = () => {
+    if (buffer.length === 0) return;
+    out.push(transform(buffer.join('\n')));
+    buffer = [];
+  };
+
+  for (const line of source.split('\n')) {
+    if (openFence) {
+      out.push(line);
+      // A closing fence is the same marker character, at least as long.
+      if (new RegExp(`^[ \\t]*${openFence[0]}{${openFence.length},}[ \\t]*$`).test(line)) {
+        openFence = null;
       }
-      const fence = CODE_FENCE.exec(line);
-      if (fence) {
-        openFence = fence[2]!;
-        return line;
-      }
-      return transform(line);
-    })
-    .join('\n');
+      continue;
+    }
+    const fence = CODE_FENCE.exec(line);
+    if (fence) {
+      flush();
+      out.push(line);
+      openFence = fence[2]!;
+      continue;
+    }
+    buffer.push(line);
+  }
+  flush();
+
+  return out.join('\n');
 }

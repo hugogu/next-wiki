@@ -18,7 +18,7 @@
  * math) and anything inside fenced code blocks are left untouched.
  */
 
-import { CODE_FENCE } from './code-fence-utils';
+import { mapRegionsOutsideFences } from './code-fence-utils';
 
 /** Move the delimiters of every multi-line `$$…$$` block onto their own lines. */
 function rewriteBlocks(text: string): string {
@@ -48,37 +48,5 @@ function rewriteBlocks(text: string): string {
 
 export function normalizeDisplayMath(source: string): string {
   if (!source.includes('$$')) return source;
-
-  const lines = source.split('\n');
-  const out: string[] = [];
-  let buffer: string[] = [];
-  let openFence: string | null = null;
-
-  const flush = () => {
-    if (buffer.length === 0) return;
-    out.push(rewriteBlocks(buffer.join('\n')));
-    buffer = [];
-  };
-
-  for (const line of lines) {
-    if (openFence) {
-      out.push(line);
-      // A closing fence is the same marker character, at least as long.
-      if (new RegExp(`^[ \\t]*${openFence[0]}{${openFence.length},}[ \\t]*$`).test(line)) {
-        openFence = null;
-      }
-      continue;
-    }
-    const fence = CODE_FENCE.exec(line);
-    if (fence) {
-      flush();
-      out.push(line);
-      openFence = fence[2]!;
-      continue;
-    }
-    buffer.push(line);
-  }
-  flush();
-
-  return out.join('\n');
+  return mapRegionsOutsideFences(source, rewriteBlocks);
 }
