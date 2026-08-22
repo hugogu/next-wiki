@@ -43,7 +43,7 @@ vi.mock('./reconstruct-session', () => ({
   recoverSessionFromServer: vi.fn(),
 }));
 
-import { AiChatPane, aiChatPaneClassName } from './AiChatPane';
+import { AiChatPane, aiChatPaneClassName, shouldPersistAnonymousChatSnapshot } from './AiChatPane';
 import { buildMessagesFromDetail } from './load-conversation';
 
 const entitlements = {
@@ -120,6 +120,23 @@ describe('AiChatPane viewport modes', () => {
     expect(html).toContain('ai.chat.retrievedPages');
     expect(html).toContain('Payments');
     expect(html).toContain('ai.chat.streaming');
+  });
+});
+
+describe('anonymous chat persistence', () => {
+  it('does not persist each streamed message delta', () => {
+    expect(shouldPersistAnonymousChatSnapshot({
+      anonymous: true,
+      rehydrated: true,
+      running: true,
+      messageCount: 2,
+    })).toBe(false);
+    expect(shouldPersistAnonymousChatSnapshot({
+      anonymous: true,
+      rehydrated: true,
+      running: false,
+      messageCount: 2,
+    })).toBe(true);
   });
 });
 

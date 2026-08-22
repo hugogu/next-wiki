@@ -39,6 +39,7 @@ const AI_CHAT_WIDTH_STORAGE_KEY = 'next-wiki:ai-chat-width';
 const AI_CHAT_DEFAULT_WIDTH = 384;
 const AI_CHAT_MIN_WIDTH = 320;
 const AI_CHAT_MAX_WIDTH = 720;
+const ANONYMOUS_HISTORY_SAVE_DELAY_MS = 500;
 
 function readChatScrollTop(key: string): number {
   try {
@@ -61,6 +62,15 @@ export function aiChatPaneClassName(maximized: boolean): string {
     ? 'relative h-full w-full flex-1 max-w-none'
     : 'relative h-full w-[var(--ai-chat-width)] max-w-full shrink-0 border-l border-border';
   return `${position} flex min-h-0 flex-col overflow-hidden bg-surface`;
+}
+
+export function shouldPersistAnonymousChatSnapshot(input: {
+  anonymous: boolean;
+  rehydrated: boolean;
+  running: boolean;
+  messageCount: number;
+}): boolean {
+  return input.anonymous && input.rehydrated && !input.running && input.messageCount > 0;
 }
 
 export function AiChatPane({
@@ -113,6 +123,12 @@ export function AiChatPane({
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasLoadedRef = useRef(false);
   const prevCountRef = useRef(0);
+  const anonymousSnapshotRef = useRef<{
+    sessionId: string;
+    mode: typeof chat.mode;
+    messages: typeof chat.messages;
+    latestQueuedAt: typeof chat.latestQueuedAt;
+  } | null>(null);
 
   // Restore the saved scrollTop once per mount, after the first messages
   // have rendered (the pane rehydrates asynchronously, so waiting for the
@@ -220,17 +236,34 @@ export function AiChatPane({
   }, [anonymous]);
 
   // The active pane is still kept in sessionStorage for a fast same-tab
-  // restore. Anonymous history is additionally snapshotted in IndexedDB so
-  // completed sessions can be listed and reopened across browser sessions.
+  // restore. Anonymous history is additionally snapshotted in IndexedDB after
+  // a turn settles, never once per streamed delta. The latest snapshot remains
+  // in a ref so a navigation during streaming still gets a best-effort save.
   useEffect(() => {
     if (!anonymous || !rehydrated || chat.messages.length === 0) return;
-    void saveAnonymousChatSession({
+    const snapshot = {
       sessionId: chat.sessionId,
       mode: chat.mode,
       messages: chat.messages,
       latestQueuedAt: chat.latestQueuedAt,
-    });
-  }, [anonymous, chat.latestQueuedAt, chat.messages, chat.mode, chat.sessionId, rehydrated]);
+    };
+    anonymousSnapshotRef.current = snapshot;
+    if (!shouldPersistAnonymousChatSnapshot({
+      anonymous,
+      rehydrated,
+      running: chat.running,
+      messageCount: chat.messages.length,
+    })) return;
+    const timeoutId = window.setTimeout(() => {
+      void saveAnonymousChatSession(snapshot);
+    }, ANONYMOUS_HISTORY_SAVE_DELAY_MS);
+    return () => window.clearTimeout(timeoutId);
+  }, [anonymous, chat.latestQueuedAt, chat.messages, chat.mode, chat.running, chat.sessionId, rehydrated]);
+
+  useEffect(() => () => {
+    const snapshot = anonymousSnapshotRef.current;
+    if (snapshot) void saveAnonymousChatSession(snapshot);
+  }, []);
 
   const formatDate = (value: string) => new Date(value).toLocaleString(locale);
 
