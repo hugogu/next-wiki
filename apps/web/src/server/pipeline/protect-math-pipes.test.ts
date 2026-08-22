@@ -110,6 +110,45 @@ describe('renderMarkdown pipe-protection regressions', () => {
     expect(html).toContain('<td>x</td>');
   });
 
+  // A placeholder the *author* put in the document must survive untouched.
+  // These are the two ways one can get there, and neither may be rewritten.
+  describe('never rewrites an authored placeholder', () => {
+    // Character references are decoded after `protectMathPipes` has scanned the
+    // source, so the guard cannot see them — restoration has to stay out of the
+    // text positions where they land.
+    const entityForms: Record<string, string> = {
+      hex: '&#xE000;',
+      decimal: '&#57344;',
+      'uppercase X': '&#XE000;',
+      'leading zeros': '&#x0E000;',
+    };
+
+    for (const [name, entity] of Object.entries(entityForms)) {
+      it(`preserves an authored character reference (${name}) while still fixing math`, () => {
+        const { html } = renderMarkdown(`| a | b |\n| --- | --- |\n| $|x|$ | ${entity} |`);
+
+        expect(html).toContain(PLACEHOLDER); // the author's character, intact
+        expect(html).not.toContain('katex-error');
+        expect(texOf(html)).toContain('|x|'); // and the table fix still applied
+      });
+    }
+
+    it('leaves a literal authored placeholder alone by declining to protect', () => {
+      // Protection bails out here, so restoration must be skipped too —
+      // otherwise it rewrites the author's character into a `|` it never was.
+      const { html } = renderMarkdown(`authored ${PLACEHOLDER} char and $|x|$`);
+      expect(html).toContain(`authored ${PLACEHOLDER} char`);
+    });
+
+    it('leaves a literal authored placeholder inside math alone', () => {
+      const { html } = renderMarkdown(`$a ${PLACEHOLDER} b$`);
+      // KaTeX rejects the character as invalid TeX, which is the author's
+      // problem — ours is only that we must not silently turn it into a pipe.
+      expect(html).toContain(PLACEHOLDER);
+      expect(html).not.toContain('a | b');
+    });
+  });
+
   it('still renders the reported rect(x) table formula', () => {
     const source =
       '| Symbol | Definition |\n' +

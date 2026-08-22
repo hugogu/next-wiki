@@ -14,22 +14,23 @@
  * ## Why this is safe
  *
  * Rewriting Markdown source by hand always risks disagreeing with the real
- * parser, and any disagreement would strand a placeholder in the output. Three
- * properties keep that from happening:
+ * parser, so restoration must never rewrite a character the author actually
+ * typed. Two properties bound it:
  *
- * 1. `protectMathPipes` bails out entirely if the source already contains the
- *    placeholder, so **every** placeholder downstream is one this module
- *    created from a `|`.
- * 2. Restoration is therefore unconditional and exhaustive — it does not try to
- *    re-identify "which placeholders were math", it just turns all of them back
- *    into `|` wherever they appear.
- * 3. Because the only rewrite performed is `|` → placeholder, the *sole*
- *    parse-level consequence is "this pipe does not split a table cell".
- *    A mis-identified span therefore degrades to a table that splits where it
- *    otherwise would not — never to a stray character in rendered output.
+ * 1. `protectMathPipes` refuses to run at all if the source already contains a
+ *    literal placeholder, and the caller only restores when it did run. An
+ *    author's literal placeholder is therefore never touched.
+ * 2. Restoration is confined to node types whose content is verbatim — math and
+ *    code. This is the part that matters: character references such as
+ *    `&#xE000;` are decoded *after* this module has scanned the source, so a
+ *    global restore would silently turn an authored `&#xE000;` into a `|`.
+ *    Those decode only in text positions, which restoration deliberately skips.
  *
- * The scanner below still mirrors micromark's tokenization closely so that (3)
- * stays a theoretical fallback rather than a routine occurrence.
+ * A placeholder can therefore only be restored where this module could have put
+ * one. If the scanner ever disagrees with the parser badly enough to strand a
+ * placeholder in a text node, that shows up as a stray character rather than as
+ * corrupted content — the scanner below mirrors micromark's tokenization
+ * closely to keep even that from happening.
  */
 
 import type { Root } from 'mdast';
@@ -155,25 +156,31 @@ function restorePipesInHastChildren(children: unknown): void {
 }
 
 /**
- * Restore every placeholder in the tree, regardless of node type. See the
- * module comment: each one is provably a `|` this module replaced, so this
- * needs no knowledge of which spans the parser ultimately treated as math.
+ * Node types whose value is verbatim source text. Markdown character references
+ * are decoded only in text positions, never in these, so a placeholder found
+ * here cannot have come from an author writing `&#xE000;` — it is one this
+ * module inserted. `text` and `html` are deliberately absent for exactly that
+ * reason.
  */
-export function restoreMathPipes(tree: Root) {
-  visit(tree, (node) => {
-    const candidate = node as { value?: unknown; data?: { hChildren?: unknown } };
-    if (typeof candidate.value === 'string') {
-      candidate.value = candidate.value.replaceAll(MATH_PIPE_PLACEHOLDER, '|');
-    }
-    restorePipesInHastChildren(candidate.data?.hChildren);
-  });
-}
+const VERBATIM_NODE_TYPES = new Set(['math', 'inlineMath', 'code', 'inlineCode']);
 
 /**
- * Final backstop, for placeholders that reached the HTML through a field the
- * mdast pass does not walk (a URL, a title, raw embedded HTML). Only sound when
- * protection actually ran — see the call site in `renderMarkdown`.
+ * Turn this module's placeholders back into pipes.
+ *
+ * `enabled` must be false whenever `protectMathPipes` declined to run, so that a
+ * document containing an author's own literal placeholder is left alone; see the
+ * call site in `renderMarkdown`.
  */
-export function restoreMathPipesInHtml(html: string): string {
-  return html.replaceAll(MATH_PIPE_PLACEHOLDER, '|');
+export function restoreMathPipes(enabled: boolean) {
+  return (tree: Root) => {
+    if (!enabled) return;
+    visit(tree, (node) => {
+      if (!VERBATIM_NODE_TYPES.has(node.type)) return;
+      const candidate = node as { value?: unknown; data?: { hChildren?: unknown } };
+      if (typeof candidate.value === 'string') {
+        candidate.value = candidate.value.replaceAll(MATH_PIPE_PLACEHOLDER, '|');
+      }
+      restorePipesInHastChildren(candidate.data?.hChildren);
+    });
+  };
 }

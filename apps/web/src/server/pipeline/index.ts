@@ -16,7 +16,7 @@ import { env } from '@/server/config';
 import { validateImage } from '@/server/content-store/image-validation';
 import { markdownBody } from '@/server/metadata/frontmatter';
 import { normalizeDisplayMath } from './normalize-display-math';
-import { protectMathPipes, restoreMathPipes, restoreMathPipesInHtml } from './protect-math-pipes';
+import { protectMathPipes, restoreMathPipes } from './protect-math-pipes';
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -175,11 +175,16 @@ function wrapCodeBlocks(tree: Root) {
 export function renderMarkdown(source: string): { html: string; hash: string } {
   const normalized = normalizeDisplayMath(markdownBody(source));
   const body = protectMathPipes(normalized);
-  const rendered = unified()
+  // `protectMathPipes` returns the source untouched when it declines to run, so
+  // a changed body is what distinguishes "these placeholders are ours" from "the
+  // author wrote one and we must not touch it".
+  const protectionRan = body !== normalized;
+
+  const html = unified()
     .use(remarkParse)
     .use(remarkMath)
     .use(remarkGfm)
-    .use(() => restoreMathPipes)
+    .use(() => restoreMathPipes(protectionRan))
     // Parse raw HTML so imported Markdown can retain safe elements such as
     // `<img>`. rehypeSanitize immediately following this step is the security
     // boundary: scripts, event handlers, and unsafe URL protocols are removed.
@@ -197,13 +202,6 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
     .use(rehypeStringify)
     .processSync(body)
     .toString();
-
-  // `protectMathPipes` only ever rewrites `|` into its placeholder, and refuses
-  // to run at all when the source already contains that placeholder. So a
-  // changed body proves every placeholder in the output is one it inserted, and
-  // sweeping them back is sound; an unchanged body means there is nothing of
-  // ours to sweep and any such character belongs to the author.
-  const html = body === normalized ? rendered : restoreMathPipesInHtml(rendered);
 
   const hash = createHash('sha256').update(source).digest('hex');
   return { html, hash };
