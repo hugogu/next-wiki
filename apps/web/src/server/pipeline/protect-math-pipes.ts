@@ -50,11 +50,30 @@ const MATH_PIPE_PLACEHOLDER = String.fromCharCode(0xe000);
  * into a table header. Being the one part of a table that cannot contain math,
  * it is a reliable anchor for finding the rows that can.
  */
-const TABLE_DELIMITER_ROW = /^[ \t]{0,3}\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+const TABLE_DELIMITER_ROW = /^[ \t]*\|?[ \t]*:?-+:?[ \t]*(?:\|[ \t]*:?-+:?[ \t]*)*\|?[ \t]*$/;
+
+/**
+ * Indentation and blockquote markers that a container block repeats on every
+ * line it encloses. A table nested in one is still a table, but its rows only
+ * look like rows once this is set aside.
+ */
+const CONTAINER_PREFIX = /^[ \t]*(?:>[ \t]?)*/;
 
 const stripCarriageReturn = (line: string) => (line.endsWith('\r') ? line.slice(0, -1) : line);
 
 const isBlank = (line: string) => line.trim() === '';
+
+type LineParts = { prefix: string; content: string; depth: number };
+
+function splitContainerPrefix(line: string): LineParts {
+  const prefix = CONTAINER_PREFIX.exec(line)?.[0] ?? '';
+  return {
+    prefix,
+    content: line.slice(prefix.length),
+    // Rows only belong to the same table if they sit at the same quote depth.
+    depth: (prefix.match(/>/g) ?? []).length,
+  };
+}
 
 /** Length of the run of `char` starting at `start`. */
 function runLength(text: string, start: number, char: string): number {
@@ -139,22 +158,35 @@ function protectPipesInRow(line: string): string {
  */
 function protectTableRowsInRegion(region: string): string {
   const lines = region.split('\n');
+  const parts = lines.map((line) => splitContainerPrefix(stripCarriageReturn(line)));
   const isTableRow = new Array<boolean>(lines.length).fill(false);
 
   for (let index = 1; index < lines.length; index++) {
-    const delimiter = stripCarriageReturn(lines[index]!);
+    const delimiter = parts[index]!;
     // A delimiter row needs a pipe; without one this is a thematic break.
-    if (!delimiter.includes('|') || !TABLE_DELIMITER_ROW.test(delimiter)) continue;
-    // The header is the line directly above, and it has to exist.
-    if (isBlank(lines[index - 1]!)) continue;
+    if (!delimiter.content.includes('|') || !TABLE_DELIMITER_ROW.test(delimiter.content)) continue;
+
+    // The header is the line directly above, inside the same container.
+    const header = parts[index - 1]!;
+    if (isBlank(header.content) || header.depth !== delimiter.depth) continue;
 
     isTableRow[index - 1] = true;
-    for (let body = index + 1; body < lines.length && !isBlank(lines[body]!); body++) {
+    for (let body = index + 1; body < lines.length; body++) {
+      const row = parts[body]!;
+      if (isBlank(row.content) || row.depth !== delimiter.depth) break;
       isTableRow[body] = true;
     }
   }
 
-  return lines.map((line, index) => (isTableRow[index] ? protectPipesInRow(line) : line)).join('\n');
+  return lines
+    .map((line, index) => {
+      if (!isTableRow[index]) return line;
+      // Protect only the row itself; the container prefix is passed through so
+      // the line still belongs to its blockquote or list item.
+      const { prefix } = parts[index]!;
+      return prefix + protectPipesInRow(line.slice(prefix.length));
+    })
+    .join('\n');
 }
 
 export function protectMathPipes(source: string): string {

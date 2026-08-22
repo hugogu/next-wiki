@@ -114,6 +114,14 @@ describe('renderMarkdown pipe-protection regressions', () => {
     'double-backtick code span': 'text ``$|x|$`` more',
     'code span in a table cell': '| a |\n| --- |\n| `$|x|$` |',
     'indented code block': '    $|x|$',
+    // Indentation is treated as a container prefix, so a table written inside
+    // an indented code block now looks like a real one to the matcher. It is
+    // protected, parsed as `code`, and restored from there.
+    'table-shaped indented code block': '    | a |\n    | --- |\n    | $|x|$ |',
+    // Verified against remark: this row is not a lazy continuation of the
+    // quoted table, it ends the blockquote and becomes its own paragraph. The
+    // depth check declines to protect it, which is exactly right.
+    'row that leaves the blockquote': '> | a |\n> | --- |\n| $|x|$ |',
     'unclosed math run': '$foo |x| bar',
     'mismatched dollar runs': '$$a|b$$$',
     'math split by a blank line': '$foo\n\n|x| bar$',
@@ -200,6 +208,37 @@ describe('renderMarkdown pipe-protection regressions', () => {
     // still verbatim source at that stage, entities and all.
     const { html } = renderMarkdown('| a |\n| --- |\n| <span title="$|x|$">e</span> |');
     expect(html).toContain('title="$|x|$"');
+  });
+
+  it('fixes a table nested in a blockquote', () => {
+    // Container blocks prefix every line, so the delimiter row only looks like
+    // one after the `> ` is set aside.
+    const { html } = renderMarkdown(
+      '> | Symbol | Definition |\n> | --- | --- |\n> | rect(x) | $|x|$ |',
+    );
+
+    expect(html).toContain('<blockquote');
+    expect(html).not.toContain(PLACEHOLDER);
+    expect(texOf(html)).toBe('|x|');
+  });
+
+  it('fixes a table nested two blockquotes deep', () => {
+    const { html } = renderMarkdown('> > | a |\n> > | --- |\n> > | $|x|$ |');
+    expect(html).not.toContain(PLACEHOLDER);
+    expect(texOf(html)).toBe('|x|');
+  });
+
+  it('fixes a table indented inside a list item', () => {
+    const { html } = renderMarkdown('- item\n\n  | a |\n  | --- |\n  | $|x|$ |');
+    expect(html).not.toContain(PLACEHOLDER);
+    expect(texOf(html)).toBe('|x|');
+  });
+
+  it('does not treat rows at a different blockquote depth as one table', () => {
+    // The header here is outside the quote, so this is not a table and the
+    // pipes must be left to split as GFM says.
+    const source = '| a |\n> | --- |\n| $|x|$ |';
+    expect(renderMarkdown(source).html).not.toContain(PLACEHOLDER);
   });
 
   it('fixes math with pipes in a table header row', () => {
