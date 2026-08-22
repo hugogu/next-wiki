@@ -3,6 +3,7 @@ import { HistoryProvider } from '@/lib/history';
 import { EditorProvider } from '@/components/editor/EditorContext';
 import { ThemeProvider } from '@/components/theme/ThemeProvider';
 import { ApplicationI18nProvider } from '@/components/i18n/ApplicationI18nProvider';
+import { EmbedPreferencesBootstrap } from '@/components/layout/EmbedPreferencesBootstrap';
 import { getDictionary, getLocale } from '@/i18n/server';
 import { getMessages } from '@/i18n/catalog';
 import { getCurrentActor } from '@/server/services/auth';
@@ -110,6 +111,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body className="antialiased" suppressHydrationWarning>
         <ApplicationI18nProvider initialLocale={initialLocale} messages={getMessages(initialLocale)}>
           <ThemeProvider initialMode={initialTheme}>
+            <EmbedPreferencesBootstrap />
             <ApiProvider>
               <HistoryProvider>
                 <EditorProvider>{children}</EditorProvider>
