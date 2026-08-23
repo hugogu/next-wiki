@@ -12,6 +12,7 @@ import { resolveSpace } from '@/server/services/spaces';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 import { ensureOkfConformance } from '@/server/services/okf';
 import { assertAddressAvailable, deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
+import { getReservedLocalePrefixes } from '@/server/services/translation-locales';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -27,13 +28,14 @@ async function deriveNewPageAddress(
   tx: Tx,
   spaceId: string,
   sourcePath: string,
+  reservedLocales: ReadonlySet<string>,
 ): Promise<{ address: string; reason: ImportAddressAdjustmentReason | null }> {
   const [slugRows, aliasRows] = await Promise.all([
     tx.query.pages.findMany({ where: eq(schema.pages.spaceId, spaceId), columns: { slug: true } }),
     tx.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.spaceId, spaceId), columns: { address: true } }),
   ]);
   const taken = new Set([...slugRows.map((r) => r.slug), ...aliasRows.map((r) => r.address)]);
-  return await deriveImportAddress(sourcePath, (address) => taken.has(address));
+  return await deriveImportAddress(sourcePath, (address) => taken.has(address), reservedLocales);
 }
 
 /**
@@ -48,10 +50,11 @@ async function restoreAliases(
   spaceId: string,
   pageId: string,
   aliases: Array<{ address: string; kind: 'retained' | 'manual' }>,
+  reservedLocales: ReadonlySet<string>,
 ): Promise<void> {
   for (const alias of aliases) {
     try {
-      await assertAddressAvailable(tx, spaceId, alias.address);
+      await assertAddressAvailable(tx, spaceId, alias.address, undefined, undefined, reservedLocales);
     } catch {
       continue;
     }
@@ -312,6 +315,7 @@ export async function writeImportedPage(input: {
 
   const revisionId = randomUUID();
   const { html, hash } = renderMarkdown(input.markdown);
+  const reservedLocales = await getReservedLocalePrefixes();
   const result = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
 
@@ -332,7 +336,7 @@ export async function writeImportedPage(input: {
       // if present, else the Wiki.js/import source path — adjusted only when
       // it collides or is otherwise unusable, never touching whatever page
       // already holds a candidate.
-      derivedAddress = await deriveNewPageAddress(tx, space.id, input.slug || input.path);
+      derivedAddress = await deriveNewPageAddress(tx, space.id, input.slug || input.path, reservedLocales);
       const [page] = await tx
         .insert(schema.pages)
         .values({
@@ -346,7 +350,7 @@ export async function writeImportedPage(input: {
         })
         .returning({ id: schema.pages.id });
       pageId = page!.id;
-      if (input.aliases?.length) await restoreAliases(tx, space.id, pageId, input.aliases);
+      if (input.aliases?.length) await restoreAliases(tx, space.id, pageId, input.aliases, reservedLocales);
     }
     await tx.insert(schema.pageRevisions).values({
       id: revisionId,
@@ -442,6 +446,7 @@ export async function writeImportedPageWithHistory(input: {
   // Mirrors writeImportedPage: restoring a soft-deleted page on action:'create'
   // is reported as 'create', not 'replace' — it's not overwriting live content.
   const restoredDeletedPage = Boolean(existing?.deletedAt);
+  const reservedLocales = await getReservedLocalePrefixes();
 
   const result = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -484,7 +489,7 @@ export async function writeImportedPageWithHistory(input: {
       await tx.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, existing.id));
       pageId = existing.id;
     } else {
-      derivedAddress = await deriveNewPageAddress(tx, space.id, input.slug || input.path);
+      derivedAddress = await deriveNewPageAddress(tx, space.id, input.slug || input.path, reservedLocales);
       const [page] = await tx
         .insert(schema.pages)
         .values({
@@ -498,7 +503,7 @@ export async function writeImportedPageWithHistory(input: {
         })
         .returning({ id: schema.pages.id });
       pageId = page!.id;
-      if (input.aliases?.length) await restoreAliases(tx, space.id, pageId, input.aliases);
+      if (input.aliases?.length) await restoreAliases(tx, space.id, pageId, input.aliases, reservedLocales);
     }
 
     // Insert the full trail strictly in order — versionNumber is a per-page

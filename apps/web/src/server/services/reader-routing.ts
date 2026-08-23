@@ -32,11 +32,9 @@ export async function resolveReaderPage(ctx: PermCtx, rawSegments: string[]): Pr
   if (!resolvedRoute || !resolvedRoute.segments.length) return { kind: 'not_found' };
   const { space, legacy } = resolvedRoute;
   const fullPath = resolvedRoute.segments.join('/');
-  const reservedLocales = await getReservedLocalePrefixes();
-
   if (
     resolvedRoute.segments.length >= 2 &&
-    isReservedLocalePrefix(reservedLocales, resolvedRoute.segments[0]!)
+    isReservedLocalePrefix(await getReservedLocalePrefixes(), resolvedRoute.segments[0]!)
   ) {
     const locale = resolvedRoute.segments[0]!;
     const sourceSlug = resolvedRoute.segments.slice(1).join('/');

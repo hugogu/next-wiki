@@ -25,9 +25,8 @@ export type RawMarkdownResult =
  */
 export async function getWikiRawMarkdown(segments: string[]): Promise<RawMarkdownResult> {
   const fullPath = segments.join('/');
-  const reservedLocales = await getReservedLocalePrefixes();
 
-  if (segments.length >= 2 && isReservedLocalePrefix(reservedLocales, segments[0]!)) {
+  if (segments.length >= 2 && isReservedLocalePrefix(await getReservedLocalePrefixes(), segments[0]!)) {
     const locale = segments[0]!;
     const sourcePath = segments.slice(1).join('/');
     const translation = await pageService.getCachedPublicLiveTranslation(locale, sourcePath);

@@ -30,6 +30,7 @@ export type DerivedImportAddress = {
 export async function deriveImportAddress(
   sourcePath: string,
   taken: (address: string) => boolean,
+  reservedLocales?: ReadonlySet<string>,
 ): Promise<DerivedImportAddress> {
   const source = sourcePath.normalize('NFC');
   const segments = source
@@ -41,8 +42,8 @@ export async function deriveImportAddress(
   let address = segments.join('/');
   let reason: ImportAddressAdjustmentReason | null = address === source ? null : 'invalid_characters';
 
-  const reservedLocales = await getReservedLocalePrefixes();
-  if (!address || addressReservation(address, reservedLocales)) {
+  const reservedLocalePrefixes = reservedLocales ?? (await getReservedLocalePrefixes());
+  if (!address || addressReservation(address, reservedLocalePrefixes)) {
     address = address ? `page/${address}` : 'page';
     reason = 'reserved';
   }
@@ -118,6 +119,7 @@ export async function assertAddressAvailable(
   address: string,
   selfPageId?: string,
   ctx?: PermCtx,
+  reservedLocales?: ReadonlySet<string>,
 ): Promise<void> {
   const parsed = pageAddressSchema.safeParse(address);
   if (!parsed.success) {
@@ -127,8 +129,8 @@ export async function assertAddressAvailable(
     );
   }
 
-  const reservedLocales = await getReservedLocalePrefixes();
-  const reservation = addressReservation(parsed.data, reservedLocales);
+  const reservedLocalePrefixes = reservedLocales ?? (await getReservedLocalePrefixes());
+  const reservation = addressReservation(parsed.data, reservedLocalePrefixes);
   if (reservation) {
     throw new DomainError('PAGE_SLUG_RESERVED', describeAddressReservation(reservation));
   }

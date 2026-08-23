@@ -19,8 +19,8 @@ const cachedReservedLocalePrefixes = unstable_cache(
 
 /**
  * Returns the set of configured translation-language codes. The reader route
- * and address namespace treat these as reserved locale prefixes; any other
- * two-letter segment is available for page addresses.
+ * and address namespace treat these as reserved locale prefixes; any segment
+ * not in this set is available for page addresses.
  */
 export async function getReservedLocalePrefixes(): Promise<ReadonlySet<string>> {
   return shouldUseDataCache() ? cachedReservedLocalePrefixes() : loadReservedLocalePrefixes();

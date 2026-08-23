@@ -19,6 +19,7 @@ import { getMode } from '@/server/services/writing-mode';
 import { DomainError } from '@/server/errors';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
 import { deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
+import { getReservedLocalePrefixes } from '@/server/services/translation-locales';
 import type { NormalizedPortableManifest } from '@next-wiki/shared';
 
 const WIKIJS_PREVIEW_BATCH_SIZE = 50;
@@ -53,10 +54,11 @@ async function previewAddress(
   action: 'create' | 'replace' | 'skip',
   existingSlug: string | undefined,
   deriveAddress: boolean,
+  reservedLocales: ReadonlySet<string>,
 ): Promise<{ address?: string; reason?: ImportAddressAdjustmentReason }> {
   if (action !== 'create') return { address: existingSlug };
   if (!deriveAddress) return { address: sourcePath };
-  const derived = await deriveImportAddress(sourcePath, (address) => takenAddresses.has(address));
+  const derived = await deriveImportAddress(sourcePath, (address) => takenAddresses.has(address), reservedLocales);
   takenAddresses.add(derived.address);
   return { address: derived.address, reason: derived.reason ?? undefined };
 }
@@ -92,6 +94,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
   const hasModeMismatch = sourceMode !== currentMode;
   const kinds = await availableKinds();
   const takenAddresses = await loadTakenAddresses(space.id);
+  const reservedLocales = await getReservedLocalePrefixes();
 
   let created = 0;
   let replaced = 0;
@@ -176,6 +179,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
       action,
       existing?.slug,
       page.spaceKind === 'wiki',
+      reservedLocales,
     );
 
     if (action === 'create') created += 1;
@@ -264,6 +268,7 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   const includeHistory = Boolean(options.includeHistory);
   const historyLimit = normalizeHistoryLimit(options.historyLimit);
   const takenAddresses = await loadTakenAddresses(space.id);
+  const reservedLocales = await getReservedLocalePrefixes();
 
   // Probe history access once, up front, instead of discovering the gap page
   // by page — a missing read:history grant fails the whole run immediately.
@@ -404,6 +409,7 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
         targetAction,
         existing?.slug,
         true,
+        reservedLocales,
       );
 
       const displayAction = targetAction === 'skip' ? 'skip' : isConverted ? 'convert' : targetAction;
