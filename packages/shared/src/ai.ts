@@ -261,7 +261,15 @@ export type AiSettingsUpdate = z.infer<typeof aiSettingsUpdateSchema>;
 // ---- 026: Wiki AI runtime tuning (params in Bots > General, prompts in AI > Prompts) ----
 
 export const TOOL_MAX_CALLS_MIN = 1;
-export const TOOL_MAX_CALLS_MAX = 100;
+/**
+ * Ceiling for the per-turn tool-call budget.
+ *
+ * This is a runaway-loop backstop, not a recommended working range: the
+ * stored default is 100, and a long autonomous task (a scheduled job walking
+ * a large space, say) legitimately needs more than that. The old ceiling sat
+ * exactly on the default, so the setting could never be raised at all.
+ */
+export const TOOL_MAX_CALLS_MAX = 1_000;
 export const TOOL_PLANNER_TEMPERATURE_MIN = 0;
 export const TOOL_PLANNER_TEMPERATURE_MAX = 2;
 export const TOOL_PLANNER_MAX_OUTPUT_TOKENS_MIN = 256;
