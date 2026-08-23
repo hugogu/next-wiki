@@ -459,6 +459,37 @@ html.dark .prose .hljs-punctuation {
   border-radius: var(--radius-md);
   padding: var(--space-md);
 }
+
+/* Markdown rendered inside a narrow, small-type panel — currently the Wiki AI
+   reasoning drawer. Same pipeline output as a page, scaled to the surrounding
+   text so a heading in the model's reasoning does not dwarf the box it sits in,
+   and with the outer block margins collapsed against the padding. */
+.prose-compact .prose {
+  line-height: 1.6;
+}
+
+.prose-compact .prose :is(h1, h2, h3, h4, h5, h6) {
+  font-size: 1em;
+  margin-top: var(--space-sm);
+  margin-bottom: var(--space-xs);
+}
+
+.prose-compact .prose :is(p, ul, ol, pre, table, blockquote) {
+  margin-bottom: var(--space-sm);
+}
+
+.prose-compact .prose table {
+  font-size: 1em;
+}
+
+.prose-compact .prose > :first-child {
+  margin-top: 0;
+}
+
+.prose-compact .prose > :last-child {
+  margin-bottom: 0;
+}
+
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 import {
+  TOOL_MAX_CALLS_MAX,
+  TOOL_MAX_CALLS_MIN,
   TOOL_RESULT_MAX_CHARS_MAX,
   TOOL_RESULT_MAX_CHARS_MIN,
   type AiAnswerLanguage,
@@ -44,7 +46,19 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
           plannerMaxOutputTokens: Number(maxTokens),
         }),
       });
-      if (!response.ok) throw new Error('save failed');
+      if (!response.ok) {
+        // A number input does not block an out-of-range value from being sent,
+        // so echo the server's reason instead of a bare failure the admin has
+        // to guess at.
+        const body = (await response.json().catch(() => null)) as { message?: string } | null;
+        setMessage({
+          kind: 'error',
+          text: body?.message
+            ? `${t('admin.bots.general.runtime.saveError')} ${body.message}`
+            : t('admin.bots.general.runtime.saveError'),
+        });
+        return;
+      }
       setMessage({ kind: 'ok', text: t('admin.bots.general.runtime.saved') });
     } catch {
       setMessage({ kind: 'error', text: t('admin.bots.general.runtime.saveError') });
@@ -90,7 +104,13 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
           </Select>
         </Field>
         <Field label={t('admin.bots.general.runtime.maxCalls')}>
-          <Input type="number" min={1} max={100} value={maxCalls} onChange={(e) => setMaxCalls(e.target.value)} />
+          <Input
+            type="number"
+            min={TOOL_MAX_CALLS_MIN}
+            max={TOOL_MAX_CALLS_MAX}
+            value={maxCalls}
+            onChange={(e) => setMaxCalls(e.target.value)}
+          />
         </Field>
         <Field label={t('admin.bots.general.runtime.resultChars')}>
           <Input

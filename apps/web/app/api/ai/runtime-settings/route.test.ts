@@ -49,8 +49,18 @@ describe('AI runtime settings route', () => {
     );
   });
 
-  it('rejects an out-of-range param (400)', async () => {
+  it('accepts a tool-call budget above the stored default', async () => {
+    services.updateAiRuntimeSettings.mockResolvedValue({ params: {}, prompts: {}, defaults: {} });
     const response = await patch({ toolMaxCalls: 500 });
+    expect(response.status).toBe(200);
+    expect(services.updateAiRuntimeSettings).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ toolMaxCalls: 500 }),
+    );
+  });
+
+  it('rejects an out-of-range param (400)', async () => {
+    const response = await patch({ toolMaxCalls: 5_000 });
     expect(response.status).toBe(400);
     expect(services.updateAiRuntimeSettings).not.toHaveBeenCalled();
   });
