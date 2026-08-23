@@ -98,6 +98,13 @@ describe('enqueueGitExport publish gating', () => {
     await seedGitBackend({ isActive: false });
     expect(await enqueueGitExport('manual')).toBe(false);
   });
+
+  // A re-render rewrites stored HTML from unchanged Markdown, and the export
+  // ships Markdown and assets — so a run could only ever produce an empty diff.
+  it('never queues a rendering trigger, even with auto-sync on publish enabled', async () => {
+    await seedGitBackend({ config: { autoSyncOnPublish: true } });
+    expect(await enqueueGitExport('rendering')).toBe(false);
+  });
 });
 
 describe('tickScheduledGitExport', () => {

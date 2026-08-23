@@ -62,6 +62,14 @@ export async function rerenderPage(ctx: PermCtx, pageId: string): Promise<Public
       inArray(schema.pageRevisions.id, liveRevisionIds),
     ),
   });
+  // Every live pointer dangling means the page row disagrees with its own
+  // revisions. Reporting `revisionsRendered: 0` would read as success while
+  // having rendered nothing, so surface the inconsistency instead. A single
+  // dangling pointer still renders the revision that is there — this action
+  // exists to fix rendering, and doing the possible half beats refusing.
+  if (revisions.length === 0) {
+    throw new DomainError('NOT_FOUND', 'The page has no live revision to render');
+  }
 
   let revisionsChanged = 0;
   let publishedChanged = false;
@@ -84,8 +92,9 @@ export async function rerenderPage(ctx: PermCtx, pageId: string): Promise<Public
     invalidatePublicContentCache();
     await enqueuePublicPageWarmup(canonicalSpacePath(space, page.slug || page.path, page.locale));
     // The static site renders from source, so it carries the same stale
-    // output until it is regenerated with the fixed pipeline.
-    await notifyPublicContentChanged('publish');
+    // output until it is regenerated with the fixed pipeline. Git export, the
+    // other listener, mirrors that same unchanged source and skips this reason.
+    await notifyPublicContentChanged('rendering');
   }
 
   return { pageId: page.id, revisionsRendered: revisions.length, revisionsChanged };

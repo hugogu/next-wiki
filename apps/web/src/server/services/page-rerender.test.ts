@@ -158,7 +158,9 @@ describe('rerenderPage', () => {
 
     expect(invalidatePublicContentCache).toHaveBeenCalledTimes(1);
     expect(enqueuePublicPageWarmup).toHaveBeenCalledTimes(1);
-    expect(notifyPublicContentChanged).toHaveBeenCalledTimes(1);
+    // 'rendering', not 'publish': the Markdown is untouched, so the listener
+    // that mirrors source (Git export) must be able to sit this one out.
+    expect(notifyPublicContentChanged).toHaveBeenCalledWith('rendering');
   });
 
   it('propagates nothing when only the draft changed — draft HTML is not publicly readable', async () => {
@@ -215,6 +217,16 @@ describe('rerenderPage', () => {
     await expect(rerenderPage(readerCtx(), pageId)).rejects.toMatchObject({ code: 'FORBIDDEN' });
     const published = await readRevision(publishedRevisionId);
     expect(published.contentHtml).toBe(STALE_HTML);
+  });
+
+  it('fails rather than reporting an empty success when every live pointer is stale', async () => {
+    const missing = randomUUID();
+    await db
+      .update(schema.pages)
+      .set({ currentPublishedVersionId: null, latestVersionId: missing })
+      .where(eq(schema.pages.id, pageId));
+
+    await expect(rerenderPage(editorCtx(), pageId)).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
   it('rejects an unknown page', async () => {

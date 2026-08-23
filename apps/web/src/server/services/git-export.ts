@@ -202,10 +202,17 @@ export async function generateGitSshKey(ctx: PermCtx): Promise<GitSshKeyResult> 
  * Queue a full-snapshot reconciliation. `reason: 'publish'` honours the
  * per-config `autoSyncOnPublish` toggle so content edits do not push to Git
  * when the operator opted out; manual, enable, and scheduled triggers always run.
+ *
+ * `reason: 'rendering'` never runs: the export ships Markdown source and assets
+ * (see `materializeGitExport`), so re-rendering stored HTML from unchanged
+ * source cannot change a single exported byte — and a run is not free, since it
+ * fetches the remote and materializes every published page and asset before
+ * discovering the diff is empty.
  */
 export async function enqueueGitExport(
-  reason: 'manual' | 'publish' = 'manual',
+  reason: 'manual' | 'publish' | 'rendering' = 'manual',
 ): Promise<boolean> {
+  if (reason === 'rendering') return false;
   const backend = await findGitExport();
   if (!backend?.isActive) return false;
   if (reason === 'publish') {
