@@ -1409,15 +1409,6 @@ export async function newDraft(
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
     if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
-
-    // Serialize concurrent edits to the same page so two writers never read the
-    // same max(version_number) and collide on the unique index.
-    await tx.execute(sql`
-      select pg_advisory_xact_lock(
-        hashtextextended(${`page-revisions:${page.id}`}, ${PAGE_REVISION_LOCK_SEED})
-      )
-    `);
-
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }
@@ -1434,6 +1425,14 @@ export async function newDraft(
         throw new DomainError('STALE_REVISION', 'The page has changed since the supplied content hash');
       }
     }
+
+    // Serialize concurrent edits to the same page so two writers never read the
+    // same max(version_number) and collide on the unique index.
+    await tx.execute(sql`
+      select pg_advisory_xact_lock(
+        hashtextextended(${`page-revisions:${page.id}`}, ${PAGE_REVISION_LOCK_SEED})
+      )
+    `);
 
     const maxResult = await tx
       .select({ value: max(schema.pageRevisions.versionNumber) })
