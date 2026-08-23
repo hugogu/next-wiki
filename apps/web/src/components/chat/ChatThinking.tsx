@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { ReactNode } from 'react';
 import { useTranslation } from '@/i18n/client';
 import { ChevronDownIcon, ChevronRightIcon, SparklesIcon } from '@/components/icons';
+import { ChatMarkdown } from './ChatMarkdown';
 
 function stripTags(text: string): string {
   return text.replace(/<\/?think>/g, '').trim();
@@ -37,7 +38,14 @@ export function ChatThinking({
         </span>
       </button>
       <div hidden={!open} className="max-h-64 overflow-auto border-t border-border text-xs text-muted">
-        {content && <div className="whitespace-pre-wrap px-sm py-xs">{content}</div>}
+        {/* Models write their reasoning in Markdown too. Render it once the
+            panel is open and the stream has settled; a collapsed block stays
+            raw so a long history does not fire a preview request per turn. */}
+        {content && (
+          <div className="prose-compact px-sm py-xs">
+            <ChatMarkdown source={content} done={open && !streaming} />
+          </div>
+        )}
         {children && <div className={content ? 'border-t border-border' : ''}>{children}</div>}
       </div>
     </div>
