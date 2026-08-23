@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Header } from './Header';
 import { Navigator } from './Navigator';
 import { DemoReadonlyBanner } from './DemoReadonlyBanner';
 import type { AppShellProps } from './types';
-import { AiChatPane } from '@/components/chat/AiChatPane';
+import { AiChatPane, aiChatPaneAvailable } from '@/components/chat/AiChatPane';
 import { readChatKeyFromUrl } from '@/components/chat/chat-url';
 import { AiAvailabilityProvider } from '@/components/ai/AiAvailabilityContext';
 import { PageEditProvider } from '@/components/pages/PageEditContext';
@@ -52,15 +52,22 @@ export function AppShell({
 
   // A `?chat=` link points at a conversation, and conversations are browsed
   // from the maximized pane (the sidebar only becomes the history list there),
-  // so arriving on one opens that view. Read once on mount: afterwards the
-  // control belongs to the user, not the address bar. The pane opens itself
-  // once its store has rehydrated (see AiChatPane) — doing it here would race
-  // that rehydration and leave the page as a bare floating button.
+  // so arriving on one opens that view — but only once the pane can actually
+  // render. Where it cannot (AI off for the instance or this account), the
+  // maximized layout would leave the sidebar in history mode with no control
+  // anywhere to leave it. Availability can also arrive late (a staticPublic
+  // document hydrates its real visitor), hence the effect re-runs rather than
+  // reading the address once on mount.
+  // Opening the pane is the pane's own job: it has to wait for its store to
+  // rehydrate first, which this effect cannot see.
+  const arrivalHandledRef = useRef(false);
   useEffect(() => {
+    if (arrivalHandledRef.current || !aiChatPaneAvailable(aiEntitlements)) return;
     if (!readChatKeyFromUrl(window.location.search)) return;
+    arrivalHandledRef.current = true;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the address bar can only be read after mount, so SSR/hydration render the un-maximized shell first
     setAiMaximized(true);
-  }, []);
+  }, [aiEntitlements]);
 
   useEffect(() => {
     // A staticPublic document was rendered against a placeholder anonymous
@@ -159,7 +166,7 @@ export function AppShell({
           {/* Keep exactly one vertical scroll container.  The content wrapper
               lets min-height pages size against the area above the site footer
               instead of pushing the footer into a blank second screen. */}
-          {aiMaximized && aiEntitlements ? (
+          {aiMaximized && aiChatPaneAvailable(aiEntitlements) ? (
             <AiChatPane
               entitlements={aiEntitlements}
               pageContext={resolvedPageContext}
@@ -195,7 +202,7 @@ export function AppShell({
               </div>
             </main>
           )}
-          {!aiMaximized && aiEntitlements && (
+          {!aiMaximized && aiChatPaneAvailable(aiEntitlements) && (
             <AiChatPane
               entitlements={aiEntitlements}
               pageContext={resolvedPageContext}

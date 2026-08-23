@@ -11,6 +11,7 @@ import {
   type ReconstructedSession,
 } from './reconstruct-session';
 import { resolveSessionId } from './resolve-session-id';
+import { listAnonymousChatSessions } from './anonymous-chat-history';
 import { useChatStore } from './chat-store';
 import { uuid } from '@/lib/uuid';
 
@@ -87,10 +88,13 @@ export function buildMessagesFromDetail(detail: AiConversationDetail): ChatMessa
  * The history key is carried into the store as `conversationKey`, which the
  * pane publishes as `?chat=` — one place decides what is loaded, so every
  * caller (history click, restoring a shared link) lands on the same address.
+ *
+ * Returns whether the key resolved, so a caller restoring a link can fall back
+ * to another store rather than assume the address is dead.
  */
-export async function loadConversationFromKey(key: string): Promise<void> {
+export async function loadConversationFromKey(key: string): Promise<boolean> {
   const detail = await fetchHistoryDetail(key);
-  if (!detail) return;
+  if (!detail) return false;
   const messages = buildMessagesFromDetail(detail);
   useChatStore.getState().restoreSession({
     sessionId: resolveSessionId(detail.conversation, detail),
@@ -99,4 +103,37 @@ export async function loadConversationFromKey(key: string): Promise<void> {
     latestQueuedAt: detail.conversation.latestQueuedAt,
     conversationKey: key,
   });
+  return true;
+}
+
+async function restoreLocalConversation(key: string): Promise<boolean> {
+  const session = (await listAnonymousChatSessions()).find((item) => item.sessionId === key);
+  if (!session) return false;
+  useChatStore.getState().restoreSession({ ...session, conversationKey: key });
+  return true;
+}
+
+/**
+ * Load a linked conversation from whichever store holds it.
+ *
+ * A key is looked for in the account's server history and in this browser's
+ * anonymous history, most-likely first — the actor only decides the order, not
+ * which stores are consulted. Identity is not settled when this runs: a
+ * staticPublic document renders against an anonymous placeholder and only
+ * hydrates its real visitor afterwards, so trusting `anonymous` outright would
+ * declare a perfectly good server conversation dead and drop its address.
+ */
+export async function restoreLinkedConversation(
+  key: string,
+  anonymous: boolean,
+  cancelled: () => boolean = () => false,
+): Promise<boolean> {
+  const attempts = anonymous
+    ? [restoreLocalConversation, loadConversationFromKey]
+    : [loadConversationFromKey, restoreLocalConversation];
+  for (const attempt of attempts) {
+    if (cancelled()) return false;
+    if (await attempt(key)) return true;
+  }
+  return false;
 }

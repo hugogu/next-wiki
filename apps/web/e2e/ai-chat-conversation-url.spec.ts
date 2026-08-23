@@ -187,4 +187,16 @@ test.describe('AI pane conversation addressing', () => {
     await expect(page.getByRole('heading', { name: 'History' })).toBeVisible();
     await expect(page.locator('[aria-label="Content space"]')).toHaveCount(0);
   });
+
+  test('a chat link on an AI-disabled instance leaves the sidebar alone', async ({ page }) => {
+    await login(page);
+    await setAiEnabled(false);
+
+    // Without the pane there is no control anywhere to leave the maximized
+    // layout, so the shell must not enter it on a link alone.
+    await page.goto(`/?chat=${randomUUID()}`);
+
+    await expect(page.locator('[aria-label="Content space"]')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'History' })).toHaveCount(0);
+  });
 });

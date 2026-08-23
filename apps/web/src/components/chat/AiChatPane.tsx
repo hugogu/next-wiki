@@ -20,7 +20,7 @@ import {
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
 import { syncChatKeyToUrl, takeArrivalChatKey } from './chat-url';
-import { loadConversationFromKey } from './load-conversation';
+import { restoreLinkedConversation } from './load-conversation';
 import { recoverSessionFromServer } from './reconstruct-session';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
@@ -29,7 +29,6 @@ import { ChatThinking } from './ChatThinking';
 import { ToolCallTimeline } from './ToolCallTimeline';
 import {
   getAnonymousChatHistoryStatus,
-  listAnonymousChatSessions,
   probeAnonymousChatHistory,
   saveAnonymousChatSession,
   subscribeAnonymousChatHistoryStatus,
@@ -65,6 +64,18 @@ export function aiChatPaneClassName(maximized: boolean): string {
     ? 'relative h-full w-full flex-1 max-w-none'
     : 'relative h-full w-[var(--ai-chat-width)] max-w-full shrink-0 border-l border-border';
   return `${position} flex min-h-0 flex-col overflow-hidden bg-surface`;
+}
+
+/**
+ * Whether the pane renders at all. An entitlement view exists for every signed-in
+ * account even when the instance has AI switched off, so its presence says
+ * nothing — callers deciding on the pane's behalf (the shell's maximized
+ * layout) have to ask the same question the pane asks itself.
+ */
+export function aiChatPaneAvailable(
+  entitlements: AiEntitlementView | null | undefined,
+): entitlements is AiEntitlementView {
+  return Boolean(entitlements?.aiEnabled && entitlements.questionAnsweringEnabled);
 }
 
 export function shouldPersistAnonymousChatSnapshot(input: {
@@ -253,14 +264,7 @@ export function AiChatPane({
       return;
     }
     let cancelled = false;
-    const load = anonymous
-      ? listAnonymousChatSessions().then((sessions) => {
-          const session = sessions.find((item) => item.sessionId === key);
-          if (!session || cancelled) return;
-          useChatStore.getState().restoreSession({ ...session, conversationKey: key });
-        })
-      : loadConversationFromKey(key);
-    void load
+    void restoreLinkedConversation(key, anonymous, () => cancelled)
       .catch(() => {
         // A key this reader cannot open (deleted, expired, someone else's, or
         // another browser's local history) leaves the pane as it was; the
@@ -361,7 +365,7 @@ export function AiChatPane({
     };
   }, [rehydrated, running, cancel]);
 
-  if (!entitlements.aiEnabled || !entitlements.questionAnsweringEnabled) return null;
+  if (!aiChatPaneAvailable(entitlements)) return null;
   if (!chat.open) {
     return (
       <div className="fixed bottom-lg right-lg z-30">
