@@ -1,20 +1,18 @@
 import { NextResponse, type NextFetchEvent } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { resolveActorFromSession, SESSION_COOKIE } from '@/server/services/auth';
+import { resolveActorFromSession } from '@/server/services/auth';
 import * as audit from '@/server/services/audit';
-import { isReservedSpacePrefix } from '@/server/services/space-routes';
+import { SESSION_COOKIE } from '@/lib/routing';
 
-export function isExternalReaderPath(pathname: string): boolean {
-  if (
-    pathname === '/'
-    || pathname.startsWith('/_next/')
-    || pathname.endsWith('.md')
-    || pathname.split('/').some((segment) => segment.includes('.'))
-  ) return false;
-  const firstSegment = pathname.split('/').filter(Boolean)[0];
-  return Boolean(firstSegment && !isReservedSpacePrefix(firstSegment));
-}
-
+/**
+ * Page audit logging and appearance-override forwarding.
+ *
+ * Routing authenticated readers to the dynamic reader is deliberately NOT done
+ * here but in `next.config.ts` (`READER_REWRITE_SOURCE`): Next strips the
+ * router's own headers before the proxy runs, so a prefetch is
+ * indistinguishable from a navigation in this function, while the matcher below
+ * has to exclude prefetches wholesale to keep them out of the audit log.
+ */
 export async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (request.method !== 'GET') {
     return NextResponse.next();
@@ -30,19 +28,11 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
   if (theme === 'light' || theme === 'dark' || theme === 'auto') {
     requestHeaders.set('x-next-wiki-theme', theme);
   }
-  const next = () => NextResponse.next({ request: { headers: requestHeaders } });
 
   const start = Date.now();
   const path = request.nextUrl.pathname;
   const ip = audit.clientIp(request.headers);
   const sessionCookie = request.cookies.get(SESSION_COOKIE)?.value;
-  const isReaderPath = isExternalReaderPath(path);
-
-  // A session lookup is only on the response path when it is needed to select
-  // the registered reader. Other audit lookups stay inside waitUntil.
-  const readerActor = sessionCookie && isReaderPath
-    ? await resolveActorFromSession(sessionCookie)
-    : null;
 
   // Best-effort page audit logging via waitUntil so it runs after the response
   // is sent without blocking it. This catches both full page loads (HTML) and
@@ -52,7 +42,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
       let userId: string | null = null;
       let authStatus: 'authenticated' | 'anonymous' = 'anonymous';
 
-      const actor = readerActor ?? (sessionCookie ? await resolveActorFromSession(sessionCookie) : null);
+      const actor = sessionCookie ? await resolveActorFromSession(sessionCookie) : null;
       if (actor?.kind === 'user') {
         userId = actor.userId;
         authStatus = 'authenticated';
@@ -75,13 +65,7 @@ export async function proxy(request: NextRequest, event: NextFetchEvent) {
     }),
   );
 
-  if (readerActor?.kind === 'user') {
-    const destination = request.nextUrl.clone();
-    destination.pathname = `/registered-reader${path}`;
-    return NextResponse.rewrite(destination, { request: { headers: requestHeaders } });
-  }
-
-  return next();
+  return NextResponse.next({ request: { headers: requestHeaders } });
 }
 
 export const config = {

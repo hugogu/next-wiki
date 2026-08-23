@@ -2,6 +2,7 @@ import { and, eq, ne } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
+import { RESERVED_ROUTE_PREFIXES } from '@/lib/routing';
 
 export type RouteableSpace = {
   id?: string;
@@ -14,10 +15,7 @@ export type ResolvedSpacePrefix = {
   isAlias: boolean;
 };
 
-const RESERVED_PREFIXES = new Set([
-  'api', 'admin', 'auth', 'edit', 'forbidden', 'h', 'healthz', 'new', 'pages',
-  'readyz', 'registered-reader', 's', 'search', 'setup', 'spaces', 'tags', 'user-center',
-]);
+const RESERVED_PREFIXES = new Set<string>(RESERVED_ROUTE_PREFIXES);
 
 /** Whether a first URL segment belongs to application routing, not wiki content. */
 export function isReservedSpacePrefix(value: string): boolean {

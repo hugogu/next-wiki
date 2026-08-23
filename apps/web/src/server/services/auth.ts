@@ -10,8 +10,12 @@ import * as apiKeys from '@/server/services/api-keys';
 import { hasAnyAdmin } from '@/server/services/users';
 import { normalizeEmail } from '@/server/services/email';
 import { hashAnonymousActionToken } from '@/server/services/ai-actions';
+// The cookie name is also a routing input (`next.config.ts` rewrites
+// authenticated readers off the anonymous ISR route), so it lives in the
+// dependency-free routing module.
+import { SESSION_COOKIE } from '@/lib/routing';
 
-export const SESSION_COOKIE = 'next-wiki-session';
+export { SESSION_COOKIE };
 export const ANONYMOUS_AI_COOKIE = 'next-wiki-anonymous-ai';
 const SESSION_MAX_AGE_DAYS = 30;
 
