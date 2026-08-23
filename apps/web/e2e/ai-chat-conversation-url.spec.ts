@@ -164,9 +164,16 @@ test.describe('AI pane conversation addressing', () => {
     await expect(page).toHaveURL(new RegExp(`chat=${pageId}`));
     await expect(page.getByText('The 1.4 notes do.')).toBeVisible();
 
+    // The address describes what is on screen: collapsing the pane drops it,
+    // reopening the same conversation brings it back.
+    const pane = page.locator('aside').filter({ has: page.getByRole('heading', { name: 'Wiki AI' }) });
+    await pane.getByRole('button', { name: 'Collapse' }).click();
+    await expect(page).not.toHaveURL(/chat=/);
+    await page.getByRole('button', { name: 'Ask AI' }).click();
+    await expect(page).toHaveURL(new RegExp(`chat=${pageId}`));
+
     // A new session is not a conversation, so it owns no address. (The history
     // sidebar offers the same action, hence scoping to the pane's own header.)
-    const pane = page.locator('aside').filter({ has: page.getByRole('heading', { name: 'Wiki AI' }) });
     await pane.getByRole('button', { name: 'New session' }).click();
     await expect(page).not.toHaveURL(/chat=/);
 

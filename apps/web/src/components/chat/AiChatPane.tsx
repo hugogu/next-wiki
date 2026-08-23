@@ -19,7 +19,7 @@ import {
 } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
-import { readChatKeyFromUrl, syncChatKeyToUrl } from './chat-url';
+import { syncChatKeyToUrl, takeArrivalChatKey } from './chat-url';
 import { loadConversationFromKey } from './load-conversation';
 import { recoverSessionFromServer } from './reconstruct-session';
 import { ChatAnswer } from './ChatAnswer';
@@ -233,11 +233,12 @@ export function AiChatPane({
   }, []);
 
   // Arriving on a `?chat=` link loads that conversation over whatever this tab
-  // had. It runs once, before the mirror below starts, so a shared link never
-  // strips its own parameter on the way in.
+  // had. It runs before the mirror below starts, so a shared link never strips
+  // its own parameter on the way in, and only for the document's first mount
+  // (see takeArrivalChatKey) so a later remount cannot replay the arrival.
   useEffect(() => {
     if (!rehydrated || chatUrlSettled) return;
-    const key = readChatKeyFromUrl(window.location.search);
+    const key = takeArrivalChatKey();
     if (!key) {
       // eslint-disable-next-line react-hooks/set-state-in-effect -- the address bar can only be read after mount, so SSR/hydration render the same "not settled yet" tree
       setChatUrlSettled(true);
@@ -274,11 +275,14 @@ export function AiChatPane({
   }, [anonymous, rehydrated, chatUrlSettled]);
 
   // Mirror the loaded conversation into the address bar: selecting one in
-  // history stamps `?chat=`, starting a new session clears it.
+  // history stamps `?chat=`, starting a new session clears it. The address only
+  // describes what is on screen, so collapsing the pane to its button drops the
+  // parameter and reopening restores it — the conversation itself is kept in
+  // the store either way.
   useEffect(() => {
     if (!chatUrlSettled) return;
-    syncChatKeyToUrl(chat.conversationKey);
-  }, [chatUrlSettled, chat.conversationKey]);
+    syncChatKeyToUrl(chat.open ? chat.conversationKey : null);
+  }, [chatUrlSettled, chat.open, chat.conversationKey]);
 
   useEffect(() => {
     if (!anonymous) return;

@@ -1,5 +1,6 @@
-import { describe, expect, it } from 'vitest';
-import { chatUrlWithKey, readChatKeyFromUrl } from './chat-url';
+// @vitest-environment jsdom
+import { describe, expect, it, vi } from 'vitest';
+import { chatUrlWithKey, readChatKeyFromUrl, syncChatKeyToUrl, takeArrivalChatKey } from './chat-url';
 
 describe('readChatKeyFromUrl', () => {
   it('reads the selected conversation, treating an empty value as none', () => {
@@ -29,5 +30,41 @@ describe('chatUrlWithKey', () => {
   it('drops the parameter when no conversation is loaded', () => {
     expect(chatUrlWithKey('https://wiki.example/w?chat=old&lang=zh', null)).toBe('/w?lang=zh');
     expect(chatUrlWithKey('https://wiki.example/w?chat=old', null)).toBe('/w');
+  });
+});
+
+describe('takeArrivalChatKey', () => {
+  it('hands out the arrival key once, so a remount cannot replay it', () => {
+    window.history.replaceState(null, '', '/wiki/welcome?chat=abc');
+
+    expect(takeArrivalChatKey()).toBe('abc');
+    // The pane remounts whenever the layout switches between docked and
+    // maximized; replaying the arrival there would reopen a collapsed pane.
+    expect(takeArrivalChatKey()).toBeNull();
+  });
+});
+
+describe('syncChatKeyToUrl', () => {
+  it('rewrites the address in place, without a navigation or a history entry', () => {
+    window.history.replaceState(null, '', '/wiki/welcome');
+    const pushState = vi.spyOn(window.history, 'pushState');
+
+    syncChatKeyToUrl('abc');
+    expect(window.location.pathname + window.location.search).toBe('/wiki/welcome?chat=abc');
+
+    syncChatKeyToUrl(null);
+    expect(window.location.pathname + window.location.search).toBe('/wiki/welcome');
+    expect(pushState).not.toHaveBeenCalled();
+    pushState.mockRestore();
+  });
+
+  it('leaves an already-correct address untouched', () => {
+    window.history.replaceState(null, '', '/wiki/welcome?chat=abc');
+    const replaceState = vi.spyOn(window.history, 'replaceState');
+
+    syncChatKeyToUrl('abc');
+
+    expect(replaceState).not.toHaveBeenCalled();
+    replaceState.mockRestore();
   });
 });
