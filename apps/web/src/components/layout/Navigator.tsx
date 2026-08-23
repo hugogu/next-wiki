@@ -346,6 +346,10 @@ export function Navigator({
     !admin &&
     !userCenter;
   const canMigrate = canSwitchSpaces;
+  // The maximized AI pane turns this sidebar into the conversation history, so
+  // the space tabs step aside for the history's own header rather than sitting
+  // above a list they don't apply to.
+  const showSpaceSwitcher = canSwitchSpaces && !aiChatMaximized;
   const addChildLabel = t('layout.nav.addChild');
   const moveLabel = t('admin.pages.actions.move');
   const pathname = usePathname();
@@ -689,7 +693,7 @@ export function Navigator({
           </button>
         </div>
 
-        {canSwitchSpaces && (
+        {showSpaceSwitcher && (
           <div className="shrink-0 border-b border-border bg-surface px-sm pt-xs">
             <div className="grid grid-cols-3" aria-label={t('layout.nav.spaces.label')}>
               {(['wiki', 'generated', 'raw'] as const).map((candidate) => {
