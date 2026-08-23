@@ -318,8 +318,12 @@ export function Header({
   // Re-renders the stored Markdown with the current pipeline. Nothing about the
   // page changes when the renderer produced the same HTML, so the reload simply
   // shows the page as it stands.
+  //
+  // `isRerendering` tracks the request, not the dialog: closing the dialog does
+  // not abort the POST, so the flag keeps the action guarded until it settles —
+  // which the `finally` guarantees it always does.
   const confirmRerender = async () => {
-    if (!pageContext?.pageId) return;
+    if (!pageContext?.pageId || isRerendering) return;
     setIsRerendering(true);
     setRerenderError(null);
     try {
@@ -328,6 +332,7 @@ export function Header({
     } catch (err) {
       const error = err as ApiError;
       setRerenderError(error.message || t('page.rerender.error'));
+    } finally {
       setIsRerendering(false);
     }
   };
@@ -459,13 +464,7 @@ export function Header({
           pending={isRerendering}
           error={rerenderError ?? undefined}
           onConfirm={confirmRerender}
-          // Cancel stays enabled while the request is in flight (ConfirmDialog
-          // never traps the user), so drop the pending state with it — otherwise
-          // reopening the dialog would show a permanently disabled confirm.
-          onCancel={() => {
-            setRerenderOpen(false);
-            setIsRerendering(false);
-          }}
+          onCancel={() => setRerenderOpen(false)}
         />
       )}
       {deleteOpen && pageContext?.pageId && (
