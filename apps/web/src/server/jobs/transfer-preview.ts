@@ -47,16 +47,16 @@ async function loadTakenAddresses(spaceId: string): Promise<Set<string>> {
  * default a new page's address to its path unconditionally (see
  * transfer-page-writer.ts), so this mirrors that instead of predicting an
  * adjustment that will never happen. */
-function previewAddress(
+async function previewAddress(
   takenAddresses: Set<string>,
   sourcePath: string,
   action: 'create' | 'replace' | 'skip',
   existingSlug: string | undefined,
   deriveAddress: boolean,
-): { address?: string; reason?: ImportAddressAdjustmentReason } {
+): Promise<{ address?: string; reason?: ImportAddressAdjustmentReason }> {
   if (action !== 'create') return { address: existingSlug };
   if (!deriveAddress) return { address: sourcePath };
-  const derived = deriveImportAddress(sourcePath, (address) => takenAddresses.has(address));
+  const derived = await deriveImportAddress(sourcePath, (address) => takenAddresses.has(address));
   takenAddresses.add(derived.address);
   return { address: derived.address, reason: derived.reason ?? undefined };
 }
@@ -170,7 +170,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
       };
     }
 
-    const { address, reason: addressAdjustmentReason } = previewAddress(
+    const { address, reason: addressAdjustmentReason } = await previewAddress(
       takenAddresses,
       page.slug || page.path,
       action,
@@ -398,7 +398,7 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
       }
       fingerprints.push(itemFingerprint);
 
-      const { address, reason: addressAdjustmentReason } = previewAddress(
+      const { address, reason: addressAdjustmentReason } = await previewAddress(
         takenAddresses,
         summary.path,
         targetAction,

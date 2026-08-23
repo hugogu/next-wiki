@@ -43,8 +43,9 @@ test.describe('page creation rejects colliding addresses before saving', () => {
     await expect(page.getByText('This path is reserved by built-in functionality. Please choose a different path.')).toBeVisible();
     await expect(page).toHaveURL('/new');
 
-    // A two-letter locale segment: rejected as a reserved *address* (035) —
-    // a distinct message from the reserved-path case above.
+    // A configured translation-language segment: rejected as a reserved
+    // *address* (035) — a distinct message from the reserved-path case above.
+    // `zh` is seeded as a translation language in the e2e fixture.
     await attemptCreate(page, `zh/tutorial-${timestamp}`, 'Locale Segment Attempt');
     await expect(page.getByText("This page's default address is reserved by built-in functionality. Please choose a different path.")).toBeVisible();
     await expect(page).toHaveURL('/new');

@@ -56,6 +56,16 @@ async function cleanup() {
   await db.delete(schema.users);
 }
 
+async function ensureTranslationLanguages(codes: string[]) {
+  for (const code of codes) {
+    await db.insert(schema.translationLanguages).values({ code, enabled: true }).onConflictDoNothing();
+  }
+}
+
+beforeEach(async () => {
+  await ensureTranslationLanguages(['zh', 'en', 'fr']);
+});
+
 /** Give a page a minimal published revision, matching `create()`'s invariant. */
 async function publishPage(pageId: string, authorId: string) {
   const [revision] = await db
@@ -272,28 +282,28 @@ describe('assertAddressAvailable', () => {
 });
 
 describe('deriveImportAddress (035, US5)', () => {
-  it('derives deterministic conforming addresses for malformed external paths', () => {
-    expect(deriveImportAddress('Guides/Café Setup', () => false))
-      .toEqual({ address: 'guides/caf-setup', reason: 'invalid_characters' });
-    expect(deriveImportAddress('///Hello__World///', () => false))
-      .toEqual({ address: 'hello__world', reason: 'invalid_characters' });
+  it('derives deterministic conforming addresses for malformed external paths', async () => {
+    await expect(deriveImportAddress('Guides/Café Setup', () => false))
+      .resolves.toEqual({ address: 'guides/caf-setup', reason: 'invalid_characters' });
+    await expect(deriveImportAddress('///Hello__World///', () => false))
+      .resolves.toEqual({ address: 'hello__world', reason: 'invalid_characters' });
   });
 
-  it('moves a reserved or empty source address under the page prefix', () => {
-    expect(deriveImportAddress('admin/users', () => false))
-      .toEqual({ address: 'page/admin/users', reason: 'reserved' });
-    expect(deriveImportAddress('zh/tutorial', () => false))
-      .toEqual({ address: 'page/zh/tutorial', reason: 'reserved' });
-    expect(deriveImportAddress('---', () => false))
-      .toEqual({ address: 'page', reason: 'reserved' });
+  it('moves a reserved or empty source address under the page prefix', async () => {
+    await expect(deriveImportAddress('admin/users', () => false))
+      .resolves.toEqual({ address: 'page/admin/users', reason: 'reserved' });
+    await expect(deriveImportAddress('zh/tutorial', () => false))
+      .resolves.toEqual({ address: 'page/zh/tutorial', reason: 'reserved' });
+    await expect(deriveImportAddress('---', () => false))
+      .resolves.toEqual({ address: 'page', reason: 'reserved' });
   });
 
-  it('suffixes taken addresses without changing their holder and is repeatable', () => {
+  it('suffixes taken addresses without changing their holder and is repeatable', async () => {
     const taken = new Set(['guides/setup', 'guides/setup-2']);
     const derive = () => deriveImportAddress('guides/setup', (address) => taken.has(address));
 
-    expect(derive()).toEqual({ address: 'guides/setup-3', reason: 'taken' });
-    expect(derive()).toEqual({ address: 'guides/setup-3', reason: 'taken' });
+    await expect(derive()).resolves.toEqual({ address: 'guides/setup-3', reason: 'taken' });
+    await expect(derive()).resolves.toEqual({ address: 'guides/setup-3', reason: 'taken' });
     expect([...taken]).toEqual(['guides/setup', 'guides/setup-2']);
   });
 });

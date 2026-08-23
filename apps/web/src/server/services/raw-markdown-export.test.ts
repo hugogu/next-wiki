@@ -19,12 +19,17 @@ const db = vi.hoisted(() => ({
 
 const readMarkdownFromDatabase = vi.hoisted(() => vi.fn());
 const isLlmWikiMode = vi.hoisted(() => vi.fn());
+const translationLocales = vi.hoisted(() => ({
+  getReservedLocalePrefixes: vi.fn(),
+  isReservedLocalePrefix: vi.fn(),
+}));
 
 vi.mock('@/server/services/pages', () => pageService);
 vi.mock('@/server/services/public-content', () => publicContent);
 vi.mock('@/server/db', () => ({ default: db, db }));
 vi.mock('@/server/content-store/read-router', () => ({ readMarkdownFromDatabase }));
 vi.mock('@/server/services/writing-mode', () => ({ isLlmWikiMode }));
+vi.mock('@/server/services/translation-locales', () => translationLocales);
 
 import { getSpaceRawMarkdown, getWikiRawMarkdown, MARKDOWN_CONTENT_TYPE_HEADER, UNSUPPORTED_STATUS_CODE } from './raw-markdown-export';
 
@@ -39,6 +44,8 @@ function revision(overrides: { contentType?: string; contentSource?: string | nu
 describe('getWikiRawMarkdown', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    translationLocales.getReservedLocalePrefixes.mockResolvedValue(new Set(['zh']));
+    translationLocales.isReservedLocalePrefix.mockImplementation((_, segment) => segment === 'zh');
   });
 
   it('returns 404 when the page does not exist', async () => {

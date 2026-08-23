@@ -47,6 +47,7 @@ const ADMIN_PAGE_SIZE = 25;
 const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
 const ADMIN_SORT_DIRECTIONS = new Set<AdminPageSortDirection>(['asc', 'desc']);
 const HTML_LINK_RE = /<a\b[^>]*\bhref=(["'])(.*?)\1/gi;
+const PAGE_REVISION_LOCK_SEED = 0x036;
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -1408,6 +1409,15 @@ export async function newDraft(
 
     if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
     if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
+
+    // Serialize concurrent edits to the same page so two writers never read the
+    // same max(version_number) and collide on the unique index.
+    await tx.execute(sql`
+      select pg_advisory_xact_lock(
+        hashtextextended(${`page-revisions:${page.id}`}, ${PAGE_REVISION_LOCK_SEED})
+      )
+    `);
+
     if (!can(ctx, 'edit', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
       throw new DomainError('FORBIDDEN', 'You do not have permission to edit this page');
     }

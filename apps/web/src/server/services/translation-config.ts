@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, desc, eq, inArray, isNotNull, max, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull, isNull, like, max, or, sql } from 'drizzle-orm';
 import type {
   TranslationLanguageCreate,
   TranslationLanguageUpdate,
@@ -17,6 +17,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
+import { invalidateReservedLocalePrefixesCache } from '@/server/services/translation-locales';
 
 /**
  * Translation management is administrator-only (P5). Not exposed to API keys or
@@ -119,6 +120,30 @@ export async function listLanguages(ctx: PermCtx): Promise<TranslationLanguageVi
   return Promise.all(rows.map(languageView));
 }
 
+async function assertNoAddressConflict(code: string): Promise<void> {
+  const prefixPattern = `${code}/%`;
+  const [slugConflict, aliasConflict] = await Promise.all([
+    db.query.pages.findFirst({
+      where: and(
+        isNull(schema.pages.translationGroupId),
+        or(eq(schema.pages.slug, code), like(schema.pages.slug, prefixPattern)),
+      ),
+    }),
+    db.query.pageAddresses.findFirst({
+      where: or(
+        eq(schema.pageAddresses.address, code),
+        like(schema.pageAddresses.address, prefixPattern),
+      ),
+    }),
+  ]);
+  if (slugConflict || aliasConflict) {
+    throw new DomainError(
+      'INVALID_TRANSLATION_INPUT',
+      `A page or alias already uses "${code}" as an address prefix. Choose a different language code or rename the existing address first.`,
+    );
+  }
+}
+
 export async function createLanguage(
   ctx: PermCtx,
   input: TranslationLanguageCreate,
@@ -130,6 +155,7 @@ export async function createLanguage(
   if (existing) {
     throw new DomainError('INVALID_TRANSLATION_INPUT', 'This language is already configured');
   }
+  await assertNoAddressConflict(input.code);
   await assertPromptVersionExists(input.defaultPromptVersionId);
   await assertModelExists(input.defaultModelId);
   const [row] = await db
@@ -143,6 +169,7 @@ export async function createLanguage(
       updatedBy: actorId,
     })
     .returning();
+  invalidateReservedLocalePrefixesCache();
   return languageView(row!);
 }
 

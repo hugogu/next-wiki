@@ -48,7 +48,7 @@ vi.mock('@/server/services/git-export', () => ({
 }));
 
 const TRUNCATE =
-  'TRUNCATE TABLE transfer_page_mappings, transfer_asset_mappings, transfer_items, transfer_runs, transfer_artifacts, transfer_sources, page_revisions, pages, users, spaces RESTART IDENTITY CASCADE';
+  'TRUNCATE TABLE transfer_page_mappings, transfer_asset_mappings, transfer_items, transfer_runs, transfer_artifacts, transfer_sources, page_revisions, pages, translation_languages, users, spaces RESTART IDENTITY CASCADE';
 
 type HistoryVersionDef = WikiJsHistoryEntry & { content: string; contentType?: string; title: string };
 

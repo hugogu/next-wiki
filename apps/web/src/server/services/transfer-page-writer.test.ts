@@ -18,7 +18,7 @@ vi.mock('./storage-replication', () => ({ addReplicationTasks: vi.fn(), kickRepl
 vi.mock('./ai-index', () => ({ reconcilePageAcrossIndexes: vi.fn() }));
 
 const TRUNCATE =
-  'TRUNCATE TABLE content_asset_refs, storage_replication_tasks, ai_page_index_states, ai_index_generations, ai_models, ai_providers, storage_backends, ai_actions, page_revisions, pages, raw_categories, users, spaces RESTART IDENTITY CASCADE';
+  'TRUNCATE TABLE content_asset_refs, storage_replication_tasks, ai_page_index_states, ai_index_generations, ai_models, ai_providers, storage_backends, ai_actions, page_revisions, pages, raw_categories, translation_languages, users, spaces RESTART IDENTITY CASCADE';
 
 let adminId: string;
 let spaceId: string;

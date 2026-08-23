@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import { isPathReserved, isAddressReserved, addressReservation, describeAddressReservation } from './reserved-paths';
 import { RESERVED_ROUTE_COUNT } from './manifest';
 
+const TEST_LOCALES = new Set(['zh', 'en', 'fr']);
+
 describe('reserved-paths / manifest discovery', () => {
   it('finds at least the obvious static routes', () => {
     // These all live in apps/web/app/ and must be discovered at module load.
@@ -55,28 +57,32 @@ describe('reserved-paths / manifest discovery', () => {
 
 describe('isAddressReserved (035: public addresses — slugs and aliases)', () => {
   it('reserves everything isPathReserved already reserves', () => {
-    expect(isAddressReserved('new')).toBe(true);
-    expect(isAddressReserved('admin/users')).toBe(true);
-    expect(isAddressReserved('getting-started')).toBe(false);
+    expect(isAddressReserved('new', TEST_LOCALES)).toBe(true);
+    expect(isAddressReserved('admin/users', TEST_LOCALES)).toBe(true);
+    expect(isAddressReserved('getting-started', TEST_LOCALES)).toBe(false);
   });
 
-  it('reserves a two-letter leading segment as a translation locale', () => {
-    expect(isAddressReserved('zh')).toBe(true);
-    expect(isAddressReserved('zh/tutorial')).toBe(true);
-    expect(isAddressReserved('en/getting-started')).toBe(true);
-    // Three or more letters are not a locale collision — 'ai' below is
-    // deliberately exactly two letters and IS correctly caught by this rule.
-    expect(isAddressReserved('faq')).toBe(false);
-    expect(isAddressReserved('models/ai')).toBe(false);
-    expect(isAddressReserved('ai/models')).toBe(true);
+  it('reserves configured translation-language codes as locale prefixes', () => {
+    expect(isAddressReserved('zh', TEST_LOCALES)).toBe(true);
+    expect(isAddressReserved('zh/tutorial', TEST_LOCALES)).toBe(true);
+    expect(isAddressReserved('en/getting-started', TEST_LOCALES)).toBe(true);
+    // Non-configured two-letter segments are available for page addresses.
+    expect(isAddressReserved('ai/models', TEST_LOCALES)).toBe(false);
+    expect(isAddressReserved('ai/agents/dsh/advantage', TEST_LOCALES)).toBe(false);
+  });
+
+  it('does not reserve three-or-more-letter leading segments', () => {
+    expect(isAddressReserved('faq', TEST_LOCALES)).toBe(false);
+    expect(isAddressReserved('models/ai', TEST_LOCALES)).toBe(false);
+    expect(isAddressReserved('guides/deployment/kubernetes', TEST_LOCALES)).toBe(false);
   });
 
   it('reserves static-site prefixes and root files', () => {
-    expect(isAddressReserved('_static/bundle')).toBe(true);
-    expect(isAddressReserved('_assets/logo.png')).toBe(true);
-    expect(isAddressReserved('pagefind/index')).toBe(true);
-    expect(isAddressReserved('sitemap.xml')).toBe(true);
-    expect(isAddressReserved('404.html')).toBe(true);
+    expect(isAddressReserved('_static/bundle', TEST_LOCALES)).toBe(true);
+    expect(isAddressReserved('_assets/logo.png', TEST_LOCALES)).toBe(true);
+    expect(isAddressReserved('pagefind/index', TEST_LOCALES)).toBe(true);
+    expect(isAddressReserved('sitemap.xml', TEST_LOCALES)).toBe(true);
+    expect(isAddressReserved('404.html', TEST_LOCALES)).toBe(true);
   });
 
   it('does not flag an ordinary tree path validated by isPathReserved-only rules', () => {
@@ -86,14 +92,10 @@ describe('isAddressReserved (035: public addresses — slugs and aliases)', () =
     expect(isPathReserved('_static')).toBe(false);
   });
 
-  it('does not flag a legitimate multi-level address', () => {
-    expect(isAddressReserved('guides/deployment/kubernetes')).toBe(false);
-  });
-
   it('names the violated rule via addressReservation/describeAddressReservation', () => {
-    expect(describeAddressReservation(addressReservation('admin/users')!)).toMatch(/built-in/i);
-    expect(describeAddressReservation(addressReservation('zh')!)).toMatch(/translation/i);
-    expect(describeAddressReservation(addressReservation('_static/x')!)).toMatch(/static site/i);
-    expect(addressReservation('faq')).toBeNull();
+    expect(describeAddressReservation(addressReservation('admin/users', TEST_LOCALES)!)).toMatch(/built-in/i);
+    expect(describeAddressReservation(addressReservation('zh', TEST_LOCALES)!)).toMatch(/translation/i);
+    expect(describeAddressReservation(addressReservation('_static/x', TEST_LOCALES)!)).toMatch(/static site/i);
+    expect(addressReservation('faq', TEST_LOCALES)).toBeNull();
   });
 });

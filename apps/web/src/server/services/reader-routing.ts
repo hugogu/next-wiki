@@ -8,8 +8,7 @@ import { findRetiredLinkTarget } from '@/server/services/link-pages';
 import { canonicalSpacePath, resolveSpacePrefix } from '@/server/services/space-routes';
 import { resolveAddressTarget } from '@/server/services/page-addresses';
 import { resolveSpace, type SpaceRow } from '@/server/services/spaces';
-
-const LOCALE_PREFIX_RE = /^[a-z]{2}$/;
+import { getReservedLocalePrefixes, isReservedLocalePrefix } from '@/server/services/translation-locales';
 
 export type ResolvedReaderPage =
   | { kind: 'original'; page: LivePage; sourcePath: string; space: SpaceRow; legacy: boolean }
@@ -33,8 +32,12 @@ export async function resolveReaderPage(ctx: PermCtx, rawSegments: string[]): Pr
   if (!resolvedRoute || !resolvedRoute.segments.length) return { kind: 'not_found' };
   const { space, legacy } = resolvedRoute;
   const fullPath = resolvedRoute.segments.join('/');
+  const reservedLocales = await getReservedLocalePrefixes();
 
-  if (resolvedRoute.segments.length >= 2 && LOCALE_PREFIX_RE.test(resolvedRoute.segments[0]!)) {
+  if (
+    resolvedRoute.segments.length >= 2 &&
+    isReservedLocalePrefix(reservedLocales, resolvedRoute.segments[0]!)
+  ) {
     const locale = resolvedRoute.segments[0]!;
     const sourceSlug = resolvedRoute.segments.slice(1).join('/');
     const result = isAnonymous

@@ -19,10 +19,12 @@ import { DomainError } from '@/server/errors';
 import { RESERVED_ROUTES } from './manifest';
 import { RESERVED_PREFIXES as STATIC_SITE_RESERVED_PREFIXES, RESERVED_ROOT_FILES as STATIC_SITE_RESERVED_ROOT_FILES } from '@/server/static-site/paths';
 
-/** A leading segment matching this shape is read as a translation's locale
- * (035) — mirrors `LOCALE_PREFIX_RE` in `services/reader-routing.ts` and the
- * identical guard in `services/space-routes.ts` for space prefixes. */
-const LOCALE_SEGMENT_RE = /^[a-z]{2}$/;
+/** Tests whether a segment is one of the configured translation-language codes.
+ * The set is supplied by the caller so routing and the address namespace stay
+ * in sync without this module needing a database dependency. */
+function isConfiguredLocale(segment: string, reservedLocales: ReadonlySet<string>): boolean {
+  return reservedLocales.has(segment);
+}
 
 /**
  * Returns true when every segment of `pattern` matches the candidate at the
@@ -84,20 +86,25 @@ export function assertPathNotReserved(path: string): void {
  * Distinct from `isPathReserved` above — the tree `path` is an organizational
  * location that may legitimately start with any segment (including a
  * two-letter folder name), while an *address* occupies the same namespace the
- * reader route resolves, where a two-letter leading segment is read as a
- * translation locale and a small set of prefixes are reserved by the
- * published static site.
+ * reader route resolves. A leading segment that is a configured translation
+ * language is reserved for translation addresses, and a small set of prefixes
+ * are reserved by the published static site.
  */
 export type AddressReservation =
   | { kind: 'built_in_route' }
   | { kind: 'locale_segment'; segment: string }
   | { kind: 'static_site_prefix'; segment: string };
 
-/** Returns why `address` is reserved, or `null` when it is available. */
-export function addressReservation(address: string): AddressReservation | null {
+/** Returns why `address` is reserved, or `null` when it is available.
+ * `reservedLocales` must be the current configured translation-language codes
+ * so the answer matches the reader router's locale-prefix logic. */
+export function addressReservation(
+  address: string,
+  reservedLocales: ReadonlySet<string>,
+): AddressReservation | null {
   if (isPathReserved(address)) return { kind: 'built_in_route' };
   const [firstSegment] = address.split('/');
-  if (firstSegment && LOCALE_SEGMENT_RE.test(firstSegment)) {
+  if (firstSegment && isConfiguredLocale(firstSegment, reservedLocales)) {
     return { kind: 'locale_segment', segment: firstSegment };
   }
   if (firstSegment && (STATIC_SITE_RESERVED_PREFIXES as readonly string[]).includes(firstSegment)) {
@@ -109,8 +116,8 @@ export function addressReservation(address: string): AddressReservation | null {
   return null;
 }
 
-export function isAddressReserved(address: string): boolean {
-  return addressReservation(address) !== null;
+export function isAddressReserved(address: string, reservedLocales: ReadonlySet<string>): boolean {
+  return addressReservation(address, reservedLocales) !== null;
 }
 
 /** Human-readable reason naming the violated rule (FR-015, FR-016). */

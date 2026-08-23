@@ -8,6 +8,7 @@ import { can, getActorUserId, pagePermissionOptions, type PermCtx } from '@/serv
 import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
+import { getReservedLocalePrefixes } from '@/server/services/translation-locales';
 import * as audit from '@/server/services/audit';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -26,10 +27,10 @@ export type DerivedImportAddress = {
  * Turns an external source path into a deterministic, valid public address
  * without ever changing the page that already owns a candidate (035 R8).
  */
-export function deriveImportAddress(
+export async function deriveImportAddress(
   sourcePath: string,
   taken: (address: string) => boolean,
-): DerivedImportAddress {
+): Promise<DerivedImportAddress> {
   const source = sourcePath.normalize('NFC');
   const segments = source
     .toLowerCase()
@@ -40,7 +41,8 @@ export function deriveImportAddress(
   let address = segments.join('/');
   let reason: ImportAddressAdjustmentReason | null = address === source ? null : 'invalid_characters';
 
-  if (!address || addressReservation(address)) {
+  const reservedLocales = await getReservedLocalePrefixes();
+  if (!address || addressReservation(address, reservedLocales)) {
     address = address ? `page/${address}` : 'page';
     reason = 'reserved';
   }
@@ -125,7 +127,8 @@ export async function assertAddressAvailable(
     );
   }
 
-  const reservation = addressReservation(parsed.data);
+  const reservedLocales = await getReservedLocalePrefixes();
+  const reservation = addressReservation(parsed.data, reservedLocales);
   if (reservation) {
     throw new DomainError('PAGE_SLUG_RESERVED', describeAddressReservation(reservation));
   }

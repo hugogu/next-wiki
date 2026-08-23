@@ -21,7 +21,7 @@ const { tempDir } = vi.hoisted(() => {
 });
 
 const TRUNCATE =
-  'TRUNCATE TABLE transfer_page_mappings, transfer_asset_mappings, transfer_items, transfer_runs, transfer_artifacts, writing_mode_settings, raw_categories, page_revisions, pages, users, spaces RESTART IDENTITY CASCADE';
+  'TRUNCATE TABLE transfer_page_mappings, transfer_asset_mappings, transfer_items, transfer_runs, transfer_artifacts, writing_mode_settings, raw_categories, page_revisions, pages, translation_languages, users, spaces RESTART IDENTITY CASCADE';
 
 const NOW = '2026-06-21T00:00:00.000Z';
 

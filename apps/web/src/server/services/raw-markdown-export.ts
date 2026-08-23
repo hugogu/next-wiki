@@ -7,7 +7,8 @@ import * as pageService from '@/server/services/pages';
 import * as publicContent from '@/server/services/public-content';
 import { isLlmWikiMode } from '@/server/services/writing-mode';
 
-const LOCALE_PREFIX_RE = /^[a-z]{2}$/;
+import { getReservedLocalePrefixes, isReservedLocalePrefix } from '@/server/services/translation-locales';
+
 const MARKDOWN_CONTENT_TYPE = 'text/markdown';
 
 export type RawMarkdownResult =
@@ -24,8 +25,9 @@ export type RawMarkdownResult =
  */
 export async function getWikiRawMarkdown(segments: string[]): Promise<RawMarkdownResult> {
   const fullPath = segments.join('/');
+  const reservedLocales = await getReservedLocalePrefixes();
 
-  if (segments.length >= 2 && LOCALE_PREFIX_RE.test(segments[0]!)) {
+  if (segments.length >= 2 && isReservedLocalePrefix(reservedLocales, segments[0]!)) {
     const locale = segments[0]!;
     const sourcePath = segments.slice(1).join('/');
     const translation = await pageService.getCachedPublicLiveTranslation(locale, sourcePath);

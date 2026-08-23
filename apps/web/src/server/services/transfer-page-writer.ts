@@ -33,7 +33,7 @@ async function deriveNewPageAddress(
     tx.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.spaceId, spaceId), columns: { address: true } }),
   ]);
   const taken = new Set([...slugRows.map((r) => r.slug), ...aliasRows.map((r) => r.address)]);
-  return deriveImportAddress(sourcePath, (address) => taken.has(address));
+  return await deriveImportAddress(sourcePath, (address) => taken.has(address));
 }
 
 /**

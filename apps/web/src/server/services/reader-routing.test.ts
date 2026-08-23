@@ -19,16 +19,25 @@ const routes = vi.hoisted(() => ({
 }));
 const addresses = vi.hoisted(() => ({ resolveAddressTarget: vi.fn() }));
 const links = vi.hoisted(() => ({ findRetiredLinkTarget: vi.fn() }));
+const translationLocales = vi.hoisted(() => ({
+  getReservedLocalePrefixes: vi.fn(),
+  isReservedLocalePrefix: vi.fn((prefixes: ReadonlySet<string>, segment: string) => prefixes.has(segment)),
+}));
 
 vi.mock('@/server/services/pages', () => pages);
 vi.mock('@/server/services/spaces', () => spaces);
 vi.mock('@/server/services/space-routes', () => routes);
 vi.mock('@/server/services/page-addresses', () => addresses);
 vi.mock('@/server/services/link-pages', () => links);
+vi.mock('@/server/services/translation-locales', () => translationLocales);
 
 import { buildReaderMetadata, resolveReaderPage, type ResolvedReaderPage } from './reader-routing';
 
 const wiki = { id: 'space-1', slug: 'default', kind: 'wiki', routePrefix: 'wiki' };
+
+beforeEach(() => {
+  translationLocales.getReservedLocalePrefixes.mockResolvedValue(new Set(['zh']));
+});
 
 describe('resolveReaderPage access outcomes', () => {
   beforeEach(() => {

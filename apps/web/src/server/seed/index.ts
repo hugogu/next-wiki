@@ -248,4 +248,8 @@ export async function seedE2eAdminFixture() {
       latestVersionId: revision.id,
     })
     .where(eq(schema.pages.id, page.id));
+
+  // Seed a translation language so e2e specs can exercise locale-prefixed
+  // routing and address reservation without first driving the admin UI.
+  await db.insert(schema.translationLanguages).values({ code: 'zh', enabled: true }).onConflictDoNothing();
 }
