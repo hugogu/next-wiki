@@ -53,8 +53,14 @@ export async function rerenderPage(ctx: PermCtx, pageId: string): Promise<Public
   )];
   if (liveRevisionIds.length === 0) throw new DomainError('NOT_FOUND', 'Page has no revision to render');
 
+  // Scoped to this page as well as the ids: `currentPublishedVersionId` and
+  // `latestVersionId` are app-enforced pointers, not database foreign keys, so
+  // an inconsistent page row must not be able to rewrite another page's HTML.
   const revisions = await db.query.pageRevisions.findMany({
-    where: inArray(schema.pageRevisions.id, liveRevisionIds),
+    where: and(
+      eq(schema.pageRevisions.pageId, page.id),
+      inArray(schema.pageRevisions.id, liveRevisionIds),
+    ),
   });
 
   let revisionsChanged = 0;
@@ -71,14 +77,15 @@ export async function rerenderPage(ctx: PermCtx, pageId: string): Promise<Public
     if (revision.id === page.currentPublishedVersionId) publishedChanged = true;
   }
 
-  if (revisionsChanged > 0) {
+  // Only the published revision is publicly readable, so a draft-only re-render
+  // has nothing to propagate: the cache holds no draft HTML, and an editor
+  // reading a draft is served uncached.
+  if (publishedChanged) {
     invalidatePublicContentCache();
-    if (publishedChanged) {
-      await enqueuePublicPageWarmup(canonicalSpacePath(space, page.slug || page.path, page.locale));
-      // The static site renders from source, so it carries the same stale
-      // output until it is regenerated with the fixed pipeline.
-      await notifyPublicContentChanged('publish');
-    }
+    await enqueuePublicPageWarmup(canonicalSpacePath(space, page.slug || page.path, page.locale));
+    // The static site renders from source, so it carries the same stale
+    // output until it is regenerated with the fixed pipeline.
+    await notifyPublicContentChanged('publish');
   }
 
   return { pageId: page.id, revisionsRendered: revisions.length, revisionsChanged };

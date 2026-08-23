@@ -1,11 +1,28 @@
-import { beforeAll, afterAll, beforeEach, describe, it, expect } from 'vitest';
+import { beforeAll, afterAll, beforeEach, describe, it, expect, vi } from 'vitest';
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx, type PermCtx } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
+import { invalidatePublicContentCache } from '@/server/cache/public-cache';
+import { notifyPublicContentChanged } from '@/server/services/public-content-events';
+import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { rerenderPage } from '@/server/services/page-rerender';
+
+// The propagation side of the service is observed rather than executed: in a
+// test environment the real cache helper is a no-op, and the other two enqueue
+// background work this suite is not exercising.
+vi.mock('@/server/cache/public-cache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/cache/public-cache')>()),
+  invalidatePublicContentCache: vi.fn(),
+}));
+vi.mock('@/server/services/public-content-events', () => ({
+  notifyPublicContentChanged: vi.fn(async () => undefined),
+}));
+vi.mock('@/server/services/public-page-warmup', () => ({
+  enqueuePublicPageWarmup: vi.fn(async () => undefined),
+}));
 
 const PUBLISHED_SOURCE = '# Published\n\nBody of the published revision.';
 const DRAFT_SOURCE = '# Draft\n\nBody of the draft revision.';
@@ -83,6 +100,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
+  vi.clearAllMocks();
   await db.delete(schema.pageRevisions);
   await db.delete(schema.pages);
   const path = `docs/${randomUUID()}`;
@@ -133,6 +151,64 @@ describe('rerenderPage', () => {
     const result = await rerenderPage(editorCtx(), pageId);
 
     expect(result).toEqual({ pageId, revisionsRendered: 2, revisionsChanged: 0 });
+  });
+
+  it('invalidates the public cache and republishes when the published HTML changed', async () => {
+    await rerenderPage(editorCtx(), pageId);
+
+    expect(invalidatePublicContentCache).toHaveBeenCalledTimes(1);
+    expect(enqueuePublicPageWarmup).toHaveBeenCalledTimes(1);
+    expect(notifyPublicContentChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it('propagates nothing when only the draft changed — draft HTML is not publicly readable', async () => {
+    await rerenderPage(editorCtx(), pageId);
+    // Leave the published revision current and stale the draft on its own.
+    await db
+      .update(schema.pageRevisions)
+      .set({ contentHtml: STALE_HTML })
+      .where(eq(schema.pageRevisions.id, draftRevisionId));
+    vi.clearAllMocks();
+
+    const result = await rerenderPage(editorCtx(), pageId);
+
+    expect(result).toEqual({ pageId, revisionsRendered: 2, revisionsChanged: 1 });
+    expect(invalidatePublicContentCache).not.toHaveBeenCalled();
+    expect(enqueuePublicPageWarmup).not.toHaveBeenCalled();
+    expect(notifyPublicContentChanged).not.toHaveBeenCalled();
+  });
+
+  it('never renders a revision belonging to another page, even through a crossed pointer', async () => {
+    // The live-revision pointers are app-enforced, not foreign keys, so a
+    // corrupted row must not let this page rewrite another page's HTML.
+    const otherPath = `docs/${randomUUID()}`;
+    const [otherPage] = await db
+      .insert(schema.pages)
+      .values({ spaceId, slug: otherPath, path: otherPath, title: 'Other', authorId: editorId })
+      .returning();
+    const [otherRevision] = await db
+      .insert(schema.pageRevisions)
+      .values({
+        pageId: otherPage!.id,
+        versionNumber: 1,
+        contentType: 'text/markdown',
+        contentSource: '# Other\n\nAnother page.',
+        contentHtml: STALE_HTML,
+        contentHash: renderMarkdown('# Other\n\nAnother page.').hash,
+        authorId: editorId,
+        status: 'published',
+      })
+      .returning();
+    await db
+      .update(schema.pages)
+      .set({ latestVersionId: otherRevision!.id })
+      .where(eq(schema.pages.id, pageId));
+
+    const result = await rerenderPage(editorCtx(), pageId);
+
+    expect(result).toEqual({ pageId, revisionsRendered: 1, revisionsChanged: 1 });
+    expect((await readRevision(otherRevision!.id)).contentHtml).toBe(STALE_HTML);
+    expect((await readRevision(publishedRevisionId)).contentHtml).toBe(renderMarkdown(PUBLISHED_SOURCE).html);
   });
 
   it('refuses a caller without edit permission', async () => {

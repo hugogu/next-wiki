@@ -459,7 +459,13 @@ export function Header({
           pending={isRerendering}
           error={rerenderError ?? undefined}
           onConfirm={confirmRerender}
-          onCancel={() => setRerenderOpen(false)}
+          // Cancel stays enabled while the request is in flight (ConfirmDialog
+          // never traps the user), so drop the pending state with it — otherwise
+          // reopening the dialog would show a permanently disabled confirm.
+          onCancel={() => {
+            setRerenderOpen(false);
+            setIsRerendering(false);
+          }}
         />
       )}
       {deleteOpen && pageContext?.pageId && (
