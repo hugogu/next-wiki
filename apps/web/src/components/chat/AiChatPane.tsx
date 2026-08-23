@@ -19,6 +19,8 @@ import {
 } from '@/components/icons';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
+import { readChatKeyFromUrl, syncChatKeyToUrl } from './chat-url';
+import { loadConversationFromKey } from './load-conversation';
 import { recoverSessionFromServer } from './reconstruct-session';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
@@ -27,6 +29,7 @@ import { ChatThinking } from './ChatThinking';
 import { ToolCallTimeline } from './ToolCallTimeline';
 import {
   getAnonymousChatHistoryStatus,
+  listAnonymousChatSessions,
   probeAnonymousChatHistory,
   saveAnonymousChatSession,
   subscribeAnonymousChatHistoryStatus,
@@ -92,6 +95,7 @@ export function AiChatPane({
     getAnonymousChatHistoryStatus,
   );
   const [question, setQuestion] = useState('');
+  const [chatUrlSettled, setChatUrlSettled] = useState(false);
   const [internalMaximized, setInternalMaximized] = useState(false);
   const maximized = maximizedProp ?? internalMaximized;
   const setMaximized = (value: boolean) => {
@@ -166,10 +170,10 @@ export function AiChatPane({
     prevCountRef.current = chat.messages.length;
   }, [chat.messages.length]);
 
-  // The pane's open/closed state and current session live entirely in the
-  // persisted chat store, so no URL synchronisation is needed: rehydration
-  // restores `open` on the next mount, and "Continue" in history writes
-  // straight into the store via loadConversationFromKey.
+  // The pane's open/closed state lives entirely in the persisted chat store —
+  // rehydration restores `open` on the next mount. Only the *selected
+  // conversation* is also an address (`?chat=`, see the effects below), so a
+  // thread can be linked to instead of only existing in this tab.
   const onMessageListScroll = () => {
     const list = scrollRef.current;
     if (!list) return;
@@ -181,8 +185,8 @@ export function AiChatPane({
   useEffect(() => {
     // Hydration is deferred (skipHydration) so the pre-mount render matches
     // the server, then we restore the persisted session. The persisted `open`
-    // flag is enough to decide whether the pane should mount expanded vs the
-    // collapsed FAB — no URL signal is consulted.
+    // flag decides whether the pane mounts expanded vs the collapsed FAB; a
+    // `?chat=` link then loads its conversation over the top (effect below).
     let cancelled = false;
     void Promise.resolve(useChatStore.persist.rehydrate()).then(() => {
       if (cancelled) return;
@@ -227,6 +231,54 @@ export function AiChatPane({
       cancelled = true;
     };
   }, []);
+
+  // Arriving on a `?chat=` link loads that conversation over whatever this tab
+  // had. It runs once, before the mirror below starts, so a shared link never
+  // strips its own parameter on the way in.
+  useEffect(() => {
+    if (!rehydrated || chatUrlSettled) return;
+    const key = readChatKeyFromUrl(window.location.search);
+    if (!key) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- the address bar can only be read after mount, so SSR/hydration render the same "not settled yet" tree
+      setChatUrlSettled(true);
+      return;
+    }
+    // The link asked for a conversation, so the pane belongs open even if the
+    // key turns out to be unreadable — the shell has already switched to the
+    // maximized layout, which has nothing else to show.
+    useChatStore.getState().setOpen(true);
+    if (key === useChatStore.getState().conversationKey) {
+      setChatUrlSettled(true);
+      return;
+    }
+    let cancelled = false;
+    const load = anonymous
+      ? listAnonymousChatSessions().then((sessions) => {
+          const session = sessions.find((item) => item.sessionId === key);
+          if (!session || cancelled) return;
+          useChatStore.getState().restoreSession({ ...session, conversationKey: key });
+        })
+      : loadConversationFromKey(key);
+    void load
+      .catch(() => {
+        // A key this reader cannot open (deleted, expired, someone else's, or
+        // another browser's local history) leaves the pane as it was; the
+        // mirror then drops the parameter rather than leaving a dead address.
+      })
+      .finally(() => {
+        if (!cancelled) setChatUrlSettled(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [anonymous, rehydrated, chatUrlSettled]);
+
+  // Mirror the loaded conversation into the address bar: selecting one in
+  // history stamps `?chat=`, starting a new session clears it.
+  useEffect(() => {
+    if (!chatUrlSettled) return;
+    syncChatKeyToUrl(chat.conversationKey);
+  }, [chatUrlSettled, chat.conversationKey]);
 
   useEffect(() => {
     if (!anonymous) return;

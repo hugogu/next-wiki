@@ -77,6 +77,13 @@ type ChatState = {
   messages: ChatMessage[];
   open: boolean;
   latestQueuedAt?: string;
+  /**
+   * History key of the conversation currently loaded into the pane, or null for
+   * a session that started here. Distinct from `sessionId` (which the server
+   * groups new turns by): this is the address the pane publishes as `?chat=`,
+   * so a conversation can be linked to rather than only living in this tab.
+   */
+  conversationKey: string | null;
   setMode: (mode: AiQuestionMode) => void;
   setOpen: (open: boolean) => void;
   add: (message: ChatMessage) => void;
@@ -122,7 +129,13 @@ type ChatState = {
     citations: AiCitation[];
     insufficient: boolean;
   }) => void;
-  restoreSession: (session: { sessionId?: string; mode: AiQuestionMode; messages: ChatMessage[]; latestQueuedAt?: string }) => void;
+  restoreSession: (session: {
+    sessionId?: string;
+    mode: AiQuestionMode;
+    messages: ChatMessage[];
+    latestQueuedAt?: string;
+    conversationKey?: string | null;
+  }) => void;
 };
 
 /**
@@ -138,6 +151,7 @@ export const useChatStore = create<ChatState>()(
       mode: 'retrieval',
       messages: [],
       open: false,
+      conversationKey: null,
       setMode: (mode) => set({ mode }),
       setOpen: (open) => set({ open }),
       add: (message) => set((state) => ({ messages: [...state.messages, message] })),
@@ -204,29 +218,36 @@ export const useChatStore = create<ChatState>()(
           return next;
         }),
       })),
-      newSession: () => set({ messages: [], sessionId: createChatSessionId(), latestQueuedAt: undefined }),
+      newSession: () => set({
+        messages: [],
+        sessionId: createChatSessionId(),
+        latestQueuedAt: undefined,
+        conversationKey: null,
+      }),
       loadSession: ({ sessionId, mode, question, answer, citations, insufficient }) => set({
         sessionId: sessionId ?? createChatSessionId(),
         mode,
         open: true,
+        conversationKey: null,
         messages: [
           { id: uuid(), role: 'user', text: question },
           { id: uuid(), role: 'assistant', text: answer, citations, insufficient },
         ],
       }),
-      restoreSession: ({ sessionId, mode, messages, latestQueuedAt }) => set({
+      restoreSession: ({ sessionId, mode, messages, latestQueuedAt, conversationKey = null }) => set({
         sessionId: sessionId ?? createChatSessionId(),
         mode,
         open: true,
         messages,
         latestQueuedAt,
+        conversationKey,
       }),
     }),
     {
       name: 'ai-chat',
       storage: createJSONStorage(() => safeSessionStorage),
       skipHydration: true,
-      partialize: (state) => ({ sessionId: state.sessionId, mode: state.mode, messages: state.messages, open: state.open, latestQueuedAt: state.latestQueuedAt }),
+      partialize: (state) => ({ sessionId: state.sessionId, mode: state.mode, messages: state.messages, open: state.open, latestQueuedAt: state.latestQueuedAt, conversationKey: state.conversationKey }),
     },
   ),
 );

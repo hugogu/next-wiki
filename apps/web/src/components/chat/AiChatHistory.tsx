@@ -56,9 +56,9 @@ function AccountAiChatHistory() {
     };
   }, [t]);
 
-  // Loads the historical conversation straight into the chat store — no URL
-  // round-trip, so the active session id never appears in the address bar
-  // (and the page stays shareable as a plain wiki URL).
+  // Loads the historical conversation straight into the chat store — no RSC
+  // round-trip. The pane mirrors the loaded key into `?chat=` so the selection
+  // is addressable (see chat-url.ts).
   const handleContinue = async (conversation: AiConversationSummary) => {
     setContinuingKey(conversation.conversationKey);
     try {
@@ -198,6 +198,9 @@ function AnonymousAiChatHistory() {
       mode: session.mode,
       messages: session.messages,
       latestQueuedAt: session.latestQueuedAt,
+      // Local-only history: the link reopens the conversation in this browser,
+      // where the transcript lives, and shows nothing in any other.
+      conversationKey: session.sessionId,
     });
   };
 

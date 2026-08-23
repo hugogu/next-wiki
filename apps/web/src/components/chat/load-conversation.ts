@@ -84,9 +84,9 @@ export function buildMessagesFromDetail(detail: AiConversationDetail): ChatMessa
  * otherwise) so subsequent turns continue the same conversation rather than
  * starting a new one.
  *
- * Lives here (not inside the pane) so the URL stays clean — history "Continue"
- * writes nothing to the address bar, and the active session id lives in
- * sessionStorage along with the rest of the chat state.
+ * The history key is carried into the store as `conversationKey`, which the
+ * pane publishes as `?chat=` — one place decides what is loaded, so every
+ * caller (history click, restoring a shared link) lands on the same address.
  */
 export async function loadConversationFromKey(key: string): Promise<void> {
   const detail = await fetchHistoryDetail(key);
@@ -97,5 +97,6 @@ export async function loadConversationFromKey(key: string): Promise<void> {
     mode: detail.turns.at(-1)?.action.questionMode ?? 'retrieval',
     messages,
     latestQueuedAt: detail.conversation.latestQueuedAt,
+    conversationKey: key,
   });
 }

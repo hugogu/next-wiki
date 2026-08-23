@@ -6,6 +6,7 @@ import { Navigator } from './Navigator';
 import { DemoReadonlyBanner } from './DemoReadonlyBanner';
 import type { AppShellProps } from './types';
 import { AiChatPane } from '@/components/chat/AiChatPane';
+import { readChatKeyFromUrl } from '@/components/chat/chat-url';
 import { AiAvailabilityProvider } from '@/components/ai/AiAvailabilityContext';
 import { PageEditProvider } from '@/components/pages/PageEditContext';
 import type { Actor } from '@/server/permissions';
@@ -48,6 +49,18 @@ export function AppShell({
   const [aiEntitlements, setAiEntitlements] = useState<AiEntitlementView | null | undefined>(initialAiEntitlements);
   const [writingMode, setWritingMode] = useState<WritingMode | undefined>(initialWritingMode);
   const [aiMaximized, setAiMaximized] = useState(false);
+
+  // A `?chat=` link points at a conversation, and conversations are browsed
+  // from the maximized pane (the sidebar only becomes the history list there),
+  // so arriving on one opens that view. Read once on mount: afterwards the
+  // control belongs to the user, not the address bar. The pane opens itself
+  // once its store has rehydrated (see AiChatPane) — doing it here would race
+  // that rehydration and leave the page as a bare floating button.
+  useEffect(() => {
+    if (!readChatKeyFromUrl(window.location.search)) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the address bar can only be read after mount, so SSR/hydration render the un-maximized shell first
+    setAiMaximized(true);
+  }, []);
 
   useEffect(() => {
     // A staticPublic document was rendered against a placeholder anonymous

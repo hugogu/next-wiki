@@ -18,7 +18,7 @@ import { useChatStore } from './chat-store';
 describe('useChatStore', () => {
   beforeEach(() => {
     sessionStorage.clear();
-    useChatStore.setState({ mode: 'retrieval', messages: [], open: false });
+    useChatStore.setState({ mode: 'retrieval', messages: [], open: false, conversationKey: null });
   });
 
   it('persists messages and open state across a simulated reload', () => {
@@ -40,6 +40,25 @@ describe('useChatStore', () => {
     expect(useChatStore.getState().messages).toEqual([]);
     expect(useChatStore.getState().open).toBe(true);
     expect(useChatStore.getState().mode).toBe('full');
+  });
+
+  it('tracks which history conversation is loaded, and forgets it on a new session', () => {
+    useChatStore.getState().restoreSession({
+      sessionId: 'session-1',
+      mode: 'retrieval',
+      messages: [{ id: '1', role: 'user', text: 'Hi' }],
+      conversationKey: 'legacy:abc',
+    });
+    expect(useChatStore.getState().conversationKey).toBe('legacy:abc');
+    expect(JSON.parse(sessionStorage.getItem('ai-chat') ?? '{}').state.conversationKey).toBe('legacy:abc');
+
+    useChatStore.getState().newSession();
+    expect(useChatStore.getState().conversationKey).toBeNull();
+  });
+
+  it('treats a session restored without a key as unaddressable', () => {
+    useChatStore.getState().restoreSession({ mode: 'retrieval', messages: [] });
+    expect(useChatStore.getState().conversationKey).toBeNull();
   });
 
   it('merges tool-call events and stores proposal links on the assistant message', () => {
