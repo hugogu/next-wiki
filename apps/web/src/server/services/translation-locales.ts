@@ -6,9 +6,9 @@ import { shouldUseDataCache } from '@/server/cache/public-cache';
 /** Cache tag for the reserved translation-locale prefix set. */
 export const RESERVED_LOCALE_PREFIXES_CACHE_TAG = 'reserved-locale-prefixes';
 
-async function loadReservedLocalePrefixes(): Promise<Set<string>> {
+async function loadReservedLocalePrefixes(): Promise<string[]> {
   const rows = await db.select({ code: schema.translationLanguages.code }).from(schema.translationLanguages);
-  return new Set(rows.map((row) => row.code));
+  return rows.map((row) => row.code);
 }
 
 const cachedReservedLocalePrefixes = unstable_cache(
@@ -23,7 +23,8 @@ const cachedReservedLocalePrefixes = unstable_cache(
  * not in this set is available for page addresses.
  */
 export async function getReservedLocalePrefixes(): Promise<ReadonlySet<string>> {
-  return shouldUseDataCache() ? cachedReservedLocalePrefixes() : loadReservedLocalePrefixes();
+  const codes = shouldUseDataCache() ? await cachedReservedLocalePrefixes() : await loadReservedLocalePrefixes();
+  return new Set(codes);
 }
 
 /** True when `segment` is a configured translation-language code. */
