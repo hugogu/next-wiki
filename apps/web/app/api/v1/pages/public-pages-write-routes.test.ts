@@ -10,6 +10,7 @@ const publicContent = vi.hoisted(() => ({
   listRevisions: vi.fn(),
   getRevision: vi.fn(),
   publishRevision: vi.fn(),
+  rerenderPage: vi.fn(),
   deletePage: vi.fn(),
 }));
 
@@ -27,6 +28,7 @@ import * as draftsRoute from './[id]/drafts/route';
 import * as revisionsRoute from './[id]/revisions/route';
 import * as revisionRoute from './[id]/revisions/[version]/route';
 import * as publicationRoute from './[id]/revisions/[version]/publication/route';
+import * as renderingRoute from './[id]/rendering/route';
 
 function request(method: string, url: string, body?: unknown) {
   return new NextRequest(url, {
@@ -156,5 +158,24 @@ describe('Public Wiki write routes', () => {
 
     expect((await publicationRoute.POST(request('POST', `http://localhost/api/v1/pages/${id}/revisions/2/publication`, {}), { params: Promise.resolve({ id, version: '2' }) })).status).toBe(200);
     expect(publicContent.publishRevision).toHaveBeenCalledWith(expect.anything(), id, 2, {}, []);
+  });
+
+  it('POST /api/v1/pages/{id}/rendering delegates a re-render and rejects a non-uuid id', async () => {
+    const id = randomUUID();
+    publicContent.rerenderPage.mockResolvedValue({ pageId: id, revisionsRendered: 2, revisionsChanged: 1 });
+
+    const response = await renderingRoute.POST(
+      request('POST', `http://localhost/api/v1/pages/${id}/rendering`),
+      { params: Promise.resolve({ id }) },
+    );
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ pageId: id, revisionsRendered: 2, revisionsChanged: 1 });
+    expect(publicContent.rerenderPage).toHaveBeenCalledWith(expect.anything(), id);
+
+    const invalid = await renderingRoute.POST(
+      request('POST', 'http://localhost/api/v1/pages/not-a-uuid/rendering'),
+      { params: Promise.resolve({ id: 'not-a-uuid' }) },
+    );
+    expect(invalid.status).toBe(422);
   });
 });

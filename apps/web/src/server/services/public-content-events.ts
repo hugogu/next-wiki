@@ -12,10 +12,14 @@ import { markStaleAndMaybePublish } from './static-site';
  * adding a second listener at eight call sites is exactly how one gets missed.
  *
  * `reason` distinguishes an ordinary publish, which each feature may choose to
- * ignore based on its own settings, from a bulk change that should always sync.
+ * ignore based on its own settings, from a bulk change that should always sync,
+ * and from `rendering` — the rendered output of unchanged source (a manual
+ * re-render). A listener that mirrors source, rather than rendered output, has
+ * nothing to do for that last one. Call sites still describe what happened and
+ * leave that judgement to each listener.
  */
 export async function notifyPublicContentChanged(
-  reason: 'publish' | 'manual' = 'publish',
+  reason: 'publish' | 'manual' | 'rendering' = 'publish',
 ): Promise<void> {
   // Each listener decides for itself whether this event warrants work, and a
   // failure in one must not stop the other from hearing about the change.

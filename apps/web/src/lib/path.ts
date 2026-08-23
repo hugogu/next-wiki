@@ -213,6 +213,10 @@ export function getPublicApiPagePublicationUrl(pageId: string, version: number):
   return `/api/v1/pages/${encodeURIComponent(pageId)}/revisions/${version}/publication`;
 }
 
+export function getPublicApiPageRenderingUrl(pageId: string): string {
+  return `/api/v1/pages/${encodeURIComponent(pageId)}/rendering`;
+}
+
 export function leafTitleFromPath(path: string): string {
   return path.split('/').pop() ?? path;
 }

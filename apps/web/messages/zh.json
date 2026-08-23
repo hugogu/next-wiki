@@ -418,7 +418,14 @@
       "admin": "管理",
       "translate": "翻译此页",
       "actions": "更多操作",
-      "settings": "页面配置"
+      "settings": "页面配置",
+      "rerender": "重新渲染页面"
+    },
+    "rerender": {
+      "title": "重新渲染页面？",
+      "message": "使用当前渲染引擎，从已保存的 Markdown 重新生成本页 HTML。内容、历史版本和发布状态都不会改变。",
+      "confirm": "重新渲染",
+      "error": "重新渲染失败。"
     },
     "translate": {
       "title": "翻译此页",

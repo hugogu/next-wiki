@@ -1304,6 +1304,22 @@ export const PublicPublicationInput = z
   })
   .describe('Publish revision input.');
 
+export const PublicPageRenderingResult = z
+  .object({
+    pageId: z.string().uuid().describe('Stable public page identifier.'),
+    revisionsRendered: z
+      .number()
+      .int()
+      .min(0)
+      .describe('Number of live revisions (published and latest draft) passed through the render pipeline.'),
+    revisionsChanged: z
+      .number()
+      .int()
+      .min(0)
+      .describe('Number of those revisions whose stored HTML actually changed.'),
+  })
+  .describe('Page re-render result.');
+
 // Named `PublicPageSearchQueryParams` (not `PublicPageSearchQuery`) deliberately:
 // next-openapi-gen silently drops this route's query parameters when the
 // @queryParams schema name collides with a same-named type exported elsewhere in
