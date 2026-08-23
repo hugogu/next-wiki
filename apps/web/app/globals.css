@@ -460,10 +460,10 @@ html.dark .prose .hljs-punctuation {
   padding: var(--space-md);
 }
 
-/* Markdown rendered inside a narrow, small-type panel — the Wiki AI reasoning
-   drawer and the tool transcript. Same pipeline output as a page, scaled to the
-   surrounding text so a heading in the model's reasoning does not dwarf the box
-   it sits in, and with the outer block margins collapsed against the padding. */
+/* Markdown rendered inside a narrow, small-type panel — currently the Wiki AI
+   reasoning drawer. Same pipeline output as a page, scaled to the surrounding
+   text so a heading in the model's reasoning does not dwarf the box it sits in,
+   and with the outer block margins collapsed against the padding. */
 .prose-compact .prose {
   line-height: 1.6;
 }
