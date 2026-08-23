@@ -521,6 +521,14 @@ export const publicPublicationInputSchema = z.object({
 });
 export type PublicPublicationInput = z.infer<typeof publicPublicationInputSchema>;
 
+/** Outcome of re-running the Markdown pipeline over a page's live revisions. */
+export const publicPageRenderingResultSchema = z.object({
+  pageId: z.string().uuid(),
+  revisionsRendered: z.number().int().min(0),
+  revisionsChanged: z.number().int().min(0),
+});
+export type PublicPageRenderingResult = z.infer<typeof publicPageRenderingResultSchema>;
+
 export const publicPageSearchQuerySchema = z
   .object({
     q: z.string().min(1).max(200),

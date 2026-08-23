@@ -20,6 +20,7 @@ import {
   LanguagesIcon,
   TrashIcon,
   MoreHorizontalIcon,
+  RefreshIcon,
 } from '@/components/icons';
 import { TranslatePageDialog } from '@/components/pages/TranslatePageDialog';
 import { PagePropertiesDialog } from '@/components/pages/PagePropertiesDialog';
@@ -35,6 +36,7 @@ import {
   getSpaceEditHref,
   getSpaceHref,
   getSpaceNewHref,
+  getPublicApiPageRenderingUrl,
   getTranslatedPageHref,
 } from '@/lib/path';
 import { translationLanguageName } from '@next-wiki/shared';
@@ -103,20 +105,22 @@ function LanguageLink({ href, label, active }: { href: string; label: string; ac
 
 /**
  * Hover/focus-triggered dropdown consolidating the reader-page page actions
- * (edit, history, settings, delete) and — when translations exist — the
- * language switcher. Renders nothing when there are no qualifying actions.
+ * (edit, history, re-render, settings, delete) and — when translations exist —
+ * the language switcher. Renders nothing when there are no qualifying actions.
  */
 function MoreActionsMenu({
   pageContext,
   showDelete,
   onOpenSettings,
   onRequestDelete,
+  onRequestRerender,
   onTranslate,
 }: {
   pageContext: NonNullable<PageContext>;
   showDelete: boolean;
   onOpenSettings: () => void;
   onRequestDelete: () => void;
+  onRequestRerender: () => void;
   onTranslate?: () => void;
 }) {
   const { t } = useTranslation();
@@ -130,8 +134,12 @@ function MoreActionsMenu({
   const showSettings = pageContext.canEdit && pageContext.space !== 'raw';
   const showEdit = pageContext.canEdit;
   const showHistory = pageContext.space !== 'raw';
+  // Rendered HTML is stored at write time, so a page keeps whatever the render
+  // pipeline produced back then. This is how an editor picks up a renderer fix
+  // without inventing a content change to trigger a save.
+  const showRerender = pageContext.canEdit && Boolean(pageContext.pageId);
 
-  if (!showEdit && !showHistory && !showSettings && !showDelete && !hasLanguages && !onTranslate) return null;
+  if (!showEdit && !showHistory && !showSettings && !showRerender && !showDelete && !hasLanguages && !onTranslate) return null;
 
   return (
     <div className="group relative">
@@ -169,6 +177,12 @@ function MoreActionsMenu({
             <button type="button" onClick={onOpenSettings} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
               <SettingsIcon />
               <span>{t('page.header.settings')}</span>
+            </button>
+          )}
+          {showRerender && (
+            <button type="button" onClick={onRequestRerender} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
+              <RefreshIcon />
+              <span>{t('page.header.rerender')}</span>
             </button>
           )}
           {showDelete && (
@@ -248,6 +262,9 @@ export function Header({
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [rerenderOpen, setRerenderOpen] = useState(false);
+  const [rerenderError, setRerenderError] = useState<string | null>(null);
+  const [isRerendering, setIsRerendering] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const isSignedIn = user.kind === 'user';
   const role = isSignedIn ? user.role : null;
@@ -290,6 +307,28 @@ export function Header({
       const error = err as ApiError;
       setDeleteError(error.message || t('editor.delete.error'));
       setIsDeleting(false);
+    }
+  };
+
+  const requestRerender = () => {
+    setRerenderError(null);
+    setRerenderOpen(true);
+  };
+
+  // Re-renders the stored Markdown with the current pipeline. Nothing about the
+  // page changes when the renderer produced the same HTML, so the reload simply
+  // shows the page as it stands.
+  const confirmRerender = async () => {
+    if (!pageContext?.pageId) return;
+    setIsRerendering(true);
+    setRerenderError(null);
+    try {
+      await apiPost<Record<string, never>, unknown>(getPublicApiPageRenderingUrl(pageContext.pageId), {});
+      window.location.reload();
+    } catch (err) {
+      const error = err as ApiError;
+      setRerenderError(error.message || t('page.rerender.error'));
+      setIsRerendering(false);
     }
   };
 
@@ -369,6 +408,7 @@ export function Header({
                   showDelete={canDeletePage}
                   onOpenSettings={() => setSettingsOpen(true)}
                   onRequestDelete={requestDelete}
+                  onRequestRerender={requestRerender}
                   onTranslate={canTranslate ? () => setTranslateOpen(true) : undefined}
                 />
               )}
@@ -409,6 +449,17 @@ export function Header({
           // would be wrong now that the address and the path can diverge.
           onSaved={() => window.location.reload()}
           onClose={() => setSettingsOpen(false)}
+        />
+      )}
+      {rerenderOpen && pageContext?.pageId && (
+        <ConfirmDialog
+          title={t('page.rerender.title')}
+          message={t('page.rerender.message')}
+          confirmLabel={t('page.rerender.confirm')}
+          pending={isRerendering}
+          error={rerenderError ?? undefined}
+          onConfirm={confirmRerender}
+          onCancel={() => setRerenderOpen(false)}
         />
       )}
       {deleteOpen && pageContext?.pageId && (

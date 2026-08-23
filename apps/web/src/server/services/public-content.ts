@@ -35,6 +35,7 @@ import type {
   PublicPageTreeNode,
   PublicPageTreeQuery,
   PublicPageTreeResponse,
+  PublicPageRenderingResult,
   PublicPublicationInput,
   PublicRevisionListQuery,
   PublicRevisionListResponse,
@@ -53,6 +54,7 @@ import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { parsePageFrontmatter, matchesFrontmatterFilters, type FrontmatterFilters } from '@/server/transfers/frontmatter';
 import { findFrontmatterRelatedPages, findMarkdownLinks } from '@/server/transfers/markdown-links';
 import * as pageService from '@/server/services/pages';
+import * as pageRerender from '@/server/services/page-rerender';
 import * as revisionService from '@/server/services/revisions';
 import * as contentAssets from '@/server/services/content-assets';
 import * as pageAttachments from '@/server/services/page-attachments';
@@ -990,6 +992,11 @@ export async function publishRevision(
   const view = await getPageById(ctx, page.id, include);
   if (!view) throw new DomainError('NOT_FOUND', 'Published page is not visible');
   return view;
+}
+
+/** Render the page's live revisions again with the current pipeline. */
+export async function rerenderPage(ctx: PermCtx, pageId: string): Promise<PublicPageRenderingResult> {
+  return pageRerender.rerenderPage(ctx, pageId);
 }
 
 export async function uploadAsset(ctx: PermCtx, bytes: Buffer): Promise<PublicAssetResource> {

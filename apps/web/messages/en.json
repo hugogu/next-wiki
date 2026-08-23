@@ -418,7 +418,14 @@
       "admin": "Admin",
       "translate": "Translate this page",
       "actions": "More actions",
-      "settings": "Page settings"
+      "settings": "Page settings",
+      "rerender": "Re-render page"
+    },
+    "rerender": {
+      "title": "Re-render page?",
+      "message": "Rebuilds this page's HTML from its saved Markdown using the current renderer. The content, the revision history, and the publication state are unchanged.",
+      "confirm": "Re-render",
+      "error": "Could not re-render this page."
     },
     "translate": {
       "title": "Translate this page",

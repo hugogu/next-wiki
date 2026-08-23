@@ -4215,6 +4215,32 @@
         },
         "description": "Update page properties. Provide at least one of path, title, or slug."
       },
+      "PublicPageRenderingResult": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public page identifier."
+          },
+          "revisionsRendered": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of live revisions (published and latest draft) passed through the render pipeline."
+          },
+          "revisionsChanged": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Number of those revisions whose stored HTML actually changed."
+          }
+        },
+        "required": [
+          "pageId",
+          "revisionsRendered",
+          "revisionsChanged"
+        ],
+        "description": "Page re-render result."
+      },
       "PublicPageResource": {
         "type": "object",
         "properties": {
@@ -18378,6 +18404,47 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicPageResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/rendering": {
+      "post": {
+        "operationId": "post-v1-pages-{id}-rendering",
+        "summary": "Re-render public wiki page",
+        "description": "Renders the page's live revisions (published and latest draft) again from their stored Markdown, without creating a revision or changing content. Use after a fix to the render pipeline, which otherwise only reaches pages that are edited afterwards.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageRenderingResult"
                 }
               }
             }
