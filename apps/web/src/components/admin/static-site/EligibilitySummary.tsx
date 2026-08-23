@@ -7,6 +7,7 @@ import type {
   StaticSitePublicationView,
 } from '@next-wiki/shared';
 import { useQuery } from '@tanstack/react-query';
+import { getSpaceHref } from '@/lib/path';
 import { apiGet } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
 
@@ -123,14 +124,14 @@ export function EligibilitySummary({ run = null }: EligibilitySummaryProps) {
       {rawWithheld ? (
         <SpaceKindNotice
           reason="raw"
-          href="/spaces/raw"
+          href={getSpaceHref('raw')}
           label={t('admin.staticSite.eligibility.openRaw')}
         />
       ) : null}
       {generatedWithheld ? (
         <SpaceKindNotice
           reason="generated"
-          href="/spaces/generated"
+          href={getSpaceHref('generated')}
           label={t('admin.staticSite.eligibility.openGenerated')}
         />
       ) : null}

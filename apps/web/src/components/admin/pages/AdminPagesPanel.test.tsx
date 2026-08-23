@@ -192,7 +192,7 @@ describe('AdminPagesPanel draft review links', () => {
 
     const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{}} />);
 
-    expect(html).toContain('href="/spaces/raw/conversations/feishu/2026/07/21/action-1"');
+    expect(html).toContain('href="/raw/conversations/feishu/2026/07/21/action-1"');
     expect(html).not.toContain('admin.pages.actions.reviewDraft');
   });
 });

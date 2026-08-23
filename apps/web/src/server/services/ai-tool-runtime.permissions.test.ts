@@ -260,6 +260,7 @@ describe('read tool permission projection (026)', () => {
     content.createPage.mockResolvedValue({
       id: 'page-created',
       path: 'history/china/figures/zhang-fei',
+      slug: 'history/china/figures/zhang-fei',
       title: '张飞',
     });
     const result = await executeTool(
@@ -284,7 +285,7 @@ describe('read tool permission projection (026)', () => {
       pageId: 'page-created',
       path: 'history/china/figures/zhang-fei',
       title: '张飞',
-      href: '/spaces/generated/history/china/figures/zhang-fei',
+      href: '/generated/history/china/figures/zhang-fei',
     });
   });
 
@@ -293,6 +294,7 @@ describe('read tool permission projection (026)', () => {
     content.createPage.mockResolvedValue({
       id: 'page-editor',
       path: 'drafts/test',
+      slug: 'drafts/test',
       title: 'Test',
     });
     const result = await executeTool(

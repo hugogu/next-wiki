@@ -80,7 +80,7 @@ describe('Generated page history navigation', () => {
     });
     const html = renderToStaticMarkup(element);
 
-    expect(html).toContain('href="/spaces/generated/zhuge-liang"');
+    expect(html).toContain('href="/generated/zhuge-liang"');
     expect(html).toContain('data-layout-space="generated"');
     expect(html).toContain('data-page-space="generated"');
     expect(html).toContain('data-space="generated"');

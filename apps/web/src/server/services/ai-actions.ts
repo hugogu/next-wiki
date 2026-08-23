@@ -444,7 +444,7 @@ export async function resolveRawConversationPointer(
   return {
     pageId,
     path: page.path,
-    url: `/spaces/raw/${page.path}`,
+    url: `/raw/${page.path}`,
     captureStatus,
     channel: channelFromSourceMetadata(revision?.sourceMetadata),
   };
@@ -735,7 +735,7 @@ async function resolveRawConversationPointersByPageId(
         ? {
             pageId: id,
             path: page.path,
-            url: `/spaces/raw/${page.path}`,
+            url: `/raw/${page.path}`,
             captureStatus: 'captured',
             channel: page.currentPublishedVersionId
               ? (channelByRevisionId.get(page.currentPublishedVersionId) ?? 'wiki-ai')
@@ -864,7 +864,7 @@ export async function getConversationDetail(
       pointer = {
         pageId: rawPageId,
         path: capturedPage.path,
-        url: `/spaces/raw/${capturedPage.path}`,
+        url: `/raw/${capturedPage.path}`,
         captureStatus: 'captured',
         channel,
       };

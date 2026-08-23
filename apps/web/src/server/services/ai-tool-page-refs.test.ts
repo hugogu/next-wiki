@@ -104,6 +104,20 @@ describe('get_page across spaces', () => {
     // Literal path first (wiki space) — miss — then the space parsed off the URL.
     content.getPageByPath.mockResolvedValueOnce(null).mockResolvedValueOnce(page);
 
+    const result = await getPage({ path: '/generated/games/reversi' });
+
+    expect(result.ok).toBe(true);
+    expect(content.getPageByPath).toHaveBeenLastCalledWith(
+      ctx,
+      'games/reversi',
+      expect.anything(),
+      'generated',
+    );
+  });
+
+  it('still accepts the legacy /spaces/{space}/... reader URL form', async () => {
+    content.getPageByPath.mockResolvedValueOnce(null).mockResolvedValueOnce(page);
+
     const result = await getPage({ path: '/spaces/generated/games/reversi' });
 
     expect(result.ok).toBe(true);
@@ -127,7 +141,7 @@ describe('get_page across spaces', () => {
   it('still fails when neither reading finds a page', async () => {
     content.getPageByPath.mockResolvedValue(null);
 
-    const result = await getPage({ path: '/spaces/generated/games/nope' });
+    const result = await getPage({ path: '/generated/games/nope' });
 
     expect(result).toMatchObject({ ok: false, errorCode: 'NOT_FOUND' });
   });

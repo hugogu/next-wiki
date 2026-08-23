@@ -46,8 +46,9 @@ async function seed(): Promise<Seed> {
     .values({ id: adminId, email: `admin-${adminId}@example.com`, passwordHash: 'x', role: 'admin' });
   const wikiSpaceId = await ensureSpace('default', 'wiki');
   const rawSpaceId = await ensureSpace('raw', 'raw');
-  // Generated content is admin-facing: it is browsed at /spaces/generated, not
-  // at a public address, so it is not anonymously readable.
+  // Generated content is admin-facing: it is browsed at /spaces/generated for the
+  // space root, while individual pages are canonically addressed under /generated/....
+  // It is not anonymously readable.
   const generatedSpaceId = await ensureSpace('generated', 'generated', false);
   await setModeInternal('llm-wiki', adminId);
   return { adminId, wikiSpaceId, rawSpaceId, generatedSpaceId };

@@ -176,7 +176,7 @@ describe('buildMessagesFromDetail', () => {
         rawConversation: {
           pageId: 'page-1',
           path: 'conversations/wiki-ai/2026/07/26/abc',
-          url: '/spaces/raw/conversations/wiki-ai/2026/07/26/abc',
+          url: '/raw/conversations/wiki-ai/2026/07/26/abc',
           captureStatus: 'captured',
           conversation: {
             status: 'completed',
@@ -212,7 +212,7 @@ describe('buildMessagesFromDetail', () => {
         rawConversation: {
           pageId: 'page-1',
           path: 'conversations/wiki-ai/2026/07/26/abc',
-          url: '/spaces/raw/conversations/wiki-ai/2026/07/26/abc',
+          url: '/raw/conversations/wiki-ai/2026/07/26/abc',
           captureStatus: 'captured',
           conversation: {
             status: 'completed',

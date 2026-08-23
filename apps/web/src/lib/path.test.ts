@@ -4,6 +4,7 @@ import {
   getConfiguredSpaceHref,
   getRevisionDiffHref,
   getSpaceDraftReviewHref,
+  getSpaceHref,
   parseRevisionDiffOptions,
   parseRevisionPair,
 } from './path';
@@ -11,6 +12,25 @@ import {
 describe('configured space URLs', () => {
   it('uses the configured prefix before locale and page path', () => {
     expect(getConfiguredSpaceHref('g', 'concepts/payment', 'zh')).toBe('/g/zh/concepts/payment');
+  });
+});
+
+describe('space hrefs', () => {
+  it('keeps wiki pages at the site root', () => {
+    expect(getSpaceHref('wiki', 'docs/deploy')).toBe('/docs/deploy');
+    expect(getSpaceHref('wiki')).toBe('/');
+  });
+
+  it('addresses raw/generated pages under their canonical public prefix', () => {
+    expect(getSpaceHref('raw', 'conversations/feishu/2026/07/21/action-1')).toBe(
+      '/raw/conversations/feishu/2026/07/21/action-1',
+    );
+    expect(getSpaceHref('generated', 'concepts/rrf')).toBe('/generated/concepts/rrf');
+  });
+
+  it('keeps the raw/generated space root on the admin-only /spaces/{space} route', () => {
+    expect(getSpaceHref('raw')).toBe('/spaces/raw');
+    expect(getSpaceHref('generated')).toBe('/spaces/generated');
   });
 });
 

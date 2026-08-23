@@ -18,7 +18,7 @@ import * as sessionRoute from './route';
 const pointer = {
   pageId: 'page-1',
   path: 'conversations/wiki-ai/2026/07/26/abc',
-  url: '/spaces/raw/conversations/wiki-ai/2026/07/26/abc',
+  url: '/raw/conversations/wiki-ai/2026/07/26/abc',
   captureStatus: 'captured' as const,
   channel: 'wiki-ai' as const,
 };

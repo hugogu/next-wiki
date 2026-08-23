@@ -78,7 +78,7 @@ describe('recoverSessionFromServer', () => {
   const rawConversation = {
     pageId: 'page-1',
     path: 'conversations/wiki-ai/x',
-    url: '/spaces/raw/conversations/wiki-ai/x',
+    url: '/raw/conversations/wiki-ai/x',
     channel: 'wiki-ai',
     captureStatus: 'captured',
     conversation: {

@@ -183,7 +183,7 @@ describe('Wiki question worker', () => {
         payload: { citations: [expect.objectContaining({ pageId })] },
       });
       // Citations carry the cited page's space so citation links can be
-      // built correctly (e.g. /spaces/raw/... for a raw page) instead of
+      // built correctly (e.g. /raw/... for a raw page) instead of
       // assuming every citation lives in the wiki space.
       const citations = (citationsEvent!.payload as { citations: { spaceSlug?: string }[] }).citations;
       expect(citations[0]?.spaceSlug).toBe(`qa-${spaceId}`);

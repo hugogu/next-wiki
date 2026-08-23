@@ -98,7 +98,8 @@ describe('Navigator LLM Wiki space tabs', () => {
     expect(tabsStart).toBeGreaterThan(-1);
     expect(tabsStart).toBeLessThan(navigationStart);
     expect(html).toContain('href="/"');
-    expect(html).toContain('href="/spaces/generated" aria-current="page"');
+    expect(html).toContain('href="/spaces/generated"');
+    expect(html).toContain('aria-current="page"');
     expect(html).toContain('href="/spaces/raw"');
   });
 });

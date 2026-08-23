@@ -15,9 +15,9 @@ function citation(overrides: Partial<AiCitation>): AiCitation {
 
 /**
  * Regression test: a Feishu card citation for a raw/generated-space page
- * must link to /spaces/{space}/... — a bare APP_URL + path previously
- * produced a broken link for anything outside the wiki space (e.g. a
- * captured Conversation page cited from a follow-up question).
+ * must link to the canonical public prefix (`/{space}/...`) — a bare
+ * APP_URL + path previously produced a broken link for anything outside the
+ * wiki space (e.g. a captured Conversation page cited from a follow-up question).
  */
 describe('toFeishuCitations (citation URL space-correctness)', () => {
   it('links a wiki-space citation at the site root', () => {
@@ -25,15 +25,15 @@ describe('toFeishuCitations (citation URL space-correctness)', () => {
     expect(result?.url).toBe('http://localhost:3000/docs/deploy');
   });
 
-  it('links a raw-space citation under /spaces/raw/... instead of a bare root path', () => {
+  it('links a raw-space citation under /raw/... instead of a bare root path', () => {
     const [result] = toFeishuCitations([
       citation({ path: 'conversations/feishu/2026/07/21/action-1', spaceSlug: 'raw' }),
     ]);
-    expect(result?.url).toBe('http://localhost:3000/spaces/raw/conversations/feishu/2026/07/21/action-1');
+    expect(result?.url).toBe('http://localhost:3000/raw/conversations/feishu/2026/07/21/action-1');
   });
 
-  it('links a generated-space citation under /spaces/generated/...', () => {
+  it('links a generated-space citation under /generated/...', () => {
     const [result] = toFeishuCitations([citation({ path: 'concepts/rrf', spaceSlug: 'generated' })]);
-    expect(result?.url).toBe('http://localhost:3000/spaces/generated/concepts/rrf');
+    expect(result?.url).toBe('http://localhost:3000/generated/concepts/rrf');
   });
 });

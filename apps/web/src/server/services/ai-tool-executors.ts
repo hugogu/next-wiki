@@ -346,15 +346,15 @@ async function execSearchWiki(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecu
  *
  * Read results carry a bare `path`, but `create_page` also returns an `href`
  * and the system prompt asks the model to reuse that href when it links to the
- * page — so `/spaces/generated/games/reversi` comes back as a `path` argument
- * sooner or later. Only a known reader space is stripped, and the literal path
- * is still tried first, so a real page that happens to live under `spaces/`
- * keeps winning.
+ * page — so `/generated/games/reversi` (or the legacy `/spaces/generated/games/reversi`)
+ * comes back as a `path` argument sooner or later. Only a known reader space is
+ * stripped, and the literal path is still tried first, so a real page that happens
+ * to live under `spaces/` keeps winning.
  */
 function readerUrlAsPageRef(
   path: string,
 ): { path: string; space: 'raw' | 'generated' | 'wiki' } | null {
-  const match = /^\/?spaces\/(raw|generated|wiki)\/(.+)$/.exec(path.trim());
+  const match = /^\/?(?:spaces\/)?(raw|generated|wiki)\/(.+)$/.exec(path.trim());
   return match ? { path: match[2]!, space: match[1] as 'raw' | 'generated' | 'wiki' } : null;
 }
 

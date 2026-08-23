@@ -28,11 +28,18 @@ export function getPageHref(path: string): string {
   return `/${encodePath(path)}`;
 }
 
-/** Canonical reader URL for a page in the selected content space. */
+/** Canonical reader URL for a page in the selected content space.
+ *
+ * For raw/generated spaces, a concrete page path is routed at the canonical
+ * public prefix (`/raw/{path}` or `/generated/{path}`). The bare space root
+ * (`/raw`, `/generated`) has no public reader landing page, so the space
+ * switcher and other root links continue to use the admin-only `/spaces/{space}`
+ * route that renders the space index.
+ */
 export function getSpaceHref(space: ReaderSpace, path?: string): string {
   if (space === 'wiki') return path ? getPageHref(path) : '/';
-  const root = `/spaces/${space}`;
-  return path ? `${root}/${encodePath(path)}` : root;
+  if (path) return `/${space}/${encodePath(path)}`;
+  return `/spaces/${space}`;
 }
 
 /**
