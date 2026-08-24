@@ -242,10 +242,13 @@ function TreeItem({
           collapses to zero width so the title gets the whole row, and only
           claims space once the row is hovered or one of its buttons is
           focused. Collapsing the width (rather than `hidden`) keeps the
-          buttons in the tab order for keyboard users.
+          buttons in the tab order for keyboard users. Clipping is scoped to
+          the collapsed state — it is only there to keep the zero-width
+          overflow from widening the sidebar, and leaving it on once expanded
+          would cut off the focus outline the buttons rely on.
         */}
         {(canCreate || showMigrate) && (
-          <div className="flex shrink-0 items-center overflow-hidden lg:w-0 lg:opacity-0 lg:transition-opacity lg:group-hover:w-auto lg:group-hover:opacity-100 lg:group-focus-within:w-auto lg:group-focus-within:opacity-100">
+          <div className="flex shrink-0 items-center overflow-hidden lg:w-0 lg:opacity-0 lg:transition-opacity lg:group-hover:w-auto lg:group-hover:overflow-visible lg:group-hover:opacity-100 lg:group-focus-within:w-auto lg:group-focus-within:overflow-visible lg:group-focus-within:opacity-100">
             {canCreate && (
               <Link
                 href={`${getSpaceNewHref(space)}${getSpaceNewHref(space).includes('?') ? '&' : '?'}prefix=${encodeURIComponent(node.path)}`}
