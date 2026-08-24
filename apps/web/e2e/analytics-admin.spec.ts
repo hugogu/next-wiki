@@ -42,17 +42,28 @@ test.describe('admin analytics settings', () => {
     // hint text after the input ("Tracking ID 32-character hex string"), so
     // an exact match against "Tracking ID" alone never resolves.
     await page.getByLabel('Tracking ID').fill(VALID_BAIDU_ID);
-    await page.getByRole('switch', { name: /Baidu Tongji/i }).click();
+    const baiduToggle = page.getByRole('switch', { name: /Baidu Tongji/i });
+    if (await baiduToggle.getAttribute('aria-checked') !== 'true') {
+      await baiduToggle.click();
+    }
+    await expect(baiduToggle).toHaveAttribute('aria-checked', 'true');
     await page.getByRole('button', { name: 'Apply' }).click();
 
     await expect(page.getByText('Analytics settings applied.')).toBeVisible();
-    await expect(page.getByRole('switch', { name: /Baidu Tongji/i })).toHaveAttribute('aria-checked', 'true');
+    await expect(baiduToggle).toHaveAttribute('aria-checked', 'true');
   });
 
-  test('non-admin gets 404', async ({ page }) => {
+  test('non-admin can inspect analytics but cannot modify it', async ({ page }) => {
     const timestamp = Date.now();
     await register(page, `reader-analytics-${timestamp}@example.com`, 'Password123!');
     await page.goto('/admin/analytics');
-    await expect(page.locator('h1:has-text("404")')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Web analytics', level: 1 })).toBeVisible();
+    await expect(page.getByRole('switch', { name: /Baidu Tongji/i })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Apply' })).toHaveCount(0);
+
+    const update = await page.request.put('/api/settings/analytics', {
+      data: { providers: [{ provider: 'baidu_tongji', enabled: true, trackingId: VALID_BAIDU_ID }] },
+    });
+    expect(update.status()).toBe(403);
   });
 });

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { formatZodError, parseParams, uuidSchema } from '@/server/api/validate';
 import { DomainError } from '@/server/errors';
 import { listAdminTagPages } from '@/server/services/pages';
 
@@ -10,8 +11,10 @@ type RouteContext = { params: Promise<{ tagId: string }> };
 export async function GET(request: Request, { params }: RouteContext) {
   try {
     const { tagId } = await params;
+    const parsedTagId = parseParams(uuidSchema, tagId);
+    if (!parsedTagId.ok) return apiError('BAD_REQUEST', formatZodError(parsedTagId.error), 400);
     const space = new URL(request.url).searchParams.get('space') ?? undefined;
-    const items = await listAdminTagPages(await createApiContext(), { tagId, space });
+    const items = await listAdminTagPages(await createApiContext(), { tagId: parsedTagId.data, space });
     return NextResponse.json({ items });
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);

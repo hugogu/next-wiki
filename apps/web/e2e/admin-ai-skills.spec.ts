@@ -132,17 +132,18 @@ test.describe('Admin AI Skills', () => {
     await expect(page.getByRole('link', { name: 'wiki-linker', exact: true })).toBeVisible();
   });
 
-  test('a non-admin cannot reach the Skills surface or its API', async ({ page }) => {
+  test('a non-admin can inspect the Skills catalogue but cannot read its files', async ({ page }) => {
     await registerReader(page, `skills-reader-${Date.now()}@example.com`);
 
     await page.goto('/admin/ai/skills');
-    await expect(page.getByText(/404|does not exist/i).first()).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Skills' })).toBeVisible();
+    await expect(page.getByRole('switch', { name: /wiki-linker/i })).toBeDisabled();
 
     const listing = await page.request.get('/api/ai/skills');
-    expect(listing.status()).toBe(403);
+    expect(listing.status()).toBe(200);
     const file = await page.request.get('/api/ai/skills/wiki-linker/files?path=SKILL.md');
     expect(file.status()).toBe(403);
-    // A denial must not disclose the skill's content.
+    // Read-only catalogue access must not disclose a skill's instructions.
     expect(await file.text()).not.toContain('wiki-linker');
   });
 });

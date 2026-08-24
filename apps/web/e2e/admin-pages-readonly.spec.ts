@@ -91,6 +91,8 @@ test.describe('read-only Admin pages', () => {
     await page.context().clearCookies();
     await register(page, `admin-tags-readonly-${timestamp}@example.com`, 'Password123!');
     await page.goto('/admin/tags');
+    const malformedTag = await page.request.get('/api/admin/tags/not-a-uuid/pages');
+    expect(malformedTag.status()).toBe(400);
     await page.getByRole('button', { name: tag, exact: true }).click();
 
     await expect(page.getByRole('heading', { name: 'Related pages' })).toBeVisible();
