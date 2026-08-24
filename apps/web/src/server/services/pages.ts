@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, or, sql, inArray } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, can, type PermCtx, getActorUserId, pagePermissionOptions, spacePermissionOptions } from '@/server/permissions';
@@ -48,6 +49,7 @@ const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', '
 const ADMIN_SORT_DIRECTIONS = new Set<AdminPageSortDirection>(['asc', 'desc']);
 const HTML_LINK_RE = /<a\b[^>]*\bhref=(["'])(.*?)\1/gi;
 const PAGE_REVISION_LOCK_SEED = 0x036;
+const adminPublishedRevision = alias(schema.pageRevisions, 'admin_published_revision');
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -147,6 +149,7 @@ function adminPageConditions(
   options: {
     readOnlyScope?: ReturnType<typeof readOnlyAdminPageScope>;
     includeAuthorEmail?: boolean;
+    readOnly?: boolean;
   } = {},
 ) {
   const dateFrom = parseDateBoundary(filters.dateFrom, 'start');
@@ -183,8 +186,32 @@ function adminPageConditions(
           )
         : ilike(schema.users.displayName, `%${filters.author}%`)
       : undefined,
-    dateFrom ? gte(schema.pages.updatedAt, dateFrom) : undefined,
-    dateTo ? lte(schema.pages.updatedAt, dateTo) : undefined,
+    dateFrom
+      ? options.readOnly
+        ? exists(
+            db
+              .select({ one: sql`1` })
+              .from(schema.pageRevisions)
+              .where(and(
+                eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId),
+                gte(schema.pageRevisions.publishedAt, dateFrom),
+              )),
+          )
+        : gte(schema.pages.updatedAt, dateFrom)
+      : undefined,
+    dateTo
+      ? options.readOnly
+        ? exists(
+            db
+              .select({ one: sql`1` })
+              .from(schema.pageRevisions)
+              .where(and(
+                eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId),
+                lte(schema.pageRevisions.publishedAt, dateTo),
+              )),
+          )
+        : lte(schema.pages.updatedAt, dateTo)
+      : undefined,
     options.readOnlyScope,
   );
 }
@@ -428,6 +455,7 @@ export async function listAdminPages(
     {
       readOnlyScope: readOnly ? readOnlyAdminPageScope(ctx.actor.userId) : undefined,
       includeAuthorEmail: !readOnly,
+      readOnly,
     },
   );
 
@@ -442,6 +470,9 @@ export async function listAdminPages(
   const safePage = Math.min(currentPage, totalPages);
 
   const offset = (safePage - 1) * ADMIN_PAGE_SIZE;
+  const sortExpression = readOnly && sort === 'updatedAt'
+    ? adminPublishedRevision.publishedAt
+    : orderExpression(sort);
   const rows = sort === 'edits'
     ? await db
         .select({
@@ -462,7 +493,14 @@ export async function listAdminPages(
         })
         .from(schema.pages)
         .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
-        .leftJoin(schema.pageRevisions, eq(schema.pageRevisions.pageId, schema.pages.id))
+        .leftJoin(adminPublishedRevision, eq(schema.pages.currentPublishedVersionId, adminPublishedRevision.id))
+        .leftJoin(
+          schema.pageRevisions,
+          and(
+            eq(schema.pageRevisions.pageId, schema.pages.id),
+            readOnly ? eq(schema.pageRevisions.status, 'published') : undefined,
+          ),
+        )
         .where(where)
         .groupBy(
           schema.pages.id,
@@ -475,8 +513,9 @@ export async function listAdminPages(
           schema.pages.updatedAt,
           schema.users.displayName,
           schema.users.email,
+          adminPublishedRevision.publishedAt,
         )
-        .orderBy(direction === 'asc' ? asc(orderExpression(sort)) : desc(orderExpression(sort)))
+        .orderBy(direction === 'asc' ? asc(sortExpression) : desc(sortExpression))
         .limit(ADMIN_PAGE_SIZE)
         .offset(offset)
     : await db
@@ -496,13 +535,14 @@ export async function listAdminPages(
         })
         .from(schema.pages)
         .innerJoin(schema.users, eq(schema.pages.authorId, schema.users.id))
+        .leftJoin(adminPublishedRevision, eq(schema.pages.currentPublishedVersionId, adminPublishedRevision.id))
         .where(where)
-        .orderBy(direction === 'asc' ? asc(orderExpression(sort)) : desc(orderExpression(sort)))
+        .orderBy(direction === 'asc' ? asc(sortExpression) : desc(sortExpression))
         .limit(ADMIN_PAGE_SIZE)
         .offset(offset);
 
   const rowPageIds = rows.map((row) => row.id);
-  const editCounts = rowPageIds.length && sort !== 'edits'
+  const editCounts = rowPageIds.length && (readOnly || sort !== 'edits')
     ? await db
         .select({
           pageId: schema.pageRevisions.pageId,
@@ -510,7 +550,10 @@ export async function listAdminPages(
           latestVersion: max(schema.pageRevisions.versionNumber),
         })
         .from(schema.pageRevisions)
-        .where(inArray(schema.pageRevisions.pageId, rowPageIds))
+        .where(and(
+          inArray(schema.pageRevisions.pageId, rowPageIds),
+          readOnly ? eq(schema.pageRevisions.status, 'published') : undefined,
+        ))
         .groupBy(schema.pageRevisions.pageId)
     : [];
   const editCountByPageId = new Map(editCounts.map((row) => [row.pageId, Number(row.value)]));
@@ -550,12 +593,16 @@ export async function listAdminPages(
 
   const publishedVersions = readOnly && rowPageIds.length
     ? await db
-        .select({ pageId: schema.pageRevisions.pageId, version: schema.pageRevisions.versionNumber })
+        .select({
+          pageId: schema.pageRevisions.pageId,
+          version: schema.pageRevisions.versionNumber,
+          publishedAt: schema.pageRevisions.publishedAt,
+        })
         .from(schema.pageRevisions)
         .innerJoin(schema.pages, eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId))
         .where(inArray(schema.pages.id, rowPageIds))
     : [];
-  const publishedVersionByPageId = new Map(publishedVersions.map((row) => [row.pageId, row.version]));
+  const publishedRevisionByPageId = new Map(publishedVersions.map((row) => [row.pageId, row]));
 
   return {
     items: rows.map((row) => ({
@@ -571,13 +618,17 @@ export async function listAdminPages(
             ? 'published_with_draft'
             : 'published',
       latestVersion: readOnly
-        ? publishedVersionByPageId.get(row.id) ?? 0
+        ? publishedRevisionByPageId.get(row.id)?.version ?? 0
         : 'latestVersion' in row ? Number(row.latestVersion ?? 0) : latestVersionByPageId.get(row.id) ?? 0,
       authorDisplayName: row.authorDisplayName,
       authorEmail: readOnly ? '' : row.authorEmail,
-      editCount: 'editCount' in row ? Number(row.editCount) : editCountByPageId.get(row.id) ?? 0,
+      editCount: readOnly
+        ? editCountByPageId.get(row.id) ?? 0
+        : 'editCount' in row ? Number(row.editCount) : editCountByPageId.get(row.id) ?? 0,
       createdAt: row.createdAt.toISOString(),
-      updatedAt: row.updatedAt.toISOString(),
+      updatedAt: readOnly
+        ? publishedRevisionByPageId.get(row.id)?.publishedAt?.toISOString() ?? row.updatedAt.toISOString()
+        : row.updatedAt.toISOString(),
       tags: tagsByPageId.get(row.id) ?? [],
       spaceSlug: space.slug,
       kind: row.kind,
@@ -623,7 +674,10 @@ export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
     .select({ value: count() })
     .from(schema.pageRevisions)
     .innerJoin(schema.pages, eq(schema.pageRevisions.pageId, schema.pages.id))
-    .where(where);
+    .where(and(
+      where,
+      readOnly ? eq(schema.pageRevisions.status, 'published') : undefined,
+    ));
 
   const [activePages, editRows] = await Promise.all([activePagesQuery, editsQuery]);
   const [editRow] = editRows;

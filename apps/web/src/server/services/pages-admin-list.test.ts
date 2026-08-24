@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -76,11 +77,27 @@ describe('listAdminPages', () => {
     const owner = await createPublicApiUser('admin-list-scope-owner@example.com', 'editor');
     const other = await createPublicApiUser('admin-list-scope-other@example.com', 'editor');
 
-    await createPublishedFixturePage(admin, {
+    const publicPage = await createPublishedFixturePage(admin, {
       path: 'scope/public',
       title: 'Public page',
       contentSource: '# Public',
     });
+    const publicDraft = await pageService.getForEdit(buildUserCtx(admin.id, 'admin'), 'scope/public');
+    if (!publicDraft) throw new Error('Failed to load the published public page');
+    const publishedAt = new Date('2020-01-01T00:00:00.000Z');
+    await db
+      .update(schema.pageRevisions)
+      .set({ publishedAt })
+      .where(eq(schema.pageRevisions.id, publicPage.versionId));
+    await pageService.newDraft(buildUserCtx(admin.id, 'admin'), 'scope/public', {
+      title: 'Public page',
+      contentSource: '# Unpublished change',
+      baseRevisionId: publicDraft.revisionId,
+    });
+    await db
+      .update(schema.pages)
+      .set({ updatedAt: new Date('2030-01-01T00:00:00.000Z') })
+      .where(eq(schema.pages.id, publicPage.pageId));
     await pageService.create(buildUserCtx(admin.id, 'admin'), {
       path: 'scope/registered',
       title: 'Registered page',
@@ -101,7 +118,7 @@ describe('listAdminPages', () => {
       contentSource: '# Owner generated',
       visibility: 'restricted',
     });
-    await revisions.publish(ownerKey, { path: 'scope/owner-generated', version: 1 });
+    await revisions.publish(buildUserCtx(owner.id, 'editor'), { path: 'scope/owner-generated', version: 1 });
 
     const otherKey = buildApiKeyCtx(
       other.id,
@@ -115,7 +132,7 @@ describe('listAdminPages', () => {
       contentSource: '# Other generated',
       visibility: 'restricted',
     });
-    await revisions.publish(otherKey, { path: 'scope/other-generated', version: 1 });
+    await revisions.publish(buildUserCtx(other.id, 'editor'), { path: 'scope/other-generated', version: 1 });
 
     await pageService.create(buildUserCtx(owner.id, 'editor'), {
       path: 'scope/owner-human-generated',
@@ -133,7 +150,12 @@ describe('listAdminPages', () => {
       'scope/public',
     ]);
     expect(result.items.find((item) => item.path === 'scope/owner-generated')).toMatchObject({ status: 'published' });
-    expect(result.items.find((item) => item.path === 'scope/public')).toMatchObject({ status: 'published' });
+    expect(result.items.find((item) => item.path === 'scope/public')).toMatchObject({
+      status: 'published',
+      editCount: 1,
+      updatedAt: publishedAt.toISOString(),
+    });
+    expect(result.items.map((item) => item.path)).toEqual(['scope/owner-generated', 'scope/public']);
     expect(result.items.find((item) => item.path === 'scope/public')?.authorEmail).toBe('');
     expect(result.totalItems).toBe(2);
 
@@ -141,6 +163,16 @@ describe('listAdminPages', () => {
       filters: { author: admin.email },
     });
     expect(emailFiltered.items).toEqual([]);
+
+    const draftDateFiltered = await pageService.listAdminPages(buildUserCtx(owner.id, 'editor'), {
+      filters: { dateFrom: '2029-01-01' },
+    });
+    expect(draftDateFiltered.items).toEqual([]);
+
+    const editsSorted = await pageService.listAdminPages(buildUserCtx(owner.id, 'editor'), {
+      sort: 'edits',
+    });
+    expect(editsSorted.items.find((item) => item.path === 'scope/public')).toMatchObject({ editCount: 1 });
 
     const stats = await pageService.getAdminPageStats(buildUserCtx(owner.id, 'editor'));
     expect(stats.totalPages).toBe(2);
