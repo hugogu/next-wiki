@@ -2016,11 +2016,10 @@ export async function getHistory(ctx: PermCtx, path: string, spaceSlug?: string)
   if (!page) return [];
 
   const isAuthor = userId ? page.authorId === userId : false;
-  const canSeeDrafts = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, pagePermissionOptions(space, page, { isAuthor }));
-
-  if (!userId) {
+  if (!can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor }))) {
     return [];
   }
+  const canSeeDrafts = can(ctx, 'read_draft', { kind: 'revision', pageId: page.id, version: 0 }, pagePermissionOptions(space, page, { isAuthor }));
 
   const rows = await db
     .select({
@@ -2080,6 +2079,11 @@ export async function getRevision(
   });
 
   if (!page) return null;
+
+  const isPageAuthor = userId ? page.authorId === userId : false;
+  if (!can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: isPageAuthor }))) {
+    return null;
+  }
 
   const revision = await db.query.pageRevisions.findFirst({
     where: and(

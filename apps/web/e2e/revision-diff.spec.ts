@@ -102,4 +102,12 @@ test('compares two revisions without requesting a server diff endpoint', async (
   await page.goto(`/h/${path}?compare=2..3`);
   await expect(page).toHaveURL(`/h/${path}?compare=2..3`);
   expect(diffRequests).toEqual([]);
+
+  await page.getByRole('button', { name: 'Publish this revision' }).first().click();
+  await page.waitForURL(`/wiki/${path}`);
+  await page.context().clearCookies();
+  await page.goto(`/h/${path}`);
+  await expect(page.getByRole('heading', { name: /^Version history:/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Version 3' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Version 2' })).toHaveCount(0);
 });

@@ -3,6 +3,7 @@ import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as pageService from '@/server/services/pages';
+import * as revisionsService from '@/server/services/revisions';
 import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 import { publicPageCreateInputSchema } from '@next-wiki/shared';
 
@@ -397,6 +398,38 @@ describe('pageService US3', () => {
       expect(history).toHaveLength(2);
       expect(history[0]?.version).toBe(2);
       expect(history[1]?.version).toBe(1);
+    });
+
+    it('shows an anonymous visitor the published history of a public page, but not its drafts', async () => {
+      const editor = await createUser('editor-history-public@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      await pageService.create(ctx, { path: 'history-public', title: 'Public history', contentSource: 'published' });
+      await revisionsService.publish(ctx, { path: 'history-public', version: 1 });
+      await pageService.newDraft(ctx, 'history-public', { title: 'Public history', contentSource: 'draft' });
+
+      const history = await pageService.getHistory(buildAnonymousCtx(), 'history-public');
+      expect(history).toHaveLength(1);
+      expect(history[0]).toMatchObject({ version: 1, status: 'published', canPublish: false });
+      expect(await pageService.getRevision(buildAnonymousCtx(), 'history-public', 1)).toMatchObject({
+        version: 1,
+        contentSource: 'published',
+      });
+      expect(await pageService.getRevision(buildAnonymousCtx(), 'history-public', 2)).toBeNull();
+    });
+
+    it('does not expose restricted published history to anonymous visitors', async () => {
+      const editor = await createUser('editor-history-restricted@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      await pageService.create(ctx, {
+        path: 'history-restricted',
+        title: 'Restricted history',
+        contentSource: 'private',
+        visibility: 'restricted',
+      });
+      await revisionsService.publish(ctx, { path: 'history-restricted', version: 1 });
+
+      expect(await pageService.getHistory(buildAnonymousCtx(), 'history-restricted')).toEqual([]);
+      expect(await pageService.getRevision(buildAnonymousCtx(), 'history-restricted', 1)).toBeNull();
     });
   });
 
