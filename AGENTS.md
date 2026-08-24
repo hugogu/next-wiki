@@ -37,7 +37,7 @@ untracked source directories appear or disappear.
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan
-at specs/035-page-slug-routing/plan.md
+at specs/036-web-research/plan.md
 <!-- SPECKIT END -->
 
 ## Database Migrations (Drizzle) — never hand-author
