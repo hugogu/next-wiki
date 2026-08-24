@@ -116,9 +116,16 @@ describe('listAdminPages', () => {
       path: 'scope/owner-generated',
       title: 'Owner-generated page',
       contentSource: '# Owner generated',
-      visibility: 'restricted',
+      visibility: 'registered',
     });
     await revisions.publish(buildUserCtx(owner.id, 'editor'), { path: 'scope/owner-generated', version: 1 });
+    await pageService.create(ownerKey, {
+      path: 'scope/owner-restricted-generated',
+      title: 'Owner restricted generated page',
+      contentSource: '# Owner restricted generated',
+      visibility: 'restricted',
+    });
+    await revisions.publish(buildUserCtx(owner.id, 'editor'), { path: 'scope/owner-restricted-generated', version: 1 });
 
     const otherKey = buildApiKeyCtx(
       other.id,

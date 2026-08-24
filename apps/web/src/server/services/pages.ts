@@ -106,6 +106,7 @@ function readOnlyAdminPageScope(userId: string) {
       and(
         eq(schema.pages.authorId, userId),
         eq(schema.pages.nature, 'generated'),
+        inArray(schema.pages.visibility, ['public', 'registered']),
         exists(
           db
             .select({ one: sql`1` })
