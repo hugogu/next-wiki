@@ -486,7 +486,9 @@ export function AiChatPane({
                   <p className="text-muted">{t('ai.chat.insufficient')}</p>
                 ) : message.id === streamingAssistantId ? (
                   <div className="text-muted">
-                    {message.searchResults ? t('ai.chat.streaming') : t('ai.chat.retrieving')}
+                    {message.thinking || message.toolCalls?.length || message.searchResults?.length
+                      ? t('ai.chat.streaming')
+                      : t('ai.chat.retrieving')}
                   </div>
                 ) : null}
               </div>

@@ -54,7 +54,7 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   '    review: none',
   '```',
   'Set "review" to "admin_review" for changes that should be reviewed. After receiving tool results, either call more tools in the same format or write the final answer as plain prose.',
-  'Baseline Wiki sources are provided in the user prompt. Tool-read pages are cited through the tool runtime.',
+  'Baseline Wiki sources, when present, are provided in the user prompt; usually none are attached and you decide whether to search. Tool-read pages are cited through the tool runtime.',
   'Work only on the pages the user named in this conversation. There is a limit on how many tool calls one turn may make: if a request covers more pages than you can finish, do what the limit allows and say plainly which pages you covered and which you did not. Never present partial coverage as complete.',
   'Do not repeat semantically equivalent searches. After a few reasonable attempts, answer with the best available knowledge instead of searching again.',
   'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
@@ -129,7 +129,7 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       ]
     : [
         '<wiki_sources>',
-        'No baseline Wiki sources were retrieved. For informational answers, make a few useful read/search attempts when the Wiki is likely to help. If it still lacks relevant evidence, answer normally from general model knowledge without Wiki citations.',
+        'No Wiki sources are attached to this turn by default; decide for yourself whether this question needs them. If the question is about this Wiki\'s content, call search_wiki (then get_page) with a few targeted attempts. If it is general knowledge, conversational, or otherwise unrelated to this Wiki, answer directly from your own knowledge without searching or citing Wiki sources.',
         '</wiki_sources>',
         '',
       ];

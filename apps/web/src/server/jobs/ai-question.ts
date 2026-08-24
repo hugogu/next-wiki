@@ -325,17 +325,28 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     ? scheduledAiJobScopeSchema.parse(snapshot.targetScope)
     : undefined;
   const questionMode = input.mode ?? 'retrieval';
-  const retrieval = scheduledScope
-    ? { sources: [], usage: {}, results: [] }
-    : await loadWikiQuestionSources({
-        ctx,
-        actionId,
-        question: input.question,
-        mode: questionMode,
-        textContextWindow: textModel.contextWindow,
-      });
+  // In 'retrieval' mode (the default for tool-enabled chat), skip the eager
+  // full_text+fuzzy+semantic search that used to run before the model ever
+  // saw the question — most questions asked of "Wiki AI" don't need Wiki
+  // content at all, and paying for three search engines up front regardless
+  // of relevance only added latency and a misleading "Searching the Wiki…"
+  // status. The model decides for itself via search_wiki/get_page (see the
+  // "no baseline sources" guidance in buildPlannerUserPrompt) and a scheduled
+  // job already skips baseline retrieval for the same reason its own scope
+  // governs what it may read. 'full' mode is unaffected: it explicitly loads
+  // the whole readable corpus up front by design.
+  const retrieval =
+    scheduledScope || questionMode === 'retrieval'
+      ? { sources: [], usage: {}, results: [] }
+      : await loadWikiQuestionSources({
+          ctx,
+          actionId,
+          question: input.question,
+          mode: questionMode,
+          textContextWindow: textModel.contextWindow,
+        });
   const { sources: wikiSources, usage: retrievalUsage, results: retrievalResults } = retrieval;
-  if (questionMode !== 'full') {
+  if (retrievalResults.length > 0) {
     await appendActionEvent(actionId, 'search_results', { results: retrievalResults });
   }
 

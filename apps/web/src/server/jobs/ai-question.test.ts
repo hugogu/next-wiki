@@ -338,10 +338,14 @@ describe('Wiki question worker', () => {
     await expect(runWikiQuestionAction(action.id)).rejects.toMatchObject({ code: 'CANCELLED' });
   });
 
-  it('continues a tool-enabled answer when the embedding provider remains temporarily unavailable', async () => {
-    embed.mockRejectedValue(new AiProviderError('PROVIDER_UNAVAILABLE', 'Temporary embedding connection failure', true));
+  it('skips baseline retrieval in tool-enabled retrieval-mode chat and lets the model decide', async () => {
+    // Regression coverage: a tool-enabled turn used to run the full_text +
+    // fuzzy + semantic search unconditionally before the model ever saw the
+    // question, even for questions with no Wiki relevance. The model now
+    // decides for itself via search_wiki/get_page, so no baseline retrieval
+    // (and therefore no embedding call) happens up front.
     const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
-      question: 'Summarize the previous answer.',
+      question: 'What is 1+1?',
       mode: 'retrieval',
       requestedReview: 'admin_review',
     });
@@ -350,22 +354,38 @@ describe('Wiki question worker', () => {
 
     await runWikiQuestionAction(created.action.id);
 
-    expect(embed).toHaveBeenCalledTimes(3);
-    const storedAction = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) });
-    expect(storedAction).toMatchObject({
-      status: 'completed',
-      resultMetadata: { retrievalDegraded: { code: 'PROVIDER_UNAVAILABLE' } },
-    });
+    expect(embed).not.toHaveBeenCalled();
     const events = await db.query.aiActionEvents.findMany({
       where: eq(schema.aiActionEvents.actionId, created.action.id),
     });
-    expect(events).toContainEqual(expect.objectContaining({
-      type: 'text_delta',
-      payload: expect.objectContaining({ text: 'Grounded answer [S1]' }),
-    }));
+    expect(events).not.toContainEqual(expect.objectContaining({ type: 'search_results' }));
+    const storedAction = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) });
+    expect(storedAction).toMatchObject({ status: 'completed' });
+    expect(storedAction?.resultMetadata).not.toHaveProperty('retrievalDegraded');
   });
 
-  it('leaves source rendering to the citations event in tool-enabled answers', async () => {
+  it('cites a page the model reads itself via get_page in tool-enabled answers', async () => {
+    streamText
+      .mockImplementationOnce(async function* () {
+        yield {
+          type: 'delta',
+          text: [
+            '```tool',
+            'tool_calls:',
+            '  - tool: get_page',
+            '    arguments:',
+            `      pageId: "${pageId}"`,
+            '    review: none',
+            '```',
+          ].join('\n'),
+        };
+        yield { type: 'usage', inputTokens: 8, outputTokens: 6 };
+      })
+      .mockImplementationOnce(async function* () {
+        yield { type: 'delta', text: 'Grounded answer [S1]' };
+        yield { type: 'usage', inputTokens: 10, outputTokens: 4 };
+      });
+
     const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
       question: 'Where is the answer?',
       mode: 'retrieval',
