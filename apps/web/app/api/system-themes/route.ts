@@ -9,7 +9,7 @@ import { createSystemTheme, listSystemThemes } from '@/server/services/system-th
 /**
  * @openapi
  * @summary List system themes
- * @description Lists all system themes (built-ins + custom) and the active selection. Requires manage_appearance.
+ * @description Lists all system themes (built-ins + custom) and the active selection for authenticated users. Mutations require manage_appearance.
  * @tag Appearance
  * @auth bearer
  */

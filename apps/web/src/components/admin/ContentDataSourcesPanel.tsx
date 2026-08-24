@@ -23,7 +23,7 @@ const SOURCE_COPY: Record<string, { labelKey: TranslationKey; descriptionKey: Tr
   },
 };
 
-export function ContentDataSourcesPanel({ initial }: { initial: ContentDataSourceItem[] }) {
+export function ContentDataSourcesPanel({ initial, canManage = true }: { initial: ContentDataSourceItem[]; canManage?: boolean }) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [error, setError] = useState<string | null>(null);
@@ -84,7 +84,7 @@ export function ContentDataSourcesPanel({ initial }: { initial: ContentDataSourc
               </div>
               <Switch
                 checked={item.enabled}
-                disabled={pendingKey === item.sourceKey || (!item.available && !item.enabled)}
+                disabled={!canManage || pendingKey === item.sourceKey || (!item.available && !item.enabled)}
                 aria-label={label}
                 onClick={() => void toggle(item)}
               />

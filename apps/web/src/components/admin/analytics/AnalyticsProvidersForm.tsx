@@ -69,6 +69,7 @@ function ProviderPanel({
   status,
   errorMessage,
   applying,
+  canManage,
   onToggle,
   onTrackingIdChange,
   onApply,
@@ -78,6 +79,7 @@ function ProviderPanel({
   status: Status;
   errorMessage: string | null;
   applying: boolean;
+  canManage: boolean;
   onToggle: () => void;
   onTrackingIdChange: (value: string) => void;
   onApply: () => void;
@@ -93,9 +95,9 @@ function ProviderPanel({
           <h2 className="font-display text-lg font-semibold">{localized.label}</h2>
           <p className="text-sm text-muted">{localized.description}</p>
         </div>
-        <Button onClick={onApply} disabled={applying}>
+        {canManage && <Button onClick={onApply} disabled={applying}>
           {t('admin.analytics.save')}
-        </Button>
+        </Button>}
       </div>
 
       <div className="flex items-start justify-between gap-md border-t border-border pt-md">
@@ -108,6 +110,7 @@ function ProviderPanel({
         </div>
         <Switch
           checked={field.enabled}
+          disabled={!canManage}
           aria-label={localized.label}
           onClick={onToggle}
         />
@@ -117,6 +120,7 @@ function ProviderPanel({
         <span className="block font-medium">{localized.trackingIdLabel}</span>
         <Input
           value={field.trackingId}
+          disabled={!canManage}
           onChange={(event) => onTrackingIdChange(event.target.value)}
           placeholder={localized.trackingIdFormat}
         />
@@ -138,7 +142,7 @@ function ProviderPanel({
   );
 }
 
-export function AnalyticsProvidersForm({ initial }: { initial: AnalyticsSettingsView }) {
+export function AnalyticsProvidersForm({ initial, canManage = true }: { initial: AnalyticsSettingsView; canManage?: boolean }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -258,6 +262,7 @@ export function AnalyticsProvidersForm({ initial }: { initial: AnalyticsSettings
           status={statuses[currentItem.provider] ?? 'idle'}
           errorMessage={errorMessages[currentItem.provider] ?? null}
           applying={applying === currentItem.provider}
+          canManage={canManage}
           onToggle={() => setField(currentItem.provider, { enabled: !(fields[currentItem.provider]?.enabled ?? currentItem.enabled) })}
           onTrackingIdChange={(value) => setField(currentItem.provider, { trackingId: value })}
           onApply={() => apply(currentItem.provider)}

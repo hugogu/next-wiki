@@ -52,6 +52,12 @@ function assertAdmin(ctx: PermCtx): string {
   return userId;
 }
 
+function assertViewer(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view content data sources');
+  }
+}
+
 type SettingsRow = typeof schema.contentDataSourceSettings.$inferSelect;
 
 /**
@@ -97,11 +103,18 @@ async function toView(definition: SourceDefinition, row: SettingsRow | undefined
 }
 
 export async function listDataSources(ctx: PermCtx): Promise<ContentDataSourceItem[]> {
-  assertAdmin(ctx);
+  assertViewer(ctx);
   const rows = await db.query.contentDataSourceSettings.findMany();
   const byKey = new Map(rows.map((row) => [row.sourceKey, row]));
+  const canManage = can(ctx, 'manage_ai', { kind: 'ai_settings' });
   return Promise.all(
-    REGISTERED_SOURCES.map(async (definition) => toView(definition, await migrateLegacyRowIfNeeded(byKey.get(definition.sourceKey)))),
+    REGISTERED_SOURCES.map(async (definition) => {
+      const canonical = byKey.get(definition.sourceKey);
+      const row = canManage
+        ? await migrateLegacyRowIfNeeded(canonical)
+        : canonical ?? byKey.get(WIKI_AI_CONVERSATIONS_SOURCE_KEY);
+      return toView(definition, row);
+    }),
   );
 }
 

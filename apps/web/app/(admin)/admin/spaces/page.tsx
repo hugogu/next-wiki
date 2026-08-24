@@ -12,12 +12,12 @@ export const metadata: Metadata = { title: 'Space settings' };
 
 export default async function AdminSpacesPage() {
   const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || actor.role !== 'admin') notFound();
+  if (actor.kind !== 'user') notFound();
   const [spaces, llmWikiMode] = await Promise.all([listSpaceConfigurations(), isLlmWikiMode()]);
   return (
     <Layout admin>
       <div className="px-lg py-md">
-        <SpaceSettingsPanel initialSpaces={spaces.map((space) => ({ ...space, isActive: space.kind === 'wiki' || llmWikiMode }))} />
+        <SpaceSettingsPanel canManage={actor.role === 'admin'} initialSpaces={spaces.map((space) => ({ ...space, isActive: space.kind === 'wiki' || llmWikiMode }))} />
       </div>
     </Layout>
   );

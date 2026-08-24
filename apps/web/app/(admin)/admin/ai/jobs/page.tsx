@@ -13,7 +13,8 @@ import { listSkillsForAdmin } from '@/server/services/skills/admin';
 export const dynamic = 'force-dynamic';
 export default async function ScheduledAiJobsPage() {
   const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || !can({ actor }, 'manage_ai', { kind: 'ai_settings' })) notFound();
+  if (actor.kind !== 'user') notFound();
+  const canManage = can({ actor }, 'manage_ai', { kind: 'ai_settings' });
   const [jobs, runs, spaces, catalogue] = await Promise.all([
     listScheduledAiJobs({ actor }),
     listAllScheduledAiJobRuns({ actor }),
@@ -33,7 +34,7 @@ export default async function ScheduledAiJobsPage() {
             Recurring, reviewable Wiki AI maintenance tasks.
           </p>
         </div>
-        <ScheduledAiJobList jobs={jobs} runs={runs} options={options} />
+        <ScheduledAiJobList jobs={jobs} runs={runs} options={options} canManage={canManage} />
       </div>
     </Layout>
   );

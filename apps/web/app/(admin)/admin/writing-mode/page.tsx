@@ -15,7 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AdminWritingModePage() {
   const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || actor.role !== 'admin') notFound();
+  if (actor.kind !== 'user') notFound();
+  const canManage = actor.role === 'admin';
 
   const [locale, state] = await Promise.all([getLocale(), getSwitchState()]);
   const t = getDictionary(locale);
@@ -27,7 +28,7 @@ export default async function AdminWritingModePage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.writingMode.title')}</h1>
           <p className="mt-xs max-w-3xl text-sm text-muted">{t('admin.writingMode.description')}</p>
         </div>
-        <WritingModeControls initial={state} />
+        <WritingModeControls initial={state} canManage={canManage} />
       </div>
     </Layout>
   );

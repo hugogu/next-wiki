@@ -10,6 +10,7 @@ import {
   createProvider,
   deleteModel,
   deleteProvider,
+  listProviders,
   listModels,
   setCapabilityOverride,
   syncProviderModelsNow,
@@ -41,6 +42,26 @@ describe('AI administration service', () => {
     const after = await db.query.aiProviders.findFirst({ where: eq(schema.aiProviders.id, provider.id) });
     expect(after?.credentialsEncrypted).toBe(before?.credentialsEncrypted);
     await deleteProvider(ctx, provider.id);
+  });
+
+  it('lets registered users list providers and models but not manage them', async () => {
+    const adminCtx = buildUserCtx(adminId, 'admin');
+    const provider = await createProvider(adminCtx, {
+      name: 'Read-only provider',
+      vendor: 'custom',
+      kind: 'openai_compatible',
+      baseUrl: 'https://example.com/v1',
+      credentials: { apiKey: 'key' },
+    });
+    const readerCtx = buildUserCtx(adminId, 'reader');
+
+    await expect(listProviders(readerCtx)).resolves.toEqual(
+      expect.arrayContaining([expect.objectContaining({ id: provider.id })]),
+    );
+    await expect(listModels(readerCtx)).resolves.toEqual(expect.any(Array));
+    await expect(updateProvider(readerCtx, provider.id, { name: 'Nope' })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    });
   });
 
   it('applies manual capability precedence and validates purpose assignments', async () => {

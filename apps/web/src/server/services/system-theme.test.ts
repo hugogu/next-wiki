@@ -115,9 +115,9 @@ describe('system-theme service', () => {
     expect(await getActiveThemeCss()).toBe('');
   });
 
-  it('rejects writes from a non-admin', async () => {
+  it('lets registered users list themes but rejects their writes', async () => {
     const ctx = await createReader();
-    await expect(listSystemThemes(ctx)).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(listSystemThemes(ctx)).resolves.toMatchObject({ themes: expect.any(Array) });
     await expect(
       createSystemTheme(ctx, { sourceThemeId: WIKIJS_THEME_ID, name: 'Nope' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });

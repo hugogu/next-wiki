@@ -48,6 +48,12 @@ export function assertCanManageAi(ctx: PermCtx): void {
   }
 }
 
+function assertCanViewAi(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view AI providers');
+  }
+}
+
 function actorId(ctx: PermCtx): string {
   const id = getActorUserId(ctx);
   if (!id) throw new DomainError('UNAUTHORIZED', 'Sign in to manage AI');
@@ -77,7 +83,7 @@ function resolveProviderProtocol(
   return protocol;
 }
 
-function providerView(row: ProviderRow): AiProviderView {
+function providerView(row: ProviderRow, includeConfig = true): AiProviderView {
   return {
     id: row.id,
     name: row.name,
@@ -85,7 +91,7 @@ function providerView(row: ProviderRow): AiProviderView {
     vendor: row.vendor,
     kind: row.kind,
     baseUrl: row.baseUrl,
-    config: row.config as Record<string, unknown>,
+    config: includeConfig ? row.config as Record<string, unknown> : {},
     hasCredentials: Boolean(row.credentialsEncrypted),
     enabled: row.enabled,
     status: row.enabled ? row.status : 'disabled',
@@ -198,8 +204,10 @@ export async function registerOpenRouterProviders(
 }
 
 export async function listProviders(ctx: PermCtx): Promise<AiProviderView[]> {
-  assertCanManageAi(ctx);
-  return (await db.select().from(schema.aiProviders).orderBy(asc(schema.aiProviders.name))).map(providerView);
+  assertCanViewAi(ctx);
+  const includeConfig = can(ctx, 'manage_ai', { kind: 'ai_settings' });
+  return (await db.select().from(schema.aiProviders).orderBy(asc(schema.aiProviders.name)))
+    .map((row) => providerView(row, includeConfig));
 }
 
 export async function getProvider(ctx: PermCtx, id: string): Promise<AiProviderView> {
@@ -363,7 +371,7 @@ async function effectiveCapabilities(modelIds: string[]) {
 }
 
 export async function listModels(ctx: PermCtx, providerId?: string): Promise<AiModelView[]> {
-  assertCanManageAi(ctx);
+  assertCanViewAi(ctx);
   const rows = await db
     .select({
       model: schema.aiModels,

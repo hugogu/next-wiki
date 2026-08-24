@@ -21,9 +21,10 @@ type Props = {
   jobs: ScheduledAiJobView[];
   runs: ScheduledAiJobRunView[];
   options: ScheduledAiJobOptions;
+  canManage?: boolean;
 };
 
-export function ScheduledAiJobList({ jobs, runs, options }: Props) {
+export function ScheduledAiJobList({ jobs, runs, options, canManage = true }: Props) {
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams();
@@ -54,7 +55,7 @@ export function ScheduledAiJobList({ jobs, runs, options }: Props) {
         selected={tab}
         onSelect={select}
       >
-        {tab === 'jobs' && (
+        {tab === 'jobs' && canManage && (
           <div className="mb-md flex justify-end">
             <Button onClick={() => setCreating(true)}>Create job</Button>
           </div>
@@ -73,12 +74,12 @@ export function ScheduledAiJobList({ jobs, runs, options }: Props) {
               {jobs.map((job) => (
                 <DataTableRow key={job.id}>
                   <DataTableCell>
-                    <Link
+                    {canManage ? <Link
                       className="text-primary hover:underline"
                       href={`/admin/ai/jobs/${job.id}`}
                     >
                       {job.name}
-                    </Link>
+                    </Link> : job.name}
                   </DataTableCell>
                   <DataTableCell>{job.status}</DataTableCell>
                   <DataTableCell>
@@ -132,20 +133,20 @@ export function ScheduledAiJobList({ jobs, runs, options }: Props) {
                 {filteredRuns.map((run) => (
                   <DataTableRow key={run.id}>
                     <DataTableCell>
-                      <Link
+                      {canManage ? <Link
                         className="text-primary hover:underline"
                         href={`/admin/ai/jobs/${run.jobId}/runs/${run.id}`}
                       >
                         {run.id.slice(0, 8)}
-                      </Link>
+                      </Link> : run.id.slice(0, 8)}
                     </DataTableCell>
                     <DataTableCell>
-                      <Link
+                      {canManage ? <Link
                         className="text-primary hover:underline"
                         href={`/admin/ai/jobs/${run.jobId}`}
                       >
                         {jobsById.get(run.jobId)?.name ?? run.definitionSnapshot.name}
-                      </Link>
+                      </Link> : (jobsById.get(run.jobId)?.name ?? run.definitionSnapshot.name)}
                     </DataTableCell>
                     <DataTableCell>{run.status}</DataTableCell>
                     <DataTableCell>{run.trigger}</DataTableCell>

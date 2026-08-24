@@ -11636,8 +11636,8 @@
     "/ai/providers": {
       "get": {
         "operationId": "get-ai-providers",
-        "summary": "List AI providers @tag AI Admin @auth bearer",
-        "description": "",
+        "summary": "List AI providers @description Available to authenticated users; write operations remain administrator-only. @tag AI Admin @auth bearer",
+        "description": "Available to authenticated users; write operations remain administrator-only. @tag AI Admin @auth bearer",
         "tags": [
           "AI Admin"
         ],
@@ -11883,8 +11883,8 @@
     "/ai/runtime-settings": {
       "get": {
         "operationId": "get-ai-runtime-settings",
-        "summary": "Get Wiki AI runtime settings @tag AI Admin @auth bearer",
-        "description": "",
+        "summary": "Get Wiki AI runtime settings @description Available to authenticated users; updates remain administrator-only. @tag AI Admin @auth bearer",
+        "description": "Available to authenticated users; updates remain administrator-only. @tag AI Admin @auth bearer",
         "tags": [
           "AI Admin"
         ],
@@ -11937,8 +11937,8 @@
     "/ai/scheduled-job-runs": {
       "get": {
         "operationId": "get-ai-scheduled-job-runs",
-        "summary": "List all scheduled AI job runs @tag AI Admin @auth bearer",
-        "description": "",
+        "summary": "List all scheduled AI job runs @description Available to authenticated users. @tag AI Admin @auth bearer",
+        "description": "Available to authenticated users. @tag AI Admin @auth bearer",
         "tags": [
           "AI Admin"
         ],
@@ -12139,8 +12139,8 @@
     "/ai/scheduled-jobs": {
       "get": {
         "operationId": "get-ai-scheduled-jobs",
-        "summary": "List scheduled AI jobs @tag AI Admin @auth bearer",
-        "description": "",
+        "summary": "List scheduled AI jobs @description Available to authenticated users; job creation remains administrator-only. @tag AI Admin @auth bearer",
+        "description": "Available to authenticated users; job creation remains administrator-only. @tag AI Admin @auth bearer",
         "tags": [
           "AI Admin"
         ],
@@ -15355,7 +15355,7 @@
       "get": {
         "operationId": "get-ai-skills",
         "summary": "List Agent Skills",
-        "description": "Returns every known skill with its source and state, plus any",
+        "description": "Returns every known skill with its source and state to authenticated users, plus any",
         "tags": [
           "AI Skills"
         ],
@@ -15786,8 +15786,8 @@
     "/ai/tools": {
       "get": {
         "operationId": "get-ai-tools",
-        "summary": "List AI tool providers and effective policies @tag AI Tools @auth bearer",
-        "description": "",
+        "summary": "List AI tool providers and effective policies @description Available to authenticated users; policy changes remain administrator-only. @tag AI Tools @auth bearer",
+        "description": "Available to authenticated users; policy changes remain administrator-only. @tag AI Tools @auth bearer",
         "tags": [
           "AI Tools"
         ],
@@ -15999,7 +15999,7 @@
       "get": {
         "operationId": "get-settings-analytics",
         "summary": "List analytics providers",
-        "description": "Returns all registered analytics providers with their admin-only configuration and active script content.",
+        "description": "Returns all registered analytics providers with their configuration and active script content to authenticated users. Updates remain administrator-only.",
         "tags": [
           "Analytics"
         ],
@@ -16062,7 +16062,7 @@
       "get": {
         "operationId": "get-system-themes",
         "summary": "List system themes",
-        "description": "Lists all system themes (built-ins + custom) and the active selection. Requires manage_appearance.",
+        "description": "Lists all system themes (built-ins + custom) and the active selection for authenticated users. Mutations require manage_appearance.",
         "tags": [
           "Appearance"
         ],
@@ -16203,7 +16203,7 @@
       "get": {
         "operationId": "get-system-themes-{id}",
         "summary": "Get a system theme",
-        "description": "Returns the full system theme (id, name, css, isBuiltin). Requires manage_appearance.",
+        "description": "Returns the full system theme (id, name, css, isBuiltin) to authenticated users. Updates require manage_appearance.",
         "tags": [
           "Appearance"
         ],
@@ -19563,8 +19563,8 @@
     "/settings/search": {
       "get": {
         "operationId": "get-settings-search",
-        "summary": "Get search settings @tag Search Admin @auth bearer",
-        "description": "",
+        "summary": "Get search settings @description Available to authenticated users; updates remain administrator-only. @tag Search Admin @auth bearer",
+        "description": "Available to authenticated users; updates remain administrator-only. @tag Search Admin @auth bearer",
         "tags": [
           "Search Admin"
         ],
@@ -19618,7 +19618,7 @@
       "get": {
         "operationId": "get-settings-content-data-sources",
         "summary": "List content data sources",
-        "description": "Admin-only Content > Data Sources registry. Sources unavailable in the current writing mode are still listed, marked `available: false`.",
+        "description": "Authenticated users may view the Content > Data Sources registry. Sources unavailable in the current writing mode are still listed, marked `available: false`; updates remain administrator-only.",
         "tags": [
           "Settings"
         ],
@@ -20514,7 +20514,7 @@
       "get": {
         "operationId": "get-static-site-target",
         "summary": "Get static site publishing target",
-        "description": "Returns the configured static site publishing target with the credential masked, or null when unconfigured. Admin only.",
+        "description": "Returns the configured static site publishing target with the credential masked, or null when unconfigured, to authenticated users. Mutations remain administrator-only.",
         "tags": [
           "StaticSite"
         ],

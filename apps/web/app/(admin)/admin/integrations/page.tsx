@@ -40,6 +40,8 @@ function authSummary(
 
 export default async function AdminIntegrationsPage() {
   const actor = await getCurrentActor();
+  if (actor.kind !== 'user') notFound();
+  const canManage = actor.role === 'admin';
 
   // Hidden denial: a non-admin sees a 404 rather than a forbidden page, so the
   // surface does not advertise its own existence.
@@ -95,12 +97,12 @@ export default async function AdminIntegrationsPage() {
                       </p>
                     ) : null}
                   </div>
-                  <Link
+                  {canManage && <Link
                     href={`/admin/integrations/${kind}`}
                     className="text-sm text-primary hover:underline"
                   >
                     {t('admin.integrations.configure')}
-                  </Link>
+                  </Link>}
                 </div>
               </li>
             );

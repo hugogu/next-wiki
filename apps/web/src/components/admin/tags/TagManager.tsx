@@ -62,7 +62,13 @@ function spaceParam(space: TagSpace): string | null {
   return space === 'wiki' ? null : space;
 }
 
-export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?: boolean }) {
+export function TagManager({
+  spaceFilterEnabled = false,
+  canManage = true,
+}: {
+  spaceFilterEnabled?: boolean;
+  canManage?: boolean;
+}) {
   const { t } = useTranslation();
   const [space, setSpace] = useState<TagSpace>('wiki');
   const [tags, setTags] = useState<Tag[]>([]);
@@ -83,8 +89,8 @@ export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?
   const selectedTag = tags.find((tag) => tag.id === selectedId) ?? null;
   const selectedTagId = selectedTag?.id;
   const selectedTagNormalizedName = selectedTag?.normalizedName;
-  const pages = pageResult.tagId === selectedTagId ? pageResult.items : EMPTY_PAGES;
-  const loadingPages = Boolean(selectedTagId && pageResult.tagId !== selectedTagId);
+  const pages = canManage && pageResult.tagId === selectedTagId ? pageResult.items : EMPTY_PAGES;
+  const loadingPages = canManage && Boolean(selectedTagId && pageResult.tagId !== selectedTagId);
   // Derived rather than stored, so switching spaces shows the loading state
   // without an effect writing state on every render.
   const loadingTags = loadedSpace !== space;
@@ -127,6 +133,9 @@ export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?
   }, [space, t]);
 
   useEffect(() => {
+    if (!canManage) {
+      return;
+    }
     if (!selectedTagId || !selectedTagNormalizedName) return;
     const controller = new AbortController();
     const params = new URLSearchParams({ status: 'all', limit: '100' });
@@ -143,7 +152,7 @@ export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?
         }
       });
     return () => controller.abort();
-  }, [selectedTagId, selectedTagNormalizedName, pagesReloadKey, space, t]);
+  }, [canManage, selectedTagId, selectedTagNormalizedName, pagesReloadKey, space, t]);
 
   const filteredPages = useMemo(() => {
     const query = pageQuery.trim().toLocaleLowerCase();
@@ -322,9 +331,9 @@ export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?
                       <TagIcon className="h-5 w-5 text-primary" />
                       <h2 className="truncate font-display text-xl font-semibold">{selectedTag.name}</h2>
                     </div>
-                    <p className="mt-xs text-sm text-muted">{t('admin.tags.relatedSummary', { count: pages.length })}</p>
+                    {canManage && <p className="mt-xs text-sm text-muted">{t('admin.tags.relatedSummary', { count: pages.length })}</p>}
                   </div>
-                  <div className="flex flex-wrap gap-xs">
+                  {canManage && <div className="flex flex-wrap gap-xs">
                     <button
                       type="button"
                       onClick={() => { setRenameName(selectedTag.name); setEditMode('rename'); }}
@@ -347,11 +356,11 @@ export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?
                     >
                       <TrashIcon className="h-4 w-4" /> {t('admin.tags.delete')}
                     </button>
-                  </div>
+                  </div>}
                 </div>
               </div>
 
-              <div className="p-md lg:p-lg">
+              {canManage && <div className="p-md lg:p-lg">
                 <div className="mb-md flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="font-display text-base font-semibold">{t('admin.tags.relatedPages')}</h3>
                   <label className="relative block w-full sm:max-w-sm">
@@ -388,7 +397,7 @@ export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?
                             <EditableTagList
                               tags={page.metadata?.tags ?? []}
                               pageId={page.id}
-                              canEdit
+                              canEdit={canManage}
                               ariaLabel={t('admin.tags.pageTagsLabel')}
                               onChange={() => setPagesReloadKey((key) => key + 1)}
                             />
@@ -397,14 +406,14 @@ export function TagManager({ spaceFilterEnabled = false }: { spaceFilterEnabled?
                         <span className="hidden rounded-full border border-border px-sm py-xs text-xs text-muted sm:inline-block">
                           {t(`admin.pages.status.${page.status}`)}
                         </span>
-                        <Link href={getEditHref(page.path)} aria-label={t('admin.pages.actions.edit')} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-elevated hover:text-foreground">
+                        {canManage && <Link href={getEditHref(page.path)} aria-label={t('admin.pages.actions.edit')} className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted hover:bg-surface-elevated hover:text-foreground">
                           <EditIcon className="h-4 w-4" />
-                        </Link>
+                        </Link>}
                       </li>
                     ))}
                   </ul>
                 )}
-              </div>
+              </div>}
             </>
           )}
         </section>

@@ -60,8 +60,8 @@ describe('ai runtime settings (026)', () => {
     expect((await resolveAiRuntimeConfig()).answerLanguage).toBe('follow_question');
   });
 
-  it('denies runtime settings to a non-admin', async () => {
-    await expect(getAiRuntimeSettings(readerCtx)).rejects.toMatchObject({ code: 'FORBIDDEN' });
+  it('shows runtime settings to a non-admin but rejects their writes', async () => {
+    await expect(getAiRuntimeSettings(readerCtx)).resolves.toMatchObject({ params: expect.any(Object) });
     await expect(updateAiRuntimeSettings(readerCtx, { toolMaxCalls: 5 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 

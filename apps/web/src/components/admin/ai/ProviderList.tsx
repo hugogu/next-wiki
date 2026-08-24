@@ -44,10 +44,12 @@ export function ProviderList({
   type,
   providers,
   models,
+  canManage = true,
 }: {
   type: AiProviderType;
   providers: AiProviderView[];
   models: AiModelView[];
+  canManage?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -139,7 +141,7 @@ export function ProviderList({
             <DataTableHeader>{t('admin.ai.providers.vendor')}</DataTableHeader>
             <DataTableHeader>{t('admin.ai.providers.models')}</DataTableHeader>
             <DataTableHeader>{t('admin.ai.providers.status')}</DataTableHeader>
-            <DataTableHeader align="right">{t('admin.ai.actions.table.actions')}</DataTableHeader>
+            {canManage && <DataTableHeader align="right">{t('admin.ai.actions.table.actions')}</DataTableHeader>}
           </DataTableRow>
         </DataTableHead>
         <DataTableBody>
@@ -158,7 +160,7 @@ export function ProviderList({
                   {t(`admin.ai.providerStatus.${provider.status}` as TranslationKey)}
                 </StatusBadge>
               </DataTableCell>
-              <DataTableCell align="right">
+              {canManage && <DataTableCell align="right">
                 <div className="flex justify-end gap-xs">
                   <Tooltip label={t('admin.ai.providers.test')}>
                     <Button
@@ -207,7 +209,7 @@ export function ProviderList({
                     </Button>
                   </Tooltip>
                 </div>
-              </DataTableCell>
+              </DataTableCell>}
             </DataTableRow>
           ))}
           {items.length === 0 && (

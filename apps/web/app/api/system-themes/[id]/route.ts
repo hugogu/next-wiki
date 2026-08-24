@@ -12,7 +12,7 @@ const idSchema = z.string().uuid();
 /**
  * @openapi
  * @summary Get a system theme
- * @description Returns the full system theme (id, name, css, isBuiltin). Requires manage_appearance.
+ * @description Returns the full system theme (id, name, css, isBuiltin) to authenticated users. Updates require manage_appearance.
  * @tag Appearance
  * @auth bearer
  */

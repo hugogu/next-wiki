@@ -41,6 +41,12 @@ export function assertCanManageIntegrations(ctx: PermCtx): void {
   }
 }
 
+function assertCanViewIntegrations(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view integrations');
+  }
+}
+
 /** The secret is represented by `hasSecret` and never returned. */
 function toView(row: IntegrationRow): IntegrationView {
   return {
@@ -70,9 +76,14 @@ export async function getIntegration(
 }
 
 export async function listIntegrations(ctx: PermCtx): Promise<IntegrationView[]> {
-  assertCanManageIntegrations(ctx);
+  assertCanViewIntegrations(ctx);
   const rows = await db.query.integrations.findMany();
-  return rows.map(toView);
+  return rows.map((row) => {
+    const view = toView(row);
+    return can(ctx, 'manage_static_site', { kind: 'static_site' })
+      ? view
+      : { ...view, username: null, publicKey: null, fingerprint: null };
+  });
 }
 
 export async function configureIntegration(

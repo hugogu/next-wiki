@@ -39,6 +39,12 @@ export function assertCanManageStaticSite(ctx: PermCtx): void {
   }
 }
 
+function assertCanViewStaticSite(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view static site publishing');
+  }
+}
+
 function toPublicationView(row: PublicationRow): StaticSitePublicationView {
   return {
     id: row.id,
@@ -92,10 +98,13 @@ async function findLastPublication(targetId: string): Promise<PublicationRow | n
 }
 
 export async function getTarget(ctx: PermCtx): Promise<StaticSiteTargetView | null> {
-  assertCanManageStaticSite(ctx);
+  assertCanViewStaticSite(ctx);
   const target = await findTarget();
   if (!target) return null;
-  return toTargetView(target, await findLastPublication(target.id));
+  const view = toTargetView(target, await findLastPublication(target.id));
+  return can(ctx, 'manage_static_site', { kind: 'static_site' })
+    ? view
+    : { ...view, remoteUrl: '', branch: '', baseUrl: '' };
 }
 
 export async function configureTarget(

@@ -112,8 +112,8 @@ afterAll(async () => {
 });
 
 describe('permissions', () => {
-  it('denies editors', async () => {
-    await expect(getTarget(editorCtx)).rejects.toThrow(DomainError);
+  it('lets registered users view but not configure publishing', async () => {
+    await expect(getTarget(editorCtx)).resolves.toBeNull();
     await expect(configureTarget(editorCtx, upsert())).rejects.toThrow(DomainError);
   });
 
@@ -130,11 +130,13 @@ describe('permissions', () => {
     await expect(configureTarget(adminKeyCtx, upsert())).rejects.toThrow(DomainError);
   });
 
-  it('does not disclose configuration in the denial', async () => {
+  it('returns a redacted publishing summary to registered users', async () => {
     await configureTarget(adminCtx, upsert({ remoteUrl: 'https://github.com/secret/repo.git' }));
-    const error = await getTarget(editorCtx).catch((e: unknown) => e);
-    expect(error).toBeInstanceOf(DomainError);
-    expect(JSON.stringify(error)).not.toContain('secret/repo');
+    await expect(getTarget(editorCtx)).resolves.toMatchObject({
+      remoteUrl: '',
+      branch: '',
+      baseUrl: '',
+    });
   });
 });
 
@@ -433,4 +435,3 @@ describe('validateTarget', () => {
     expect(result.message).toContain('unable to connect');
   });
 });
-

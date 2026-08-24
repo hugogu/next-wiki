@@ -10,9 +10,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminAiSkillsPage() {
   const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || !can({ actor }, 'manage_ai', { kind: 'ai_settings' })) {
+  if (actor.kind !== 'user') {
     notFound();
   }
+  const canManage = can({ actor }, 'manage_ai', { kind: 'ai_settings' });
 
   const catalogue = await listSkillsForAdmin({ actor });
   const locale = await getLocale();
@@ -25,7 +26,7 @@ export default async function AdminAiSkillsPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.ai.skills.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.ai.skills.description')}</p>
         </div>
-        <SkillsPanel catalogue={catalogue} />
+        <SkillsPanel catalogue={catalogue} canManage={canManage} />
       </div>
     </Layout>
   );

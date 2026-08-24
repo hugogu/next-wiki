@@ -45,7 +45,7 @@ function effectiveReviewKey(review: AiToolView['effectiveReview']): TranslationK
   return `admin.ai.tools.effectiveReview.${review}` as TranslationKey;
 }
 
-export function AiToolsPanel({ initial }: { initial: AiToolListResponse }) {
+export function AiToolsPanel({ initial, canManage = true }: { initial: AiToolListResponse; canManage?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const pathname = usePathname();
@@ -204,7 +204,7 @@ export function AiToolsPanel({ initial }: { initial: AiToolListResponse }) {
                     containerClassName="max-w-[15rem]"
                     aria-label={`${tool.name} ${t('admin.ai.tools.policy.reviewPolicy')}`}
                     value={tool.reviewPolicy}
-                    disabled={savingTool === tool.name}
+                    disabled={!canManage || savingTool === tool.name}
                     onChange={(event) =>
                       savePolicy(tool, { reviewPolicy: event.target.value as AiToolReviewPolicy })
                     }
@@ -220,7 +220,7 @@ export function AiToolsPanel({ initial }: { initial: AiToolListResponse }) {
               <DataTableCell align="center">
                 <Switch
                   checked={tool.enabled}
-                  disabled={savingTool === tool.name}
+                  disabled={!canManage || savingTool === tool.name}
                   aria-label={`${tool.name} ${t('admin.ai.tools.table.enabled')}`}
                   onClick={() => savePolicy(tool, { enabled: !tool.enabled })}
                 />

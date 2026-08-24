@@ -12,7 +12,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminAppearancePage() {
   const actor = await getCurrentActor();
-  if (!can({ actor }, 'manage_appearance', { kind: 'appearance' })) notFound();
+  if (actor.kind !== 'user') notFound();
+  const canManage = can({ actor }, 'manage_appearance', { kind: 'appearance' });
 
   const initial = await listSystemThemes({ actor });
   const { html: sampleHtml } = renderMarkdown(PREVIEW_SAMPLE_MARKDOWN);
@@ -26,7 +27,7 @@ export default async function AdminAppearancePage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.appearance.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.appearance.description')}</p>
         </div>
-        <SystemThemeManager initial={initial} sampleHtml={sampleHtml} />
+        <SystemThemeManager initial={initial} sampleHtml={sampleHtml} canManage={canManage} />
       </div>
     </Layout>
   );

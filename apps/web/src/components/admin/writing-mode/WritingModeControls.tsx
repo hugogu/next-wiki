@@ -27,7 +27,7 @@ type SwitchJob = {
 
 const ACTIVE_JOB_STATUSES = new Set<SwitchJob['status']>(['pending', 'running']);
 
-export function WritingModeControls({ initial }: { initial: SwitchState }) {
+export function WritingModeControls({ initial, canManage = true }: { initial: SwitchState; canManage?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -35,7 +35,7 @@ export function WritingModeControls({ initial }: { initial: SwitchState }) {
   const [error, setError] = useState<string | null>(null);
   const job = useQuery({
     queryKey: ['writing-mode-switch', jobId],
-    enabled: jobId !== null,
+    enabled: canManage && jobId !== null,
     queryFn: () => apiGet<SwitchJob>(`/api/settings/writing-mode/jobs/${jobId}`),
     refetchInterval: (query) => ACTIVE_JOB_STATUSES.has(query.state.data?.status ?? 'pending') ? 1500 : false,
   });
@@ -77,15 +77,15 @@ export function WritingModeControls({ initial }: { initial: SwitchState }) {
           <h2 className="text-sm font-medium">{t('admin.writingMode.changeLabel')}</h2>
           {active && <p className="mt-xs text-sm text-muted">{t('admin.writingMode.pending')}</p>}
         </div>
-        {initial.mode === 'copilot' ? (
+        {canManage && initial.mode === 'copilot' ? (
           <Button onClick={enableLlmWiki} disabled={active || switchForward.isPending}>
             {switchForward.isPending ? t('admin.writingMode.switching') : t('admin.writingMode.switchToLlmWiki')}
           </Button>
-        ) : (
+        ) : canManage ? (
           <Button variant="danger" onClick={() => setDialogOpen(true)} disabled={active}>
             {t('admin.writingMode.switchToCopilot')}
           </Button>
-        )}
+        ) : null}
       </div>
       {error && <Alert>{error}</Alert>}
       {job.data && (
@@ -93,7 +93,7 @@ export function WritingModeControls({ initial }: { initial: SwitchState }) {
           <p className={failure ? 'text-danger' : 'text-muted'}>
             {t(`admin.writingMode.job.${job.data.status}`)}
           </p>
-          {failure && initial.mode === 'llm-wiki' && !initial.pendingMode && (
+          {canManage && failure && initial.mode === 'llm-wiki' && !initial.pendingMode && (
             <Button variant="secondary" onClick={() => setDialogOpen(true)}>{t('admin.writingMode.retry')}</Button>
           )}
           {job.data.status === 'completed' && conflictPaths.length > 0 && (
@@ -110,7 +110,7 @@ export function WritingModeControls({ initial }: { initial: SwitchState }) {
           )}
         </div>
       )}
-      {dialogOpen && <SwitchModeDialog onAccepted={accepted} onClose={() => setDialogOpen(false)} />}
+      {canManage && dialogOpen && <SwitchModeDialog onAccepted={accepted} onClose={() => setDialogOpen(false)} />}
     </section>
   );
 }

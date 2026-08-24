@@ -166,24 +166,31 @@ export function policyLayersFor(tool: ToolDefinition, rows: ToolPolicyRow[]): Po
 
 /**
  * Full tool listing with effective policy for the Admin Tools surface (US1).
- * Admin-only. Ensures the built-in provider exists on first read.
+ * Registered users may inspect it; only an administrator initializes the
+ * built-in provider row when it has not been created yet.
  */
 export async function listToolsWithEffectivePolicy(ctx: PermCtx): Promise<AiToolListResponse> {
-  if (!can(ctx, 'manage_ai', { kind: 'ai_settings' })) {
-    throw new DomainError('FORBIDDEN', 'Admin access is required to manage AI tools');
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view AI tools');
   }
-  const provider = await ensureBuiltinProvider();
-  const rows = await getPolicyRowsByProvider(provider.id);
+  const canManage = can(ctx, 'manage_ai', { kind: 'ai_settings' });
+  const provider = canManage
+    ? await ensureBuiltinProvider()
+    : await db.query.aiToolProviders.findFirst({
+        where: eq(schema.aiToolProviders.key, BUILTIN_TOOL_PROVIDER_KEY),
+      });
+  const rows = provider ? await getPolicyRowsByProvider(provider.id) : [];
+  const providerEnabled = provider?.enabled ?? true;
   const tools: AiToolView[] = listToolDefinitions().map((tool) => {
     const layers = policyLayersFor(tool, rows);
     const reviewPolicy = resolveEffectiveReviewPolicy(tool, layers);
     return {
-      providerKey: provider.key,
+      providerKey: provider?.key ?? BUILTIN_PROVIDER.key,
       name: tool.name,
       category: tool.category,
       riskLevel: tool.riskLevel,
       requiredScope: tool.requiredScope,
-      enabled: resolveToolEnabled(tool, layers, provider.enabled),
+      enabled: resolveToolEnabled(tool, layers, providerEnabled),
       reviewPolicy,
       resultRetention: tool.resultRetention,
       effectiveReview: resolveReviewDecision(tool, reviewPolicy, 'none', false),
@@ -193,11 +200,11 @@ export async function listToolsWithEffectivePolicy(ctx: PermCtx): Promise<AiTool
   return {
     providers: [
       {
-        key: provider.key,
-        displayName: provider.displayName,
-        kind: provider.kind,
-        enabled: provider.enabled,
-        activationStatus: provider.activationStatus,
+        key: provider?.key ?? BUILTIN_PROVIDER.key,
+        displayName: provider?.displayName ?? BUILTIN_PROVIDER.displayName,
+        kind: provider?.kind ?? BUILTIN_PROVIDER.kind,
+        enabled: providerEnabled,
+        activationStatus: provider?.activationStatus ?? 'available',
       },
       // Future external MCP provider, modeled but never activatable this phase.
       {

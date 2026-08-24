@@ -6,7 +6,7 @@ import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { createProvider, listProviders } from '@/server/services/ai-admin';
 
-/** @openapi @summary List AI providers @tag AI Admin @auth bearer */
+/** @openapi @summary List AI providers @description Available to authenticated users; write operations remain administrator-only. @tag AI Admin @auth bearer */
 export async function GET() {
   try {
     return NextResponse.json({ items: await listProviders(await createApiContext()) });

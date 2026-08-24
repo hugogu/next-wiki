@@ -10,9 +10,10 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminAiToolsPage() {
   const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || !can({ actor }, 'manage_ai', { kind: 'ai_settings' })) {
+  if (actor.kind !== 'user') {
     notFound();
   }
+  const canManage = can({ actor }, 'manage_ai', { kind: 'ai_settings' });
 
   const data = await listToolsWithEffectivePolicy({ actor });
   const locale = await getLocale();
@@ -25,7 +26,7 @@ export default async function AdminAiToolsPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.ai.tools.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.ai.tools.description')}</p>
         </div>
-        <AiToolsPanel initial={data} />
+        <AiToolsPanel initial={data} canManage={canManage} />
       </div>
     </Layout>
   );

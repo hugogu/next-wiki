@@ -6,7 +6,7 @@ import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { getAiRuntimeSettings, updateAiRuntimeSettings } from '@/server/services/ai-runtime-settings';
 
-/** @openapi @summary Get Wiki AI runtime settings @tag AI Admin @auth bearer */
+/** @openapi @summary Get Wiki AI runtime settings @description Available to authenticated users; updates remain administrator-only. @tag AI Admin @auth bearer */
 export async function GET() {
   try {
     return NextResponse.json(await getAiRuntimeSettings(await createApiContext()));

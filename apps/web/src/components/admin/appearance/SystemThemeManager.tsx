@@ -31,9 +31,11 @@ const SYSTEM_DARK_VARS = buildPreviewVars(DEFAULT_DARK_COLORS, DEFAULT_FONTS, DE
 export function SystemThemeManager({
   initial,
   sampleHtml,
+  canManage = true,
 }: {
   initial: SystemThemeListView;
   sampleHtml: string;
+  canManage?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -222,7 +224,7 @@ export function SystemThemeManager({
                   </span>
                 )}
               </button>
-              <button
+              {canManage && <button
                 type="button"
                 aria-label={`${t('admin.appearance.copy')}: ${theme.name}`}
                 title={t('admin.appearance.copy')}
@@ -231,7 +233,7 @@ export function SystemThemeManager({
                 className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-muted transition-colors hover:bg-background hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-40"
               >
                 <CopyIcon className="h-4 w-4" />
-              </button>
+              </button>}
             </div>
           );
         })}
@@ -249,6 +251,7 @@ export function SystemThemeManager({
                 ) : (
                   <Input
                     value={draftName}
+                    readOnly={!canManage}
                     onChange={(e) => setDraftName(e.target.value)}
                     className="max-w-xs"
                     aria-label={t('admin.appearance.nameLabel')}
@@ -260,7 +263,7 @@ export function SystemThemeManager({
                 <span className="ml-auto flex items-center gap-sm">
                   <Switch
                     checked={detail.id === activeThemeId}
-                    disabled={busy}
+                    disabled={!canManage || busy}
                     aria-label={t('admin.appearance.enable')}
                     onClick={() => activate(detail.id === activeThemeId ? null : detail.id)}
                   />
@@ -271,7 +274,7 @@ export function SystemThemeManager({
               <CssEditor
                 value={draftCss}
                 onChange={setDraftCss}
-                readOnly={detail.isBuiltin}
+                readOnly={!canManage || detail.isBuiltin}
                 ariaLabel={t('admin.appearance.cssLabel')}
               />
 
@@ -282,7 +285,7 @@ export function SystemThemeManager({
                 </div>
               )}
 
-              {!detail.isBuiltin && (
+              {canManage && !detail.isBuiltin && (
                 <div className="flex flex-wrap items-center gap-sm">
                   <Button variant="secondary" onClick={save} disabled={busy}>
                     {t('admin.appearance.save')}

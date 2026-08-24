@@ -27,10 +27,12 @@ export function BotsTabs({
   feishuConfig,
   dataSources,
   runtimeSettings,
+  canManage = true,
 }: {
   feishuConfig: FeishuConfigView;
   dataSources: ContentDataSourceItem[];
   runtimeSettings: AiRuntimeSettingsView;
+  canManage?: boolean;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -54,11 +56,11 @@ export function BotsTabs({
     >
       {selected === 'general' && (
         <div className="space-y-lg">
-          <ContentDataSourcesPanel initial={dataSources} />
-          <AiRuntimeParamsPanel initial={runtimeSettings} />
+          <ContentDataSourcesPanel initial={dataSources} canManage={canManage} />
+          <AiRuntimeParamsPanel initial={runtimeSettings} canManage={canManage} />
         </div>
       )}
-      {selected === 'feishu' && <FeishuIntegrationPanel initial={feishuConfig} />}
+      {selected === 'feishu' && <FeishuIntegrationPanel initial={feishuConfig} canManage={canManage} />}
     </SettingsTabs>
   );
 }

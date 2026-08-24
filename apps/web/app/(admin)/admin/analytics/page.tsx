@@ -10,7 +10,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminAnalyticsPage() {
   const actor = await getCurrentActor();
-  if (!can({ actor }, 'manage_appearance', { kind: 'appearance' })) notFound();
+  if (actor.kind !== 'user') notFound();
+  const canManage = can({ actor }, 'manage_appearance', { kind: 'appearance' });
 
   const view = await readAnalyticsSettings({ actor });
   const locale = await getLocale();
@@ -23,7 +24,7 @@ export default async function AdminAnalyticsPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.analytics.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.analytics.description')}</p>
         </div>
-        <AnalyticsProvidersForm initial={view} />
+        <AnalyticsProvidersForm initial={view} canManage={canManage} />
       </div>
     </Layout>
   );

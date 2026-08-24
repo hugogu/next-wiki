@@ -6,7 +6,7 @@ import { formatZodError, parseJson } from '@/server/api/validate';
 import { DomainError } from '@/server/errors';
 import { readSearchSettings, updateSearchSettings } from '@/server/services/search-settings';
 
-/** @openapi @summary Get search settings @tag Search Admin @auth bearer */
+/** @openapi @summary Get search settings @description Available to authenticated users; updates remain administrator-only. @tag Search Admin @auth bearer */
 export async function GET() {
   try {
     return NextResponse.json(await readSearchSettings(await createApiContext()));

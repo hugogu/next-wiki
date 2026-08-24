@@ -19,7 +19,7 @@ async function handleGET() {
 /**
  * @openapi
  * @summary Get static site publishing target
- * @description Returns the configured static site publishing target with the credential masked, or null when unconfigured. Admin only.
+ * @description Returns the configured static site publishing target with the credential masked, or null when unconfigured, to authenticated users. Mutations remain administrator-only.
  * @tag StaticSite
  * @auth bearer
  * @response StaticSiteTargetView

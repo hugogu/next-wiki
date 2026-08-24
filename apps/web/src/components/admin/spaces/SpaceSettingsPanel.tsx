@@ -29,7 +29,7 @@ export type SpaceSettingsItem = {
 
 type SpaceSettingsResponse = Partial<SpaceSettingsItem> & { message?: string };
 
-export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSettingsItem[] }) {
+export function SpaceSettingsPanel({ initialSpaces, canManage = true }: { initialSpaces: SpaceSettingsItem[]; canManage?: boolean }) {
   const { t } = useTranslation();
   const [spaces, setSpaces] = useState(initialSpaces);
   const [editingSpace, setEditingSpace] = useState<SpaceSettingsItem | null>(null);
@@ -108,7 +108,7 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
               </span>
             </DataTableHeader>
             <DataTableHeader>{t('admin.spaces.table.status')}</DataTableHeader>
-            <DataTableHeader align="right">{t('admin.spaces.table.actions')}</DataTableHeader>
+            {canManage && <DataTableHeader align="right">{t('admin.spaces.table.actions')}</DataTableHeader>}
           </DataTableRow>
         </DataTableHead>
         <DataTableBody>
@@ -122,7 +122,7 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
                   {space.isActive ? t('admin.spaces.status.active') : t('admin.spaces.status.inactive')}
                 </StatusBadge>
               </DataTableCell>
-              <DataTableCell align="right">
+              {canManage && <DataTableCell align="right">
                 <Tooltip label={t('admin.spaces.edit', { name: spaceLabel(space.kind) })}>
                   <Button
                     size="icon"
@@ -136,7 +136,7 @@ export function SpaceSettingsPanel({ initialSpaces }: { initialSpaces: SpaceSett
                     <EditIcon className="h-5 w-5" aria-hidden="true" />
                   </Button>
                 </Tooltip>
-              </DataTableCell>
+              </DataTableCell>}
             </DataTableRow>
           ))}
         </DataTableBody>

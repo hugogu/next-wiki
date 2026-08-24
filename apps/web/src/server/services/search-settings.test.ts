@@ -68,9 +68,9 @@ describe('search settings service', () => {
     })).rejects.toMatchObject({ code: 'BAD_REQUEST' } satisfies Partial<DomainError>);
   });
 
-  it('does not let non-administrators read or change capability settings', async () => {
+  it('lets registered users read but not change capability settings', async () => {
     const reader = await createUser('reader');
-    await expect(readSearchSettings(reader)).rejects.toMatchObject({ code: 'FORBIDDEN' } satisfies Partial<DomainError>);
+    await expect(readSearchSettings(reader)).resolves.toMatchObject(DEFAULT_SEARCH_SETTINGS);
     await expect(updateSearchSettings(reader, { fuzzySearchEnabled: false })).rejects.toMatchObject({
       code: 'FORBIDDEN',
     } satisfies Partial<DomainError>);

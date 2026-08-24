@@ -19,6 +19,7 @@ import { DomainError } from '@/server/errors';
 import {
   REGISTERED_ANALYTICS_PROVIDERS,
   buildActiveScriptContent,
+  readAnalyticsSettings,
   updateAnalyticsProvider,
   upsertAnalyticsProviders,
 } from '@/server/services/analytics';
@@ -183,6 +184,7 @@ describe('analytics service', () => {
 
     it('rejects non-admin callers', async () => {
       const ctx = await createReader();
+      await expect(readAnalyticsSettings(ctx)).resolves.toMatchObject({ providers: expect.any(Array) });
       await expect(
         updateAnalyticsProvider(ctx, 'baidu_tongji', { enabled: true, trackingId: VALID_BAIDU_ID }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });

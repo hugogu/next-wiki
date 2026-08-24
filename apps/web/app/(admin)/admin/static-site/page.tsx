@@ -6,6 +6,7 @@ import { getCurrentActor } from '@/server/services/auth';
 import { getTarget } from '@/server/services/static-site';
 import { DomainError } from '@/server/errors';
 import { getLocale, getDictionary } from '@/i18n/server';
+import { can } from '@/server/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -17,6 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AdminStaticSitePage() {
   const actor = await getCurrentActor();
+  if (actor.kind !== 'user') notFound();
+  const canManage = can({ actor }, 'manage_static_site', { kind: 'static_site' });
 
   // Hidden denial: a non-admin sees a 404 rather than a forbidden page, so the
   // surface does not advertise its own existence.
@@ -29,8 +32,8 @@ export default async function AdminStaticSitePage() {
   }
 
   return (
-    <StaticSitePageShell>
-      <StaticSiteOverview initial={target} />
+    <StaticSitePageShell canManage={canManage}>
+      <StaticSiteOverview initial={target} canManage={canManage} />
     </StaticSitePageShell>
   );
 }

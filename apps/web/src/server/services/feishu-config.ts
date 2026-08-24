@@ -31,6 +31,12 @@ export function assertCanManageFeishu(ctx: PermCtx): void {
   }
 }
 
+function assertCanViewFeishu(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view the Feishu integration');
+  }
+}
+
 /** Fetch the singleton config row, lazily creating the default disabled row. */
 async function getOrCreateRow(): Promise<ConfigRow> {
   const existing = await db.query.feishuIntegrationConfig.findFirst({
@@ -63,8 +69,20 @@ function toView(row: ConfigRow): FeishuConfigView {
 
 /** Masked configuration view for admins — never returns a plaintext secret. */
 export async function getConfigView(ctx: PermCtx): Promise<FeishuConfigView> {
-  assertCanManageFeishu(ctx);
-  return toView(await getOrCreateRow());
+  assertCanViewFeishu(ctx);
+  const row = await db.query.feishuIntegrationConfig.findFirst({
+    where: eq(schema.feishuIntegrationConfig.id, CONFIG_ID),
+  });
+  return row
+    ? toView(row)
+    : {
+        enabled: false,
+        appId: null,
+        hasAppSecret: false,
+        connectionMode: 'websocket',
+        lastConnectedAt: null,
+        lastError: null,
+      };
 }
 
 /**

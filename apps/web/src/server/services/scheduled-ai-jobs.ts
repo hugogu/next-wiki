@@ -34,6 +34,12 @@ function assertManager(ctx: PermCtx) {
   }
 }
 
+function assertViewer(ctx: PermCtx) {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view scheduled AI jobs');
+  }
+}
+
 function executionOwnerId(ctx: PermCtx): string {
   const userId = getActorUserId(ctx);
   if (!userId)
@@ -204,7 +210,7 @@ export async function listScheduledAiJobs(
   ctx: PermCtx,
   input: Partial<ScheduledAiJobListFilter> = {},
 ) {
-  assertManager(ctx);
+  assertViewer(ctx);
   const rows = await db
     .select()
     .from(schema.scheduledAiJobs)
@@ -351,7 +357,7 @@ export async function listScheduledAiJobRuns(
   jobId: string,
   input: Partial<ScheduledAiJobRunListFilter> = {},
 ) {
-  assertManager(ctx);
+  assertViewer(ctx);
   const rows = await db
     .select()
     .from(schema.scheduledAiJobRuns)
@@ -396,7 +402,7 @@ export async function listAllScheduledAiJobRuns(
   ctx: PermCtx,
   input: Partial<ScheduledAiJobRunListFilter> & { jobId?: string } = {},
 ) {
-  assertManager(ctx);
+  assertViewer(ctx);
   const rows = await db
     .select()
     .from(schema.scheduledAiJobRuns)

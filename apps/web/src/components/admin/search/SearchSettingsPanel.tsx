@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/Input';
 import { Switch } from '@/components/ui/Switch';
 import { useTranslation } from '@/i18n/client';
 
-export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }) {
+export function SearchSettingsPanel({ initial, canManage = true }: { initial: SearchSettingsView; canManage?: boolean }) {
   const { t } = useTranslation();
   const [fullTextSearchEnabled, setFullTextSearchEnabled] = useState(initial.fullTextSearchEnabled);
   const [fuzzySearchEnabled, setFuzzySearchEnabled] = useState(initial.fuzzySearchEnabled);
@@ -72,7 +72,8 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
             <Switch
               checked={fullTextSearchEnabled}
               aria-label={t('admin.searchSettings.fullText.title')}
-              onClick={() => setFullTextSearchEnabled((value) => !value)}
+              disabled={!canManage}
+              onClick={() => canManage && setFullTextSearchEnabled((value) => !value)}
             />
           </div>
 
@@ -84,6 +85,7 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
               max="2000"
               step="50"
               value={immediateSearchTimeoutMs}
+              disabled={!canManage}
               onChange={(event) => setImmediateSearchTimeoutMs(event.target.value)}
             />
             <span className="block text-xs text-muted">{t('admin.searchSettings.immediateTimeout.help')}</span>
@@ -97,7 +99,8 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
             <Switch
               checked={fuzzySearchEnabled}
               aria-label={t('admin.searchSettings.fuzzy.title')}
-              onClick={() => setFuzzySearchEnabled((value) => !value)}
+              disabled={!canManage}
+              onClick={() => canManage && setFuzzySearchEnabled((value) => !value)}
             />
           </div>
 
@@ -109,7 +112,8 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
             <Switch
               checked={semanticSearchEnabled}
               aria-label={t('admin.searchSettings.semantic.title')}
-              onClick={() => setSemanticSearchEnabled((value) => !value)}
+              disabled={!canManage}
+              onClick={() => canManage && setSemanticSearchEnabled((value) => !value)}
             />
           </div>
 
@@ -121,6 +125,7 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
               max="1"
               step="0.01"
               value={minRelevanceScore}
+              disabled={!canManage}
               onChange={(event) => setMinRelevanceScore(event.target.value)}
             />
             <span className="block text-xs text-muted">{t('admin.searchSettings.minRelevance.help')}</span>
@@ -137,7 +142,8 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
             <Switch
               checked={showExcerpts}
               aria-label={t('admin.searchSettings.excerpts.title')}
-              onClick={() => setShowExcerpts((value) => !value)}
+              disabled={!canManage}
+              onClick={() => canManage && setShowExcerpts((value) => !value)}
             />
           </div>
 
@@ -148,7 +154,7 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
               min="20"
               max="500"
               step="10"
-              disabled={!showExcerpts}
+              disabled={!canManage || !showExcerpts}
               value={excerptLength}
               onChange={(event) => setExcerptLength(event.target.value)}
             />
@@ -157,11 +163,11 @@ export function SearchSettingsPanel({ initial }: { initial: SearchSettingsView }
         </div>
       </div>
 
-      <div className="mt-lg flex items-center gap-md border-t border-border pt-lg">
+      {canManage && <div className="mt-lg flex items-center gap-md border-t border-border pt-lg">
         <Button onClick={save} disabled={saving || lexicalDisabled}>{saving ? t('common.status.saving') : t('common.actions.save')}</Button>
         {message && <span className="text-sm text-muted">{message}</span>}
         {error && <span role="alert" className="text-sm text-danger">{error}</span>}
-      </div>
+      </div>}
       {lexicalDisabled && <p role="alert" className="mt-sm text-sm text-danger">{t('admin.searchSettings.lexicalRequired')}</p>}
     </div>
   );

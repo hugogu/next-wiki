@@ -495,18 +495,46 @@ export function Navigator({
       ],
     },
   ];
-  // Non-admin accounts only get the one safe, read-only Admin surface. The
-  // rest of the console remains administrator-only rather than presenting
-  // navigation that would lead to inaccessible configuration pages.
+  // Registered non-admin accounts may inspect the explicitly supported
+  // configuration surfaces. Their page components omit all write controls.
   const ADMIN_GROUPS: AdminNavGroup[] = user.kind === 'user' && user.role !== 'admin'
-    ? [{
-        label: t('admin.nav.groups.content'),
-        items: [{
-          href: '/admin/pages',
-          label: t('admin.nav.pages'),
-          icon: <FileTextIcon className="shrink-0" />,
-        }],
-      }]
+    ? [
+        {
+          label: t('admin.nav.groups.content'),
+          items: [
+            { href: '/admin/writing-mode', label: t('admin.nav.writingMode'), icon: <PenSparkIcon className="shrink-0" /> },
+            { href: '/admin/spaces', label: t('admin.nav.spaces'), icon: <LayersIcon className="shrink-0" /> },
+            { href: '/admin/pages', label: t('admin.nav.pages'), icon: <FileTextIcon className="shrink-0" /> },
+            { href: '/admin/tags', label: t('admin.nav.tags'), icon: <TagIcon className="shrink-0" /> },
+            { href: '/admin/search', label: t('admin.nav.search'), icon: <SearchIcon className="shrink-0" /> },
+          ],
+        },
+        {
+          label: t('admin.nav.groups.ai'),
+          items: [
+            { href: '/admin/ai/providers', label: t('admin.nav.providers'), icon: <SparklesIcon className="shrink-0" /> },
+            { href: '/admin/ai/tools', label: t('admin.ai.tools.nav'), icon: <SlidersIcon className="shrink-0" /> },
+            { href: '/admin/ai/jobs', label: t('admin.ai.jobs.nav'), icon: <CalendarClockIcon className="shrink-0" /> },
+            { href: '/admin/ai/skills', label: t('admin.ai.skills.title'), icon: <PenSparkIcon className="shrink-0" /> },
+            { href: '/admin/bots', label: t('admin.nav.bots'), icon: <BotIcon className="shrink-0" /> },
+          ],
+        },
+        {
+          label: t('admin.nav.groups.system'),
+          items: [
+            { href: '/admin/site', label: t('admin.nav.site'), icon: <SettingsIcon className="shrink-0" /> },
+            { href: '/admin/appearance', label: t('admin.nav.appearance'), icon: <SlidersIcon className="shrink-0" /> },
+            { href: '/admin/integrations', label: t('admin.nav.integrations'), icon: <LinkIcon className="shrink-0" /> },
+          ],
+        },
+        {
+          label: t('admin.nav.groups.operations'),
+          items: [
+            { href: '/admin/analytics', label: t('admin.nav.analytics'), icon: <FunctionPlotIcon className="shrink-0" /> },
+            { href: '/admin/static-site', label: t('admin.nav.staticSite'), icon: <PublishIcon className="shrink-0" /> },
+          ],
+        },
+      ]
     : fullAdminGroups;
   const USER_CENTER_ITEMS: AdminNavItem[] = [
     {

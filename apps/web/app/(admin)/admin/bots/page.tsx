@@ -18,7 +18,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AdminBotsPage() {
   const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || !can({ actor }, 'manage_ai', { kind: 'ai_settings' })) notFound();
+  if (actor.kind !== 'user') notFound();
+  const canManage = can({ actor }, 'manage_ai', { kind: 'ai_settings' });
 
   const locale = await getLocale();
   const t = getDictionary(locale);
@@ -34,7 +35,7 @@ export default async function AdminBotsPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.bots.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.bots.description')}</p>
         </div>
-        <BotsTabs feishuConfig={config} dataSources={dataSources} runtimeSettings={runtimeSettings} />
+        <BotsTabs feishuConfig={config} dataSources={dataSources} runtimeSettings={runtimeSettings} canManage={canManage} />
       </div>
     </Layout>
   );

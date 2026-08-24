@@ -11,7 +11,7 @@ function query(request: NextRequest) {
   return Object.fromEntries(request.nextUrl.searchParams.entries());
 }
 
-/** @openapi @summary List scheduled AI jobs @tag AI Admin @auth bearer */
+/** @openapi @summary List scheduled AI jobs @description Available to authenticated users; job creation remains administrator-only. @tag AI Admin @auth bearer */
 export async function GET(request: NextRequest) {
   const parsed = scheduledAiJobListFilterSchema.safeParse(query(request));
   if (!parsed.success) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

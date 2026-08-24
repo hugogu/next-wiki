@@ -23,6 +23,12 @@ function assertCanManage(ctx: PermCtx): void {
   }
 }
 
+function assertCanView(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view system themes');
+  }
+}
+
 function toSummary(row: ThemeRow): { id: string; name: string; isBuiltin: boolean } {
   return { id: row.id, name: row.name, isBuiltin: row.isBuiltin };
 }
@@ -55,7 +61,7 @@ const getCachedActiveThemeCss = unstable_cache(
 );
 
 export async function listSystemThemes(ctx: PermCtx): Promise<SystemThemeListView> {
-  assertCanManage(ctx);
+  assertCanView(ctx);
   const rows = await db.query.systemThemes.findMany({
     orderBy: [asc(schema.systemThemes.isBuiltin), asc(schema.systemThemes.name)],
   });
@@ -66,7 +72,7 @@ export async function listSystemThemes(ctx: PermCtx): Promise<SystemThemeListVie
 }
 
 export async function getSystemTheme(ctx: PermCtx, id: string): Promise<SystemThemeView> {
-  assertCanManage(ctx);
+  assertCanView(ctx);
   const row = await getRow(id);
   if (!row) throw new DomainError('NOT_FOUND', 'System theme not found');
   return toView(row);

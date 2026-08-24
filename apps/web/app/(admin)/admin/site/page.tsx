@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminSitePage() {
   const actor = await getCurrentActor();
-  if (!can({ actor }, 'manage_appearance', { kind: 'appearance' })) notFound();
+  if (actor.kind !== 'user') notFound();
+  const canManage = can({ actor }, 'manage_appearance', { kind: 'appearance' });
   const canManageDemoMode = can({ actor }, 'manage_demo_mode', { kind: 'demo_mode' });
 
   const view = await getSiteView();
@@ -26,7 +27,9 @@ export default async function AdminSitePage() {
           <p className="mt-xs text-sm text-muted">{t('admin.site.description')}</p>
         </div>
         {canManageDemoMode && <DemoModeToggle enabled={isDemoReadOnly()} />}
-        <SiteSettingsForm initial={view} />
+        <fieldset disabled={!canManage} className="min-w-0 border-0 p-0 disabled:opacity-70">
+          <SiteSettingsForm initial={view} />
+        </fieldset>
       </div>
     </Layout>
   );

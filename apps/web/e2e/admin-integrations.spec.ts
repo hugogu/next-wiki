@@ -54,12 +54,13 @@ test.describe('admin integrations', () => {
     await expect(page.getByRole('link', { name: 'Integrations' }).last()).toBeVisible();
   });
 
-  test('a non-admin gets 404 rather than a forbidden page', async ({ page }) => {
-    // Hidden denial: the surface must not advertise its own existence.
+  test('a non-admin can inspect integrations but cannot configure them', async ({ page }) => {
     const email = `int-reader-${Date.now()}@example.com`;
     await register(page, email, 'reader-password-123');
 
     const response = await page.goto('/admin/integrations');
-    expect(response?.status()).toBe(404);
+    expect(response?.status()).toBe(200);
+    await expect(page.getByRole('heading', { name: 'Integrations' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Configure' })).toHaveCount(0);
   });
 });

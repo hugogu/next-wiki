@@ -93,6 +93,12 @@ function assertCanManage(ctx: PermCtx): void {
   }
 }
 
+function assertCanView(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view analytics settings');
+  }
+}
+
 /** Builds the concatenated JavaScript body for every enabled, validly
  * configured provider, in registry order. Each provider's loader is wrapped
  * in its own try/catch so one provider's failure cannot block another's. */
@@ -151,7 +157,7 @@ async function listAnalyticsProviderItems(): Promise<AnalyticsProviderItem[]> {
 /** Admin-only view of every registered provider plus the script content the
  * root layout will inline. Requires `manage_appearance`. */
 export async function readAnalyticsSettings(ctx: PermCtx): Promise<AnalyticsSettingsView> {
-  assertCanManage(ctx);
+  assertCanView(ctx);
   return {
     providers: await listAnalyticsProviderItems(),
     activeScriptContent: await getActiveAnalyticsScriptContent(),

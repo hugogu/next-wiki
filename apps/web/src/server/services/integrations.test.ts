@@ -9,6 +9,7 @@ import {
   deleteIntegration,
   findIntegration,
   getIntegration,
+  listIntegrations,
   resolveCredential,
 } from './integrations';
 
@@ -52,7 +53,8 @@ afterAll(async () => {
 });
 
 describe('permissions', () => {
-  it('denies editors', async () => {
+  it('lets editors list integrations but denies configuration details', async () => {
+    await expect(listIntegrations(editorCtx)).resolves.toEqual([]);
     await expect(getIntegration(editorCtx, 'github')).rejects.toThrow(DomainError);
   });
 

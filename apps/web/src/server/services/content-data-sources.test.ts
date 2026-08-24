@@ -43,11 +43,11 @@ describe('content data sources service', () => {
     expect(items[0]).toMatchObject({ available: false, unavailableReason: expect.any(String) });
   });
 
-  it('rejects non-Admin callers', async () => {
+  it('lets registered users view sources but rejects their writes', async () => {
     const { userId: readerId } = await createAdminUser({ email: 'reader-cds@example.com' });
     await db.update(schema.users).set({ role: 'reader' }).where(eq(schema.users.id, readerId));
     const ctx = buildUserCtx(readerId, 'reader');
-    await expect(listDataSources(ctx)).rejects.toThrow(DomainError);
+    await expect(listDataSources(ctx)).resolves.toEqual(expect.any(Array));
     await expect(
       updateDataSource(ctx, AI_CONVERSATIONS_SOURCE_KEY, { enabled: true }),
     ).rejects.toThrow(DomainError);

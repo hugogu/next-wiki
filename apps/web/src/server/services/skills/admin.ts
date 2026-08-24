@@ -33,6 +33,12 @@ function assertCanManageSkills(ctx: PermCtx): void {
   }
 }
 
+function assertCanViewSkills(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view skills');
+  }
+}
+
 async function audit(
   ctx: PermCtx,
   action: string,
@@ -47,7 +53,7 @@ async function audit(
 }
 
 export async function listSkillsForAdmin(ctx: PermCtx): Promise<SkillCatalogue> {
-  assertCanManageSkills(ctx);
+  assertCanViewSkills(ctx);
   return getSkillCatalogue();
 }
 

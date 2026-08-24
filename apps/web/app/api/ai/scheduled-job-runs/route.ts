@@ -6,7 +6,7 @@ import { apiError, internalError, mapDomainError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { listAllScheduledAiJobRuns } from '@/server/services/scheduled-ai-jobs';
 
-/** @openapi @summary List all scheduled AI job runs @tag AI Admin @auth bearer */
+/** @openapi @summary List all scheduled AI job runs @description Available to authenticated users. @tag AI Admin @auth bearer */
 export async function GET(request: NextRequest) {
   const query = Object.fromEntries(request.nextUrl.searchParams.entries());
   const parsed = scheduledAiJobRunListFilterSchema.safeParse(query);

@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
  *
  * @openapi
  * @summary List content data sources
- * @description Admin-only Content > Data Sources registry. Sources unavailable in the current writing mode are still listed, marked `available: false`.
+ * @description Authenticated users may view the Content > Data Sources registry. Sources unavailable in the current writing mode are still listed, marked `available: false`; updates remain administrator-only.
  * @tag Settings
  * @auth bearer
  * @response ContentDataSourceListResponse

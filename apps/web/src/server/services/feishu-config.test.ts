@@ -39,9 +39,10 @@ afterAll(async () => {
 });
 
 describe('feishu-config service', () => {
-  it('hides the surface from non-admins', async () => {
-    await expect(feishuConfig.getConfigView(editorCtx)).rejects.toMatchObject({
-      code: 'FORBIDDEN',
+  it('shows masked configuration to non-admins but keeps writes restricted', async () => {
+    await expect(feishuConfig.getConfigView(editorCtx)).resolves.toMatchObject({
+      enabled: false,
+      hasAppSecret: false,
     });
     await expect(feishuConfig.updateConfig(editorCtx, { appId: 'cli_x' })).rejects.toMatchObject({
       code: 'FORBIDDEN',

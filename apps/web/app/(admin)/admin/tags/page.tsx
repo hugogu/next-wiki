@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AdminTagsPage() {
   const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || actor.role !== 'admin') notFound();
+  if (actor.kind !== 'user') notFound();
 
   const locale = await getLocale();
   const t = getDictionary(locale);
@@ -31,7 +31,7 @@ export default async function AdminTagsPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.tags.title')}</h1>
           <p className="mt-xs max-w-3xl text-sm text-muted">{t('admin.tags.description')}</p>
         </div>
-        <TagManager spaceFilterEnabled={spaceFilterEnabled} />
+        <TagManager spaceFilterEnabled={spaceFilterEnabled} canManage={actor.role === 'admin'} />
       </div>
     </Layout>
   );

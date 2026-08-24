@@ -96,9 +96,10 @@ test.describe('Admin AI Tools configuration', () => {
     });
   });
 
-  test('non-admin cannot open the Admin Tools page (404, no existence leak)', async ({ page }) => {
+  test('non-admin can inspect tools but cannot modify their policies', async ({ page }) => {
     await registerReader(page, `tools-reader-${Date.now()}@example.com`);
     await page.goto('/admin/ai/tools');
-    await expect(page.locator('h1:has-text("404")')).toBeVisible();
+    await expect(page.getByText('search_wiki', { exact: true })).toBeVisible();
+    await expect(page.getByRole('switch', { name: /rename_tag/ })).toBeDisabled();
   });
 });

@@ -27,7 +27,7 @@ function SummaryRow({ label, value }: { label: string; value: React.ReactNode })
   );
 }
 
-export function StaticSiteOverview({ initial }: { initial: StaticSiteTargetView | null }) {
+export function StaticSiteOverview({ initial, canManage = true }: { initial: StaticSiteTargetView | null; canManage?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
 
@@ -40,6 +40,7 @@ export function StaticSiteOverview({ initial }: { initial: StaticSiteTargetView 
     initialData: initial,
     // Poll only while a run is in flight, so an idle admin page is not a
     // background load generator.
+    enabled: canManage,
     refetchInterval: (query) =>
       RUNNING_STATES.includes(query.state.data?.lastPublication?.status ?? '') ? 2000 : false,
   });
@@ -69,11 +70,11 @@ export function StaticSiteOverview({ initial }: { initial: StaticSiteTargetView 
     return (
       <EmptyState title={t('admin.staticSite.notConfiguredTitle')}>
         <p className="text-sm">{t('admin.staticSite.notConfiguredBody')}</p>
-        <p className="mt-sm text-sm">
+        {canManage && <p className="mt-sm text-sm">
           <Link href="/admin/static-site/settings" className="text-primary hover:underline">
             {t('admin.staticSite.openSettings')}
           </Link>
-        </p>
+        </p>}
       </EmptyState>
     );
   }
@@ -147,22 +148,26 @@ export function StaticSiteOverview({ initial }: { initial: StaticSiteTargetView 
           <SummaryRow
             label={t('admin.staticSite.provider.github_pages')}
             value={
-              <Link
+              canManage ? <Link
                 href="/admin/integrations/github"
                 className="text-primary hover:underline"
               >
                 {live.integrationId
                   ? t('admin.integrations.statusConfigured')
                   : t('admin.integrations.statusNotConfigured')}
-              </Link>
+              </Link> : (
+                live.integrationId
+                  ? t('admin.integrations.statusConfigured')
+                  : t('admin.integrations.statusNotConfigured')
+              )
             }
           />
         </ul>
-        <p className="text-xs text-muted">
+        {canManage && <p className="text-xs text-muted">
           <Link href="/admin/static-site/settings" className="text-primary hover:underline">
             {t('admin.staticSite.openSettings')}
           </Link>
-        </p>
+        </p>}
       </section>
 
       <EligibilitySummary run={lastRun} />
@@ -207,15 +212,15 @@ export function StaticSiteOverview({ initial }: { initial: StaticSiteTargetView 
               <p className="mt-xs text-xs text-danger">{lastRun.errorMessage}</p>
             ) : null}
           </div>
-          <p className="text-xs text-muted">
+          {canManage && <p className="text-xs text-muted">
             <Link href="/admin/static-site/history" className="text-primary hover:underline">
               {t('admin.staticSite.tabs.history')}
             </Link>
-          </p>
+          </p>}
         </section>
       ) : null}
 
-      <div className="flex flex-wrap items-center gap-sm">
+      {canManage && <div className="flex flex-wrap items-center gap-sm">
         {enabled ? (
           <>
             <Button onClick={onPublish} disabled={pending || running}>
@@ -241,7 +246,7 @@ export function StaticSiteOverview({ initial }: { initial: StaticSiteTargetView 
             {t('admin.staticSite.viewSite')}
           </a>
         ) : null}
-      </div>
+      </div>}
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { createSkill, listSkillsForAdmin } from '@/server/services/skills/admin'
 /**
  * @openapi
  * @summary List Agent Skills
- * @description Returns every known skill with its source and state, plus any
+ * @description Returns every known skill with its source and state to authenticated users, plus any
  * packages that were rejected during discovery and the status of the skills
  * directory.
  * @tag AI Skills

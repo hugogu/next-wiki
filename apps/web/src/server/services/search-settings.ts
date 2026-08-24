@@ -29,6 +29,12 @@ function assertAdmin(ctx: PermCtx): void {
   }
 }
 
+function assertViewer(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view search settings');
+  }
+}
+
 function scoreToStored(value: number): number {
   return Math.round(value * 100);
 }
@@ -60,7 +66,7 @@ export async function getSearchSettings(): Promise<SearchSettingsView> {
 }
 
 export async function readSearchSettings(ctx: PermCtx): Promise<SearchSettingsView> {
-  assertAdmin(ctx);
+  assertViewer(ctx);
   return getSearchSettings();
 }
 

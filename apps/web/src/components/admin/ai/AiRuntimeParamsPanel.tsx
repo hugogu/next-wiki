@@ -19,7 +19,7 @@ import { useTranslation } from '@/i18n/client';
  * Wiki AI tool-runtime parameters (026), edited from Bots > General. Persists to
  * `ai_settings`; the tool loop reads these on each turn.
  */
-export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsView }) {
+export function AiRuntimeParamsPanel({ initial, canManage = true }: { initial: AiRuntimeSettingsView; canManage?: boolean }) {
   const { t } = useTranslation();
   const [answerLanguage, setAnswerLanguage] = useState<AiAnswerLanguage>(initial.params.answerLanguage);
   const [anonymousWikiAiEnabled, setAnonymousWikiAiEnabled] = useState(initial.params.anonymousWikiAiEnabled);
@@ -83,6 +83,7 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
           </div>
           <Switch
             checked={anonymousWikiAiEnabled}
+            disabled={!canManage}
             onClick={() => setAnonymousWikiAiEnabled((value) => !value)}
             aria-label={t('admin.bots.general.runtime.anonymousWikiAi')}
           />
@@ -93,6 +94,7 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
         >
           <Select
             value={answerLanguage}
+            disabled={!canManage}
             onChange={(e) => setAnswerLanguage(e.target.value as AiAnswerLanguage)}
           >
             <option value="model_default">
@@ -109,6 +111,7 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
             min={TOOL_MAX_CALLS_MIN}
             max={TOOL_MAX_CALLS_MAX}
             value={maxCalls}
+            disabled={!canManage}
             onChange={(e) => setMaxCalls(e.target.value)}
           />
         </Field>
@@ -119,17 +122,18 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
             max={TOOL_RESULT_MAX_CHARS_MAX}
             step={1024}
             value={resultChars}
+            disabled={!canManage}
             onChange={(e) => setResultChars(e.target.value)}
           />
         </Field>
         <Field label={t('admin.bots.general.runtime.temperature')}>
-          <Input type="number" min={0} max={2} step={0.05} value={temperature} onChange={(e) => setTemperature(e.target.value)} />
+          <Input type="number" min={0} max={2} step={0.05} value={temperature} disabled={!canManage} onChange={(e) => setTemperature(e.target.value)} />
         </Field>
         <Field label={t('admin.bots.general.runtime.maxOutputTokens')}>
-          <Input type="number" min={256} max={65536} value={maxTokens} onChange={(e) => setMaxTokens(e.target.value)} />
+          <Input type="number" min={256} max={65536} value={maxTokens} disabled={!canManage} onChange={(e) => setMaxTokens(e.target.value)} />
         </Field>
       </div>
-      <div className="flex items-center gap-sm">
+      {canManage && <div className="flex items-center gap-sm">
         <Button type="button" variant="primary" disabled={busy} onClick={save}>
           {t('admin.bots.general.runtime.save')}
         </Button>
@@ -138,7 +142,7 @@ export function AiRuntimeParamsPanel({ initial }: { initial: AiRuntimeSettingsVi
             {message.text}
           </span>
         ) : null}
-      </div>
+      </div>}
     </section>
   );
 }

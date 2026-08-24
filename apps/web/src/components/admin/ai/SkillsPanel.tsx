@@ -31,7 +31,7 @@ import { useTranslation } from '@/i18n/client';
  * a skill that failed to load silently is the thing this surface exists to
  * prevent.
  */
-export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
+export function SkillsPanel({ catalogue, canManage = true }: { catalogue: SkillCatalogue; canManage?: boolean }) {
   const { t } = useTranslation();
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
@@ -70,7 +70,7 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
     <div className="flex flex-col gap-lg">
       <div className="flex flex-wrap items-center justify-between gap-md">
         <p className="text-sm text-muted">{t('admin.ai.skills.intro')}</p>
-        <div className="flex gap-sm">
+        {canManage && <div className="flex gap-sm">
           <Button
             variant="secondary"
             disabled={busy === 'rescan'}
@@ -82,7 +82,7 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
             <PlusIcon className="h-4 w-4" />
             {t('admin.ai.skills.create')}
           </Button>
-        </div>
+        </div>}
       </div>
 
       {error && <Alert>{error}</Alert>}
@@ -90,7 +90,7 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
       {catalogue.directory.notice && (
         <p className="rounded-md border border-border p-md text-sm text-muted">
           {catalogue.directory.notice}
-          {catalogue.directory.hostPath && (
+          {canManage && catalogue.directory.hostPath && (
             <span className="ml-xs">({catalogue.directory.hostPath})</span>
           )}
         </p>
@@ -115,9 +115,9 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
             {catalogue.skills.map((skill) => (
               <DataTableRow key={skill.name}>
                 <DataTableCell>
-                  <Link href={`/admin/ai/skills/${skill.name}`} className="font-medium">
+                  {canManage ? <Link href={`/admin/ai/skills/${skill.name}`} className="font-medium">
                     {skill.name}
-                  </Link>
+                  </Link> : <span className="font-medium">{skill.name}</span>}
                   <p className="text-xs text-muted">{skill.description}</p>
                 </DataTableCell>
                 <DataTableCell className="whitespace-nowrap">
@@ -142,7 +142,7 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
                 <DataTableCell align="right">
                   <Switch
                     checked={skill.enabled}
-                    disabled={busy === `${skill.name}:enabled`}
+                    disabled={!canManage || busy === `${skill.name}:enabled`}
                     aria-label={`${skill.name}: ${t('admin.ai.skills.enabled')}`}
                     onClick={() => void toggle(skill)}
                   />
@@ -168,7 +168,7 @@ export function SkillsPanel({ catalogue }: { catalogue: SkillCatalogue }) {
                     {t(`admin.ai.skills.rejectReason.${rejection.reason}` as never)}
                   </StatusBadge>
                   {rejection.name && <span className="font-medium">{rejection.name}</span>}
-                  {rejection.origin.directory && (
+                  {canManage && rejection.origin.directory && (
                     <code className="text-muted">{rejection.origin.directory}</code>
                   )}
                 </div>

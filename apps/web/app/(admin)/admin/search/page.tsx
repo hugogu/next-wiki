@@ -9,6 +9,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminSearchSettingsPage() {
   const actor = await getCurrentActor();
+  if (actor.kind !== 'user') notFound();
   let settings;
   try {
     settings = await readSearchSettings({ actor });
@@ -25,7 +26,7 @@ export default async function AdminSearchSettingsPage() {
           <h1 className="font-display text-xl font-semibold">{t('admin.searchSettings.title')}</h1>
           <p className="mt-xs text-sm text-muted">{t('admin.searchSettings.description')}</p>
         </div>
-        <SearchSettingsPanel initial={settings} />
+        <SearchSettingsPanel initial={settings} canManage={actor.role === 'admin'} />
       </div>
     </Layout>
   );

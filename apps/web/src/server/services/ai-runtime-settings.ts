@@ -67,8 +67,14 @@ function assertRuntimeAdmin(ctx: PermCtx): void {
   }
 }
 
+function assertRuntimeViewer(ctx: PermCtx): void {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to view AI runtime settings');
+  }
+}
+
 export async function getAiRuntimeSettings(ctx: PermCtx): Promise<AiRuntimeSettingsView> {
-  assertRuntimeAdmin(ctx);
+  assertRuntimeViewer(ctx);
   const config = await resolveAiRuntimeConfig();
   return {
     params: {

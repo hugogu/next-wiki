@@ -14,7 +14,7 @@ type Registration = {
   pollIntervalSeconds: number;
 };
 
-export function FeishuIntegrationPanel({ initial }: { initial: FeishuConfigView }) {
+export function FeishuIntegrationPanel({ initial, canManage = true }: { initial: FeishuConfigView; canManage?: boolean }) {
   const { t } = useTranslation();
   const [config, setConfig] = useState(initial);
   const [registration, setRegistration] = useState<Registration | null>(null);
@@ -95,13 +95,13 @@ export function FeishuIntegrationPanel({ initial }: { initial: FeishuConfigView 
           <h2 className="font-display text-lg font-semibold">{t('admin.feishu.connect.title')}</h2>
           <p className="text-sm text-muted">{t('admin.feishu.connect.description')}</p>
         </div>
-        <Button onClick={start} disabled={loading || Boolean(registration)}>
+        {canManage && <Button onClick={start} disabled={loading || Boolean(registration)}>
           {loading
             ? t('admin.feishu.connect.generating')
             : config.enabled
               ? t('admin.feishu.connect.regenerate')
               : t('admin.feishu.connect.generate')}
-        </Button>
+        </Button>}
         {registration && (
           <div className="space-y-sm rounded-md border border-border bg-background p-md">
             {qrDataUrl && (
