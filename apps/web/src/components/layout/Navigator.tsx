@@ -175,6 +175,7 @@ function TreeItem({
     { kind: 'page'; pageId: string } | { kind: 'folder'; sourceSpaceId: string; pathPrefix: string } | null
   >(null);
   const loadState = getLoadState(node);
+  const showMigrate = canMigrate && space !== 'raw';
   const active = node.pageId !== null && node.path === currentPath;
   const isOpen = expanded.has(node.path);
   // Children we can render right now: pre-expanded ones from SSR, or ones
@@ -236,29 +237,38 @@ function TreeItem({
           </button>
         )}
 
-        {canCreate && (
-          <Link
-            href={`${getSpaceNewHref(space)}${getSpaceNewHref(space).includes('?') ? '&' : '?'}prefix=${encodeURIComponent(node.path)}`}
-            onClick={onNavigate}
-            title={addChildLabel}
-            aria-label={addChildLabel}
-            // Always visible on touch/mobile; on desktop it reveals on row
-            // hover or keyboard focus to keep the tree uncluttered.
-            className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-opacity hover:text-foreground hover:bg-surface-elevated focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-          >
-            <PlusIcon className="h-4 w-4" />
-          </Link>
-        )}
-        {canMigrate && space !== 'raw' && (
-          <button
-            type="button"
-            onClick={() => setMigrationSelection(node.pageId && !node.hasChildren ? { kind: 'page', pageId: node.pageId } : { kind: 'folder', sourceSpaceId: '', pathPrefix: node.path })}
-            title={moveLabel}
-            aria-label={moveLabel}
-            className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-opacity hover:text-foreground hover:bg-surface-elevated focus:opacity-100 lg:opacity-0 lg:group-hover:opacity-100"
-          >
-            <MoveIcon className="h-4 w-4" />
-          </button>
+        {/*
+          Row actions. Always visible on touch/mobile; on desktop the wrapper
+          collapses to zero width so the title gets the whole row, and only
+          claims space once the row is hovered or one of its buttons is
+          focused. Collapsing the width (rather than `hidden`) keeps the
+          buttons in the tab order for keyboard users.
+        */}
+        {(canCreate || showMigrate) && (
+          <div className="flex shrink-0 items-center overflow-hidden lg:w-0 lg:opacity-0 lg:transition-opacity lg:group-hover:w-auto lg:group-hover:opacity-100 lg:group-focus-within:w-auto lg:group-focus-within:opacity-100">
+            {canCreate && (
+              <Link
+                href={`${getSpaceNewHref(space)}${getSpaceNewHref(space).includes('?') ? '&' : '?'}prefix=${encodeURIComponent(node.path)}`}
+                onClick={onNavigate}
+                title={addChildLabel}
+                aria-label={addChildLabel}
+                className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-colors hover:text-foreground hover:bg-surface-elevated"
+              >
+                <PlusIcon className="h-4 w-4" />
+              </Link>
+            )}
+            {showMigrate && (
+              <button
+                type="button"
+                onClick={() => setMigrationSelection(node.pageId && !node.hasChildren ? { kind: 'page', pageId: node.pageId } : { kind: 'folder', sourceSpaceId: '', pathPrefix: node.path })}
+                title={moveLabel}
+                aria-label={moveLabel}
+                className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-colors hover:text-foreground hover:bg-surface-elevated"
+              >
+                <MoveIcon className="h-4 w-4" />
+              </button>
+            )}
+          </div>
         )}
       </div>
 
