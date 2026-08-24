@@ -762,6 +762,7 @@
       "metadataTitle": "页面管理",
       "title": "页面管理",
       "description": "集中查看 Wiki 页面，通过页面元数据筛选，并从列表中进入常用页面操作。",
+      "readonlyNotice": "当前为只读访问：仅显示已发布的公开页面，以及通过本账号 API Key 生成且已发布的页面。",
       "stats": {
         "totalPages": "总页面数",
         "totalEdits": "总编辑数",

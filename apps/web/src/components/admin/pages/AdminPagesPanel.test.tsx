@@ -17,7 +17,9 @@ vi.mock('./MovePageButton', () => ({
   MovePageButton: () => <button data-testid="move-page-button">move</button>,
 }));
 vi.mock('./DeletePageButton', () => ({ DeletePageButton: () => null }));
-vi.mock('@/components/pages/EditableTagList', () => ({ EditableTagList: () => null }));
+vi.mock('@/components/pages/EditableTagList', () => ({
+  EditableTagList: ({ canEdit }: { canEdit?: boolean }) => <span data-can-edit={String(canEdit)} />,
+}));
 
 const t = ((key: TranslationKey) => key) as TranslateFunction;
 
@@ -77,7 +79,7 @@ function nativePage(overrides: Partial<AdminPageListItem> = {}): AdminPageListIt
 }
 
 describe('AdminPagesPanel space filter (Raw space)', () => {
-  it('offers a Raw tab alongside Wiki and Generated when moveEnabled', () => {
+  it('offers a Raw tab alongside Wiki and Generated when space filtering is enabled', () => {
     const list: AdminPageListResult = {
       items: [],
       totalItems: 0,
@@ -88,7 +90,7 @@ describe('AdminPagesPanel space filter (Raw space)', () => {
       direction: 'desc',
       filters: {},
     };
-    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{}} moveEnabled />);
+    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{}} spaceFilterEnabled />);
     expect(html).toContain('admin.pages.spaces.wiki');
     expect(html).toContain('admin.pages.spaces.generated');
     expect(html).toContain('admin.pages.spaces.raw');
@@ -107,7 +109,7 @@ describe('AdminPagesPanel space filter (Raw space)', () => {
       filters: { space: 'raw' },
     };
     const html = renderToStaticMarkup(
-      <AdminPagesPanel t={t} list={list} query={{ space: 'raw' }} moveEnabled />,
+      <AdminPagesPanel t={t} list={list} query={{ space: 'raw' }} spaceFilterEnabled />,
     );
     expect(html).not.toContain('data-testid="move-page-button"');
   });
@@ -124,9 +126,35 @@ describe('AdminPagesPanel space filter (Raw space)', () => {
       filters: { space: 'generated' },
     };
     const html = renderToStaticMarkup(
-      <AdminPagesPanel t={t} list={list} query={{ space: 'generated' }} moveEnabled />,
+      <AdminPagesPanel t={t} list={list} query={{ space: 'generated' }} spaceFilterEnabled />,
     );
     expect(html).toContain('data-testid="move-page-button"');
+  });
+});
+
+describe('AdminPagesPanel read-only access', () => {
+  it('keeps filtering and reader links while removing every mutation control', () => {
+    const list: AdminPageListResult = {
+      items: [nativePage({ status: 'published_with_draft', latestVersion: 3, spaceSlug: 'default' })],
+      totalItems: 1,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: {},
+    };
+
+    const html = renderToStaticMarkup(
+      <AdminPagesPanel t={t} list={list} query={{}} canManage={false} spaceFilterEnabled />,
+    );
+
+    expect(html).toContain('admin.pages.readonlyNotice');
+    expect(html).toContain('href="/conversations/feishu/2026/07/21/action-1"');
+    expect(html).toContain('data-can-edit="false"');
+    expect(html).not.toContain('admin.pages.table.actions');
+    expect(html).not.toContain('admin.pages.actions.reviewDraft');
+    expect(html).not.toContain('data-testid="move-page-button"');
   });
 });
 

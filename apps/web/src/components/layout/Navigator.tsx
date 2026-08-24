@@ -353,7 +353,7 @@ export function Navigator({
   const addChildLabel = t('layout.nav.addChild');
   const moveLabel = t('admin.pages.actions.move');
   const pathname = usePathname();
-  const ADMIN_GROUPS: AdminNavGroup[] = [
+  const fullAdminGroups: AdminNavGroup[] = [
     {
       label: t('admin.nav.groups.content'),
       items: [
@@ -495,6 +495,19 @@ export function Navigator({
       ],
     },
   ];
+  // Non-admin accounts only get the one safe, read-only Admin surface. The
+  // rest of the console remains administrator-only rather than presenting
+  // navigation that would lead to inaccessible configuration pages.
+  const ADMIN_GROUPS: AdminNavGroup[] = user.kind === 'user' && user.role !== 'admin'
+    ? [{
+        label: t('admin.nav.groups.content'),
+        items: [{
+          href: '/admin/pages',
+          label: t('admin.nav.pages'),
+          icon: <FileTextIcon className="shrink-0" />,
+        }],
+      }]
+    : fullAdminGroups;
   const USER_CENTER_ITEMS: AdminNavItem[] = [
     {
       href: '/user-center/profile',

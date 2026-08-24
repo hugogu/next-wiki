@@ -24,7 +24,6 @@ export function NavFooterMenu({ user, onNavigate }: { user: Actor; onNavigate?: 
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const isSignedIn = user.kind === 'user';
-  const isAdmin = isSignedIn && user.role === 'admin';
 
   useEffect(() => {
     if (!open) return;
@@ -81,9 +80,9 @@ export function NavFooterMenu({ user, onNavigate }: { user: Actor; onNavigate?: 
             </MenuLink>
           )}
 
-          {isAdmin && (
+          {isSignedIn && (
             <MenuLink
-              href="/admin/users"
+              href="/admin/pages"
               icon={<ShieldIcon className="h-4 w-4" />}
               active={pathname.startsWith('/admin')}
               onClick={close}

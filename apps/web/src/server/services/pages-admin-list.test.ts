@@ -1,8 +1,9 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
+import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
+import * as revisions from '@/server/services/revisions';
 import {
   createPublicApiUser,
   createPublishedFixturePage,
@@ -68,5 +69,82 @@ describe('listAdminPages', () => {
 
     expect(firstDraft).toMatchObject({ status: 'draft', latestVersion: 1 });
     expect(pendingUpdate).toMatchObject({ status: 'published_with_draft', latestVersion: 2 });
+  });
+
+  it('limits a signed-in non-admin to public pages and machine-generated pages from the same account', async () => {
+    const admin = await createPublicApiUser('admin-list-scope-admin@example.com', 'admin');
+    const owner = await createPublicApiUser('admin-list-scope-owner@example.com', 'editor');
+    const other = await createPublicApiUser('admin-list-scope-other@example.com', 'editor');
+
+    await createPublishedFixturePage(admin, {
+      path: 'scope/public',
+      title: 'Public page',
+      contentSource: '# Public',
+    });
+    await pageService.create(buildUserCtx(admin.id, 'admin'), {
+      path: 'scope/registered',
+      title: 'Registered page',
+      contentSource: '# Registered',
+      visibility: 'registered',
+    });
+    await revisions.publish(buildUserCtx(admin.id, 'admin'), { path: 'scope/registered', version: 1 });
+
+    const ownerKey = buildApiKeyCtx(
+      owner.id,
+      'editor',
+      ['create', 'edit'],
+      '00000000-0000-4000-8000-000000000001',
+    );
+    await pageService.create(ownerKey, {
+      path: 'scope/owner-generated',
+      title: 'Owner-generated page',
+      contentSource: '# Owner generated',
+      visibility: 'restricted',
+    });
+    await revisions.publish(ownerKey, { path: 'scope/owner-generated', version: 1 });
+
+    const otherKey = buildApiKeyCtx(
+      other.id,
+      'editor',
+      ['create', 'edit'],
+      '00000000-0000-4000-8000-000000000002',
+    );
+    await pageService.create(otherKey, {
+      path: 'scope/other-generated',
+      title: 'Other-generated page',
+      contentSource: '# Other generated',
+      visibility: 'restricted',
+    });
+    await revisions.publish(otherKey, { path: 'scope/other-generated', version: 1 });
+
+    await pageService.create(buildUserCtx(owner.id, 'editor'), {
+      path: 'scope/owner-human-generated',
+      title: 'Human-generated classification',
+      contentSource: '# Human generated',
+      nature: 'generated',
+      visibility: 'restricted',
+    });
+    await revisions.publish(buildUserCtx(owner.id, 'editor'), { path: 'scope/owner-human-generated', version: 1 });
+
+    const result = await pageService.listAdminPages(buildUserCtx(owner.id, 'editor'), {});
+
+    expect(result.items.map((item) => item.path).sort()).toEqual([
+      'scope/owner-generated',
+      'scope/public',
+    ]);
+    expect(result.items.find((item) => item.path === 'scope/owner-generated')).toMatchObject({ status: 'published' });
+    expect(result.items.find((item) => item.path === 'scope/public')).toMatchObject({ status: 'published' });
+    expect(result.items.find((item) => item.path === 'scope/public')?.authorEmail).toBe('');
+    expect(result.totalItems).toBe(2);
+
+    const emailFiltered = await pageService.listAdminPages(buildUserCtx(owner.id, 'editor'), {
+      filters: { author: admin.email },
+    });
+    expect(emailFiltered.items).toEqual([]);
+
+    const stats = await pageService.getAdminPageStats(buildUserCtx(owner.id, 'editor'));
+    expect(stats.totalPages).toBe(2);
+    expect(stats.totalEdits).toBe(2);
+
   });
 });

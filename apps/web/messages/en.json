@@ -762,6 +762,7 @@
       "metadataTitle": "Page management",
       "title": "Page Management",
       "description": "Review wiki pages, filter by page metadata, and open common page actions from one administrative view.",
+      "readonlyNotice": "Read-only access: only published public pages and published pages generated through your account's API keys are shown.",
       "stats": {
         "totalPages": "Total pages",
         "totalEdits": "Total edits",

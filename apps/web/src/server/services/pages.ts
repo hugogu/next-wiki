@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNull, desc, max, count, asc, ilike, gte, lte, or, sql, inArray } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, or, sql, inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, can, type PermCtx, getActorUserId, pagePermissionOptions, spacePermissionOptions } from '@/server/permissions';
@@ -73,6 +73,51 @@ function assertAdmin(ctx: PermCtx): void {
   }
 }
 
+/**
+ * The Admin page index is also a read-only discovery surface for signed-in
+ * users. Mutations keep using the administrator-only permission above; this
+ * narrower gate intentionally authorizes only the two read functions below.
+ */
+function assertAdminPageQueryAccess(ctx: PermCtx): asserts ctx is PermCtx & { actor: Extract<PermCtx['actor'], { kind: 'user' }> } {
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('FORBIDDEN', 'Sign in to view page management');
+  }
+}
+
+function isAdminPageQuery(ctx: PermCtx): boolean {
+  return ctx.actor.kind === 'user' && ctx.actor.role === 'admin';
+}
+
+/**
+ * A non-admin's administrative list is deliberately smaller than their
+ * normal reader access: it exposes published public pages plus pages created
+ * by a machine credential owned by that same account. `actor_kind = machine`
+ * is immutable provenance written for API-key/pipeline creates, while
+ * `nature = generated` rules out an API client that deliberately classified
+ * its document as original.
+ */
+function readOnlyAdminPageScope(userId: string) {
+  return and(
+    isNotNull(schema.pages.currentPublishedVersionId),
+    or(
+      eq(schema.pages.visibility, 'public'),
+      and(
+        eq(schema.pages.authorId, userId),
+        eq(schema.pages.nature, 'generated'),
+        exists(
+          db
+            .select({ one: sql`1` })
+            .from(schema.pageRevisions)
+            .where(and(
+              eq(schema.pageRevisions.pageId, schema.pages.id),
+              eq(schema.pageRevisions.actorKind, 'machine'),
+            )),
+        ),
+      ),
+    ),
+  );
+}
+
 function clampPage(value: number | undefined): number {
   if (!value || Number.isNaN(value) || value < 1) return 1;
   return Math.floor(value);
@@ -96,16 +141,30 @@ function parseDateBoundary(value: string | undefined, boundary: 'start' | 'end')
   return Number.isNaN(date.getTime()) ? null : date;
 }
 
-function adminPageConditions(spaceId: string, filters: AdminPageListFilters) {
+function adminPageConditions(
+  spaceId: string,
+  filters: AdminPageListFilters,
+  options: {
+    readOnlyScope?: ReturnType<typeof readOnlyAdminPageScope>;
+    includeAuthorEmail?: boolean;
+  } = {},
+) {
   const dateFrom = parseDateBoundary(filters.dateFrom, 'start');
   const dateTo = parseDateBoundary(filters.dateTo, 'end');
+  const includeAuthorEmail = options.includeAuthorEmail ?? true;
   const keywordCondition = filters.keyword
-    ? or(
-        ilike(schema.pages.title, `%${filters.keyword}%`),
-        ilike(schema.pages.path, `%${filters.keyword}%`),
-        ilike(schema.users.displayName, `%${filters.keyword}%`),
-        ilike(schema.users.email, `%${filters.keyword}%`),
-      )
+    ? includeAuthorEmail
+      ? or(
+          ilike(schema.pages.title, `%${filters.keyword}%`),
+          ilike(schema.pages.path, `%${filters.keyword}%`),
+          ilike(schema.users.displayName, `%${filters.keyword}%`),
+          ilike(schema.users.email, `%${filters.keyword}%`),
+        )
+      : or(
+          ilike(schema.pages.title, `%${filters.keyword}%`),
+          ilike(schema.pages.path, `%${filters.keyword}%`),
+          ilike(schema.users.displayName, `%${filters.keyword}%`),
+        )
     : undefined;
   return and(
     eq(schema.pages.spaceId, spaceId),
@@ -117,13 +176,16 @@ function adminPageConditions(spaceId: string, filters: AdminPageListFilters) {
     filters.title ? ilike(schema.pages.title, `%${filters.title}%`) : undefined,
     filters.path ? ilike(schema.pages.path, `%${filters.path}%`) : undefined,
     filters.author
-      ? or(
-          ilike(schema.users.displayName, `%${filters.author}%`),
-          ilike(schema.users.email, `%${filters.author}%`),
-        )
+      ? includeAuthorEmail
+        ? or(
+            ilike(schema.users.displayName, `%${filters.author}%`),
+            ilike(schema.users.email, `%${filters.author}%`),
+          )
+        : ilike(schema.users.displayName, `%${filters.author}%`)
       : undefined,
     dateFrom ? gte(schema.pages.updatedAt, dateFrom) : undefined,
     dateTo ? lte(schema.pages.updatedAt, dateTo) : undefined,
+    options.readOnlyScope,
   );
 }
 
@@ -333,7 +395,7 @@ export async function listAdminPages(
     filters?: AdminPageListFilters;
   } = {},
 ): Promise<AdminPageListResult> {
-  assertAdmin(ctx);
+  assertAdminPageQueryAccess(ctx);
   // 022: an admin may list any content space (raw/generated only in LLM Wiki
   // mode, enforced by assertSpaceKindAllowed); default wiki when unspecified.
   const space = await resolveSpace(options.filters?.space);
@@ -352,6 +414,7 @@ export async function listAdminPages(
   }
 
   const filters = compactFilters(options.filters);
+  const readOnly = !isAdminPageQuery(ctx);
   const sort = ADMIN_PAGE_SORTS.has(options.sort as AdminPageSortKey)
     ? (options.sort as AdminPageSortKey)
     : 'updatedAt';
@@ -359,7 +422,14 @@ export async function listAdminPages(
     ? (options.direction as AdminPageSortDirection)
     : 'desc';
   const currentPage = clampPage(options.page);
-  const where = adminPageConditions(space.id, filters);
+  const where = adminPageConditions(
+    space.id,
+    filters,
+    {
+      readOnlyScope: readOnly ? readOnlyAdminPageScope(ctx.actor.userId) : undefined,
+      includeAuthorEmail: !readOnly,
+    },
+  );
 
   const [totalRow] = await db
     .select({ value: count() })
@@ -446,26 +516,46 @@ export async function listAdminPages(
   const editCountByPageId = new Map(editCounts.map((row) => [row.pageId, Number(row.value)]));
   const latestVersionByPageId = new Map(editCounts.map((row) => [row.pageId, Number(row.latestVersion ?? 0)]));
 
-  // Tags on each page's latest revision (pageRevisionTags denormalizes the tag
-  // name/normalized name, so no join to the tags table is needed).
-  const tagRows = rowPageIds.length
+  // An administrator sees tags from the latest revision. A read-only viewer
+  // only sees the published revision's tags, so a private pending draft cannot
+  // disclose its metadata through the management list.
+  const tagRevisionIdByPageId = new Map(
+    rows
+      .map((row) => [row.id, readOnly ? row.currentPublishedVersionId : row.latestVersionId] as const)
+      .filter((entry): entry is [string, string] => entry[1] !== null),
+  );
+  const pageIdByTagRevisionId = new Map(
+    [...tagRevisionIdByPageId.entries()].map(([pageId, revisionId]) => [revisionId, pageId]),
+  );
+  const tagRevisionIds = [...new Set(tagRevisionIdByPageId.values())];
+  const tagRows = tagRevisionIds.length
     ? await db
         .select({
-          pageId: schema.pages.id,
+          revisionId: schema.pageRevisionTags.revisionId,
           id: schema.pageRevisionTags.tagId,
           name: schema.pageRevisionTags.tagName,
           normalizedName: schema.pageRevisionTags.normalizedName,
         })
-        .from(schema.pages)
-        .innerJoin(schema.pageRevisionTags, eq(schema.pageRevisionTags.revisionId, schema.pages.latestVersionId))
-        .where(inArray(schema.pages.id, rowPageIds))
+        .from(schema.pageRevisionTags)
+        .where(inArray(schema.pageRevisionTags.revisionId, tagRevisionIds))
     : [];
   const tagsByPageId = new Map<string, AdminPageListItem['tags']>();
   for (const tag of tagRows) {
-    const list = tagsByPageId.get(tag.pageId) ?? [];
+    const pageId = pageIdByTagRevisionId.get(tag.revisionId);
+    if (!pageId) continue;
+    const list = tagsByPageId.get(pageId) ?? [];
     list.push({ id: tag.id, name: tag.name, normalizedName: tag.normalizedName });
-    tagsByPageId.set(tag.pageId, list);
+    tagsByPageId.set(pageId, list);
   }
+
+  const publishedVersions = readOnly && rowPageIds.length
+    ? await db
+        .select({ pageId: schema.pageRevisions.pageId, version: schema.pageRevisions.versionNumber })
+        .from(schema.pageRevisions)
+        .innerJoin(schema.pages, eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId))
+        .where(inArray(schema.pages.id, rowPageIds))
+    : [];
+  const publishedVersionByPageId = new Map(publishedVersions.map((row) => [row.pageId, row.version]));
 
   return {
     items: rows.map((row) => ({
@@ -473,14 +563,18 @@ export async function listAdminPages(
       path: row.path,
       slug: row.slug,
       title: row.title,
-      status: !row.currentPublishedVersionId
-        ? 'draft'
-        : row.latestVersionId !== row.currentPublishedVersionId
-          ? 'published_with_draft'
-          : 'published',
-      latestVersion: 'latestVersion' in row ? Number(row.latestVersion ?? 0) : latestVersionByPageId.get(row.id) ?? 0,
+      status: readOnly
+        ? 'published'
+        : !row.currentPublishedVersionId
+          ? 'draft'
+          : row.latestVersionId !== row.currentPublishedVersionId
+            ? 'published_with_draft'
+            : 'published',
+      latestVersion: readOnly
+        ? publishedVersionByPageId.get(row.id) ?? 0
+        : 'latestVersion' in row ? Number(row.latestVersion ?? 0) : latestVersionByPageId.get(row.id) ?? 0,
       authorDisplayName: row.authorDisplayName,
-      authorEmail: row.authorEmail,
+      authorEmail: readOnly ? '' : row.authorEmail,
       editCount: 'editCount' in row ? Number(row.editCount) : editCountByPageId.get(row.id) ?? 0,
       createdAt: row.createdAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
@@ -500,9 +594,17 @@ export async function listAdminPages(
 }
 
 export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
-  assertAdmin(ctx);
+  assertAdminPageQueryAccess(ctx);
   const space = await resolveSpace();
   if (!space) return { totalPages: 0, totalEdits: 0, totalPageLinks: 0 };
+
+  const readOnly = !isAdminPageQuery(ctx);
+  const where = and(
+    eq(schema.pages.spaceId, space.id),
+    isNull(schema.pages.deletedAt),
+    isNull(schema.pages.translationGroupId),
+    readOnly ? readOnlyAdminPageScope(ctx.actor.userId) : undefined,
+  );
 
   const activePagesQuery = db
     .select({
@@ -511,14 +613,17 @@ export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {
       contentHtml: schema.pageRevisions.contentHtml,
     })
     .from(schema.pages)
-    .leftJoin(schema.pageRevisions, eq(schema.pages.latestVersionId, schema.pageRevisions.id))
-    .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)));
+    .leftJoin(
+      schema.pageRevisions,
+      eq(readOnly ? schema.pages.currentPublishedVersionId : schema.pages.latestVersionId, schema.pageRevisions.id),
+    )
+    .where(where);
 
   const editsQuery = db
     .select({ value: count() })
     .from(schema.pageRevisions)
     .innerJoin(schema.pages, eq(schema.pageRevisions.pageId, schema.pages.id))
-    .where(and(eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)));
+    .where(where);
 
   const [activePages, editRows] = await Promise.all([activePagesQuery, editsQuery]);
   const [editRow] = editRows;

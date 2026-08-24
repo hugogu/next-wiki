@@ -519,6 +519,7 @@ export const translationKeys = [
   "admin.pages.metadataTitle",
   "admin.pages.title",
   "admin.pages.description",
+  "admin.pages.readonlyNotice",
   "admin.pages.stats.totalPages",
   "admin.pages.stats.totalEdits",
   "admin.pages.stats.totalLinks",

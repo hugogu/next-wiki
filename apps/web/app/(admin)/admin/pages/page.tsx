@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { notFound } from 'next/navigation';
+import { redirect } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { AdminPagesPanel } from '@/components/admin/pages/AdminPagesPanel';
 import { getCurrentActor } from '@/server/services/auth';
@@ -35,9 +35,8 @@ function first(value: string | string[] | undefined): string | undefined {
 export default async function AdminPagesPage({ searchParams }: { searchParams: AdminPagesSearchParams }) {
   const params = await searchParams;
   const actor = await getCurrentActor();
-  if (actor.kind !== 'user' || actor.role !== 'admin') {
-    notFound();
-  }
+  if (actor.kind !== 'user') redirect('/auth/login');
+  const canManage = actor.role === 'admin';
 
   const query = {
     page: first(params.page),
@@ -52,7 +51,7 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
     space: first(params.space),
   };
 
-  const moveEnabled = await isLlmWikiMode();
+  const spaceFilterEnabled = await isLlmWikiMode();
   const list = await pageService.listAdminPages(
     { actor },
     {
@@ -66,8 +65,9 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
         path: query.path,
         dateFrom: query.dateFrom,
         dateTo: query.dateTo,
-        // Only honor the space filter in LLM Wiki mode.
-        space: moveEnabled ? query.space : undefined,
+        // Raw/generated spaces exist only in LLM Wiki mode. The filter itself
+        // is read-only, so signed-in viewers may use it as well.
+        space: spaceFilterEnabled ? query.space : undefined,
       },
     },
   );
@@ -77,7 +77,13 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
   return (
     <Layout admin>
       <div className="px-lg py-md">
-        <AdminPagesPanel t={t} list={list} query={query} moveEnabled={moveEnabled} />
+        <AdminPagesPanel
+          t={t}
+          list={list}
+          query={query}
+          canManage={canManage}
+          spaceFilterEnabled={spaceFilterEnabled}
+        />
       </div>
     </Layout>
   );
