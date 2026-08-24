@@ -182,9 +182,21 @@ describe('analytics service', () => {
       expect(cache.invalidateSiteShellCache).not.toHaveBeenCalled();
     });
 
-    it('rejects non-admin callers', async () => {
+    it('lets non-admin callers view masked settings but rejects updates', async () => {
+      const admin = await createAdmin();
       const ctx = await createReader();
-      await expect(readAnalyticsSettings(ctx)).resolves.toMatchObject({ providers: expect.any(Array) });
+      await updateAnalyticsProvider(admin, 'baidu_tongji', { enabled: true, trackingId: VALID_BAIDU_ID });
+      await expect(readAnalyticsSettings(ctx)).resolves.toMatchObject({
+        providers: expect.arrayContaining([
+          expect.objectContaining({ provider: 'baidu_tongji', trackingId: '••••••••' }),
+        ]),
+        activeScriptContent: '',
+      });
+      await expect(readAnalyticsSettings(admin)).resolves.toMatchObject({
+        providers: expect.arrayContaining([
+          expect.objectContaining({ provider: 'baidu_tongji', trackingId: VALID_BAIDU_ID }),
+        ]),
+      });
       await expect(
         updateAnalyticsProvider(ctx, 'baidu_tongji', { enabled: true, trackingId: VALID_BAIDU_ID }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });

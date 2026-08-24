@@ -33,7 +33,7 @@ import {
 import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
-import { parseFrontmatter } from '@/server/metadata/frontmatter';
+import { normalizeTagName, parseFrontmatter } from '@/server/metadata/frontmatter';
 import { buildPageDescription } from '@/lib/seo';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
@@ -45,6 +45,7 @@ import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/servi
 import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 
 const ADMIN_PAGE_SIZE = 25;
+const MAX_ADMIN_PAGE_SIZE = 100;
 const ADMIN_PAGE_SORTS = new Set<AdminPageSortKey>(['title', 'path', 'author', 'updatedAt', 'createdAt', 'edits']);
 const ADMIN_SORT_DIRECTIONS = new Set<AdminPageSortDirection>(['asc', 'desc']);
 const HTML_LINK_RE = /<a\b[^>]*\bhref=(["'])(.*?)\1/gi;
@@ -127,6 +128,11 @@ function clampPage(value: number | undefined): number {
   return Math.floor(value);
 }
 
+function clampPageSize(value: number | undefined): number {
+  if (!value || Number.isNaN(value)) return ADMIN_PAGE_SIZE;
+  return Math.min(Math.max(Math.floor(value), 1), MAX_ADMIN_PAGE_SIZE);
+}
+
 function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilters {
   return {
     ...(filters.keyword?.trim() ? { keyword: filters.keyword.trim() } : {}),
@@ -135,6 +141,7 @@ function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilter
     ...(filters.path?.trim() ? { path: filters.path.trim() } : {}),
     ...(filters.dateFrom?.trim() ? { dateFrom: filters.dateFrom.trim() } : {}),
     ...(filters.dateTo?.trim() ? { dateTo: filters.dateTo.trim() } : {}),
+    ...(filters.tag?.trim() ? { tag: normalizeTagName(filters.tag) } : {}),
     ...(filters.space?.trim() ? { space: filters.space.trim() } : {}),
   };
 }
@@ -219,6 +226,20 @@ function adminPageConditions(
               )),
           )
         : lte(schema.pages.updatedAt, dateTo)
+      : undefined,
+    filters.tag
+      ? exists(
+          db
+            .select({ one: sql`1` })
+            .from(schema.pageRevisionTags)
+            .where(and(
+              eq(
+                schema.pageRevisionTags.revisionId,
+                options.readOnly ? schema.pages.currentPublishedVersionId : schema.pages.latestVersionId,
+              ),
+              eq(schema.pageRevisionTags.normalizedName, filters.tag),
+            )),
+        )
       : undefined,
     options.readOnlyScope,
   );
@@ -425,6 +446,7 @@ export async function listAdminPages(
   ctx: PermCtx,
   options: {
     page?: number;
+    pageSize?: number;
     sort?: string;
     direction?: string;
     filters?: AdminPageListFilters;
@@ -457,6 +479,7 @@ export async function listAdminPages(
     ? (options.direction as AdminPageSortDirection)
     : 'desc';
   const currentPage = clampPage(options.page);
+  const pageSize = clampPageSize(options.pageSize);
   const where = adminPageConditions(
     space.id,
     filters,
@@ -474,10 +497,10 @@ export async function listAdminPages(
     .where(where);
 
   const totalItems = totalRow?.value ?? 0;
-  const totalPages = Math.max(1, Math.ceil(totalItems / ADMIN_PAGE_SIZE));
+  const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const safePage = Math.min(currentPage, totalPages);
 
-  const offset = (safePage - 1) * ADMIN_PAGE_SIZE;
+  const offset = (safePage - 1) * pageSize;
   const sortExpression = readOnly && sort === 'updatedAt'
     ? sql<Date>`coalesce(${adminPublishedRevision.publishedAt}, ${adminPublishedRevision.createdAt})`
     : readOnly && sort === 'author'
@@ -527,7 +550,7 @@ export async function listAdminPages(
           adminPublishedRevision.createdAt,
         )
         .orderBy(direction === 'asc' ? asc(sortExpression) : desc(sortExpression))
-        .limit(ADMIN_PAGE_SIZE)
+        .limit(pageSize)
         .offset(offset)
     : await db
         .select({
@@ -549,7 +572,7 @@ export async function listAdminPages(
         .leftJoin(adminPublishedRevision, eq(schema.pages.currentPublishedVersionId, adminPublishedRevision.id))
         .where(where)
         .orderBy(direction === 'asc' ? asc(sortExpression) : desc(sortExpression))
-        .limit(ADMIN_PAGE_SIZE)
+        .limit(pageSize)
         .offset(offset);
 
   const rowPageIds = rows.map((row) => row.id);
@@ -652,11 +675,43 @@ export async function listAdminPages(
     totalItems,
     currentPage: safePage,
     totalPages,
-    pageSize: ADMIN_PAGE_SIZE,
+    pageSize,
     sort,
     direction,
     filters,
   };
+}
+
+/**
+ * Related-page lookup for the Tags management screen. It intentionally uses
+ * the exact same non-admin scope as the read-only Admin Pages index rather
+ * than the broader reader-facing public content API.
+ */
+export async function listAdminTagPages(
+  ctx: PermCtx,
+  input: { tagId: string; space?: string },
+): Promise<Pick<AdminPageListItem, 'id' | 'path' | 'slug' | 'title' | 'status' | 'tags'>[]> {
+  assertAdminPageQueryAccess(ctx);
+  const space = await resolveSpace(input.space);
+  if (!space) return [];
+  await assertSpaceKindAllowed(space.kind);
+
+  const tag = await db.query.tags.findFirst({
+    where: and(
+      eq(schema.tags.id, input.tagId),
+      eq(schema.tags.spaceId, space.id),
+      isNull(schema.tags.deletedAt),
+    ),
+  });
+  if (!tag) return [];
+
+  const result = await listAdminPages(ctx, {
+    pageSize: MAX_ADMIN_PAGE_SIZE,
+    sort: 'path',
+    direction: 'asc',
+    filters: { space: input.space, tag: tag.normalizedName },
+  });
+  return result.items.map(({ id, path, slug, title, status, tags }) => ({ id, path, slug, title, status, tags }));
 }
 
 export async function getAdminPageStats(ctx: PermCtx): Promise<AdminPageStats> {

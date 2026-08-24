@@ -80,7 +80,7 @@ describe('listAdminPages', () => {
     const publicPage = await createPublishedFixturePage(admin, {
       path: 'scope/public',
       title: 'Public page',
-      contentSource: '# Public',
+      contentSource: '---\ntags:\n  - scoped\n---\n\n# Public',
     });
     const publicDraft = await pageService.getForEdit(buildUserCtx(admin.id, 'admin'), 'scope/public');
     if (!publicDraft) throw new Error('Failed to load the published public page');
@@ -115,14 +115,14 @@ describe('listAdminPages', () => {
     await pageService.create(ownerKey, {
       path: 'scope/owner-generated',
       title: 'Owner-generated page',
-      contentSource: '# Owner generated',
+      contentSource: '---\ntags:\n  - scoped\n---\n\n# Owner generated',
       visibility: 'registered',
     });
     await revisions.publish(buildUserCtx(owner.id, 'editor'), { path: 'scope/owner-generated', version: 1 });
     await pageService.create(ownerKey, {
       path: 'scope/owner-restricted-generated',
       title: 'Owner restricted generated page',
-      contentSource: '# Owner restricted generated',
+      contentSource: '---\ntags:\n  - scoped\n---\n\n# Owner restricted generated',
       visibility: 'restricted',
     });
     await revisions.publish(buildUserCtx(owner.id, 'editor'), { path: 'scope/owner-restricted-generated', version: 1 });
@@ -171,6 +171,18 @@ describe('listAdminPages', () => {
     expect(result.items.map((item) => item.path)).toEqual(['scope/owner-generated', 'scope/public']);
     expect(result.items.find((item) => item.path === 'scope/public')?.authorEmail).toBe('');
     expect(result.totalItems).toBe(2);
+
+    const scopedTag = await db.query.tags.findFirst({
+      where: eq(schema.tags.normalizedName, 'scoped'),
+    });
+    if (!scopedTag) throw new Error('Expected scoped tag');
+    const tagPages = await pageService.listAdminTagPages(buildUserCtx(owner.id, 'editor'), {
+      tagId: scopedTag.id,
+    });
+    expect(tagPages.map((item) => item.path).sort()).toEqual([
+      'scope/owner-generated',
+      'scope/public',
+    ]);
 
     const emailFiltered = await pageService.listAdminPages(buildUserCtx(owner.id, 'editor'), {
       filters: { author: admin.email },

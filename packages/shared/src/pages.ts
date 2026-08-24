@@ -371,6 +371,8 @@ export type AdminPageListFilters = {
   path?: string;
   dateFrom?: string;
   dateTo?: string;
+  /** Matches a normalized tag on the selected revision. */
+  tag?: string;
   /** 022: which content space to list (default wiki when omitted). */
   space?: string;
 };

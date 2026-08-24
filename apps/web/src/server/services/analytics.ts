@@ -143,6 +143,10 @@ function toItem(definition: AnalyticsProviderDefinition, row: SettingsRow | unde
   };
 }
 
+function maskTrackingId(trackingId: string | null): string | null {
+  return trackingId ? '••••••••' : null;
+}
+
 /** Merges the registry with stored rows; a missing row is treated as
  * disabled/no Tracking ID. Reused by `readAnalyticsSettings`,
  * `updateAnalyticsProvider`, and `upsertAnalyticsProviders`. Callers must
@@ -154,13 +158,19 @@ async function listAnalyticsProviderItems(): Promise<AnalyticsProviderItem[]> {
   return REGISTERED_ANALYTICS_PROVIDERS.map((definition) => toItem(definition, rowByProvider.get(definition.provider)));
 }
 
-/** Admin-only view of every registered provider plus the script content the
- * root layout will inline. Requires `manage_appearance`. */
+/** Signed-in view of every registered provider. Configuration managers receive
+ * the Tracking IDs and inline script; read-only viewers receive masked IDs. */
 export async function readAnalyticsSettings(ctx: PermCtx): Promise<AnalyticsSettingsView> {
   assertCanView(ctx);
+  const canManage = can(ctx, 'manage_appearance', { kind: 'appearance' });
+  const providers = await listAnalyticsProviderItems();
   return {
-    providers: await listAnalyticsProviderItems(),
-    activeScriptContent: await getActiveAnalyticsScriptContent(),
+    providers: canManage
+      ? providers
+      : providers.map((provider) => ({ ...provider, trackingId: maskTrackingId(provider.trackingId) })),
+    // Script content contains the complete Tracking IDs, so it is never sent
+    // to a read-only settings viewer.
+    activeScriptContent: canManage ? await getActiveAnalyticsScriptContent() : '',
   };
 }
 

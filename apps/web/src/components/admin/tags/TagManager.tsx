@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import type { PublicPageResource } from '@next-wiki/shared';
+import type { AdminPageListItem } from '@next-wiki/shared';
 import { ArrowUpDownIcon, EditIcon, SearchIcon, TagIcon, TrashIcon } from '@/components/icons';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { ModalDialog } from '@/components/ui/ModalDialog';
@@ -50,7 +50,9 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 const delay = (milliseconds: number) => new Promise((resolve) => window.setTimeout(resolve, milliseconds));
-const EMPTY_PAGES: PublicPageResource[] = [];
+type RelatedPage = Pick<AdminPageListItem, 'id' | 'path' | 'slug' | 'title' | 'status' | 'tags'>;
+
+const EMPTY_PAGES: RelatedPage[] = [];
 
 /** Reader-facing space slugs, in the order the admin page list shows them. */
 const SPACES = ['wiki', 'generated', 'raw'] as const;
@@ -75,7 +77,7 @@ export function TagManager({
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tagQuery, setTagQuery] = useState('');
   const [pageQuery, setPageQuery] = useState('');
-  const [pageResult, setPageResult] = useState<{ tagId: string; items: PublicPageResource[] }>({ tagId: '', items: [] });
+  const [pageResult, setPageResult] = useState<{ tagId: string; items: RelatedPage[] }>({ tagId: '', items: [] });
   const [pagesReloadKey, setPagesReloadKey] = useState(0);
   const [editMode, setEditMode] = useState<EditMode>(null);
   const [renameName, setRenameName] = useState('');
@@ -89,8 +91,8 @@ export function TagManager({
   const selectedTag = tags.find((tag) => tag.id === selectedId) ?? null;
   const selectedTagId = selectedTag?.id;
   const selectedTagNormalizedName = selectedTag?.normalizedName;
-  const pages = canManage && pageResult.tagId === selectedTagId ? pageResult.items : EMPTY_PAGES;
-  const loadingPages = canManage && Boolean(selectedTagId && pageResult.tagId !== selectedTagId);
+  const pages = pageResult.tagId === selectedTagId ? pageResult.items : EMPTY_PAGES;
+  const loadingPages = Boolean(selectedTagId && pageResult.tagId !== selectedTagId);
   // Derived rather than stored, so switching spaces shows the loading state
   // without an effect writing state on every render.
   const loadingTags = loadedSpace !== space;
@@ -133,17 +135,13 @@ export function TagManager({
   }, [space, t]);
 
   useEffect(() => {
-    if (!canManage) {
-      return;
-    }
     if (!selectedTagId || !selectedTagNormalizedName) return;
     const controller = new AbortController();
-    const params = new URLSearchParams({ status: 'all', limit: '100' });
-    params.set('filter[tag]', selectedTagNormalizedName);
-    // A tag only ever matches pages of its own space.
+    const params = new URLSearchParams();
     const slug = spaceParam(space);
     if (slug) params.set('space', slug);
-    void request<{ items: PublicPageResource[] }>(`/api/v1/pages?${params.toString()}`, { signal: controller.signal })
+    const query = params.toString();
+    void request<{ items: RelatedPage[] }>(`/api/admin/tags/${selectedTagId}/pages${query ? `?${query}` : ''}`, { signal: controller.signal })
       .then((result) => setPageResult({ tagId: selectedTagId, items: result.items }))
       .catch((loadError) => {
         if (!controller.signal.aborted) {
@@ -152,7 +150,7 @@ export function TagManager({
         }
       });
     return () => controller.abort();
-  }, [canManage, selectedTagId, selectedTagNormalizedName, pagesReloadKey, space, t]);
+  }, [selectedTagId, selectedTagNormalizedName, pagesReloadKey, space, t]);
 
   const filteredPages = useMemo(() => {
     const query = pageQuery.trim().toLocaleLowerCase();
@@ -331,7 +329,7 @@ export function TagManager({
                       <TagIcon className="h-5 w-5 text-primary" />
                       <h2 className="truncate font-display text-xl font-semibold">{selectedTag.name}</h2>
                     </div>
-                    {canManage && <p className="mt-xs text-sm text-muted">{t('admin.tags.relatedSummary', { count: pages.length })}</p>}
+                    <p className="mt-xs text-sm text-muted">{t('admin.tags.relatedSummary', { count: pages.length })}</p>
                   </div>
                   {canManage && <div className="flex flex-wrap gap-xs">
                     <button
@@ -360,7 +358,7 @@ export function TagManager({
                 </div>
               </div>
 
-              {canManage && <div className="p-md lg:p-lg">
+              <div className="p-md lg:p-lg">
                 <div className="mb-md flex flex-col gap-sm sm:flex-row sm:items-center sm:justify-between">
                   <h3 className="font-display text-base font-semibold">{t('admin.tags.relatedPages')}</h3>
                   <label className="relative block w-full sm:max-w-sm">
@@ -387,7 +385,7 @@ export function TagManager({
                       <li key={page.id} className="flex items-center gap-md px-md py-sm hover:bg-surface-elevated/50">
                         <div className="min-w-0 flex-1">
                           <Link
-                            href={page.canonicalUrl ?? getPageHref(page.slug)}
+                            href={getPageHref(page.slug)}
                             className="block truncate rounded-sm text-sm font-medium text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
                           >
                             {page.title}
@@ -395,7 +393,7 @@ export function TagManager({
                           <code className="block truncate text-xs text-muted">/{page.path}</code>
                           <div className="mt-xs">
                             <EditableTagList
-                              tags={page.metadata?.tags ?? []}
+                              tags={page.tags}
                               pageId={page.id}
                               canEdit={canManage}
                               ariaLabel={t('admin.tags.pageTagsLabel')}
@@ -413,7 +411,7 @@ export function TagManager({
                     ))}
                   </ul>
                 )}
-              </div>}
+              </div>
             </>
           )}
         </section>

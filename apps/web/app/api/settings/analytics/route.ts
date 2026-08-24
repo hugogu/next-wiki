@@ -11,7 +11,7 @@ export const dynamic = 'force-dynamic';
 /**
  * @openapi
  * @summary List analytics providers
- * @description Returns all registered analytics providers with their configuration and active script content to authenticated users. Updates remain administrator-only.
+ * @description Returns registered analytics providers to authenticated users. Read-only viewers receive masked Tracking IDs and no active script content; updates remain administrator-only.
  * @tag Analytics
  * @auth bearer
  * @response AnalyticsSettingsView

@@ -10566,6 +10566,49 @@
         "responses": {}
       }
     },
+    "/admin/tags/{tagId}/pages": {
+      "get": {
+        "operationId": "get-admin-tags-{tagId}-pages",
+        "summary": "Related pages for a tag in the signed-in Admin read-only scope.",
+        "description": "",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example"
+          },
+          {
+            "name": "tagId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: tagId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/actions": {
       "get": {
         "operationId": "get-ai-actions",
@@ -15999,7 +16042,7 @@
       "get": {
         "operationId": "get-settings-analytics",
         "summary": "List analytics providers",
-        "description": "Returns all registered analytics providers with their configuration and active script content to authenticated users. Updates remain administrator-only.",
+        "description": "Returns registered analytics providers to authenticated users. Read-only viewers receive masked Tracking IDs and no active script content; updates remain administrator-only.",
         "tags": [
           "Analytics"
         ],
