@@ -93,10 +93,10 @@ function isAdminPageQuery(ctx: PermCtx): boolean {
 /**
  * A non-admin's administrative list is deliberately smaller than their
  * normal reader access: it exposes published public pages plus pages created
- * by a machine credential owned by that same account. `actor_kind = machine`
- * is immutable provenance written for API-key/pipeline creates, while
- * `nature = generated` rules out an API client that deliberately classified
- * its document as original.
+ * by a machine credential owned by that same account. The initial revision's
+ * `actor_kind = machine` is immutable creation provenance, while `nature =
+ * generated` rules out an API client that deliberately classified its
+ * document as original.
  */
 function readOnlyAdminPageScope(userId: string) {
   return and(
@@ -112,6 +112,7 @@ function readOnlyAdminPageScope(userId: string) {
             .from(schema.pageRevisions)
             .where(and(
               eq(schema.pageRevisions.pageId, schema.pages.id),
+              eq(schema.pageRevisions.versionNumber, 1),
               eq(schema.pageRevisions.actorKind, 'machine'),
             )),
         ),
@@ -194,7 +195,10 @@ function adminPageConditions(
               .from(schema.pageRevisions)
               .where(and(
                 eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId),
-                gte(schema.pageRevisions.publishedAt, dateFrom),
+                gte(
+                  sql<string>`coalesce(${schema.pageRevisions.publishedAt}, ${schema.pageRevisions.createdAt})`,
+                  dateFrom.toISOString(),
+                ),
               )),
           )
         : gte(schema.pages.updatedAt, dateFrom)
@@ -207,7 +211,10 @@ function adminPageConditions(
               .from(schema.pageRevisions)
               .where(and(
                 eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId),
-                lte(schema.pageRevisions.publishedAt, dateTo),
+                lte(
+                  sql<string>`coalesce(${schema.pageRevisions.publishedAt}, ${schema.pageRevisions.createdAt})`,
+                  dateTo.toISOString(),
+                ),
               )),
           )
         : lte(schema.pages.updatedAt, dateTo)
@@ -471,7 +478,9 @@ export async function listAdminPages(
 
   const offset = (safePage - 1) * ADMIN_PAGE_SIZE;
   const sortExpression = readOnly && sort === 'updatedAt'
-    ? adminPublishedRevision.publishedAt
+    ? sql<Date>`coalesce(${adminPublishedRevision.publishedAt}, ${adminPublishedRevision.createdAt})`
+    : readOnly && sort === 'author'
+      ? sql`coalesce(${schema.users.displayName}, ${schema.pages.authorId}::text)`
     : orderExpression(sort);
   const rows = sort === 'edits'
     ? await db
@@ -514,6 +523,7 @@ export async function listAdminPages(
           schema.users.displayName,
           schema.users.email,
           adminPublishedRevision.publishedAt,
+          adminPublishedRevision.createdAt,
         )
         .orderBy(direction === 'asc' ? asc(sortExpression) : desc(sortExpression))
         .limit(ADMIN_PAGE_SIZE)
@@ -597,6 +607,7 @@ export async function listAdminPages(
           pageId: schema.pageRevisions.pageId,
           version: schema.pageRevisions.versionNumber,
           publishedAt: schema.pageRevisions.publishedAt,
+          createdAt: schema.pageRevisions.createdAt,
         })
         .from(schema.pageRevisions)
         .innerJoin(schema.pages, eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId))
@@ -605,35 +616,38 @@ export async function listAdminPages(
   const publishedRevisionByPageId = new Map(publishedVersions.map((row) => [row.pageId, row]));
 
   return {
-    items: rows.map((row) => ({
-      id: row.id,
-      path: row.path,
-      slug: row.slug,
-      title: row.title,
-      status: readOnly
-        ? 'published'
-        : !row.currentPublishedVersionId
-          ? 'draft'
-          : row.latestVersionId !== row.currentPublishedVersionId
-            ? 'published_with_draft'
-            : 'published',
-      latestVersion: readOnly
-        ? publishedRevisionByPageId.get(row.id)?.version ?? 0
-        : 'latestVersion' in row ? Number(row.latestVersion ?? 0) : latestVersionByPageId.get(row.id) ?? 0,
-      authorDisplayName: row.authorDisplayName,
-      authorEmail: readOnly ? '' : row.authorEmail,
-      editCount: readOnly
-        ? editCountByPageId.get(row.id) ?? 0
-        : 'editCount' in row ? Number(row.editCount) : editCountByPageId.get(row.id) ?? 0,
-      createdAt: row.createdAt.toISOString(),
-      updatedAt: readOnly
-        ? publishedRevisionByPageId.get(row.id)?.publishedAt?.toISOString() ?? row.updatedAt.toISOString()
-        : row.updatedAt.toISOString(),
-      tags: tagsByPageId.get(row.id) ?? [],
-      spaceSlug: space.slug,
-      kind: row.kind,
-      nature: row.nature,
-    })),
+    items: rows.map((row) => {
+      const publishedRevision = publishedRevisionByPageId.get(row.id);
+      return {
+        id: row.id,
+        path: row.path,
+        slug: row.slug,
+        title: row.title,
+        status: readOnly
+          ? 'published'
+          : !row.currentPublishedVersionId
+            ? 'draft'
+            : row.latestVersionId !== row.currentPublishedVersionId
+              ? 'published_with_draft'
+              : 'published',
+        latestVersion: readOnly
+          ? publishedRevision?.version ?? 0
+          : 'latestVersion' in row ? Number(row.latestVersion ?? 0) : latestVersionByPageId.get(row.id) ?? 0,
+        authorDisplayName: row.authorDisplayName,
+        authorEmail: readOnly ? '' : row.authorEmail,
+        editCount: readOnly
+          ? editCountByPageId.get(row.id) ?? 0
+          : 'editCount' in row ? Number(row.editCount) : editCountByPageId.get(row.id) ?? 0,
+        createdAt: row.createdAt.toISOString(),
+        updatedAt: readOnly
+          ? (publishedRevision?.publishedAt ?? publishedRevision?.createdAt ?? row.createdAt).toISOString()
+          : row.updatedAt.toISOString(),
+        tags: tagsByPageId.get(row.id) ?? [],
+        spaceSlug: space.slug,
+        kind: row.kind,
+        nature: row.nature,
+      };
+    }),
     totalItems,
     currentPage: safePage,
     totalPages,

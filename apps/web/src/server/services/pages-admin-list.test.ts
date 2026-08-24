@@ -134,14 +134,20 @@ describe('listAdminPages', () => {
     });
     await revisions.publish(buildUserCtx(other.id, 'editor'), { path: 'scope/other-generated', version: 1 });
 
-    await pageService.create(buildUserCtx(owner.id, 'editor'), {
+    const ownerHumanGenerated = await pageService.create(buildUserCtx(owner.id, 'editor'), {
       path: 'scope/owner-human-generated',
       title: 'Human-generated classification',
       contentSource: '# Human generated',
       nature: 'generated',
-      visibility: 'restricted',
+      visibility: 'registered',
     });
     await revisions.publish(buildUserCtx(owner.id, 'editor'), { path: 'scope/owner-human-generated', version: 1 });
+    await pageService.newDraft(ownerKey, 'scope/owner-human-generated', {
+      title: 'Human-generated classification',
+      contentSource: '# Later API-key update',
+      baseRevisionId: ownerHumanGenerated.versionId,
+    });
+    await revisions.publish(buildUserCtx(owner.id, 'editor'), { path: 'scope/owner-human-generated', version: 2 });
 
     const result = await pageService.listAdminPages(buildUserCtx(owner.id, 'editor'), {});
 
@@ -177,6 +183,45 @@ describe('listAdminPages', () => {
     const stats = await pageService.getAdminPageStats(buildUserCtx(owner.id, 'editor'));
     expect(stats.totalPages).toBe(2);
     expect(stats.totalEdits).toBe(2);
+
+    const publicRevision = await db.query.pageRevisions.findFirst({
+      where: eq(schema.pageRevisions.id, publicPage.versionId),
+    });
+    if (!publicRevision) throw new Error('Failed to load the published revision');
+    await db
+      .update(schema.pageRevisions)
+      .set({ publishedAt: null })
+      .where(eq(schema.pageRevisions.id, publicPage.versionId));
+    const missingPublishedAt = await pageService.listAdminPages(buildUserCtx(owner.id, 'editor'), {});
+    expect(missingPublishedAt.items.find((item) => item.path === 'scope/public')).toMatchObject({
+      updatedAt: publicRevision.createdAt.toISOString(),
+    });
+
+    await createPublishedFixturePage(other, {
+      path: 'scope/other-public',
+      title: 'Other public page',
+      contentSource: '# Other public',
+    });
+    const publicAuthors = [
+      { id: admin.id, path: 'scope/public' },
+      { id: other.id, path: 'scope/other-public' },
+    ].sort((left, right) => left.id.localeCompare(right.id));
+    await db
+      .update(schema.users)
+      .set({ email: 'z-readonly-sort@example.com' })
+      .where(eq(schema.users.id, publicAuthors[0]!.id));
+    await db
+      .update(schema.users)
+      .set({ email: 'a-readonly-sort@example.com' })
+      .where(eq(schema.users.id, publicAuthors[1]!.id));
+    const authorSorted = await pageService.listAdminPages(buildUserCtx(owner.id, 'editor'), {
+      sort: 'author',
+      direction: 'asc',
+    });
+    expect(authorSorted.items
+      .filter((item) => item.path === 'scope/public' || item.path === 'scope/other-public')
+      .map((item) => item.path))
+      .toEqual(publicAuthors.map((author) => author.path));
 
   });
 });
