@@ -8,8 +8,10 @@
  * must use this text for the common tool name.
  */
 export const wikiMcpToolDescriptions = {
-  search_wiki: 'Search readable wiki pages by keyword. Use scope to restrict matching to paths, titles, or content; use space to select a content space. Filter by createdStart/createdEnd and order chronologically when time matters.',
-  list_pages: 'List readable wiki pages, optionally within a content space. Filter by createdStart/createdEnd and order chronologically when time matters.',
+  search_wiki:
+    'Search readable wiki pages by keyword. Use scope to restrict matching to paths, titles, or content; use space to select a content space. Filter by createdStart/createdEnd and order chronologically when time matters.',
+  list_pages:
+    'List readable wiki pages, optionally within a content space. Filter by createdStart/createdEnd and order chronologically when time matters.',
   list_tags: 'List readable active wiki tags.',
   create_tag: 'Create a reusable wiki tag.',
   rename_tag: 'Rename a reusable wiki tag.',
@@ -18,19 +20,24 @@ export const wikiMcpToolDescriptions = {
   update_page_metadata: 'Update page title, date, tags, and summary as a new draft revision.',
   get_page: 'Get a readable wiki page by ID, including its Markdown source.',
   create_page: 'Create a new wiki page with an initial revision.',
-  save_draft: 'Save a new draft revision of an existing wiki page.',
+  save_draft:
+    "Replace an existing wiki page's entire Markdown body with a new draft revision. contentSource must be the complete final Markdown document, never an edit instruction, patch, selector, or placeholder.",
   update_page_properties: 'Update page title and/or path without changing Markdown content.',
   generate_image: 'Queue a page-bound AI image generation request.',
-  promote_generated_image: 'Promote a generated image into a reusable private Wiki asset without modifying a page.',
+  promote_generated_image:
+    'Promote a generated image into a reusable private Wiki asset without modifying a page.',
   get_backlinks: 'Find pages that link to a target page.',
   get_neighborhood: 'Get the bounded link neighborhood of a page.',
   batch_update_pages: 'Update multiple pages in one request.',
   batch_soft_delete_pages: 'Soft-delete multiple pages in one request.',
-  preview_space_migration: 'Preview a durable page or folder migration between Wiki and AI Generation. Review mappings and warnings before starting.',
-  start_space_migration: 'Start a previously reviewed space migration preview. Returns an operation to poll.',
+  preview_space_migration:
+    'Preview a durable page or folder migration between Wiki and AI Generation. Review mappings and warnings before starting.',
+  start_space_migration:
+    'Start a previously reviewed space migration preview. Returns an operation to poll.',
   get_space_migration: 'Get the progress and terminal status of a space migration.',
   list_space_migration_items: 'List individual page results for a space migration.',
-  cancel_space_migration: 'Request cancellation of a queued or running space migration; completed items remain moved.',
+  cancel_space_migration:
+    'Request cancellation of a queued or running space migration; completed items remain moved.',
 } as const;
 
 export type WikiMcpToolName = keyof typeof wikiMcpToolDescriptions;

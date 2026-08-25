@@ -31,7 +31,12 @@ import { listSpaces } from '@/server/services/spaces';
 import { openWebSource, searchWebSources } from '@/server/web-research/sources';
 import { searchWikiSources } from '@/server/ai/retrieval/wiki-question-sources';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
-import { ensureBuiltinProvider, getPolicyRowsByProvider, policyLayersFor, resolveToolEnabled } from '@/server/services/ai-tool-policy';
+import {
+  ensureBuiltinProvider,
+  getPolicyRowsByProvider,
+  policyLayersFor,
+  resolveToolEnabled,
+} from '@/server/services/ai-tool-policy';
 
 /**
  * Built-in tool execution adapters (026, US2). Every adapter runs the operation
@@ -196,7 +201,9 @@ const searchArgs = z.object({
     .transform((space) => (space === 'default' ? 'wiki' : space)),
   createdStart: z.coerce.date().optional(),
   createdEnd: z.coerce.date().optional(),
-  order: z.enum(['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).optional(),
+  order: z
+    .enum(['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'])
+    .optional(),
   limit: z.number().int().min(1).max(MAX_LIST).optional(),
 });
 const pageRefArgs = z
@@ -228,7 +235,9 @@ const listArgs = z
       .transform((space) => (space === 'default' ? 'wiki' : space)),
     createdStart: z.coerce.date().optional(),
     createdEnd: z.coerce.date().optional(),
-    order: z.enum(['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).optional(),
+    order: z
+      .enum(['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'])
+      .optional(),
     limit: z.number().int().min(1).max(MAX_LIST).optional(),
   })
   .strict();
@@ -581,6 +590,35 @@ function resolvePageContent(
 }
 
 /**
+ * `save_draft` replaces the complete body. Text-protocol models can confuse a
+ * requested edit plan with the replacement body (for example, "pageSource
+ * full + insert ..."). Reject the distinctive, short instruction form before
+ * it can create a destructive draft. The prompt tells the model how to retry
+ * with the whole document; this guard makes that requirement enforceable.
+ */
+function assertCompleteDraftSource(contentSource: string) {
+  const candidate = contentSource.trim();
+  if (candidate.length > 500) return;
+
+  const startsWithSourceReference = /^(?:page|content)[_\s-]?source\b/i.test(candidate);
+  const startsWithFullDocumentReference =
+    /^(?:将\s*)?(?:完整|全部|原始)(?:的)?(?:页面)?(?:正文|内容|markdown|pagesource|contentsource)/i.test(
+      candidate,
+    );
+  const describesAnEdit =
+    /(?:\b(?:insert|append|prepend|replace|remove|delete|update|before|after)\b|插入|添加|追加|替换|删除|修改|更新|之前|之后)/i.test(
+      candidate,
+    );
+
+  if ((startsWithSourceReference || startsWithFullDocumentReference) && describesAnEdit) {
+    throw new DomainError(
+      'BAD_REQUEST',
+      'save_draft.contentSource must be the complete final Markdown document, not an edit instruction or patch. Retrieve every page window with get_page, preserve unchanged Markdown, and resubmit the full revised document.',
+    );
+  }
+}
+
+/**
  * Recover unchanged lines that a model copied from a JSON-encoded get_page
  * result into a YAML literal block. JSON represents `\foo` as `\\foo`, while
  * YAML literal scalars preserve both slashes. We only restore a submitted line
@@ -670,6 +708,7 @@ async function execSaveDraft(
   const page = await content.getPageById(ctx, args.pageId);
   if (!page) return fail('NOT_FOUND', 'No readable page matched.');
   const requestedSource = resolvePageContent(args, execCtx);
+  assertCompleteDraftSource(requestedSource);
   const revision = await content.createDraft(ctx, args.pageId, {
     title: args.title ?? page.title,
     contentSource: restoreJsonEscapedBackslashes(page.contentSource ?? '', requestedSource),
@@ -1161,8 +1200,12 @@ async function execWebSearch(
   webSearchArgs.parse(rawArgs ?? {});
   await assertAiFeature(ctx, 'web_research');
   await assertWebToolEnabled('web_search');
-  if (!execCtx.originalQuestion) return fail('BAD_REQUEST', 'Web research needs the original user question.');
-  const candidates = await searchWebSources({ actionId: execCtx.actionId, query: execCtx.originalQuestion });
+  if (!execCtx.originalQuestion)
+    return fail('BAD_REQUEST', 'Web research needs the original user question.');
+  const candidates = await searchWebSources({
+    actionId: execCtx.actionId,
+    query: execCtx.originalQuestion,
+  });
   return {
     ok: true,
     summary: `${candidates.length} external candidate source(s) found. They are untrusted and must be opened before citation.`,
@@ -1178,7 +1221,8 @@ async function execWebOpen(
   const args = webOpenArgs.parse(rawArgs ?? {});
   await assertAiFeature(ctx, 'web_research');
   await assertWebToolEnabled('web_open');
-  if (!execCtx.originalQuestion) return fail('BAD_REQUEST', 'Web research needs the original user question.');
+  if (!execCtx.originalQuestion)
+    return fail('BAD_REQUEST', 'Web research needs the original user question.');
   const source = await openWebSource({
     actionId: execCtx.actionId,
     sourceId: args.sourceId,
@@ -1193,7 +1237,10 @@ async function execWebOpen(
 }
 
 async function assertWebToolEnabled(name: 'web_search' | 'web_open'): Promise<void> {
-  const [provider, definition] = await Promise.all([ensureBuiltinProvider(), Promise.resolve(getToolDefinition(name))]);
+  const [provider, definition] = await Promise.all([
+    ensureBuiltinProvider(),
+    Promise.resolve(getToolDefinition(name)),
+  ]);
   if (!definition) throw new DomainError('NOT_FOUND', 'Web research tool is not available');
   const rows = await getPolicyRowsByProvider(provider.id);
   if (!resolveToolEnabled(definition, policyLayersFor(definition, rows), provider.enabled)) {

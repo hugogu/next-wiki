@@ -69,12 +69,14 @@ describe('read tool permission projection (026)', () => {
       },
     ]);
     const result = await executeTool(readerCtx, searchTool, { query: 'payment' }, execCtx);
-    expect(wikiSearch.searchWikiSources).toHaveBeenCalledWith(expect.objectContaining({
-      ctx: readerCtx,
-      actionId: execCtx.actionId,
-      query: 'payment',
-      options: expect.objectContaining({ limit: 10 }),
-    }));
+    expect(wikiSearch.searchWikiSources).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ctx: readerCtx,
+        actionId: execCtx.actionId,
+        query: 'payment',
+        options: expect.objectContaining({ limit: 10 }),
+      }),
+    );
     expect(result.ok).toBe(true);
     expect((result.data as { items: unknown[] }).items).toEqual([
       {
@@ -96,8 +98,11 @@ describe('read tool permission projection (026)', () => {
       readerCtx,
       searchTool,
       {
-        query: 'zhuge-liang', scope: 'content', space: 'generated',
-        createdStart: '2026-07-01T00:00:00.000Z', createdEnd: '2026-07-02T00:00:00.000Z',
+        query: 'zhuge-liang',
+        scope: 'content',
+        space: 'generated',
+        createdStart: '2026-07-01T00:00:00.000Z',
+        createdEnd: '2026-07-02T00:00:00.000Z',
         order: 'createdAtDesc',
       },
       execCtx,
@@ -120,7 +125,9 @@ describe('read tool permission projection (026)', () => {
   });
 
   it('retains the original unexpected error for the expandable tool result', async () => {
-    wikiSearch.searchWikiSources.mockRejectedValue(new Error('Invariant: static generation store missing'));
+    wikiSearch.searchWikiSources.mockRejectedValue(
+      new Error('Invariant: static generation store missing'),
+    );
 
     const result = await executeTool(readerCtx, searchTool, { query: 'zhuge-liang' }, execCtx);
 
@@ -220,17 +227,27 @@ describe('read tool permission projection (026)', () => {
   it('forwards list_pages creation-time filters and chronological order', async () => {
     content.listPages.mockResolvedValue({ items: [], nextCursor: null });
 
-    await executeTool(readerCtx, listPagesTool, {
-      space: 'raw', createdStart: '2026-07-01T00:00:00.000Z',
-      createdEnd: '2026-07-02T00:00:00.000Z', order: 'createdAtDesc',
-    }, execCtx);
+    await executeTool(
+      readerCtx,
+      listPagesTool,
+      {
+        space: 'raw',
+        createdStart: '2026-07-01T00:00:00.000Z',
+        createdEnd: '2026-07-02T00:00:00.000Z',
+        order: 'createdAtDesc',
+      },
+      execCtx,
+    );
 
-    expect(content.listPages).toHaveBeenCalledWith(readerCtx, expect.objectContaining({
-      space: 'raw',
-      createdStart: new Date('2026-07-01T00:00:00.000Z'),
-      createdEnd: new Date('2026-07-02T00:00:00.000Z'),
-      order: 'createdAtDesc',
-    }));
+    expect(content.listPages).toHaveBeenCalledWith(
+      readerCtx,
+      expect.objectContaining({
+        space: 'raw',
+        createdStart: new Date('2026-07-01T00:00:00.000Z'),
+        createdEnd: new Date('2026-07-02T00:00:00.000Z'),
+        order: 'createdAtDesc',
+      }),
+    );
   });
 
   it('lists pages when list_pages is called without arguments', async () => {
@@ -350,6 +367,33 @@ describe('read tool permission projection (026)', () => {
     expect(result).toMatchObject({ ok: true, summary: 'Saved draft revision v3.' });
   });
 
+  it('rejects an edit instruction instead of overwriting a page with it', async () => {
+    const pageId = '4a444444-4444-4444-8444-444444444444';
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: '基金',
+      contentSource: '# 基金\n\n## 按运作方式分类\n\nExisting content.',
+    });
+    content.createDraft.mockClear();
+
+    const result = await executeTool(
+      adminCtx,
+      saveDraftTool,
+      {
+        pageId,
+        contentSource: 'pageSource 全文 + 在 "### 按运作方式分类" 之前插入新增章节',
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
+
+    expect(result).toMatchObject({
+      ok: false,
+      errorCode: 'BAD_REQUEST',
+      errorMessage: expect.stringContaining('complete final Markdown document'),
+    });
+    expect(content.createDraft).not.toHaveBeenCalled();
+  });
+
   it('restores only unchanged lines whose backslashes were copied from JSON into YAML', () => {
     const current = [
       '# Saturn',
@@ -458,10 +502,9 @@ describe('scheduled Job read/write boundary', () => {
       ok: true,
       summary: '0 readable page(s) matched across 2 readable space(s).',
     });
-    expect(wikiSearch.searchWikiSources.mock.calls.slice(-2).map(([query]) => query.options.space)).toEqual([
-      'raw',
-      'generated',
-    ]);
+    expect(
+      wikiSearch.searchWikiSources.mock.calls.slice(-2).map(([query]) => query.options.space),
+    ).toEqual(['raw', 'generated']);
   });
 
   it('requires the generated write space before an admin Job creates a page', async () => {

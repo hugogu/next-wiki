@@ -36,12 +36,24 @@ describe('ai tool registry metadata (026, US6)', () => {
     const names = listToolDefinitions().map((tool) => tool.name);
     expect(new Set(names).size).toBe(names.length);
     expect(names).toContain('search_wiki');
-    expect(getToolDefinition('generate_image')).toMatchObject({ category: 'media', requiredScope: 'use_ai_image_generation' });
-    expect(getToolDefinition('promote_generated_image')).toMatchObject({ category: 'media', riskLevel: 'immediate_write' });
-    expect(getToolDefinition('insert_generated_images')).toMatchObject({ category: 'page_draft', riskLevel: 'draft_write' });
+    expect(getToolDefinition('generate_image')).toMatchObject({
+      category: 'media',
+      requiredScope: 'use_ai_image_generation',
+    });
+    expect(getToolDefinition('promote_generated_image')).toMatchObject({
+      category: 'media',
+      riskLevel: 'immediate_write',
+    });
+    expect(getToolDefinition('insert_generated_images')).toMatchObject({
+      category: 'page_draft',
+      riskLevel: 'draft_write',
+    });
     expect(getToolDefinition('search_wiki')?.category).toBe('read');
     expect(getToolDefinition('web_search')).toMatchObject({ category: 'web', riskLevel: 'read' });
     expect(getToolDefinition('web_open')?.inputSchema.properties).toHaveProperty('sourceId');
+    expect(getToolDefinition('save_draft')?.inputSchema.properties.contentSource).toMatchObject({
+      description: expect.stringContaining('Never pass an edit instruction'),
+    });
     expect(getToolDefinition('not_a_real_tool')).toBeUndefined();
   });
 
@@ -56,10 +68,14 @@ describe('ai tool registry metadata (026, US6)', () => {
     expect(properties.scope).toMatchObject({ enum: ['path', 'title', 'content', 'all'] });
     expect(properties.space).toMatchObject({ enum: ['wiki', 'raw', 'generated'] });
     expect(properties.createdStart).toMatchObject({ format: 'date-time' });
-    expect(properties.order).toMatchObject({ enum: ['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'] });
+    expect(properties.order).toMatchObject({
+      enum: ['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'],
+    });
 
     const listProperties = getToolDefinition('list_pages')!.inputSchema.properties;
     expect(listProperties.createdEnd).toMatchObject({ format: 'date-time' });
-    expect(listProperties.order).toMatchObject({ enum: ['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'] });
+    expect(listProperties.order).toMatchObject({
+      enum: ['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'],
+    });
   });
 });

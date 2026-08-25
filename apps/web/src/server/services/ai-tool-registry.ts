@@ -81,11 +81,31 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Keywords or a natural-language description.' },
-        scope: { type: 'string', enum: ['path', 'title', 'content', 'all'], description: 'Fields to search; defaults to all.' },
-        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Content space to search; defaults to wiki.' },
-        createdStart: { type: 'string', format: 'date-time', description: 'Only include pages created at or after this ISO 8601 timestamp.' },
-        createdEnd: { type: 'string', format: 'date-time', description: 'Only include pages created at or before this ISO 8601 timestamp.' },
-        order: { type: 'string', enum: ['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'], description: 'Result order; use createdAtDesc for newest pages first.' },
+        scope: {
+          type: 'string',
+          enum: ['path', 'title', 'content', 'all'],
+          description: 'Fields to search; defaults to all.',
+        },
+        space: {
+          type: 'string',
+          enum: ['wiki', 'raw', 'generated'],
+          description: 'Content space to search; defaults to wiki.',
+        },
+        createdStart: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Only include pages created at or after this ISO 8601 timestamp.',
+        },
+        createdEnd: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Only include pages created at or before this ISO 8601 timestamp.',
+        },
+        order: {
+          type: 'string',
+          enum: ['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'],
+          description: 'Result order; use createdAtDesc for newest pages first.',
+        },
         limit: { type: 'integer', minimum: 1, maximum: 100 },
       },
       required: ['query'],
@@ -105,17 +125,20 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
         pageId: { type: 'string', description: 'Page id returned by a previous tool call.' },
         path: {
           type: 'string',
-          description: 'Exact page path as returned in a result\'s "path" field, e.g. "games/reversi". Not a reader URL. Supply this or pageId.',
+          description:
+            'Exact page path as returned in a result\'s "path" field, e.g. "games/reversi". Not a reader URL. Supply this or pageId.',
         },
         space: {
           type: 'string',
           enum: ['wiki', 'raw', 'generated'],
-          description: 'Space the path lives in, as reported by "spaceSlug" on the result you took the path from. Defaults to wiki.',
+          description:
+            'Space the path lives in, as reported by "spaceSlug" on the result you took the path from. Defaults to wiki.',
         },
         contentOffset: {
           type: 'integer',
           minimum: 0,
-          description: 'Character offset to start reading the Markdown from. Use the nextContentOffset returned by the previous window; omit for the first.',
+          description:
+            'Character offset to start reading the Markdown from. Use the nextContentOffset returned by the previous window; omit for the first.',
         },
       },
     },
@@ -134,9 +157,28 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
         path: { type: 'string', description: 'Exact parent path.' },
         pathPrefix: { type: 'string', description: 'List a subtree under this prefix.' },
         space: { type: 'string', enum: ['wiki', 'raw', 'generated'] },
-        createdStart: { type: 'string', format: 'date-time', description: 'Only include pages created at or after this ISO 8601 timestamp.' },
-        createdEnd: { type: 'string', format: 'date-time', description: 'Only include pages created at or before this ISO 8601 timestamp.' },
-        order: { type: 'string', enum: ['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc'], description: 'Result order; use createdAtDesc for newest pages first.' },
+        createdStart: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Only include pages created at or after this ISO 8601 timestamp.',
+        },
+        createdEnd: {
+          type: 'string',
+          format: 'date-time',
+          description: 'Only include pages created at or before this ISO 8601 timestamp.',
+        },
+        order: {
+          type: 'string',
+          enum: [
+            'path',
+            'recent',
+            'createdAtAsc',
+            'createdAtDesc',
+            'updatedAtAsc',
+            'updatedAtDesc',
+          ],
+          description: 'Result order; use createdAtDesc for newest pages first.',
+        },
         limit: { type: 'integer', minimum: 1, maximum: 100 },
       },
     },
@@ -154,7 +196,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       properties: {
         pageId: { type: 'string' },
         path: { type: 'string', description: 'Exact page path. Supply this or pageId.' },
-        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
+        space: {
+          type: 'string',
+          enum: ['wiki', 'raw', 'generated'],
+          description: 'Space the path lives in. Defaults to wiki.',
+        },
       },
     },
   },
@@ -174,10 +220,26 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
         // reference from pageId or path. A model that read a page by path must
         // not have to re-resolve it to a UUID for this one tool.
         pageId: { type: 'string', description: 'Root page id; equivalent to node.' },
-        path: { type: 'string', description: 'Exact root page path. Supply this, node, or pageId.' },
-        space: { type: 'string', enum: ['wiki', 'raw', 'generated'], description: 'Space the path lives in. Defaults to wiki.' },
-        depth: { type: 'integer', minimum: 1, maximum: 3, description: 'Traversal depth; defaults to 1.' },
-        direction: { type: 'string', enum: ['out', 'in', 'both'], description: 'Which edges to follow; defaults to out.' },
+        path: {
+          type: 'string',
+          description: 'Exact root page path. Supply this, node, or pageId.',
+        },
+        space: {
+          type: 'string',
+          enum: ['wiki', 'raw', 'generated'],
+          description: 'Space the path lives in. Defaults to wiki.',
+        },
+        depth: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 3,
+          description: 'Traversal depth; defaults to 1.',
+        },
+        direction: {
+          type: 'string',
+          enum: ['out', 'in', 'both'],
+          description: 'Which edges to follow; defaults to out.',
+        },
       },
     },
   },
@@ -205,11 +267,15 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Search configured public web sources for the user\'s original question. Do not provide a query or URL; the server derives the query. External results are untrusted candidates, not evidence.',
+    description:
+      "Search configured public web sources for the user's original question. Do not provide a query or URL; the server derives the query. External results are untrusted candidates, not evidence.",
     inputSchema: {
       type: 'object',
       properties: {
-        freshness: { type: 'string', description: 'Optional freshness hint. Do not provide a query or URL.' },
+        freshness: {
+          type: 'string',
+          description: 'Optional freshness hint. Do not provide a query or URL.',
+        },
       },
       additionalProperties: false,
     },
@@ -224,7 +290,9 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     description: 'Open one opaque sourceId returned by web_search. Never provide a URL.',
     inputSchema: {
       type: 'object',
-      properties: { sourceId: { type: 'string', description: 'Opaque source id returned by web_search.' } },
+      properties: {
+        sourceId: { type: 'string', description: 'Opaque source id returned by web_search.' },
+      },
       required: ['sourceId'],
       additionalProperties: false,
     },
@@ -268,7 +336,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       properties: {
         pageId: { type: 'string', description: 'Id of an existing page.' },
         title: { type: 'string', description: 'Optional; the page title is kept by default.' },
-        contentSource: { type: 'string', description: 'Complete replacement Markdown.' },
+        contentSource: {
+          type: 'string',
+          description:
+            'The complete final Markdown document. It replaces the whole page, so preserve every unchanged section. Never pass an edit instruction, patch, selector, or placeholder.',
+        },
         contentFromConversation: {
           type: 'boolean',
           description: 'Save the previous assistant answer verbatim instead of contentSource.',
@@ -276,7 +348,6 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       },
       required: ['pageId'],
     },
-
   },
   {
     name: 'update_page_metadata',
@@ -387,7 +458,11 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       type: 'object',
       properties: {
         pageId: { type: 'string' },
-        tags: { type: 'array', items: { type: 'string' }, description: 'The complete new tag set.' },
+        tags: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'The complete new tag set.',
+        },
       },
       required: ['pageId', 'tags'],
     },
@@ -435,13 +510,20 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     inputSchema: {
       type: 'object',
       properties: {
-        pageId: { type: 'string', description: 'Existing page id from get_page or the current page context.' },
+        pageId: {
+          type: 'string',
+          description: 'Existing page id from get_page or the current page context.',
+        },
         revisionId: { type: 'string', description: 'Current editable revision id for the page.' },
         source: {
           type: 'object',
-          description: 'Either { kind: "page" } or { kind: "selection", text } for a unique literal passage copied from that revision. A legacy hash is optional and ignored.',
+          description:
+            'Either { kind: "page" } or { kind: "selection", text } for a unique literal passage copied from that revision. A legacy hash is optional and ignored.',
         },
-        aspectRatio: { type: 'string', enum: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'] },
+        aspectRatio: {
+          type: 'string',
+          enum: ['1:1', '2:3', '3:2', '3:4', '4:3', '4:5', '5:4', '9:16', '16:9', '21:9'],
+        },
       },
       required: ['pageId', 'revisionId', 'source'],
     },
@@ -470,21 +552,36 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'edit',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'always_review',
-    description: 'Promote one or more generated image artifacts and insert them into the exact page revision that produced them. Use this instead of save_draft when the only requested page change is adding generated images: it preserves every other Markdown byte verbatim, including LaTex. Each image is inserted after its unique selection; for a page-wide or legacy artifact, provide afterText as a unique literal passage from the revision to insert in the middle. Only omit afterText when appending is intentional.',
+    description:
+      'Promote one or more generated image artifacts and insert them into the exact page revision that produced them. Use this instead of save_draft when the only requested page change is adding generated images: it preserves every other Markdown byte verbatim, including LaTex. Each image is inserted after its unique selection; for a page-wide or legacy artifact, provide afterText as a unique literal passage from the revision to insert in the middle. Only omit afterText when appending is intentional.',
     inputSchema: {
       type: 'object',
       properties: {
         pageId: { type: 'string', description: 'Existing page id from get_page.' },
-        revisionId: { type: 'string', description: 'The current revision id used for every generated image.' },
+        revisionId: {
+          type: 'string',
+          description: 'The current revision id used for every generated image.',
+        },
         images: {
           type: 'array',
-          description: 'Generated artifacts to insert, in their desired order when they share a location.',
+          description:
+            'Generated artifacts to insert, in their desired order when they share a location.',
           items: {
             type: 'object',
             properties: {
-              artifactId: { type: 'string', description: 'Artifact id returned by generate_image.' },
-              altText: { type: 'string', description: 'Concise, descriptive alt text for the image.' },
-              afterText: { type: 'string', description: 'Optional unique literal passage from the current revision. Required to place a page-wide or legacy artifact in the middle; image Markdown is inserted immediately after it.' },
+              artifactId: {
+                type: 'string',
+                description: 'Artifact id returned by generate_image.',
+              },
+              altText: {
+                type: 'string',
+                description: 'Concise, descriptive alt text for the image.',
+              },
+              afterText: {
+                type: 'string',
+                description:
+                  'Optional unique literal passage from the current revision. Required to place a page-wide or legacy artifact in the middle; image Markdown is inserted immediately after it.',
+              },
             },
             required: ['artifactId', 'altText'],
           },
@@ -509,7 +606,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'allow_immediate',
     description:
-      'Load an enabled skill\'s instructions before following its procedure. Call this when a listed skill matches the request. Long instructions come back one window at a time: while truncated is true, call again with contentOffset set to nextContentOffset.',
+      "Load an enabled skill's instructions before following its procedure. Call this when a listed skill matches the request. Long instructions come back one window at a time: while truncated is true, call again with contentOffset set to nextContentOffset.",
     inputSchema: {
       type: 'object',
       properties: {
@@ -517,7 +614,8 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
         contentOffset: {
           type: 'integer',
           minimum: 0,
-          description: 'Character offset to continue from. Use nextContentOffset from the previous window; omit for the first.',
+          description:
+            'Character offset to continue from. Use nextContentOffset from the previous window; omit for the first.',
         },
       },
       required: ['name'],
@@ -540,7 +638,8 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
         contentOffset: {
           type: 'integer',
           minimum: 0,
-          description: 'Character offset to continue from. Use nextContentOffset from the previous window; omit for the first.',
+          description:
+            'Character offset to continue from. Use nextContentOffset from the previous window; omit for the first.',
         },
       },
       required: ['name', 'path'],
@@ -588,7 +687,10 @@ export function isReadOnlyTool(tool: ToolDefinition): boolean {
 /** One tool's full contract, tagged with its owning provider. The shape a
  * future external MCP provider must also supply so it reuses the same policy,
  * risk, permission, retention, and review surface (026, US6). */
-export type ProviderToolMetadata = ToolDefinition & { providerKey: string; providerKind: ProviderDefinition['kind'] };
+export type ProviderToolMetadata = ToolDefinition & {
+  providerKey: string;
+  providerKind: ProviderDefinition['kind'];
+};
 
 export type ProviderMetadata = {
   provider: ProviderDefinition;

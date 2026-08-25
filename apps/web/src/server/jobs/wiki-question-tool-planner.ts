@@ -1,8 +1,16 @@
-import { AI_ANSWER_LANGUAGE_DEFAULT, type AiAnswerLanguage, type AiToolReviewDecision, type ResearchMode } from '@next-wiki/shared';
+import {
+  AI_ANSWER_LANGUAGE_DEFAULT,
+  type AiAnswerLanguage,
+  type AiToolReviewDecision,
+  type ResearchMode,
+} from '@next-wiki/shared';
 import { parse as parseYaml } from 'yaml';
 
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
-import { answerLanguageRules, buildWikiAssistantSystemPrompt } from '@/server/ai/prompts/wiki-question';
+import {
+  answerLanguageRules,
+  buildWikiAssistantSystemPrompt,
+} from '@/server/ai/prompts/wiki-question';
 import type { ToolPlanStep } from '@/server/services/ai-tool-runtime';
 import type { ToolDefinition } from '@/server/services/ai-tool-registry';
 
@@ -87,7 +95,7 @@ export const DEFAULT_TOOL_SYSTEM_PROMPT = [
   'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
   'For create_page, use path, title, and contentSource. To save the latest assistant answer, use contentFromConversation=true instead of repeating the answer in contentSource.',
   'After create_page succeeds, always include a Markdown link to the new page in the final answer, using the exact title and href returned by the tool result. Do not replace this page link with a citation marker.',
-  'For save_draft, use the exact pageId returned by get_page, then pass complete replacement Markdown in contentSource. The title is optional and retains the page title by default. Use contentFromConversation=true only when saving the prior assistant answer unchanged.',
+  'For save_draft, use the exact pageId returned by get_page. contentSource is the whole final page Markdown: it replaces the current body rather than applying a patch. Before an incremental edit, retrieve every get_page window, preserve every unchanged section verbatim, and put the entire revised document in contentSource. Never pass a plan or instruction (for example, "pageSource full + insert a section"), a diff, a selector, or a placeholder as contentSource. If you cannot retrieve the entire existing page, do not call save_draft; explain that you could not safely prepare the draft. The title is optional and retains the page title by default. Use contentFromConversation=true only when saving the prior assistant answer unchanged.',
   'A get_page result places its Markdown between <page_source> tags verbatim. When copying it into a YAML literal contentSource block, preserve every backslash exactly as shown; do not apply JSON escaping to Markdown.',
   'When the user asks only to add generated images, do not use save_draft or reproduce the page Markdown. Generate every image from the same current revision, then call insert_generated_images once with the artifact ids and descriptive alt text.',
   'If the target page for saving content does not exist after using search_wiki, list_pages, or get_page, create it with create_page. Do not repeatedly search for a page that does not exist.',
@@ -121,14 +129,17 @@ export function buildWikiToolSystemPrompt(
     .map((tool) => {
       const required = new Set(tool.inputSchema.required ?? []);
       const properties = Object.entries(tool.inputSchema.properties);
-      const argumentsHint = properties.length === 0
-        ? '{} (no arguments)'
-        : `{ ${properties
-            .map(([name, schema]) => `${name}${required.has(name) ? '' : '?'}: ${typeof schema.type === 'string' ? schema.type : 'value'}`)
-            .join(', ')} }`;
-      const additionalArguments = tool.inputSchema.additionalProperties === false
-        ? ' No other arguments are accepted.'
-        : '';
+      const argumentsHint =
+        properties.length === 0
+          ? '{} (no arguments)'
+          : `{ ${properties
+              .map(
+                ([name, schema]) =>
+                  `${name}${required.has(name) ? '' : '?'}: ${typeof schema.type === 'string' ? schema.type : 'value'}`,
+              )
+              .join(', ')} }`;
+      const additionalArguments =
+        tool.inputSchema.additionalProperties === false ? ' No other arguments are accepted.' : '';
       return `- ${tool.name} (${tool.category}): ${tool.description}\n  Allowed arguments: ${argumentsHint}.${additionalArguments}`;
     })
     .join('\n');
@@ -136,7 +147,9 @@ export function buildWikiToolSystemPrompt(
     skills.length > 0
       ? skills.map((skill) => `- ${skill.name}: ${skill.description}`).join('\n')
       : '(none enabled)';
-  const template = overrides.toolSystemPrompt?.trim() ? overrides.toolSystemPrompt : DEFAULT_TOOL_SYSTEM_PROMPT;
+  const template = overrides.toolSystemPrompt?.trim()
+    ? overrides.toolSystemPrompt
+    : DEFAULT_TOOL_SYSTEM_PROMPT;
   const toolSection = template.includes(TOOL_CATALOG_PLACEHOLDER)
     ? template.replaceAll(TOOL_CATALOG_PLACEHOLDER, toolList)
     : `${template}\n\nAvailable tools:\n${toolList}`;
@@ -166,26 +179,30 @@ export function extractTaggedThinking(output: string): string {
 }
 
 export function buildPlannerUserPrompt(state: ToolPlannerState): string {
-  const researchPolicy = state.researchMode === 'wiki_first_web' ? [WEB_RESEARCH_RUNTIME_POLICY, ''] : [];
-  const wikiSearchConstraint = state.researchMode === 'wiki_first_web' && !state.wikiSearchAttempted
-    ? [
-        '<research_order>',
-        'No whole-Wiki search has completed in this turn. Your next action must be a standalone search_wiki call with scope: "all". Do not read the current page, use web tools, or answer yet.',
-        '</research_order>',
-        '',
-      ]
-    : [];
+  const researchPolicy =
+    state.researchMode === 'wiki_first_web' ? [WEB_RESEARCH_RUNTIME_POLICY, ''] : [];
+  const wikiSearchConstraint =
+    state.researchMode === 'wiki_first_web' && !state.wikiSearchAttempted
+      ? [
+          '<research_order>',
+          'No whole-Wiki search has completed in this turn. Your next action must be a standalone search_wiki call with scope: "all". Do not read the current page, use web tools, or answer yet.',
+          '</research_order>',
+          '',
+        ]
+      : [];
   const unavailableTools = state.unavailableToolNames?.filter(Boolean) ?? [];
-  const toolConstraints = unavailableTools.length > 0
-    ? [
-        '<tool_constraints>',
-        `The following tools are unavailable for the remainder of this turn: ${unavailableTools.join(', ')}. Do not call them again.`,
-        'Continue with the remaining tools or write the final answer with a clear limitation note.',
-        '</tool_constraints>',
-        '',
-      ]
-    : [];
-  const sources = state.wikiSources.length > 0
+  const toolConstraints =
+    unavailableTools.length > 0
+      ? [
+          '<tool_constraints>',
+          `The following tools are unavailable for the remainder of this turn: ${unavailableTools.join(', ')}. Do not call them again.`,
+          'Continue with the remaining tools or write the final answer with a clear limitation note.',
+          '</tool_constraints>',
+          '',
+        ]
+      : [];
+  const sources =
+    state.wikiSources.length > 0
       ? [
           '<wiki_sources>',
           ...state.wikiSources.map(
@@ -198,21 +215,23 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       : [
           '<wiki_sources>',
           state.researchMode === 'wiki_first_web'
-            ? "No Wiki sources are attached to this turn by default. Begin with the required whole-Wiki search_wiki call. Use web research only after that search and any relevant Wiki page reads are insufficient."
+            ? 'No Wiki sources are attached to this turn by default. Begin with the required whole-Wiki search_wiki call. Use web research only after that search and any relevant Wiki page reads are insufficient.'
             : "No Wiki sources are attached to this turn by default; decide for yourself whether this question needs them. If the question is about this Wiki's content, call search_wiki (then get_page) with a few targeted attempts. If it is general knowledge, conversational, or otherwise unrelated to this Wiki, answer directly from your own knowledge without searching or citing Wiki sources.",
           '</wiki_sources>',
           '',
         ];
-  const conversation = state.conversation.length > 0
-    ? [
-        '<conversation>',
-        ...state.conversation.map(
-          (turn) => `<turn><question>${turn.question}</question><answer>${turn.answer}</answer></turn>`,
-        ),
-        '</conversation>',
-        '',
-      ]
-    : [];
+  const conversation =
+    state.conversation.length > 0
+      ? [
+          '<conversation>',
+          ...state.conversation.map(
+            (turn) =>
+              `<turn><question>${turn.question}</question><answer>${turn.answer}</answer></turn>`,
+          ),
+          '</conversation>',
+          '',
+        ]
+      : [];
   const currentPage = state.currentPage
     ? [
         '<current_page>',
@@ -224,7 +243,17 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       ]
     : [];
   if (state.transcript.length === 0) {
-    return [...researchPolicy, ...wikiSearchConstraint, ...sources, ...currentPage, ...conversation, ...toolConstraints, '<question>', state.question, '</question>'].join('\n');
+    return [
+      ...researchPolicy,
+      ...wikiSearchConstraint,
+      ...sources,
+      ...currentPage,
+      ...conversation,
+      ...toolConstraints,
+      '<question>',
+      state.question,
+      '</question>',
+    ].join('\n');
   }
   return [
     ...researchPolicy,
@@ -273,8 +302,10 @@ function looksLikeForeignToolCall(output: string): boolean {
 /** A model occasionally omits the fence required by the textual tool protocol.
  * It is still a tool-call attempt, never a user-facing answer. */
 function looksLikeBareToolProtocol(output: string): boolean {
-  return /(?:^|\n)\s*tool_calls\s*:\s*\n\s*-\s*tool\s*:/i.test(output) ||
-    /^\s*\{\s*"tool_calls"\s*:/i.test(output);
+  return (
+    /(?:^|\n)\s*tool_calls\s*:\s*\n\s*-\s*tool\s*:/i.test(output) ||
+    /^\s*\{\s*"tool_calls"\s*:/i.test(output)
+  );
 }
 
 /**
@@ -359,8 +390,12 @@ export function parseToolPlan(output: string): ToolPlannerParseResult {
         .filter((call) => typeof call.tool === 'string')
         .map((call) => ({
           toolName: String(call.tool),
-          arguments: (call.arguments && typeof call.arguments === 'object' ? call.arguments : {}) as Record<string, unknown>,
-          requestedReview: (call.review === 'admin_review' ? 'admin_review' : 'none') as AiToolReviewDecision,
+          arguments: (call.arguments && typeof call.arguments === 'object'
+            ? call.arguments
+            : {}) as Record<string, unknown>,
+          requestedReview: (call.review === 'admin_review'
+            ? 'admin_review'
+            : 'none') as AiToolReviewDecision,
         }));
       if (calls.length > 0) return { kind: 'tool_calls', calls };
     } catch {

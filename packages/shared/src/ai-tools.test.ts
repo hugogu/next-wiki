@@ -23,6 +23,7 @@ describe('ai-tools shared contract', () => {
   it('exposes canonical descriptions for the MCP-compatible tool vocabulary', () => {
     expect(getWikiMcpToolDescription('get_page')).toBe(wikiMcpToolDescriptions.get_page);
     expect(Object.keys(wikiMcpToolDescriptions)).toContain('search_wiki');
+    expect(wikiMcpToolDescriptions.save_draft).toContain('complete final Markdown document');
   });
 
   it('models external providers without allowing them alongside builtin', () => {
@@ -66,7 +67,10 @@ describe('ai-tools shared contract', () => {
     });
 
     it('bounds max calls per turn and timeout', () => {
-      expect(aiToolPolicyUpdateSchema.parse({ providerKey: 'next-wiki', maxCallsPerTurn: 100 }).maxCallsPerTurn).toBe(100);
+      expect(
+        aiToolPolicyUpdateSchema.parse({ providerKey: 'next-wiki', maxCallsPerTurn: 100 })
+          .maxCallsPerTurn,
+      ).toBe(100);
       expect(() =>
         aiToolPolicyUpdateSchema.parse({ providerKey: 'next-wiki', maxCallsPerTurn: 0 }),
       ).toThrow();
