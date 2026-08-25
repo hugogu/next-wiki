@@ -6,6 +6,7 @@ import { getCurrentActor } from '@/server/services/auth';
 import { listModels, listProviders, readSettings } from '@/server/services/ai-admin';
 import { listIndexes } from '@/server/services/ai-index';
 import { listActions } from '@/server/services/ai-actions';
+import { readWebResearchSettings } from '@/server/web-research/admin';
 import { can } from '@/server/permissions';
 import { getLocale, getDictionary } from '@/i18n/server';
 
@@ -17,12 +18,13 @@ export default async function AdminAiPage() {
     notFound();
   }
 
-  const [settings, providers, models, indexes, actions] = await Promise.all([
+  const [settings, providers, models, indexes, actions, webResearchSettings] = await Promise.all([
     readSettings({ actor }),
     listProviders({ actor }),
     listModels({ actor }),
     listIndexes({ actor }),
     listActions({ actor }, { limit: 20 }),
+    readWebResearchSettings({ actor }),
   ]);
 
   const locale = await getLocale();
@@ -55,6 +57,7 @@ export default async function AdminAiPage() {
             cloudflareAccountId: settings.cloudflareAccountId,
             hasCloudflareToken: settings.hasCloudflareApiToken,
           }}
+          webResearchSettings={webResearchSettings}
         />
       </div>
     </Layout>

@@ -39,21 +39,21 @@ configuration boundaries that every research workflow requires.
 
 **⚠️ CRITICAL**: Complete this phase before starting user-story implementation.
 
-- [ ] T004 Add failing research-mode and discriminated-citation compatibility tests in packages/shared/src/ai.test.ts
-- [ ] T005 Implement ResearchMode, WikiCitation | WebCitation, historical citation parsing, and question input schemas in packages/shared/src/ai.ts
-- [ ] T006 [P] Add failing web tool-category and provider-key contract tests in packages/shared/src/ai-tools.test.ts
-- [ ] T007 Add the web category and built-in web tool contract types in packages/shared/src/ai-tools.ts
-- [ ] T008 Define web-research enums, encrypted settings fields, ai_web_sources, and ai_web_research_attempts in apps/web/src/server/db/schema/enums.ts, apps/web/src/server/db/schema/ai-tools.ts, and apps/web/src/server/db/schema/index.ts
-- [ ] T009 Generate the Drizzle migration and matching snapshot with pnpm db:generate in apps/web/src/server/db/migrations/ and apps/web/src/server/db/migrations/meta/; never hand-author either artifact
+- [X] T004 Add failing research-mode and discriminated-citation compatibility tests in packages/shared/src/ai.test.ts
+- [X] T005 Implement ResearchMode, WikiCitation | WebCitation, historical citation parsing, and question input schemas in packages/shared/src/ai.ts
+- [X] T006 [P] Add failing web tool-category and provider-key contract tests in packages/shared/src/ai-tools.test.ts
+- [X] T007 Add the web category and built-in web tool contract types in packages/shared/src/ai-tools.ts
+- [X] T008 Define web-research enums, encrypted settings fields, ai_web_sources, and ai_web_research_attempts in apps/web/src/server/db/schema/enums.ts, apps/web/src/server/db/schema/ai-tools.ts, and apps/web/src/server/db/schema/index.ts
+- [X] T009 Generate the Drizzle migration and matching snapshot with pnpm db:generate in apps/web/src/server/db/migrations/ and apps/web/src/server/db/migrations/meta/; never hand-author either artifact
 - [ ] T010 Add schema/default/index and generated-migration regression coverage in apps/web/src/server/db/ai-tool-schema.test.ts
 - [ ] T011 Add failing AI-action feature and request-metadata lifecycle tests for web_research_test and web_evidence_capture in apps/web/src/server/services/ai-actions.test.ts
-- [ ] T012 Register the two action features, encrypted inputs, idempotency, and safe action views in apps/web/src/server/services/ai-actions.ts and apps/web/src/server/jobs/ai-actions.ts
+- [X] T012 Register the two action features, encrypted inputs, idempotency, and safe action views in apps/web/src/server/services/ai-actions.ts and apps/web/src/server/jobs/ai-actions.ts
 - [ ] T013 [P] Add entitlement-default and actor-type denial tests for webResearchEnabled in apps/web/src/server/services/ai-entitlements.test.ts
 - [ ] T014 Extend the AI entitlement model and signed-in-user assertion in apps/web/src/server/services/ai-entitlements.ts and apps/web/src/server/permissions/ai-permissions.test.ts
 - [ ] T015 Add failing configuration, credential-redaction, domain-precedence, and request-budget tests in apps/web/src/server/web-research/settings.test.ts and apps/web/src/server/web-research/policy.test.ts
-- [ ] T016 Implement the provider-neutral settings resolver, encrypted credential access, effective policy, and domain normalization in apps/web/src/server/web-research/settings.ts, apps/web/src/server/web-research/policy.ts, and apps/web/src/server/web-research/url-policy.ts
+- [X] T016 Implement the provider-neutral settings resolver, encrypted credential access, effective policy, and domain normalization in apps/web/src/server/web-research/settings.ts, apps/web/src/server/web-research/policy.ts, and apps/web/src/server/web-research/url-policy.ts
 - [ ] T017 [P] Add failing safe outbound-web-research audit tests in apps/web/src/server/services/request-log.test.ts
-- [ ] T018 Extend redacted outbound request registration so web-research search/extract/test operations cannot log keys, queries, bodies, cookies, or identities in apps/web/src/server/services/request-log.ts and apps/web/src/server/db/schema/request-logs.ts
+- [X] T018 Extend redacted outbound request registration so web-research search/extract/test operations cannot log keys, queries, bodies, cookies, or identities in apps/web/src/server/services/request-log.ts and apps/web/src/server/db/schema/request-logs.ts
 
 **Checkpoint**: Shared contracts, generated schema, encrypted configuration,
 permission boundary, safe audit boundary, and action infrastructure are ready.
@@ -73,28 +73,28 @@ requests. A Wiki-sufficient response must be able to finish without web I/O.
 
 ### Tests for User Story 1
 
-- [ ] T019 [P] [US1] Add Tavily connector success, malformed response, timeout, 429, and usage-normalization tests in apps/web/src/server/web-research/tavily.test.ts
+- [X] T019 [P] [US1] Add Tavily connector success, malformed response, timeout, 429, and usage-normalization tests in apps/web/src/server/web-research/tavily.test.ts
 - [ ] T020 [P] [US1] Add opaque-source, domain/redirect, source-budget, and no-arbitrary-URL tests in apps/web/src/server/web-research/sources.test.ts and apps/web/src/server/web-research/url-policy.test.ts
 - [ ] T021 [P] [US1] Add web tool registration, argument, executor, transcript, and citation-collection tests in apps/web/src/server/services/ai-tool-registry.test.ts, apps/web/src/server/services/ai-tool-arguments.test.ts, and apps/web/src/server/services/ai-tool-runtime.test.ts
 - [ ] T022 [P] [US1] Add question creation, consent, Wiki-only zero-egress, and queued worker policy-recheck tests in apps/web/src/server/services/ai-question.test.ts, apps/web/app/api/ai/questions/route.test.ts, and apps/web/src/server/jobs/ai-question.test.ts
-- [ ] T023 [P] [US1] Add chat URL restoration and distinct Wiki/web citation rendering tests in apps/web/src/components/chat/chat-url.test.ts, apps/web/src/components/chat/ChatCitations.test.tsx, and apps/web/src/components/chat/linkify-citations.test.ts
+- [X] T023 [P] [US1] Add chat URL restoration and distinct Wiki/web citation rendering tests in apps/web/src/components/chat/chat-url.test.ts, apps/web/src/components/chat/ChatCitations.test.tsx, and apps/web/src/components/chat/linkify-citations.test.ts
 - [ ] T024 [P] [US1] Add conversation reconstruction and Feishu citation compatibility tests in apps/web/src/components/chat/reconstruct-session.test.ts, apps/web/src/components/chat/load-conversation.test.ts, and apps/web/src/server/feishu/answer-card.test.ts
 
 ### Implementation for User Story 1
 
-- [ ] T025 [US1] Define the server-only connector capabilities and normalized search/open result types in apps/web/src/server/web-research/types.ts and apps/web/src/server/web-research/registry.ts
-- [ ] T026 [US1] Implement the Tavily HTTP connector with fixed conservative request parameters, abort timeout, response validation, error mapping, and usage extraction in apps/web/src/server/web-research/tavily.ts
-- [ ] T027 [US1] Implement action-scoped candidate persistence, encrypted bounded content storage, source status transitions, and canonical-domain revalidation in apps/web/src/server/web-research/sources.ts
-- [ ] T028 [US1] Register read-only web_search and web_open definitions under the next-wiki built-in provider in apps/web/src/server/services/ai-tool-registry.ts
-- [ ] T029 [US1] Validate web tool arguments and add web-search/web-open executors that derive the minimal query from the original user question in apps/web/src/server/services/ai-tool-arguments.ts and apps/web/src/server/services/ai-tool-executors.ts
-- [ ] T030 [US1] Extend tool-loop budget accounting, untrusted-result delimiting, action events, and kind-aware citation collection/deduplication in apps/web/src/server/services/ai-tool-runtime.ts
-- [ ] T031 [US1] Update Wiki-question planning instructions so external material is untrusted data, candidates are not evidence, and no durable mutation is permitted in apps/web/src/server/ai/prompts/wiki-question.ts
-- [ ] T032 [US1] Add research mode/consent validation, session persistence, and action request metadata in apps/web/src/server/services/ai-question.ts
-- [ ] T033 [US1] Extend the authenticated question route and OpenAPI input/output schemas for the research object in apps/web/app/api/ai/questions/route.ts and apps/web/src/server/api/openapi-schemas.ts
-- [ ] T034 [US1] Build the Wiki-first read-only tool profile and repeat effective enablement, entitlement, cancellation, budget, and source-policy checks immediately before every external call in apps/web/src/server/jobs/ai-question.ts
-- [ ] T035 [US1] Persist and restore research mode in the chat URL/session store in apps/web/src/components/chat/chat-url.ts and apps/web/src/components/chat/chat-store.ts
-- [ ] T036 [US1] Send confirmed research mode with each action and render the first-use external-processing disclosure in apps/web/src/hooks/use-ai-chat.ts and apps/web/src/components/chat/AiChatPane.tsx
-- [ ] T037 [US1] Render kind-aware answer links and distinct external-source groups without treating candidates as citations in apps/web/src/components/chat/ChatCitations.tsx, apps/web/src/components/chat/linkify-citations.ts, apps/web/src/components/chat/ChatAnswer.tsx, and apps/web/src/server/feishu/answer-card.ts
+- [X] T025 [US1] Define the server-only connector capabilities and normalized search/open result types in apps/web/src/server/web-research/types.ts and apps/web/src/server/web-research/registry.ts
+- [X] T026 [US1] Implement the Tavily HTTP connector with fixed conservative request parameters, abort timeout, response validation, error mapping, and usage extraction in apps/web/src/server/web-research/tavily.ts
+- [X] T027 [US1] Implement action-scoped candidate persistence, encrypted bounded content storage, source status transitions, and canonical-domain revalidation in apps/web/src/server/web-research/sources.ts
+- [X] T028 [US1] Register read-only web_search and web_open definitions under the next-wiki built-in provider in apps/web/src/server/services/ai-tool-registry.ts
+- [X] T029 [US1] Validate web tool arguments and add web-search/web-open executors that derive the minimal query from the original user question in apps/web/src/server/services/ai-tool-arguments.ts and apps/web/src/server/services/ai-tool-executors.ts
+- [X] T030 [US1] Extend tool-loop budget accounting, untrusted-result delimiting, action events, and kind-aware citation collection/deduplication in apps/web/src/server/services/ai-tool-runtime.ts
+- [X] T031 [US1] Update Wiki-question planning instructions so external material is untrusted data, candidates are not evidence, and no durable mutation is permitted in apps/web/src/server/ai/prompts/wiki-question.ts
+- [X] T032 [US1] Add research mode/consent validation, session persistence, and action request metadata in apps/web/src/server/services/ai-question.ts
+- [X] T033 [US1] Extend the authenticated question route and OpenAPI input/output schemas for the research object in apps/web/app/api/ai/questions/route.ts and apps/web/src/server/api/openapi-schemas.ts
+- [X] T034 [US1] Build the Wiki-first read-only tool profile and repeat effective enablement, entitlement, cancellation, budget, and source-policy checks immediately before every external call in apps/web/src/server/jobs/ai-question.ts
+- [X] T035 [US1] Persist and restore research mode in the chat URL/session store in apps/web/src/components/chat/chat-url.ts and apps/web/src/components/chat/chat-store.ts
+- [X] T036 [US1] Send confirmed research mode with each action and render the first-use external-processing disclosure in apps/web/src/hooks/use-ai-chat.ts and apps/web/src/components/chat/AiChatPane.tsx
+- [X] T037 [US1] Render kind-aware answer links and distinct external-source groups without treating candidates as citations in apps/web/src/components/chat/ChatCitations.tsx, apps/web/src/components/chat/linkify-citations.ts, apps/web/src/components/chat/ChatAnswer.tsx, and apps/web/src/server/feishu/answer-card.ts
 - [ ] T038 [US1] Add fixture-backed end-to-end coverage for Wiki-only no-egress, consented web research, external citation links, and URL restoration in apps/web/e2e/ai-web-research.spec.ts and apps/web/e2e/ai-chat-conversation-url.spec.ts
 
 **Checkpoint**: An entitled user can independently use bounded, citation-backed
@@ -118,12 +118,12 @@ a queued call begins and observes zero external I/O.
 - [ ] T041 [P] [US2] Add web-research entitlement route and user-access-form tests in apps/web/app/api/ai/ai-entitlement-routes.test.ts and apps/web/src/components/admin/ai/UserAiEntitlementsForm.test.tsx
 - [ ] T042 [P] [US2] Add queued-disable, entitlement-revocation, blocked-domain, and policy-budget zero-egress integration tests in apps/web/src/server/jobs/ai-question.test.ts and apps/web/src/server/web-research/policy.test.ts
 - [ ] T043 [P] [US2] Add admin-panel save/test/error-state accessibility tests in apps/web/src/components/admin/ai/WebResearchPanel.test.tsx
-- [ ] T044 [US2] Implement manage_ai-protected web-research settings GET/PATCH resource in apps/web/app/api/ai/web-research/settings/route.ts
-- [ ] T045 [US2] Implement bounded web_research_test action execution and safe attempt recording in apps/web/src/server/web-research/connection-test.ts and apps/web/src/server/jobs/ai-actions.ts
-- [ ] T046 [US2] Implement the asynchronous connection-test sub-resource route in apps/web/app/api/ai/web-research/connection-tests/route.ts
-- [ ] T047 [US2] Add the single Admin AI Web Research panel, canonical route, and tab entry in apps/web/src/components/admin/ai/WebResearchPanel.tsx, apps/web/src/components/admin/ai/AiAdminTabs.tsx, and apps/web/app/(admin)/admin/ai/research/page.tsx
-- [ ] T048 [US2] Expose webResearchEnabled through the existing entitlement API and administrator user-access controls in apps/web/app/api/ai/entitlements/[userId]/route.ts and apps/web/src/components/admin/ai/UserAiEntitlementsForm.tsx
-- [ ] T049 [US2] Add localized admin, unavailable, denied, policy-blocked, and budget-limited copy in apps/web/src/i18n/keys.ts and apps/web/src/i18n/messages/
+- [X] T044 [US2] Implement manage_ai-protected web-research settings GET/PATCH resource in apps/web/app/api/ai/web-research/settings/route.ts
+- [X] T045 [US2] Implement bounded web_research_test action execution and safe attempt recording in apps/web/src/server/web-research/connection-test.ts and apps/web/src/server/jobs/ai-actions.ts
+- [X] T046 [US2] Implement the asynchronous connection-test sub-resource route in apps/web/app/api/ai/web-research/connection-tests/route.ts
+- [X] T047 [US2] Add the single Admin AI Web Research panel, canonical route, and tab entry in apps/web/src/components/admin/ai/WebResearchPanel.tsx, apps/web/src/components/admin/ai/AiAdminTabs.tsx, and apps/web/app/(admin)/admin/ai/research/page.tsx
+- [X] T048 [US2] Expose webResearchEnabled through the existing entitlement API and administrator user-access controls in apps/web/app/api/ai/entitlements/[userId]/route.ts and apps/web/src/components/admin/ai/UserAiEntitlementsForm.tsx
+- [X] T049 [US2] Add localized admin, unavailable, denied, policy-blocked, and budget-limited copy in apps/web/src/i18n/keys.ts and apps/web/src/i18n/messages/
 - [ ] T050 [US2] Add administrator end-to-end coverage for configure/test/entitle/disable and queued-work no-egress behavior in apps/web/e2e/admin-ai-web-research.spec.ts
 
 **Checkpoint**: The connector can be safely operated and turned off without
@@ -148,11 +148,11 @@ capture creates no record.
 - [ ] T052 [P] [US3] Add capture action ownership, permission, expiry, failure, and no-page-mutation tests in apps/web/src/server/services/ai-actions.test.ts and apps/web/src/server/jobs/ai-actions.test.ts
 - [ ] T053 [P] [US3] Add capture sub-resource authorization/idempotency/OpenAPI tests in apps/web/app/api/ai/actions/[actionId]/web-sources/[sourceId]/captures/route.test.ts and apps/web/src/server/api/openapi-schemas.test.ts
 - [ ] T054 [P] [US3] Add preserve-control queued/succeeded/expired/denied rendering tests in apps/web/src/components/chat/ChatCitations.test.tsx
-- [ ] T055 [US3] Implement the trusted capture service that maps one opened AiWebSource to a Raw external-fetch page/revision and stores the durable relation in apps/web/src/server/web-research/evidence.ts and apps/web/src/server/services/raw-entries.ts
+- [X] T055 [US3] Implement the trusted capture service that maps one opened AiWebSource to a Raw external-fetch page/revision and stores the durable relation in apps/web/src/server/web-research/evidence.ts and apps/web/src/server/services/raw-entries.ts
 - [ ] T056 [US3] Register the web_evidence_capture worker handler with ownership, Raw-create permission, source status, and idempotency checks in apps/web/src/server/jobs/ai-actions.ts and apps/web/src/server/services/ai-actions.ts
-- [ ] T057 [US3] Implement the capture sub-resource route and regenerate its OpenAPI schema in apps/web/app/api/ai/actions/[actionId]/web-sources/[sourceId]/captures/route.ts and apps/web/src/server/api/openapi-schemas.ts
-- [ ] T058 [US3] Add source-specific Preserve as evidence controls, action progress, and durable Raw evidence links in apps/web/src/components/chat/ChatCitations.tsx and apps/web/src/components/chat/ChatAnswer.tsx
-- [ ] T059 [US3] Extend periodic AI cleanup to expire unpreserved bodies/source rows within 24 hours while retaining captured Raw evidence in apps/web/src/server/jobs/ai-cleanup.ts and apps/web/src/server/services/ai-actions.ts
+- [X] T057 [US3] Implement the capture sub-resource route and regenerate its OpenAPI schema in apps/web/app/api/ai/actions/[actionId]/web-sources/[sourceId]/captures/route.ts and apps/web/src/server/api/openapi-schemas.ts
+- [X] T058 [US3] Add source-specific Preserve as evidence controls, action progress, and durable Raw evidence links in apps/web/src/components/chat/ChatCitations.tsx and apps/web/src/components/chat/ChatAnswer.tsx
+- [X] T059 [US3] Extend periodic AI cleanup to expire unpreserved bodies/source rows within 24 hours while retaining captured Raw evidence in apps/web/src/server/jobs/ai-cleanup.ts and apps/web/src/server/services/ai-actions.ts
 - [ ] T060 [US3] Add cleanup retention and captured-evidence survival tests in apps/web/src/server/jobs/ai-cleanup.test.ts and apps/web/src/server/web-research/sources.test.ts
 - [ ] T061 [US3] Add end-to-end capture, duplicate-capture, expiry, and no-implicit-publication coverage in apps/web/e2e/ai-web-research.spec.ts and apps/web/e2e/raw-content.spec.ts
 
@@ -167,10 +167,10 @@ implicit.
 **Purpose**: Complete generated artifacts, safety regression coverage, and
 release-level verification across all user stories.
 
-- [ ] T062 [P] Regenerate and validate OpenAPI output from apps/web/src/server/api/openapi-schemas.ts into apps/web/public/openapi.json with the apps/web/package.json openapi:generate script
-- [ ] T063 [P] Validate all newly added localization keys/messages and catalog integrity in apps/web/src/i18n/keys.ts and apps/web/src/i18n/messages/
-- [ ] T064 Regenerate Drizzle artifacts from apps/web/src/server/db/schema/ and confirm the second pnpm db:generate run has no changes in apps/web/src/server/db/migrations/meta/
-- [ ] T065 Run focused and full lint/typecheck suites defined by package.json and apps/web/package.json after all modified source paths are complete
+- [X] T062 [P] Regenerate and validate OpenAPI output from apps/web/src/server/api/openapi-schemas.ts into apps/web/public/openapi.json with the apps/web/package.json openapi:generate script
+- [X] T063 [P] Validate all newly added localization keys/messages and catalog integrity in apps/web/src/i18n/keys.ts and apps/web/src/i18n/messages/
+- [X] T064 Regenerate Drizzle artifacts from apps/web/src/server/db/schema/ and confirm the second pnpm db:generate run has no changes in apps/web/src/server/db/migrations/meta/
+- [X] T065 Run focused and full lint/typecheck suites defined by package.json and apps/web/package.json after all modified source paths are complete
 - [ ] T066 Run the connector, policy, action, citation, retention, route, and Raw-evidence Vitest suites under apps/web/src/server/, apps/web/src/components/chat/, apps/web/app/api/ai/, and packages/shared/src/
 - [ ] T067 Run Playwright coverage for apps/web/e2e/ai-web-research.spec.ts, apps/web/e2e/admin-ai-web-research.spec.ts, apps/web/e2e/ai-chat-conversation-url.spec.ts, and apps/web/e2e/raw-content.spec.ts
 - [ ] T068 Run docker compose up -d --build from docker-compose.yml and exercise the app/worker migration and queued-action health path
@@ -289,3 +289,13 @@ author the connector.
 - No task grants web research to anonymous/API-key/MCP/bot/scheduled actors,
   creates a generic URL fetcher, or allows a web-research tool to mutate Wiki
   content.
+
+## Verification limits (2026-08-25)
+
+- The focused connector/citation/prompt suite, workspace lint/typecheck,
+  OpenAPI generation, i18n validation, shared tests, and Drizzle no-change
+  generation all passed.
+- Database-dependent service/route tests, Playwright coverage, Docker Compose
+  health checks, and the 50-question performance run remain unchecked because
+  the local PostgreSQL endpoint and Docker daemon are unavailable in this
+  workspace. No external Tavily request was made during verification.

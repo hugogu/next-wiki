@@ -95,6 +95,18 @@ export async function getAiSettings() {
       cloudflareDetectorEnabled: false,
       cloudflareAccountId: null,
       cloudflareApiTokenEncrypted: null,
+      webResearchEnabled: false,
+      webResearchProvider: null,
+      webResearchApiKeyEncrypted: null,
+      webResearchAllowedDomains: [],
+      webResearchBlockedDomains: [],
+      webResearchMaxSearchesPerTurn: 2,
+      webResearchMaxCandidatesPerSearch: 5,
+      webResearchMaxOpenedSourcesPerTurn: 3,
+      webResearchMaxSourceChars: 16_000,
+      webResearchTimeoutMs: 10_000,
+      webResearchLastTestAt: null,
+      webResearchLastTestStatus: null,
       updatedBy: null,
       updatedAt: new Date(0),
     }
@@ -1162,6 +1174,10 @@ export async function cleanupExpiredAiData(): Promise<void> {
         isNull(schema.aiGeneratedArtifacts.promotedAssetId),
       ),
     );
+  // External source bodies are encrypted but intentionally ephemeral. A user
+  // who explicitly preserved one has an immutable Raw copy; this row can still
+  // expire without retaining the third-party document in AI operational data.
+  await db.delete(schema.aiWebSources).where(lt(schema.aiWebSources.expiresAt, now));
   await db
     .delete(schema.aiIndexGenerations)
     .where(

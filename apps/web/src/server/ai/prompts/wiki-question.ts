@@ -1,6 +1,6 @@
-import { AI_ANSWER_LANGUAGE_DEFAULT, type AiAnswerLanguage, type AiCitation, type AiSearchResult } from '@next-wiki/shared';
+import { AI_ANSWER_LANGUAGE_DEFAULT, type AiAnswerLanguage, type AiCitation, type AiSearchResult, type WikiCitation } from '@next-wiki/shared';
 
-export type QuestionSource = AiCitation & { id: string; content: string };
+export type QuestionSource = WikiCitation & { id: string; content: string };
 
 /**
  * Matches a citation marker in either plain ASCII brackets ([S1]) or the

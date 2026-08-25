@@ -10,12 +10,14 @@ const disabled = {
   questionAnsweringEnabled: false,
   textOptimizationEnabled: false,
   imageGenerationEnabled: false,
+  webResearchEnabled: false,
 };
 
 const enabled = {
   questionAnsweringEnabled: true,
   textOptimizationEnabled: true,
   imageGenerationEnabled: true,
+  webResearchEnabled: true,
 };
 
 const ANONYMOUS_ENTITLEMENTS: AiEntitlementView = {
@@ -24,6 +26,7 @@ const ANONYMOUS_ENTITLEMENTS: AiEntitlementView = {
   questionAnsweringEnabled: true,
   textOptimizationEnabled: false,
   imageGenerationEnabled: false,
+  webResearchEnabled: false,
   aiEnabled: true,
   reasons: [],
 };
@@ -127,7 +130,7 @@ export async function getAnonymousQuestionEntitlements(): Promise<AiEntitlementV
 
 export async function assertAiFeature(
   ctx: PermCtx,
-  feature: 'question' | 'text' | 'image' | 'search',
+  feature: 'question' | 'text' | 'image' | 'search' | 'web_research',
 ): Promise<AiEntitlementView> {
   if (ctx.actor.kind === 'anonymous') {
     const settings = await getAiSettings();
@@ -159,6 +162,14 @@ export async function assertAiFeature(
   }
   if (feature === 'search' && !can(ctx, 'use_ai_search', { kind: 'ai_index' })) {
     throw new DomainError('FORBIDDEN', 'You do not have permission to use semantic search');
+  }
+  if (feature === 'web_research') {
+    if (ctx.actor.kind !== 'user') {
+      throw new DomainError('AI_FEATURE_DISABLED', 'Web research requires a signed-in user session');
+    }
+    if (!entitlements.questionAnsweringEnabled || !entitlements.webResearchEnabled) {
+      throw new DomainError('AI_FEATURE_DISABLED', 'Web research is not enabled for this user');
+    }
   }
   return entitlements;
 }

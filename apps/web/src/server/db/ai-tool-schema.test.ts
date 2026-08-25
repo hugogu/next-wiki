@@ -42,6 +42,7 @@ describe('ai tool runtime schema (026)', () => {
     const byName = new Map(rows.map((row) => [row.typname, row.labels]));
     expect(byName.get('ai_tool_category')).toEqual([
       'read',
+      'web',
       'page_draft',
       'metadata',
       'tag',

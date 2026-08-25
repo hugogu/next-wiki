@@ -63,7 +63,9 @@
               "scheduled_ai_job",
               "text_optimization",
               "image_generation",
-              "wiki_tool_chat"
+              "wiki_tool_chat",
+              "web_research_test",
+              "web_evidence_capture"
             ]
           },
           "actorUserId": {
@@ -10723,6 +10725,18 @@
                           "enum": [
                             "wiki_tool_chat"
                           ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_research_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_evidence_capture"
+                          ]
                         }
                       ]
                     },
@@ -10828,6 +10842,18 @@
                           "type": "string",
                           "enum": [
                             "wiki_tool_chat"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_research_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_evidence_capture"
                           ]
                         }
                       ]
@@ -10935,6 +10961,18 @@
                           "enum": [
                             "wiki_tool_chat"
                           ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_research_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_evidence_capture"
+                          ]
                         }
                       ]
                     },
@@ -11040,6 +11078,18 @@
                           "type": "string",
                           "enum": [
                             "wiki_tool_chat"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_research_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_evidence_capture"
                           ]
                         }
                       ]
@@ -11396,6 +11446,61 @@
         }
       }
     },
+    "/ai/web-research/sources/{sourceId}/capture": {
+      "post": {
+        "operationId": "post-ai-web-research-sources-{sourceId}-capture",
+        "summary": "Preserve opened Web Research evidence as a Raw entry @tag AI @auth bearer",
+        "description": "",
+        "tags": [
+          "AI"
+        ],
+        "parameters": [
+          {
+            "name": "sourceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: sourceId"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "rawPath": {
+                      "type": "string"
+                    },
+                    "pageId": {
+                      "type": "string"
+                    },
+                    "versionId": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "rawPath",
+                    "pageId",
+                    "versionId"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/indexes": {
       "get": {
         "operationId": "get-ai-indexes",
@@ -11510,6 +11615,18 @@
                               "type": "string",
                               "enum": [
                                 "wiki_tool_chat"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "web_research_test"
+                              ]
+                            },
+                            {
+                              "type": "string",
+                              "enum": [
+                                "web_evidence_capture"
                               ]
                             }
                           ]
@@ -13308,6 +13425,178 @@
         }
       }
     },
+    "/ai/web-research/connection-tests": {
+      "post": {
+        "operationId": "post-ai-web-research-connection-tests",
+        "summary": "Queue a Web Research connection test @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "queued"
+                      ]
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "feature": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "provider_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "model_sync"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "index_rebuild"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "semantic_search"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_question"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "scheduled_ai_job"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "text_optimization"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "image_generation"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "wiki_tool_chat"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_research_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_evidence_capture"
+                          ]
+                        }
+                      ]
+                    },
+                    "eventsUrl": {
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "id",
+                    "feature",
+                    "eventsUrl"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/ai/web-research/settings": {
+      "get": {
+        "operationId": "get-ai-web-research-settings",
+        "summary": "Get Web Research settings @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch-ai-web-research-settings",
+        "summary": "Update Web Research settings @tag AI Admin @auth bearer",
+        "description": "",
+        "tags": [
+          "AI Admin"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/ai/indexes/{id}/cancel": {
       "post": {
         "operationId": "post-ai-indexes-{id}-cancel",
@@ -13436,6 +13725,18 @@
                           "type": "string",
                           "enum": [
                             "wiki_tool_chat"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_research_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_evidence_capture"
                           ]
                         }
                       ]
@@ -13951,6 +14252,18 @@
                           "type": "string",
                           "enum": [
                             "wiki_tool_chat"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_research_test"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "web_evidence_capture"
                           ]
                         }
                       ]

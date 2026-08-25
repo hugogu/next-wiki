@@ -1,5 +1,7 @@
 'use client';
 
+import type { ResearchMode } from '@next-wiki/shared';
+
 /**
  * The selected conversation as an address, not just tab state.
  *
@@ -16,10 +18,16 @@
  * per click while browsing through past conversations.
  */
 export const CHAT_URL_PARAM = 'chat';
+export const CHAT_RESEARCH_MODE_PARAM = 'research';
 
 export function readChatKeyFromUrl(search: string): string | null {
   const key = new URLSearchParams(search).get(CHAT_URL_PARAM);
   return key ? key : null;
+}
+
+export function readResearchModeFromUrl(search: string): ResearchMode | null {
+  const value = new URLSearchParams(search).get(CHAT_RESEARCH_MODE_PARAM);
+  return value === 'wiki_first_web' || value === 'wiki_only' ? value : null;
 }
 
 let arrivalConsumed = false;
@@ -40,19 +48,22 @@ export function takeArrivalChatKey(): string | null {
 }
 
 /** Pure form of the address update, so the rule is testable without a window. */
-export function chatUrlWithKey(href: string, key: string | null): string {
+export function chatUrlWithKey(href: string, key: string | null, researchMode: ResearchMode = 'wiki_only'): string {
   const url = new URL(href);
   if (key) {
     url.searchParams.set(CHAT_URL_PARAM, key);
+    if (researchMode === 'wiki_first_web') url.searchParams.set(CHAT_RESEARCH_MODE_PARAM, researchMode);
+    else url.searchParams.delete(CHAT_RESEARCH_MODE_PARAM);
   } else {
     url.searchParams.delete(CHAT_URL_PARAM);
+    url.searchParams.delete(CHAT_RESEARCH_MODE_PARAM);
   }
   return `${url.pathname}${url.search}${url.hash}`;
 }
 
-export function syncChatKeyToUrl(key: string | null): void {
+export function syncChatKeyToUrl(key: string | null, researchMode: ResearchMode = 'wiki_only'): void {
   if (typeof window === 'undefined') return;
-  const next = chatUrlWithKey(window.location.href, key);
+  const next = chatUrlWithKey(window.location.href, key, researchMode);
   if (next === `${window.location.pathname}${window.location.search}${window.location.hash}`) return;
   window.history.replaceState(window.history.state, '', next);
 }

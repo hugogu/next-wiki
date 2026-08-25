@@ -13,7 +13,7 @@ import { getOrCreateAnonymousAiAccessToken } from '@/server/services/auth';
 export async function POST(request: NextRequest) {
   const parsed = parseJson(aiQuestionInputSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
-  const { tools, sessionId, ...question } = parsed.data;
+  const { tools, sessionId, research, ...question } = parsed.data;
   try {
     const ctx = await createApiContext();
     const anonymousToken = ctx.actor.kind === 'anonymous' ? await getOrCreateAnonymousAiAccessToken() : undefined;
@@ -29,6 +29,9 @@ export async function POST(request: NextRequest) {
     // identity for tool workflows or mutations. Route it through the ordinary
     // grounded Q&A worker, which evaluates retrieval with anonymous page
     // permissions instead.
+    if (research?.mode === 'wiki_first_web' && (!tools?.enabled || ctx.actor.kind === 'anonymous')) {
+      throw new DomainError('AI_FEATURE_DISABLED', 'Web research requires an authenticated tool-enabled Wiki AI session');
+    }
     if (tools?.enabled && ctx.actor.kind !== 'anonymous') {
       const result = await createToolEnabledWikiQuestion(ctx, {
         question: question.question,
@@ -37,6 +40,7 @@ export async function POST(request: NextRequest) {
         currentPage: question.currentPage,
         conversation: question.conversation,
         requestMetadata,
+        research,
       });
       if (!result.fallback) {
         return NextResponse.json(result.action, { status: 202 });

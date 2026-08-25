@@ -24,9 +24,10 @@ import { AiActionAuditTable } from './AiActionAuditTable';
 import { AiRetentionPanel } from './AiRetentionPanel';
 import { ModelDetectorPanel } from './ModelDetectorPanel';
 import { UsagePanel } from './UsagePanel';
+import { WebResearchPanel, type WebResearchSettingsView } from './WebResearchPanel';
 
-type AiAdminTab = 'detector' | 'chat' | 'embedding' | 'image' | 'indexes' | 'actions' | 'usage';
-const TABS: AiAdminTab[] = ['detector', 'chat', 'embedding', 'image', 'indexes', 'actions', 'usage'];
+type AiAdminTab = 'detector' | 'chat' | 'embedding' | 'image' | 'research' | 'indexes' | 'actions' | 'usage';
+const TABS: AiAdminTab[] = ['detector', 'chat', 'embedding', 'image', 'research', 'indexes', 'actions', 'usage'];
 
 const purposeByCapability = {
   chat: 'wiki_text',
@@ -48,6 +49,7 @@ export function AiAdminTabs({
   retention,
   hasModelDetectorApiKey,
   detector,
+  webResearchSettings,
 }: {
   providers: AiProviderView[];
   models: AiModelView[];
@@ -63,6 +65,7 @@ export function AiAdminTabs({
     cloudflareAccountId: string | null;
     hasCloudflareToken: boolean;
   };
+  webResearchSettings: WebResearchSettingsView;
 }) {
   const { t } = useTranslation();
   const router = useRouter();
@@ -107,6 +110,7 @@ export function AiAdminTabs({
       label: t('admin.ai.tabs.image'),
       status: String(providers.filter((provider) => provider.type === 'image').length),
     },
+    { id: 'research' as const, label: t('admin.ai.tabs.webResearch') },
     {
       id: 'indexes' as const,
       label: t('admin.ai.tabs.indexes'),
@@ -168,6 +172,7 @@ export function AiAdminTabs({
           />
         )}
         {selected === 'indexes' && <IndexList indexes={indexes} />}
+        {selected === 'research' && <WebResearchPanel initial={webResearchSettings} />}
         {selected === 'actions' && (
           <div className="space-y-lg">
             <AiRetentionPanel

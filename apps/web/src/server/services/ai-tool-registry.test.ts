@@ -40,6 +40,8 @@ describe('ai tool registry metadata (026, US6)', () => {
     expect(getToolDefinition('promote_generated_image')).toMatchObject({ category: 'media', riskLevel: 'immediate_write' });
     expect(getToolDefinition('insert_generated_images')).toMatchObject({ category: 'page_draft', riskLevel: 'draft_write' });
     expect(getToolDefinition('search_wiki')?.category).toBe('read');
+    expect(getToolDefinition('web_search')).toMatchObject({ category: 'web', riskLevel: 'read' });
+    expect(getToolDefinition('web_open')?.inputSchema.properties).toHaveProperty('sourceId');
     expect(getToolDefinition('not_a_real_tool')).toBeUndefined();
   });
 

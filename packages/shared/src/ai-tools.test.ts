@@ -32,6 +32,7 @@ describe('ai-tools shared contract', () => {
   it('enumerates the built-in tool categories', () => {
     expect(aiToolCategorySchema.options).toEqual([
       'read',
+      'web',
       'page_draft',
       'metadata',
       'tag',

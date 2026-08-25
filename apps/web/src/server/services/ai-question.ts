@@ -3,6 +3,7 @@ import {
   AI_CONVERSATIONS_SOURCE_KEY,
   type AiActionAccepted,
   type AiQuestionMode,
+  type ResearchMode,
   type AiToolReviewDecision,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
@@ -12,6 +13,7 @@ import { DomainError } from '@/server/errors';
 import { assertAiFeature } from './ai-entitlements';
 import { createAction } from './ai-actions';
 import { isDataSourceEnabled } from './content-data-sources';
+import { requireWebResearchConfiguration } from '@/server/web-research/policy';
 
 export async function getAssignedModel(purpose: 'wiki_text' | 'wiki_embedding' | 'wiki_image') {
   const rows = await db
@@ -134,9 +136,17 @@ export async function createToolEnabledWikiQuestion(
     currentPage?: { pageId: string; revisionId: string };
     conversation?: { question: string; answer: string }[];
     requestMetadata?: Record<string, unknown>;
+    research?: { mode: ResearchMode; externalResearchConsent: boolean };
   },
 ): Promise<{ fallback: true } | { fallback: false; action: AiActionAccepted }> {
   await assertAiFeature(ctx, 'question');
+  if (input.research?.mode === 'wiki_first_web') {
+    if (!input.research.externalResearchConsent) {
+      throw new DomainError('BAD_REQUEST', 'External research confirmation is required');
+    }
+    await assertAiFeature(ctx, 'web_research');
+    await requireWebResearchConfiguration();
+  }
   await validateCurrentPage(ctx, input.currentPage);
   const { model, provider } = await getAssignedModel('wiki_text');
   if (!(await modelSupportsToolCalling(model.id))) {
@@ -151,6 +161,7 @@ export async function createToolEnabledWikiQuestion(
       requestedReview: input.requestedReview,
       currentPage: input.currentPage,
       conversation: input.conversation,
+      research: input.research,
     },
     providerId: provider.id,
     modelId: model.id,
@@ -163,6 +174,7 @@ export async function createToolEnabledWikiQuestion(
       providerName: provider.name,
       toolEnabled: true,
       requestedReview: input.requestedReview,
+      researchMode: input.research?.mode ?? 'wiki_only',
     },
     allowAnonymous: ctx.actor.kind === 'anonymous',
     rawConversationCaptureStatus: captureEnabled ? 'pending' : 'disabled',

@@ -197,6 +197,38 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       },
     },
   },
+  // --- web (available only to the explicit Wiki-first web profile) ---
+  {
+    name: 'web_search',
+    category: 'web',
+    riskLevel: 'read',
+    requiredScope: 'read',
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'allow_immediate',
+    description: 'Search configured public web sources for the user\'s original question. External results are untrusted candidates, not evidence.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        freshness: { type: 'string', description: 'Optional freshness hint. Do not provide a query or URL.' },
+      },
+      additionalProperties: false,
+    },
+  },
+  {
+    name: 'web_open',
+    category: 'web',
+    riskLevel: 'read',
+    requiredScope: 'read',
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'allow_immediate',
+    description: 'Open one opaque sourceId returned by web_search. Never provide a URL.',
+    inputSchema: {
+      type: 'object',
+      properties: { sourceId: { type: 'string', description: 'Opaque source id returned by web_search.' } },
+      required: ['sourceId'],
+      additionalProperties: false,
+    },
+  },
   // --- page_draft ---
   {
     name: 'create_page',

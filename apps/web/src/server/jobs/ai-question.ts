@@ -3,6 +3,7 @@ import {
   scheduledAiJobScopeSchema,
   type AiCitation,
   type AiQuestionMode,
+  type ResearchMode,
   type AiToolReviewDecision,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
@@ -26,6 +27,7 @@ import {
 import { loadWikiQuestionSources } from '@/server/ai/retrieval/wiki-question-sources';
 import { providerRuntime } from '@/server/services/ai-admin';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
+import { requireWebResearchConfiguration } from '@/server/web-research/policy';
 import {
   appendActionEvent,
   finishAction,
@@ -85,6 +87,7 @@ type ToolEnabledQuestionInput = {
   requestedReview?: AiToolReviewDecision;
   currentPage?: { pageId: string; revisionId: string };
   conversation?: { question: string; answer: string }[];
+  research?: { mode: ResearchMode; externalResearchConsent: boolean };
 };
 
 // How many times to shrink the attached sources and retry when the provider
@@ -135,7 +138,12 @@ function mergeCitations(...groups: AiCitation[][]): AiCitation[] {
   const merged = new Map<string, AiCitation>();
   for (const citations of groups) {
     for (const citation of citations) {
-      merged.set(`${citation.pageId}:${citation.revisionId}`, citation);
+      merged.set(
+        citation.kind === 'web'
+          ? `${citation.sourceId}:${citation.contentHash ?? citation.retrievedAt}`
+          : `${citation.pageId}:${citation.revisionId}`,
+        citation,
+      );
     }
   }
   return [...merged.values()];
@@ -306,6 +314,14 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   }
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
+  const webResearch = input.research?.mode === 'wiki_first_web';
+  if (webResearch) {
+    if (!input.research?.externalResearchConsent) {
+      throw new DomainError('BAD_REQUEST', 'External research confirmation is required');
+    }
+    await assertAiFeature(ctx, 'web_research');
+    await requireWebResearchConfiguration();
+  }
   const conversation = await loadWebConversationContext({
     actorUserId: user.id,
     queuedAt: action.queuedAt,
@@ -366,7 +382,12 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
           requested,
           isOwnerOrAdmin,
         );
-  const enabledTools = listToolDefinitions().filter(isEnabled);
+  const enabledTools = listToolDefinitions()
+    .filter(isEnabled)
+    .filter((tool) => {
+      if (!webResearch) return tool.category !== 'web';
+      return tool.riskLevel === 'read' && ['read', 'tag', 'skill', 'web'].includes(tool.category);
+    });
   const providerDefault = policyRows.find((row) => row.toolName == null && row.category == null);
   // Admin-tunable runtime config (Bots > General params, AI > Prompts prompts).
   const runtimeConfig = await resolveAiRuntimeConfig();

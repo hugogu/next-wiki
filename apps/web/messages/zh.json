@@ -1387,6 +1387,7 @@
         "chat": "对话能力",
         "embedding": "向量能力",
         "image": "生图能力",
+        "webResearch": "联网研究",
         "detector": "模型探测",
         "models": "能力映射",
         "indexes": "索引",
@@ -1441,6 +1442,7 @@
         },
         "category": {
           "read": "读取",
+          "web": "联网研究",
           "page_draft": "页面草稿",
           "metadata": "元数据",
           "tag": "标签",
@@ -1728,12 +1730,39 @@
         "question": "Wiki 问答",
         "text": "选中文本优化",
         "image": "页面配图生成",
+        "webResearch": "外部联网研究",
         "dialogTitle": "AI 访问 — {email}",
         "dialogDescription": "开关各项能力，修改会自动保存。",
         "saving": "保存中…",
         "loading": "加载中…",
         "loadError": "无法加载 AI 访问设置。",
         "manage": "管理 AI 权限"
+      },
+      "webResearch": {
+        "title": "联网研究",
+        "description": "允许已授权的登录用户以外部来源补充 Wiki 答案。",
+        "enabled": "启用联网研究",
+        "enabledHint": "搜索查询会发送到 Tavily；来源正文会作为不可信内容处理。",
+        "apiKey": "Tavily API 密钥",
+        "apiKeyHint": "密钥会加密保存，之后不会再次显示。",
+        "replaceKey": "留空以保留当前密钥",
+        "allowedDomains": "允许的域名（逗号分隔）",
+        "blockedDomains": "禁止的域名（逗号分隔）",
+        "limits": "每次回答的限额",
+        "maxSearches": "搜索次数",
+        "maxCandidates": "每次搜索的候选来源数",
+        "maxSources": "打开的来源数",
+        "maxChars": "每来源字符数",
+        "timeout": "服务商超时（毫秒）",
+        "privacyNotice": "包含个人信息或机密内容的问题不应使用联网研究。",
+        "save": "保存",
+        "saved": "已保存。",
+        "saveError": "无法保存联网研究设置。",
+        "test": "测试连接",
+        "testQueued": "连接测试已加入队列。",
+        "lastTest": "上次连接测试：{status}",
+        "loading": "正在加载联网研究设置…",
+        "loadError": "无法加载联网研究设置。"
       },
       "index": {
         "rebuild": "重建知识索引",
@@ -1806,7 +1835,9 @@
         "scheduled_ai_job": "定时 AI 任务",
         "wiki_tool_chat": "Wiki 工具对话",
         "text_optimization": "文本优化",
-        "image_generation": "图片生成"
+        "image_generation": "图片生成",
+        "web_research_test": "联网研究连接测试",
+        "web_evidence_capture": "外部网页证据保存"
       },
       "actionStatus": {
         "queued": "排队中",
@@ -2440,6 +2471,10 @@
       "newSession": "新建会话",
       "resizeHandle": "拖动以调整 AI 面板宽度",
       "providerNotice": "你的问题和相关 Wiki 内容可能会发送给系统配置的 AI 平台。",
+      "research": {
+        "enable": "在 Wiki 证据不足时使用外部联网研究",
+        "consent": "我理解该问题将发送给第三方搜索服务商，且不会包含个人信息或机密信息。"
+      },
       "empty": "提出一个基于本 Wiki 内容的问题。",
       "streaming": "生成中…",
       "retrieving": "思考中…",
@@ -2457,7 +2492,13 @@
       "hideThinking": "隐藏思考",
       "showThinking": "显示思考",
       "capacity": "全部 Wiki 内容超出当前模型容量，请使用检索模式。",
-      "citations": "来源",
+      "citations": {
+        "title": "来源",
+        "external": "外部来源",
+        "preserve": "保存证据",
+        "preserving": "保存中…",
+        "preserved": "已保存"
+      },
       "conversationView": {
         "noAnswerYet": "暂无回答。",
         "responseInterrupted": "回复在生成最终答案前中断。",

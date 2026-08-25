@@ -1,7 +1,7 @@
-import type { AiCitation } from '@next-wiki/shared';
+import type { AiCitation, WikiCitation } from '@next-wiki/shared';
 import { linkifyCitationMarkers } from './linkify-citations';
 
-function citation(overrides: Partial<AiCitation>): AiCitation {
+function citation(overrides: Partial<WikiCitation>): AiCitation {
   return {
     pageId: '00000000-0000-4000-8000-000000000001',
     title: 'Guide',
@@ -46,5 +46,13 @@ describe('linkifyCitationMarkers', () => {
   it('builds a /generated/... link for a citation whose spaceSlug is generated', () => {
     const citations = [citation({ path: 'concepts/rrf', spaceSlug: 'generated' })];
     expect(linkifyCitationMarkers('See [S1]', citations)).toBe('See [S1](/generated/concepts/rrf)');
+  });
+
+  it('links a web citation directly to its canonical external URL', () => {
+    const citations: AiCitation[] = [{
+      kind: 'web', sourceId: '00000000-0000-4000-8000-000000000003', title: 'External guide',
+      canonicalUrl: 'https://docs.example.com/guide', provider: 'tavily', retrievedAt: '2026-08-25T00:00:00.000Z',
+    }];
+    expect(linkifyCitationMarkers('See [S1]', citations)).toBe('See [S1](https://docs.example.com/guide)');
   });
 });

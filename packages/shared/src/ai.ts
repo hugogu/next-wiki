@@ -196,6 +196,8 @@ export const aiActionFeatureSchema = z.enum([
   // turns use the canonical `wiki_question` feature and record tool workflow
   // details separately.
   'wiki_tool_chat',
+  'web_research_test',
+  'web_evidence_capture',
 ]);
 export type AiActionFeature = z.infer<typeof aiActionFeatureSchema>;
 export const aiActionStatusSchema = z.enum([
@@ -209,6 +211,8 @@ export const aiActionStatusSchema = z.enum([
 export type AiActionStatus = z.infer<typeof aiActionStatusSchema>;
 export const aiQuestionModeSchema = z.enum(['full', 'retrieval']);
 export type AiQuestionMode = z.infer<typeof aiQuestionModeSchema>;
+export const researchModeSchema = z.enum(['wiki_only', 'wiki_first_web']);
+export type ResearchMode = z.infer<typeof researchModeSchema>;
 export const aiEventTypeSchema = z.enum([
   'status',
   'text_delta',
@@ -539,16 +543,20 @@ export const aiEntitlementUpdateSchema = z.object({
   questionAnsweringEnabled: z.boolean(),
   textOptimizationEnabled: z.boolean(),
   imageGenerationEnabled: z.boolean(),
+  webResearchEnabled: z.boolean().optional(),
 });
 export type AiEntitlementUpdate = z.infer<typeof aiEntitlementUpdateSchema>;
 export const aiEntitlementViewSchema = aiEntitlementUpdateSchema.extend({
   userId: z.string().uuid(),
+  webResearchEnabled: z.boolean(),
   aiEnabled: z.boolean(),
   reasons: z.array(z.string()),
 });
 export type AiEntitlementView = z.infer<typeof aiEntitlementViewSchema>;
 
-export const aiCitationSchema = z.object({
+export const wikiCitationSchema = z.object({
+  // Optional for conversations persisted before WebCitation existed.
+  kind: z.literal('wiki').optional(),
   pageId: z.string().uuid(),
   title: z.string(),
   path: z.string(),
@@ -569,6 +577,19 @@ export const aiCitationSchema = z.object({
   // as 'wiki' (the only space every citation could point to previously).
   spaceSlug: z.string().optional(),
 });
+export type WikiCitation = z.infer<typeof wikiCitationSchema>;
+export const webCitationSchema = z.object({
+  kind: z.literal('web'),
+  sourceId: z.string().uuid(),
+  title: z.string(),
+  canonicalUrl: z.string().url(),
+  provider: z.string(),
+  retrievedAt: z.string().datetime(),
+  publishedAt: z.string().datetime().optional(),
+  contentHash: z.string().optional(),
+});
+export type WebCitation = z.infer<typeof webCitationSchema>;
+export const aiCitationSchema = z.union([wikiCitationSchema, webCitationSchema]);
 export type AiCitation = z.infer<typeof aiCitationSchema>;
 
 /** Lifecycle of capturing a `wiki_question` action into a Raw Conversation
@@ -792,7 +813,7 @@ export const aiConversationDetailSchema = z.object({
 });
 export type AiConversationDetail = z.infer<typeof aiConversationDetailSchema>;
 
-export const aiSearchResultSchema = aiCitationSchema.extend({
+export const aiSearchResultSchema = wikiCitationSchema.extend({
   excerpt: z.string(),
   score: z.number().min(-1).max(1),
   // 023: lets result UIs build a space-correct link (e.g. /spaces/raw/...)
@@ -893,6 +914,12 @@ export const aiQuestionInputSchema = z.object({
   // 026: additive, optional tool-calling request. When omitted or unavailable,
   // the route keeps ordinary Q&A behavior (recoverable fallback).
   tools: aiToolChatOptionSchema.optional(),
+  research: z
+    .object({
+      mode: researchModeSchema,
+      externalResearchConsent: z.boolean(),
+    })
+    .optional(),
 });
 export const aiSelectionSchema = z.object({
   text: z.string().min(1).max(100_000),
@@ -1010,5 +1037,13 @@ export const aiApiErrorCodeSchema = z.enum([
   'PROVIDER_UNAVAILABLE',
   'INVALID_RESPONSE',
   'CANCELLED',
+  'WEB_RESEARCH_UNAVAILABLE',
+  'WEB_RESEARCH_ACCESS_DENIED',
+  'WEB_RESEARCH_CONSENT_REQUIRED',
+  'WEB_RESEARCH_POLICY_BLOCKED',
+  'WEB_RESEARCH_BUDGET_EXCEEDED',
+  'WEB_SOURCE_NOT_FOUND',
+  'WEB_SOURCE_EXPIRED',
+  'WEB_SOURCE_UNCAPTURABLE',
 ]);
 export type AiApiErrorCode = z.infer<typeof aiApiErrorCodeSchema>;

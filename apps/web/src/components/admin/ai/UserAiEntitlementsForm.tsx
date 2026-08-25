@@ -10,6 +10,7 @@ const FIELDS = [
   ['questionAnsweringEnabled', 'admin.ai.entitlement.question'],
   ['textOptimizationEnabled', 'admin.ai.entitlement.text'],
   ['imageGenerationEnabled', 'admin.ai.entitlement.image'],
+  ['webResearchEnabled', 'admin.ai.entitlement.webResearch'],
 ] as const;
 
 type FieldKey = (typeof FIELDS)[number][0];
@@ -41,6 +42,7 @@ export function UserAiEntitlementsForm({ initial }: { initial: AiEntitlementView
       questionAnsweringEnabled: next.questionAnsweringEnabled,
       textOptimizationEnabled: next.textOptimizationEnabled,
       imageGenerationEnabled: next.imageGenerationEnabled,
+      webResearchEnabled: next.webResearchEnabled,
     };
     save.mutate(body, {
       onError: (err: ApiError) => {

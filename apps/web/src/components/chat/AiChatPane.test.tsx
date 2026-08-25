@@ -52,6 +52,7 @@ const entitlements = {
   questionAnsweringEnabled: true,
   textOptimizationEnabled: false,
   imageGenerationEnabled: false,
+  webResearchEnabled: false,
   reasons: [],
 };
 

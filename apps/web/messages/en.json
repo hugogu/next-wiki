@@ -1387,6 +1387,7 @@
         "chat": "Chat capability",
         "embedding": "Embedding capability",
         "image": "Image capability",
+        "webResearch": "Web research",
         "detector": "Model detection",
         "models": "Capability mapping",
         "indexes": "Indexes",
@@ -1441,6 +1442,7 @@
         },
         "category": {
           "read": "Read",
+          "web": "Web research",
           "page_draft": "Page draft",
           "metadata": "Metadata",
           "tag": "Tags",
@@ -1728,12 +1730,39 @@
         "question": "Wiki question answering",
         "text": "Selected-text optimization",
         "image": "Page image generation",
+        "webResearch": "External web research",
         "dialogTitle": "AI access — {email}",
         "dialogDescription": "Toggle each capability on or off. Changes save automatically.",
         "saving": "Saving…",
         "loading": "Loading…",
         "loadError": "Could not load AI access settings.",
         "manage": "Manage AI access"
+      },
+      "webResearch": {
+        "title": "Web research",
+        "description": "Let opted-in signed-in users supplement Wiki answers with external sources.",
+        "enabled": "Enable web research",
+        "enabledHint": "Search queries are sent to Tavily; source text is treated as untrusted.",
+        "apiKey": "Tavily API key",
+        "apiKeyHint": "Stored encrypted and never shown again.",
+        "replaceKey": "Leave empty to keep the current key",
+        "allowedDomains": "Allowed domains (comma separated)",
+        "blockedDomains": "Blocked domains (comma separated)",
+        "limits": "Per-answer limits",
+        "maxSearches": "Searches",
+        "maxCandidates": "Candidates per search",
+        "maxSources": "Opened sources",
+        "maxChars": "Characters per source",
+        "timeout": "Provider timeout (ms)",
+        "privacyNotice": "Do not use external research for questions containing personal or confidential data.",
+        "save": "Save",
+        "saved": "Saved.",
+        "saveError": "Could not save web research settings.",
+        "test": "Test connection",
+        "testQueued": "Connection test queued.",
+        "lastTest": "Last connection test: {status}",
+        "loading": "Loading web research settings…",
+        "loadError": "Could not load web research settings."
       },
       "index": {
         "rebuild": "Rebuild knowledge index",
@@ -1806,7 +1835,9 @@
         "scheduled_ai_job": "Scheduled AI job",
         "wiki_tool_chat": "Wiki tool chat",
         "text_optimization": "Text optimization",
-        "image_generation": "Image generation"
+        "image_generation": "Image generation",
+        "web_research_test": "Web research connection test",
+        "web_evidence_capture": "Web evidence preservation"
       },
       "actionStatus": {
         "queued": "Queued",
@@ -2440,6 +2471,10 @@
       "newSession": "New session",
       "resizeHandle": "Drag to resize the AI panel",
       "providerNotice": "Your question and relevant Wiki content may be sent to the configured AI provider.",
+      "research": {
+        "enable": "Use external web research when Wiki evidence is insufficient",
+        "consent": "I understand that this question will be sent to a third-party search provider. I will not include personal or confidential information."
+      },
       "empty": "Ask a question grounded in this Wiki.",
       "streaming": "Generating…",
       "retrieving": "Thinking…",
@@ -2457,7 +2492,13 @@
       "hideThinking": "Hide thinking",
       "showThinking": "Show thinking",
       "capacity": "The full Wiki is too large for the selected model. Use retrieval mode.",
-      "citations": "Sources",
+      "citations": {
+        "title": "Sources",
+        "external": "External",
+        "preserve": "Preserve",
+        "preserving": "Preserving…",
+        "preserved": "Preserved"
+      },
       "conversationView": {
         "noAnswerYet": "No answer yet.",
         "responseInterrupted": "The response ended before it could produce a final answer.",

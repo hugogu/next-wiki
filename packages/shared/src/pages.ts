@@ -406,6 +406,11 @@ export type AdminPageStats = {
 export const rawSourceSchema = z.object({
   channel: z.string().min(1).max(200).optional(),
   url: z.string().url().optional(),
+  sourceId: z.string().uuid().optional(),
+  title: z.string().min(1).max(500).optional(),
+  provider: z.string().min(1).max(100).optional(),
+  contentHash: z.string().min(16).max(256).optional(),
+  retrievedAt: z.string().datetime().optional(),
   sessionId: z.string().min(1).max(200).optional(),
   command: z.string().min(1).max(10_000).optional(),
   occurredAt: z.string().datetime().optional(),

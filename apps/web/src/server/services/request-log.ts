@@ -37,6 +37,7 @@ export const OUTBOUND_REQUEST_SOURCE_REGISTRY = {
     // "prompt are required", which looks alarming and means the key is fine.
     'image_generation.probe',
   ]),
+  web_research: new Set(['search', 'extract', 'connection_test']),
 } as const;
 
 export type RequestLogSettingsAuditMetadata = {
@@ -51,6 +52,12 @@ type CaptureInput = {
   target: string;
   requestHeaders?: HeadersInit;
   requestBody?: BodyInit | null;
+  /**
+   * Some integrations carry user-controlled content or credentials in every
+   * request. Their audit trail is deliberately status-only at every capture
+   * level, including the administrator's "all" setting.
+   */
+  safeMetadataOnly?: boolean;
 };
 
 type CaptureCompletion = {
@@ -359,9 +366,9 @@ export async function beginOutboundRequestCapture(
   if (!settings.enabled) return null;
   const startedAt = new Date();
   const id = randomUUID();
-  const requestHeaders = headersToPairs(input.requestHeaders);
-  const parsedRequestBody = bodyFromInput(input.requestBody, input.requestHeaders);
-  const requestBody = settings.level === 'all' ? parsedRequestBody : null;
+  const requestHeaders = input.safeMetadataOnly ? [] : headersToPairs(input.requestHeaders);
+  const parsedRequestBody = input.safeMetadataOnly ? null : bodyFromInput(input.requestBody, input.requestHeaders);
+  const requestBody = settings.level === 'all' && !input.safeMetadataOnly ? parsedRequestBody : null;
   const requestModel =
     parsedRequestBody?.encoding === 'utf8' ? jsonObject(parsedRequestBody.data)?.model : undefined;
   const target = new URL(input.target);
@@ -371,9 +378,11 @@ export async function beginOutboundRequestCapture(
       try {
         const completedAt = new Date();
         const response = completion.response;
-        const responseHeaders = response ? headersToPairs(response.headers) : null;
+        const responseHeaders = response && !input.safeMetadataOnly ? headersToPairs(response.headers) : null;
         const responseBody =
-          settings.level === 'all' && response ? await bodyFromResponse(response.clone()) : null;
+          settings.level === 'all' && response && !input.safeMetadataOnly
+            ? await bodyFromResponse(response.clone())
+            : null;
         const usage = usageFromBody(responseBody);
         const error = safeError(completion.error);
         const expiresAt = new Date(
@@ -404,14 +413,14 @@ export async function beginOutboundRequestCapture(
           captureLevel: settings.level,
           expiresAt: expiresAt.toISOString(),
         };
-        if (settings.level !== 'status') {
+        if (settings.level !== 'status' && !input.safeMetadataOnly) {
           payload.targetEncrypted = encryptAiJson(target.toString());
           payload.requestHeadersEncrypted = encryptAiJson(requestHeaders);
           payload.responseHeadersEncrypted = responseHeaders
             ? encryptAiJson(responseHeaders)
             : undefined;
         }
-        if (settings.level === 'all') {
+        if (settings.level === 'all' && !input.safeMetadataOnly) {
           payload.requestBodyEncrypted = requestBody ? encryptAiJson(requestBody) : undefined;
           payload.responseBodyEncrypted = responseBody ? encryptAiJson(responseBody) : undefined;
           payload.errorDetailEncrypted = error.detail ? encryptAiJson(error.detail) : undefined;

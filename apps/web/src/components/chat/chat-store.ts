@@ -5,6 +5,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 import type {
   AiCitation,
   AiQuestionMode,
+  ResearchMode,
   AiToolCallEventPayload,
   AiToolProposalEventPayload,
 } from '@next-wiki/shared';
@@ -74,6 +75,7 @@ export type ChatMessage = {
 type ChatState = {
   sessionId: string;
   mode: AiQuestionMode;
+  researchMode: ResearchMode;
   messages: ChatMessage[];
   open: boolean;
   latestQueuedAt?: string;
@@ -85,6 +87,7 @@ type ChatState = {
    */
   conversationKey: string | null;
   setMode: (mode: AiQuestionMode) => void;
+  setResearchMode: (researchMode: ResearchMode) => void;
   setOpen: (open: boolean) => void;
   add: (message: ChatMessage) => void;
   append: (id: string, text: string) => void;
@@ -149,10 +152,12 @@ export const useChatStore = create<ChatState>()(
     (set) => ({
       sessionId: createChatSessionId(),
       mode: 'retrieval',
+      researchMode: 'wiki_only',
       messages: [],
       open: false,
       conversationKey: null,
       setMode: (mode) => set({ mode }),
+      setResearchMode: (researchMode) => set({ researchMode }),
       setOpen: (open) => set({ open }),
       add: (message) => set((state) => ({ messages: [...state.messages, message] })),
       append: (id, text) => set((state) => ({

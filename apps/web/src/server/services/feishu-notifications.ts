@@ -37,6 +37,7 @@ export async function getProcessingReaction(actionId: string): Promise<Processin
 }
 
 function citationUrl(citation: AiCitation): string {
+  if (citation.kind === 'web') return citation.canonicalUrl;
   return `${env.APP_URL}${getCitationHref(citation)}`;
 }
 

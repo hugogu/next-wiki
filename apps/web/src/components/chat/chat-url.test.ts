@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it, vi } from 'vitest';
-import { chatUrlWithKey, readChatKeyFromUrl, syncChatKeyToUrl, takeArrivalChatKey } from './chat-url';
+import { chatUrlWithKey, readChatKeyFromUrl, readResearchModeFromUrl, syncChatKeyToUrl, takeArrivalChatKey } from './chat-url';
 
 describe('readChatKeyFromUrl', () => {
   it('reads the selected conversation, treating an empty value as none', () => {
@@ -30,6 +30,13 @@ describe('chatUrlWithKey', () => {
   it('drops the parameter when no conversation is loaded', () => {
     expect(chatUrlWithKey('https://wiki.example/w?chat=old&lang=zh', null)).toBe('/w?lang=zh');
     expect(chatUrlWithKey('https://wiki.example/w?chat=old', null)).toBe('/w');
+  });
+
+  it('carries an explicit web-research mode only with an active chat address', () => {
+    expect(chatUrlWithKey('https://wiki.example/w', 'abc', 'wiki_first_web')).toBe('/w?chat=abc&research=wiki_first_web');
+    expect(chatUrlWithKey('https://wiki.example/w?chat=abc&research=wiki_first_web', null, 'wiki_first_web')).toBe('/w');
+    expect(readResearchModeFromUrl('?research=wiki_first_web')).toBe('wiki_first_web');
+    expect(readResearchModeFromUrl('?research=unexpected')).toBeNull();
   });
 });
 

@@ -55,6 +55,10 @@ import {
   scheduledAiJobRunStatusEnum,
   scheduledAiJobTriggerEnum,
   aiQuestionModeEnum,
+  webResearchProviderEnum,
+  webResearchSourceStatusEnum,
+  webResearchAttemptKindEnum,
+  webResearchAttemptOutcomeEnum,
   aiEventTypeEnum,
   searchBehaviorActionEnum,
   searchCapabilityIdEnum,
@@ -1335,6 +1339,24 @@ export const aiSettings = pgTable('ai_settings', {
   cloudflareDetectorEnabled: boolean('cloudflare_detector_enabled').notNull().default(false),
   cloudflareAccountId: text('cloudflare_account_id'),
   cloudflareApiTokenEncrypted: text('cloudflare_api_token_encrypted'),
+  // Optional outbound web-research connector. Its credentials are write-only
+  // and encrypted with the same application key as other AI secrets.
+  webResearchEnabled: boolean('web_research_enabled').notNull().default(false),
+  webResearchProvider: webResearchProviderEnum('web_research_provider'),
+  webResearchApiKeyEncrypted: text('web_research_api_key_encrypted'),
+  webResearchAllowedDomains: text('web_research_allowed_domains').array().notNull().default([]),
+  webResearchBlockedDomains: text('web_research_blocked_domains').array().notNull().default([]),
+  webResearchMaxSearchesPerTurn: integer('web_research_max_searches_per_turn').notNull().default(2),
+  webResearchMaxCandidatesPerSearch: integer('web_research_max_candidates_per_search')
+    .notNull()
+    .default(5),
+  webResearchMaxOpenedSourcesPerTurn: integer('web_research_max_opened_sources_per_turn')
+    .notNull()
+    .default(3),
+  webResearchMaxSourceChars: integer('web_research_max_source_chars').notNull().default(16_000),
+  webResearchTimeoutMs: integer('web_research_timeout_ms').notNull().default(10_000),
+  webResearchLastTestAt: timestamp('web_research_last_test_at', { withTimezone: true }),
+  webResearchLastTestStatus: text('web_research_last_test_status'),
   // 026: Wiki AI tool-runtime tuning, admin-editable from Bots > General. These
   // override the hard-coded planner defaults; the per-provider tool policy's
   // max_calls_per_turn still takes precedence over tool_max_calls when set.
@@ -1463,6 +1485,7 @@ export const userAiEntitlements = pgTable('user_ai_entitlements', {
   questionAnsweringEnabled: boolean('question_answering_enabled').notNull().default(false),
   textOptimizationEnabled: boolean('text_optimization_enabled').notNull().default(false),
   imageGenerationEnabled: boolean('image_generation_enabled').notNull().default(false),
+  webResearchEnabled: boolean('web_research_enabled').notNull().default(false),
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });
@@ -1711,6 +1734,75 @@ export const aiActionInputs = pgTable('ai_action_inputs', {
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
 });
+
+/** Ephemeral, action-scoped web evidence. Full content is encrypted and is
+ * deleted after 24 hours unless the user explicitly captures it as Raw source
+ * material. */
+export const aiWebSources = pgTable(
+  'ai_web_sources',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    aiActionId: uuid('ai_action_id')
+      .notNull()
+      .references(() => aiActions.id, { onDelete: 'cascade' }),
+    originatingToolCallId: uuid('originating_tool_call_id'),
+    provider: webResearchProviderEnum('provider').notNull(),
+    providerSourceId: text('provider_source_id'),
+    canonicalUrl: text('canonical_url').notNull(),
+    title: text('title').notNull(),
+    snippet: text('snippet'),
+    relevanceScore: integer('relevance_score'),
+    publishedAt: timestamp('published_at', { withTimezone: true }),
+    retrievedAt: timestamp('retrieved_at', { withTimezone: true }).notNull().defaultNow(),
+    contentEncrypted: text('content_encrypted'),
+    contentHash: text('content_hash'),
+    status: webResearchSourceStatusEnum('status').notNull().default('candidate'),
+    failureCode: text('failure_code'),
+    providerRequestId: text('provider_request_id'),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    capturedRawPageId: uuid('captured_raw_page_id').references(() => pages.id, {
+      onDelete: 'set null',
+    }),
+    capturedRawRevisionId: uuid('captured_raw_revision_id').references(() => pageRevisions.id, {
+      onDelete: 'set null',
+    }),
+    capturedAt: timestamp('captured_at', { withTimezone: true }),
+    capturedBy: uuid('captured_by').references(() => users.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    actionIdx: index('ai_web_sources_action_idx').on(t.aiActionId),
+    expiresIdx: index('ai_web_sources_expires_idx').on(t.expiresAt),
+    actionUrlUnique: uniqueIndex('ai_web_sources_action_url_unique').on(t.aiActionId, t.canonicalUrl),
+  }),
+);
+
+/** Privacy-safe operational history. It never records a query, URL, body, or
+ * credential and outlives an optional conversation/action deletion. */
+export const aiWebResearchAttempts = pgTable(
+  'ai_web_research_attempts',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    aiActionId: uuid('ai_action_id').references(() => aiActions.id, { onDelete: 'set null' }),
+    actorUserId: uuid('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+    provider: webResearchProviderEnum('provider').notNull(),
+    kind: webResearchAttemptKindEnum('kind').notNull(),
+    outcome: webResearchAttemptOutcomeEnum('outcome').notNull(),
+    policyDisposition: text('policy_disposition').notNull(),
+    searchCount: integer('search_count').notNull().default(0),
+    openCount: integer('open_count').notNull().default(0),
+    sourceChars: integer('source_chars').notNull().default(0),
+    providerRequestId: text('provider_request_id'),
+    latencyMs: integer('latency_ms'),
+    creditsUsed: integer('credits_used'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    actionIdx: index('ai_web_research_attempts_action_idx').on(t.aiActionId),
+    createdIdx: index('ai_web_research_attempts_created_idx').on(t.createdAt),
+  }),
+);
 
 export const aiActionEvents = pgTable(
   'ai_action_events',

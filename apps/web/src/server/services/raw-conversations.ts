@@ -200,7 +200,9 @@ function appendTurnMarkdown(lines: string[], conversation: ReconstructedConversa
   }
   if (conversation.citations.length > 0) {
     lines.push(`${heading}# Citations`, '');
-    for (const citation of conversation.citations) lines.push(`- ${citation.title} (${citation.path})`);
+    for (const citation of conversation.citations) {
+      lines.push(`- ${citation.title} (${citation.kind === 'web' ? citation.canonicalUrl : citation.path})`);
+    }
     lines.push('');
   }
   if (conversation.toolCalls.length > 0) {

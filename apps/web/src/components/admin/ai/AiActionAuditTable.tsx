@@ -55,6 +55,8 @@ const FEATURE_LABELS: Record<AiActionFeature, TranslationKey> = {
   wiki_tool_chat: 'admin.ai.actionFeature.wiki_tool_chat',
   text_optimization: 'admin.ai.actionFeature.text_optimization',
   image_generation: 'admin.ai.actionFeature.image_generation',
+  web_research_test: 'admin.ai.actionFeature.web_research_test',
+  web_evidence_capture: 'admin.ai.actionFeature.web_evidence_capture',
 };
 
 const STATUS_LABELS: Record<AiActionStatus, TranslationKey> = {

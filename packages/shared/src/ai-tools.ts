@@ -36,6 +36,7 @@ export const BUILTIN_TOOL_PROVIDER_KEY = 'next-wiki';
 /** Coarse capability grouping used for Admin policy and risk defaults. */
 export const aiToolCategorySchema = z.enum([
   'read',
+  'web',
   'page_draft',
   'metadata',
   'tag',

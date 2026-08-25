@@ -1,7 +1,7 @@
-import type { AiCitation } from '@next-wiki/shared';
+import type { AiCitation, WikiCitation } from '@next-wiki/shared';
 import { toFeishuCitations } from './feishu-notifications';
 
-function citation(overrides: Partial<AiCitation>): AiCitation {
+function citation(overrides: Partial<WikiCitation>): AiCitation {
   return {
     pageId: '00000000-0000-4000-8000-000000000001',
     title: 'Guide',
@@ -35,5 +35,13 @@ describe('toFeishuCitations (citation URL space-correctness)', () => {
   it('links a generated-space citation under /generated/...', () => {
     const [result] = toFeishuCitations([citation({ path: 'concepts/rrf', spaceSlug: 'generated' })]);
     expect(result?.url).toBe('http://localhost:3000/generated/concepts/rrf');
+  });
+
+  it('keeps a web citation on the source canonical URL', () => {
+    const [result] = toFeishuCitations([{
+      kind: 'web', sourceId: '00000000-0000-4000-8000-000000000003', title: 'External guide',
+      canonicalUrl: 'https://docs.example.com/guide', provider: 'tavily', retrievedAt: '2026-08-25T00:00:00.000Z',
+    }]);
+    expect(result?.url).toBe('https://docs.example.com/guide');
   });
 });

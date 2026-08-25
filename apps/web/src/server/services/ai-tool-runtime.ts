@@ -500,6 +500,23 @@ function formatToolResultPayload(
       data: { ...metadata, contentSource: 'verbatim page source follows' },
     })}\n<page_source>\n${contentSource}\n</page_source>`;
   }
+  if (
+    toolName === 'web_open' &&
+    data !== null &&
+    typeof data === 'object' &&
+    typeof (data as { source?: { content?: unknown } }).source?.content === 'string'
+  ) {
+    const { content, ...source } = (data as { source: { content: string } & Record<string, unknown> }).source;
+    return `${JSON.stringify({
+      summary: result.summary,
+      data: {
+        source: {
+          ...source,
+          content: 'untrusted external source content follows',
+        },
+      },
+    })}\n<untrusted_external_source>\n${content}\n</untrusted_external_source>`;
+  }
   return JSON.stringify({ summary: result.summary, data });
 }
 
@@ -557,6 +574,7 @@ function citationFromCandidate(value: unknown): AiCitation | null {
   const revisionHash = typeof candidate.revisionHash === 'string' ? candidate.revisionHash : null;
   if (!pageId || !title || !path || !revisionId || !revisionHash) return null;
   return {
+    kind: 'wiki',
     pageId,
     title,
     path,
@@ -572,6 +590,25 @@ export function collectToolCitations(toolName: string, data: unknown): AiCitatio
   // actually read. Including every candidate made the final Sources list noisy
   // and implied support that was never inspected. get_page is the content-
   // bearing read tool; baseline RAG citations are handled separately.
+  if (toolName === 'web_open') {
+    const source = (data as { source?: Record<string, unknown> } | null)?.source;
+    if (!source) return [];
+    const sourceId = typeof source.sourceId === 'string' ? source.sourceId : null;
+    const title = typeof source.title === 'string' ? source.title : null;
+    const canonicalUrl = typeof source.canonicalUrl === 'string' ? source.canonicalUrl : null;
+    const provider = typeof source.provider === 'string' ? source.provider : null;
+    const retrievedAt = typeof source.retrievedAt === 'string' ? source.retrievedAt : null;
+    if (!sourceId || !title || !canonicalUrl || !provider || !retrievedAt) return [];
+    return [{
+      kind: 'web',
+      sourceId,
+      title,
+      canonicalUrl,
+      provider,
+      retrievedAt,
+      ...(typeof source.contentHash === 'string' ? { contentHash: source.contentHash } : {}),
+    }];
+  }
   if (toolName !== 'get_page') return [];
   const root = data as { items?: unknown[] } | null;
   const values = Array.isArray(root?.items) ? root.items : [data];
@@ -605,8 +642,8 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   const citations = new Map<string, AiCitation>();
   const loopStartedAt = Date.now();
   let iterations = 0;
-  // Read tools are idempotent within a turn, so an identical repeat can only
-  // return what the cache already holds. Replaying it costs the model a step
+  // Read and action-scoped web tools are idempotent within a turn, so an
+  // identical repeat can only return what the cache already holds. Replaying it costs the model a step
   // instead of a database round trip, an audit row, and a slot in the call
   // budget — and makes the repetition visible to it in-band.
   const readResults = new Map<string, string>();
@@ -710,7 +747,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       }
 
       const signature = toolCallSignature(tool.name, planned.arguments);
-      const cached = tool.category === 'read' ? readResults.get(signature) : undefined;
+      const cached = tool.category === 'read' || tool.category === 'web' ? readResults.get(signature) : undefined;
       if (cached !== undefined) {
         repeatedCalls += 1;
         logger.warn('tool call repeated with identical arguments', {
@@ -769,6 +806,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         workflowId: params.workflowId,
         toolCallId: call.id,
         actionId: params.actionId,
+        originalQuestion: params.question,
         conversation: state.conversation,
         contentWindowChars: pageContentWindowFor(resultMaxChars),
         scheduledScope: params.scheduledScope,
@@ -779,7 +817,12 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
 
       if (result.ok) {
         for (const citation of collectToolCitations(tool.name, result.data)) {
-          citations.set(`${citation.pageId}:${citation.revisionId}`, citation);
+          citations.set(
+            citation.kind === 'web'
+              ? `${citation.sourceId}:${citation.contentHash ?? citation.retrievedAt}`
+              : `${citation.pageId}:${citation.revisionId}`,
+            citation,
+          );
         }
         const resultHash = result.data !== undefined ? hashResult(result.data) : null;
         const rendered = formatToolResultForModel(tool.name, result, resultMaxChars);
@@ -831,7 +874,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         state.transcript.push(rendered.text);
         // Only successes: a read that failed may well succeed on a retry, so
         // replaying its error would strand the model on a transient fault.
-        if (tool.category === 'read') readResults.set(signature, rendered.text);
+        if (tool.category === 'read' || tool.category === 'web') readResults.set(signature, rendered.text);
       } else {
         await failToolCall(call.id, {
           errorCode: result.errorCode ?? 'TOOL_FAILED',

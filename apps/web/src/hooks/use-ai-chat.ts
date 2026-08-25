@@ -9,6 +9,7 @@ import {
   type AiActionAccepted,
   type AiCitation,
   type AiQuestionMode,
+  type ResearchMode,
   type AiToolCallEventPayload,
   type AiToolProposalEventPayload,
 } from '@next-wiki/shared';
@@ -121,6 +122,7 @@ export function buildToolEnabledQuestionPayload(input: {
   sessionId: string;
   currentPage?: { pageId: string; revisionId: string };
   messages: ChatMessage[];
+  research?: { mode: ResearchMode; externalResearchConsent: boolean };
 }) {
   return {
     question: input.question,
@@ -129,6 +131,7 @@ export function buildToolEnabledQuestionPayload(input: {
     currentPage: input.currentPage,
     conversation: buildConversationContext(input.messages),
     tools: { enabled: true, requestedReview: 'admin_review' as const },
+    research: input.research ?? { mode: 'wiki_only', externalResearchConsent: false },
   };
 }
 
@@ -199,7 +202,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
     }
   }
 
-  async function ask(question: string, mode: AiQuestionMode) {
+  async function ask(question: string, mode: AiQuestionMode, research: { mode: ResearchMode; externalResearchConsent: boolean } = { mode: 'wiki_only', externalResearchConsent: false }) {
     const userId = uuid();
     const assistantId = uuid();
     stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
@@ -259,6 +262,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
       sessionId: store.sessionId,
       currentPage,
       messages: store.messages,
+      research,
     });
 
     try {

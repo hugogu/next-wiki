@@ -24,6 +24,7 @@ import { runSemanticSearchAction } from '@/server/services/ai-retrieval';
 import { runToolEnabledWikiQuestionAction, runWikiQuestionAction } from './ai-question';
 import { runTextOptimizationAction } from './ai-optimization';
 import { runImageGenerationAction } from './ai-image-generation';
+import { runWebResearchTestAction } from './web-research';
 import { runTransferExport } from './transfer-export';
 import { runTransferPreview } from './transfer-preview';
 import { runTransferImport } from './transfer-import';
@@ -69,6 +70,7 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   registerAiActionHandler('wiki_tool_chat', runToolEnabledWikiQuestionAction);
   registerAiActionHandler('text_optimization', runTextOptimizationAction);
   registerAiActionHandler('image_generation', runImageGenerationAction);
+  registerAiActionHandler('web_research_test', runWebResearchTestAction);
   // Scheduled actions are invoked only by the durable scheduled-run worker.
   registerAiActionHandler('scheduled_ai_job', runToolEnabledWikiQuestionAction);
   for (const queue of Object.values(QUEUES)) {

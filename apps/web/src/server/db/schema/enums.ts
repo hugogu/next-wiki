@@ -184,6 +184,8 @@ export const aiActionFeatureEnum = pgEnum('ai_action_feature', [
   'image_generation',
   // 026: legacy feature value for tool-enabled Wiki questions.
   'wiki_tool_chat',
+  'web_research_test',
+  'web_evidence_capture',
 ]);
 export const aiActionStatusEnum = pgEnum('ai_action_status', [
   'queued',
@@ -213,6 +215,29 @@ export const scheduledAiJobTriggerEnum = pgEnum('scheduled_ai_job_trigger', [
   'recovery',
 ]);
 export const aiQuestionModeEnum = pgEnum('ai_question_mode', ['full', 'retrieval']);
+export const webResearchProviderEnum = pgEnum('web_research_provider', ['tavily']);
+export const webResearchSourceStatusEnum = pgEnum('web_research_source_status', [
+  'candidate',
+  'opened',
+  'failed',
+  'captured',
+  'expired',
+]);
+export const webResearchAttemptKindEnum = pgEnum('web_research_attempt_kind', [
+  'search',
+  'open',
+  'connection_test',
+  'capture',
+]);
+export const webResearchAttemptOutcomeEnum = pgEnum('web_research_attempt_outcome', [
+  'succeeded',
+  'denied',
+  'blocked',
+  'cancelled',
+  'timed_out',
+  'rate_limited',
+  'failed',
+]);
 export const aiEventTypeEnum = pgEnum('ai_event_type', [
   'status',
   'text_delta',
@@ -498,6 +523,7 @@ export const aiToolActivationStatusEnum = pgEnum('ai_tool_activation_status', [
 ]);
 export const aiToolCategoryEnum = pgEnum('ai_tool_category', [
   'read',
+  'web',
   'page_draft',
   'metadata',
   'tag',
