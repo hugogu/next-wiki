@@ -83,7 +83,10 @@ from inactive external MCP configuration.
 ## Accessibility and localization
 
 Mode selection, disclosure, source grouping, external-link label, capture
-state, and admin errors must have localized keys. Controls have descriptive
+state, and admin errors must have localized keys. The first web-enabled question
+requires explicit disclosure confirmation; cancelling creates no action or
+external request, and confirmation is remembered for the current browser
+session and account. Controls have descriptive
 accessible labels and keyboard operation. Status changes use existing polite
 live-region/progress patterns where available; color alone never conveys whether
 a source is Wiki, external, eligible, or failed.

@@ -72,8 +72,9 @@ or durable source record.
    Expected: zero connector calls.
 4. Select Wiki first + web. Before sending the first request, verify the
    disclosure identifies the service and says the minimum query leaves the
-   Wiki. Dismiss it once; expected: no question action/external call. Confirm
-   it on the next attempt.
+   Wiki. Cancel it once; expected: no question action/external call. Confirm
+   it on the next attempt, then verify subsequent questions in this browser
+   session do not show the disclosure again.
 5. Ask a question intentionally absent or stale in the Wiki. With a fixture or
    approved live local key, expect bounded search/open progress and a response
    within 45 seconds or a clear recoverable outcome.

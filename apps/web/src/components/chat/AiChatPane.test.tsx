@@ -43,7 +43,12 @@ vi.mock('./reconstruct-session', () => ({
   recoverSessionFromServer: vi.fn(),
 }));
 
-import { AiChatPane, aiChatPaneClassName, shouldPersistAnonymousChatSnapshot } from './AiChatPane';
+import {
+  AiChatPane,
+  aiChatPaneClassName,
+  shouldPersistAnonymousChatSnapshot,
+  webResearchConsentStorageKey,
+} from './AiChatPane';
 import { buildMessagesFromDetail } from './load-conversation';
 
 const entitlements = {
@@ -123,6 +128,13 @@ describe('AiChatPane viewport modes', () => {
     expect(html).toContain('ai.chat.retrievedPages');
     expect(html).toContain('Payments');
     expect(html).toContain('ai.chat.streaming');
+  });
+});
+
+describe('web research consent', () => {
+  it('scopes the browser-session consent key to the signed-in user', () => {
+    expect(webResearchConsentStorageKey('user-1')).toBe('next-wiki:ai-web-research-consent:user-1');
+    expect(webResearchConsentStorageKey('user-2')).not.toBe(webResearchConsentStorageKey('user-1'));
   });
 });
 

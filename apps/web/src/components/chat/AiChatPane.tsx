@@ -7,6 +7,7 @@ import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
 import { useResizableWidth } from '@/hooks/use-resizable-width';
 import { Button } from '@/components/ui/Button';
+import { ModalDialog } from '@/components/ui/ModalDialog';
 import { useTranslation } from '@/i18n/client';
 import {
   ChevronRightIcon,
@@ -43,6 +44,36 @@ const AI_CHAT_DEFAULT_WIDTH = 384;
 const AI_CHAT_MIN_WIDTH = 320;
 const AI_CHAT_MAX_WIDTH = 720;
 const ANONYMOUS_HISTORY_SAVE_DELAY_MS = 500;
+const WEB_RESEARCH_CONSENT_STORAGE_PREFIX = 'next-wiki:ai-web-research-consent:';
+
+export function webResearchConsentStorageKey(userId: string): string {
+  return `${WEB_RESEARCH_CONSENT_STORAGE_PREFIX}${userId}`;
+}
+
+function readWebResearchConsent(userId: string): boolean {
+  try {
+    return sessionStorage.getItem(webResearchConsentStorageKey(userId)) === 'confirmed';
+  } catch {
+    return false;
+  }
+}
+
+function saveWebResearchConsent(userId: string): void {
+  try {
+    sessionStorage.setItem(webResearchConsentStorageKey(userId), 'confirmed');
+  } catch {
+    // A restricted browser may not allow session storage; the in-memory state
+    // still protects this mounted pane for the remainder of the session.
+  }
+}
+
+function clearWebResearchConsent(userId: string): void {
+  try {
+    sessionStorage.removeItem(webResearchConsentStorageKey(userId));
+  } catch {
+    // Consent persistence is optional when browser storage is disabled.
+  }
+}
 
 function readChatScrollTop(key: string): number {
   try {
@@ -107,6 +138,8 @@ export function AiChatPane({
     getAnonymousChatHistoryStatus,
   );
   const [question, setQuestion] = useState('');
+  const [webResearchConsent, setWebResearchConsent] = useState(false);
+  const [pendingResearchQuestion, setPendingResearchQuestion] = useState<string | null>(null);
   const [chatUrlSettled, setChatUrlSettled] = useState(false);
   const [internalMaximized, setInternalMaximized] = useState(false);
   const maximized = maximizedProp ?? internalMaximized;
@@ -212,6 +245,12 @@ export function AiChatPane({
       useChatStore.getState().setResearchMode(
         externalResearchEnabled && researchMode === 'wiki_first_web' ? researchMode : effectiveResearchMode,
       );
+      if (externalResearchEnabled) {
+        setWebResearchConsent(readWebResearchConsent(entitlements.userId));
+      } else {
+        setWebResearchConsent(false);
+        clearWebResearchConsent(entitlements.userId);
+      }
       setRehydrated(true);
       // After rehydration, reconcile any assistant message that was marked
       // failed client-side with the authoritative server state. The server
@@ -252,7 +291,7 @@ export function AiChatPane({
     return () => {
       cancelled = true;
     };
-  }, [effectiveResearchMode, externalResearchEnabled]);
+  }, [effectiveResearchMode, entitlements.userId, externalResearchEnabled]);
 
   // Arriving on a `?chat=` link loads that conversation over whatever this tab
   // had. It runs before the mirror below starts, so a shared link never strips
@@ -337,6 +376,33 @@ export function AiChatPane({
   }, []);
 
   const formatDate = (value: string) => new Date(value).toLocaleString(locale);
+
+  const askQuestion = (value: string) => {
+    const trimmed = value.trim();
+    if (!trimmed || chat.running) return;
+    if (externalResearchEnabled && !webResearchConsent) {
+      setPendingResearchQuestion(trimmed);
+      return;
+    }
+    setQuestion('');
+    void chat.ask(trimmed, 'retrieval', {
+      mode: effectiveResearchMode,
+      externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
+    });
+  };
+
+  const confirmWebResearch = () => {
+    const value = pendingResearchQuestion;
+    if (!value) return;
+    saveWebResearchConsent(entitlements.userId);
+    setWebResearchConsent(true);
+    setPendingResearchQuestion(null);
+    setQuestion('');
+    void chat.ask(value, 'retrieval', {
+      mode: effectiveResearchMode,
+      externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
+    });
+  };
 
   // If the EventSource silently stalls (proxy/VPN dropped the connection and
   // the browser did not reconnect), poll the authoritative server state for the
@@ -514,10 +580,7 @@ export function AiChatPane({
                 onClick={() => {
                   const index = chat.messages.findIndex((item) => item.id === message.id);
                   const previous = index > 0 ? chat.messages[index - 1] : null;
-                  if (previous?.role === 'user') void chat.ask(previous.text, 'retrieval', {
-                    mode: effectiveResearchMode,
-                    externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
-                  });
+                  if (previous?.role === 'user') askQuestion(previous.text);
                 }}
               >
                 {t('ai.chat.retry')}
@@ -531,13 +594,7 @@ export function AiChatPane({
         className="relative flex shrink-0 items-end gap-sm border-t border-border p-md"
         onSubmit={(event) => {
           event.preventDefault();
-          const value = question.trim();
-          if (!value || chat.running) return;
-          setQuestion('');
-          void chat.ask(value, 'retrieval', {
-            mode: effectiveResearchMode,
-            externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
-          });
+          askQuestion(question);
         }}
       >
         {externalResearchEnabled && (
@@ -567,6 +624,21 @@ export function AiChatPane({
           </Button>
         </Tooltip>
       </form>
+      {pendingResearchQuestion && (
+        <ModalDialog
+          title={t('ai.chat.research.enable')}
+          description={t('ai.chat.research.consent')}
+          onClose={() => setPendingResearchQuestion(null)}
+          maxWidth="max-w-md"
+        >
+          <div className="flex justify-end gap-sm">
+            <Button variant="secondary" onClick={() => setPendingResearchQuestion(null)}>
+              {t('common.actions.cancel')}
+            </Button>
+            <Button onClick={confirmWebResearch}>{t('common.actions.confirm')}</Button>
+          </div>
+        </ModalDialog>
+      )}
     </aside>
   );
 }
