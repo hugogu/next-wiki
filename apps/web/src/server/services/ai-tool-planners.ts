@@ -7,6 +7,7 @@ import {
   type TextGenerationMessage,
 } from '@/server/ai/types';
 import { DomainError } from '@/server/errors';
+import { logger } from '@/server/logger';
 import type { ToolDefinition } from '@/server/services/ai-tool-registry';
 import type { ToolPlanStep, ToolPlanner, ToolTurnState } from '@/server/services/ai-tool-runtime';
 import {
@@ -62,26 +63,45 @@ export function createTextProtocolPlanner(deps: PlannerDeps): ToolPlanner {
   return async (state: ToolTurnState): Promise<ToolPlanStep> => {
     const basePrompt = buildPlannerUserPrompt(state);
     let previousOutput = '';
+    let lastFinishReason: string | undefined;
     for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
       const retryInstruction = attempt > 0
         ? (isEmptyPlannerOutput(previousOutput) ? EMPTY_PLANNER_RESPONSE_RETRY_INSTRUCTION : RETRY_INSTRUCTION)
         : '';
       const prompt = `${basePrompt}${retryInstruction}`;
-      const output = await streamPlainText(deps, [{ role: 'user', content: prompt }], prompt);
-      previousOutput = output;
-      const parsed = parseToolPlan(output);
+      const response = await streamPlainText(deps, [{ role: 'user', content: prompt }], prompt);
+      previousOutput = response.output;
+      lastFinishReason = response.finishReason;
+      const parsed = parseToolPlan(response.output);
       if (parsed.kind === 'tool_calls') {
-        const taggedThinking = extractTaggedThinking(output);
+        const taggedThinking = extractTaggedThinking(response.output);
         if (taggedThinking) await deps.onReasoning(taggedThinking);
       }
       if (parsed.kind !== 'invalid_tool_calls') return parsed;
+      logger.warn('tool planner returned no actionable output', {
+        actionId: deps.actionId,
+        modelExternalId: deps.modelExternalId,
+        attempt: attempt + 1,
+        finishReason: response.finishReason ?? null,
+        outputBytes: Buffer.byteLength(response.output),
+        reasoningBytes: response.reasoningBytes,
+      });
     }
-    throw new DomainError('INVALID_RESPONSE', 'The AI provider repeatedly returned an invalid tool call.');
+    throw new DomainError(
+      'INVALID_RESPONSE',
+      noActionablePlannerOutputMessage(lastFinishReason),
+    );
   };
 }
 
 function isEmptyPlannerOutput(output: string): boolean {
   return output.trim() === '' || /^\s*<think>[\s\S]*<\/think>\s*$/i.test(output);
+}
+
+function noActionablePlannerOutputMessage(finishReason?: string): string {
+  return finishReason === 'length'
+    ? 'The AI provider ran out of output before returning an answer or tool call. Try again or select a model with more output capacity.'
+    : 'The AI provider returned no valid answer or tool call after several attempts. Try again or select a model with reliable tool calling.';
 }
 
 /**
@@ -96,6 +116,8 @@ export function createNativeToolPlanner(
     const prompt = buildPlannerUserPrompt(state);
     const definitions = deps.tools(state).map(toNeutralDefinition);
     let text = '';
+    let finishReason: string | undefined;
+    let reasoningBytes = 0;
     const calls: NeutralToolCall[] = [];
     try {
       for await (const event of streamTextWithRetry(
@@ -114,9 +136,13 @@ export function createNativeToolPlanner(
         { signal: deps.abortSignal },
       )) {
         if (event.type === 'delta') text += event.text;
-        else if (event.type === 'reasoning_delta') await deps.onReasoning(event.text);
+        else if (event.type === 'reasoning_delta') {
+          reasoningBytes += Buffer.byteLength(event.text);
+          await deps.onReasoning(event.text);
+        }
         else if (event.type === 'tool_call') calls.push(event.call);
         else if (event.type === 'usage') deps.onUsage(event);
+        else if (event.type === 'done') finishReason = event.finishReason;
       }
     } catch (error) {
       throw toPlannerError(error);
@@ -140,7 +166,14 @@ export function createNativeToolPlanner(
     // enters the same governed tool loop as a native call.
     const parsed = parseToolPlan(text);
     if (parsed.kind === 'invalid_tool_calls') {
-      throw new DomainError('INVALID_RESPONSE', 'The AI provider returned an invalid tool call.');
+      logger.warn('native tool planner returned no actionable output', {
+        actionId: deps.actionId,
+        modelExternalId: deps.modelExternalId,
+        finishReason: finishReason ?? null,
+        outputBytes: Buffer.byteLength(text),
+        reasoningBytes,
+      });
+      throw new DomainError('INVALID_RESPONSE', noActionablePlannerOutputMessage(finishReason));
     }
     return parsed;
   };
@@ -162,8 +195,10 @@ async function streamPlainText(
   deps: PlannerDeps,
   messages: TextGenerationMessage[],
   prompt: string,
-): Promise<string> {
+): Promise<{ output: string; finishReason?: string; reasoningBytes: number }> {
   let output = '';
+  let finishReason: string | undefined;
+  let reasoningBytes = 0;
   try {
     for await (const event of streamTextWithRetry(
       () =>
@@ -180,13 +215,17 @@ async function streamPlainText(
       { signal: deps.abortSignal },
     )) {
       if (event.type === 'delta') output += event.text;
-      else if (event.type === 'reasoning_delta') await deps.onReasoning(event.text);
+      else if (event.type === 'reasoning_delta') {
+        reasoningBytes += Buffer.byteLength(event.text);
+        await deps.onReasoning(event.text);
+      }
       else if (event.type === 'usage') deps.onUsage(event);
+      else if (event.type === 'done') finishReason = event.finishReason;
     }
   } catch (error) {
     throw toPlannerError(error);
   }
-  return output;
+  return { output, finishReason, reasoningBytes };
 }
 
 function toPlannerError(error: unknown): AiProviderError {

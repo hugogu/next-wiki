@@ -22,10 +22,24 @@ export async function startAiProviderFixture(options: {
    * text tool protocol through the same fixture that serves native calls, so
    * both planners can be compared on one scenario. */
   textResponse?: string;
+  /** Per-request text responses for retry scenarios. Once exhausted, the last
+   * response remains in effect so a test cannot accidentally turn into an
+   * unbounded empty stream. */
+  textResponses?: string[];
 } = {}) {
   const requests: Array<{ path: string; body: unknown }> = [];
   const dimensions = options.embeddingDimensions ?? 3;
   const toolMode = options.toolMode ?? 'none';
+  let textResponseIndex = 0;
+  const nextTextResponse = () => {
+    const responses = options.textResponses;
+    if (responses?.length) {
+      const index = Math.min(textResponseIndex, responses.length - 1);
+      textResponseIndex += 1;
+      return responses[index]!;
+    }
+    return options.textResponse ?? 'fixture answer';
+  };
   const server = createServer(async (request, response) => {
     let raw = '';
     for await (const chunk of request) raw += chunk;
@@ -95,7 +109,7 @@ export async function startAiProviderFixture(options: {
         );
         return response.end();
       }
-      const anthropicText = options.textResponse ?? 'fixture answer';
+      const anthropicText = nextTextResponse();
       response.write(
         `data: ${JSON.stringify({ type: 'content_block_delta', delta: { type: 'text_delta', text: anthropicText } })}\n\n`,
       );
@@ -120,7 +134,7 @@ export async function startAiProviderFixture(options: {
         for (const frame of openAiToolFrames(toolMode)) response.write(`data: ${frame}\n\n`);
         return response.end('data: [DONE]\n\n');
       }
-      const text = options.textResponse ?? 'fixture answer';
+      const text = nextTextResponse();
       response.write(`data: ${JSON.stringify({ choices: [{ delta: { content: text } }] })}\n\n`);
       response.write(`data: ${JSON.stringify({ choices: [{ delta: {}, finish_reason: 'stop' }] })}\n\n`);
       return response.end('data: [DONE]\n\n');

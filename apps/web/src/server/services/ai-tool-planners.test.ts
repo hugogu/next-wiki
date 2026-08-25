@@ -130,6 +130,26 @@ describe('planner equivalence', () => {
     }
   });
 
+  it('retries a reasoning-only text-planner response before accepting a tool call', async () => {
+    const fixture = await startAiProviderFixture({
+      textResponses: ['', TEXT_PROTOCOL_TOOL_BLOCK],
+    });
+    try {
+      const step = await createTextProtocolPlanner(deps(fixture.baseUrl, [], []))(STATE);
+
+      expect(step).toMatchObject({ kind: 'tool_calls' });
+      expect(fixture.requests).toHaveLength(2);
+      const retryRequest = fixture.requests[1]?.body as {
+        messages?: Array<{ role?: string; content?: string }>;
+      };
+      expect(retryRequest.messages?.at(-1)?.content).toContain(
+        'previous response contained only hidden reasoning',
+      );
+    } finally {
+      await fixture.close();
+    }
+  });
+
   it('offers the same tool catalogue in both protocols', async () => {
     const fixture = await startAiProviderFixture({ toolMode: 'single' });
     try {
