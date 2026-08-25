@@ -94,6 +94,39 @@ type ToolEnabledQuestionInput = {
 // reports the request exceeded its context window. Sources are halved each
 // time, so three retries send as little as ~1/8 of the original body.
 const MAX_CONTEXT_COMPRESSION_RETRIES = 3;
+const REASONING_EVENT_BATCH_BYTES = 1024;
+
+/**
+ * Providers may stream one reasoning character at a time. Persisting every
+ * fragment creates tens of thousands of rows and makes SSE replay lag behind
+ * the action. Send the first fragment immediately so the UI becomes live, then
+ * coalesce the rest into bounded chunks. Call `flush` at a semantic boundary
+ * (before a tool call/final result) so ordering remains intact.
+ */
+export function createBatchedReasoningAppender(
+  append: (text: string) => Promise<void>,
+  maxBytes = REASONING_EVENT_BATCH_BYTES,
+) {
+  let buffered = '';
+  let emittedInitial = false;
+
+  const flush = async () => {
+    if (!buffered) return;
+    const text = buffered;
+    buffered = '';
+    emittedInitial = true;
+    await append(text);
+  };
+
+  return {
+    append: async (text: string) => {
+      if (!text) return;
+      buffered += text;
+      if (!emittedInitial || Buffer.byteLength(buffered) >= maxBytes) await flush();
+    },
+    flush,
+  };
+}
 
 /**
  * Keep a provider stream cancellable without imposing an arbitrary response
@@ -211,6 +244,11 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
   let answer = '';
   let usage: Record<string, unknown> = { ...retrievalUsage };
   const cancellation = watchActionCancellation(actionId);
+  const reasoning = createBatchedReasoningAppender(
+    async (text) => {
+      await appendActionEvent(actionId, 'reasoning_delta', { text });
+    },
+  );
   // Sources actually sent to the model. A context-overflow retry compresses
   // these, and citations must resolve against whatever the model finally saw.
   let promptSources = sources;
@@ -245,17 +283,20 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
           if (await isCancellationRequested(actionId))
             throw new DomainError('CANCELLED', 'Question action was cancelled');
           if (event.type === 'delta') {
+            await reasoning.flush();
             answer += event.text;
             await appendActionEvent(actionId, 'text_delta', { text: event.text });
             await feishuStream?.stream.append(event.text);
           } else if (event.type === 'reasoning_delta') {
-            await appendActionEvent(actionId, 'reasoning_delta', { text: event.text });
+            await reasoning.append(event.text);
           } else if (event.type === 'usage') {
             usage = { ...usage, ...event };
           }
         }
+        await reasoning.flush();
         break;
       } catch (error) {
+        await reasoning.flush();
         // Retry only when nothing has streamed yet (so we never duplicate
         // output) and the failure is specifically an over-long request whose
         // attached sources we can shrink.
@@ -460,6 +501,11 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
         (plannerUsage.cachedInputTokens ?? 0) + event.cachedInputTokens;
     }
   };
+  const plannerReasoning = createBatchedReasoningAppender(
+    async (text) => {
+      await appendActionEvent(actionId, 'reasoning_delta', { text });
+    },
+  );
   const plannerDeps = {
     adapter,
     actionId,
@@ -473,9 +519,9 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
         textModel.contextWindow,
         textModel.maxOutputTokens,
         runtimeConfig.plannerMaxOutputTokens,
-      ),
+    ),
     onReasoning: async (text: string) => {
-      await appendActionEvent(actionId, 'reasoning_delta', { text });
+      await plannerReasoning.append(text);
     },
     onUsage: accumulatePlannerUsage,
   };
@@ -509,14 +555,18 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   // text protocol.
   let useNative = strategy.strategy === 'native';
   const planner: ToolPlanner = async (state) => {
-    if (!useNative) return textPlanner(state);
     try {
-      return await nativePlanner(state);
-    } catch (error) {
-      if (!isNativeToolUnsupportedError(error)) throw error;
-      useNative = false;
-      await markNativeToolCallFailed(textModel.id);
-      return textPlanner(state);
+      if (!useNative) return await textPlanner(state);
+      try {
+        return await nativePlanner(state);
+      } catch (error) {
+        if (!isNativeToolUnsupportedError(error)) throw error;
+        useNative = false;
+        await markNativeToolCallFailed(textModel.id);
+        return await textPlanner(state);
+      }
+    } finally {
+      await plannerReasoning.flush();
     }
   };
 

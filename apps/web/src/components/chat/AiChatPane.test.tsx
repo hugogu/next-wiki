@@ -10,7 +10,9 @@ const chatState = vi.hoisted(() => ({
     role: 'user' | 'assistant';
     text: string;
     error?: string;
+    actionStatus?: 'queued' | 'running';
     searchResults?: { title: string; path: string; spaceSlug?: string }[];
+    toolCalls?: unknown[];
   }>,
   setOpen: vi.fn(),
   newSession: vi.fn(),
@@ -116,6 +118,32 @@ describe('AiChatPane viewport modes', () => {
 
     expect(html).toContain('ai.chat.retrieving');
     expect(html).not.toContain('ai.chat.streaming');
+  });
+
+  it('does not render a literal zero while a turn has no tool calls yet', () => {
+    chatState.running = true;
+    chatState.messages = [
+      { id: 'user-1', role: 'user', text: 'First question' },
+      { id: 'assistant-1', role: 'assistant', text: '', toolCalls: [] },
+    ];
+
+    const html = renderToStaticMarkup(<AiChatPane entitlements={entitlements} />);
+
+    expect(html).not.toContain('>0<');
+    expect(html).toContain('ai.chat.retrieving');
+  });
+
+  it('explains when a turn is waiting for an AI worker', () => {
+    chatState.running = true;
+    chatState.messages = [
+      { id: 'user-1', role: 'user', text: 'First question' },
+      { id: 'assistant-1', role: 'assistant', text: '', actionStatus: 'queued' },
+    ];
+
+    const html = renderToStaticMarkup(<AiChatPane entitlements={entitlements} />);
+
+    expect(html).toContain('ai.chat.queued');
+    expect(html).not.toContain('ai.chat.retrieving');
   });
 
   it('renders the retrieval summary once search results arrive', () => {

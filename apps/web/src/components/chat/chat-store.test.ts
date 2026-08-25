@@ -116,4 +116,15 @@ describe('useChatStore', () => {
       actionId: '00000000-0000-4000-8000-000000000001',
     });
   });
+
+  it('keeps the queued/running state only while an assistant turn is pending', () => {
+    useChatStore.getState().add({ id: 'assistant', role: 'assistant', text: '', pending: true, actionStatus: 'queued' });
+
+    useChatStore.getState().setActionStatus('assistant', 'running');
+    expect(useChatStore.getState().messages[0]).toMatchObject({ pending: true, actionStatus: 'running' });
+
+    useChatStore.getState().setPending('assistant', false);
+    expect(useChatStore.getState().messages[0]).toMatchObject({ pending: false });
+    expect(useChatStore.getState().messages[0]?.actionStatus).toBeUndefined();
+  });
 });

@@ -1844,6 +1844,7 @@ export const translationKeys = [
   "ai.chat.research.notice",
   "ai.chat.research.manage",
   "ai.chat.empty",
+  "ai.chat.queued",
   "ai.chat.streaming",
   "ai.chat.retrieving",
   "ai.chat.retrievedPages",

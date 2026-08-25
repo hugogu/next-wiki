@@ -125,7 +125,10 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   await boss.work(QUEUES.crossSpaceMigration, async (jobs: JobBatch) => {
     for (const job of jobs) await runCrossSpaceMigration((job.data as { migrationId: string }).migrationId);
   });
-  await boss.work(QUEUES.aiAction, async (jobs: JobBatch) => {
+  // A slow tool loop must not leave every later interactive request queued
+  // behind it. Keep concurrency deliberately small so we avoid overwhelming
+  // the configured provider while allowing a second chat turn to make progress.
+  await boss.work(QUEUES.aiAction, { localConcurrency: 2 }, async (jobs: JobBatch) => {
     for (const job of jobs) {
       await runAiAction((job.data as { actionId: string }).actionId);
     }

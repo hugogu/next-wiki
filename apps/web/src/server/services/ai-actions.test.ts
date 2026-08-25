@@ -213,19 +213,30 @@ describe('AI actions', () => {
       await removeAiTestUser(otherUserId);
     });
 
-    it('groups multiple turns of the same webSessionId into one conversation, ordered by latest turn', async () => {
+    it('groups captured multiple turns of the same webSessionId into one conversation, ordered by latest turn', async () => {
       const ctx = buildUserCtx(userId, 'admin');
       const expiresAt = new Date(Date.now() + 60_000);
       const webSessionId = 'sess-1';
       const earlier = new Date(Date.now() - 60_000);
       const later = new Date();
+      const [space] = await db
+        .insert(schema.spaces)
+        .values({ slug: `history-session-${userId}`, name: 'Raw', kind: 'raw', anonymousRead: false })
+        .returning();
+      const [firstRaw, secondRaw] = await db
+        .insert(schema.pages)
+        .values([
+          { spaceId: space!.id, slug: 'first', path: `history-session-${userId}/first`, title: 'First', authorId: userId, nature: 'original', visibility: 'restricted' },
+          { spaceId: space!.id, slug: 'second', path: `history-session-${userId}/second`, title: 'Second', authorId: userId, nature: 'original', visibility: 'restricted' },
+        ])
+        .returning();
       const [a] = await db.insert(schema.aiActions).values({
         feature: 'wiki_question', status: 'failed', actorUserId: userId, expiresAt,
-        queuedAt: earlier, requestMetadata: { webSessionId },
+        queuedAt: earlier, requestMetadata: { webSessionId }, rawConversationPageId: firstRaw!.id,
       }).returning();
       const [b] = await db.insert(schema.aiActions).values({
         feature: 'wiki_question', status: 'completed', actorUserId: userId, expiresAt,
-        queuedAt: later, requestMetadata: { webSessionId },
+        queuedAt: later, requestMetadata: { webSessionId }, rawConversationPageId: secondRaw!.id,
       }).returning();
       await db.insert(schema.aiActionEvents).values([
         { actionId: a!.id, type: 'question', payload: { text: 'q1' }, expiresAt },
@@ -243,6 +254,10 @@ describe('AI actions', () => {
         failedTurnCount: 1,
         turnActionIds: [b!.id, a!.id],
       });
+
+      await db.delete(schema.aiActions).where(eq(schema.aiActions.actorUserId, userId));
+      await db.delete(schema.pages).where(eq(schema.pages.spaceId, space!.id));
+      await db.delete(schema.spaces).where(eq(schema.spaces.id, space!.id));
     });
 
     it('prefers the durable Raw-derived question once the event-log question has expired (023)', async () => {

@@ -63,6 +63,8 @@ export type ChatMessage = {
   searchResults?: ChatRetrievalResult[];
   error?: string;
   insufficient?: boolean;
+  /** Latest non-terminal server state for this assistant turn. */
+  actionStatus?: 'queued' | 'running';
   /** True until this turn reaches a terminal action event or local start failure. */
   pending?: boolean;
   /**
@@ -101,6 +103,7 @@ type ChatState = {
   citations: (id: string, citations: AiCitation[]) => void;
   fail: (id: string, error: string) => void;
   setPending: (id: string, pending: boolean) => void;
+  setActionStatus: (id: string, status: 'queued' | 'running') => void;
   /**
    * Stamp an assistant message with the server-side actionId so the pane can
    * reconcile it with the authoritative server state on mount if the
@@ -206,10 +209,17 @@ export const useChatStore = create<ChatState>()(
         messages: state.messages.map((message) => message.id === id ? { ...message, citations } : message),
       })),
       fail: (id, error) => set((state) => ({
-        messages: state.messages.map((message) => message.id === id ? { ...message, error, pending: false } : message),
+        messages: state.messages.map((message) => message.id === id
+          ? { ...message, error, pending: false, actionStatus: undefined }
+          : message),
       })),
       setPending: (id, pending) => set((state) => ({
-        messages: state.messages.map((message) => message.id === id ? { ...message, pending } : message),
+        messages: state.messages.map((message) => message.id === id
+          ? { ...message, pending, ...(pending ? {} : { actionStatus: undefined }) }
+          : message),
+      })),
+      setActionStatus: (id, actionStatus) => set((state) => ({
+        messages: state.messages.map((message) => message.id === id ? { ...message, actionStatus } : message),
       })),
       recoverMessage: (id, recovery) => set((state) => ({
         messages: state.messages.map((message) => {
@@ -222,7 +232,10 @@ export const useChatStore = create<ChatState>()(
           if ('toolProposals' in recovery) next.toolProposals = recovery.toolProposals ?? [];
           if ('searchResults' in recovery) next.searchResults = recovery.searchResults ?? [];
           if ('insufficient' in recovery) next.insufficient = recovery.insufficient ?? false;
-          if ('pending' in recovery) next.pending = recovery.pending ?? false;
+          if ('pending' in recovery) {
+            next.pending = recovery.pending ?? false;
+            if (!next.pending) next.actionStatus = undefined;
+          }
           // A successful recovery always clears the error; an explicit error
           // recovery (e.g. server says failed/cancelled) sets it.
           if (recovery.error !== undefined) {

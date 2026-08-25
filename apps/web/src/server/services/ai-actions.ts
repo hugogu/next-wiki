@@ -554,17 +554,15 @@ function requireSessionUserId(ctx: PermCtx): string {
 }
 
 /**
- * Build a stable conversation key for a wiki_question action: a captured
- * turn (non-null `raw_conversation_page_id`) groups with its sibling turns
- * by Raw page; an uncaptured turn falls back to its live-chat `webSessionId`
- * from `requestMetadata`. Turns of the same chat session share the key,
- * so a conversation is exactly one row in the user-facing history panel
- * regardless of how many turns it contains.
+ * Build a stable conversation key for a wiki_question action. The live-chat
+ * `webSessionId` is authoritative: Raw capture is asynchronous and a failed
+ * or restarted capture can otherwise assign sibling turns to different pages.
+ * Old actions without a session id still group by their captured Raw page.
  */
 function conversationKeyFor(row: { rawConversationPageId: string | null; requestMetadata: unknown; id: string }): string {
-  if (row.rawConversationPageId) return row.rawConversationPageId;
   const webSessionId = (row.requestMetadata as { webSessionId?: unknown } | null)?.webSessionId;
   if (typeof webSessionId === 'string' && webSessionId) return `legacy:${webSessionId}`;
+  if (row.rawConversationPageId) return row.rawConversationPageId;
   return `legacy:turn:${row.id}`;
 }
 

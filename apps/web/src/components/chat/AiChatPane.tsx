@@ -569,7 +569,7 @@ export function AiChatPane({
           <article key={message.id} className={`min-w-0 overflow-hidden rounded-lg p-sm text-sm ${message.role === 'user' ? 'ml-auto mr-lg max-w-[50%] bg-primary text-primary-text' : 'mr-lg max-w-full bg-surface-elevated'}`}>
             {message.role === 'assistant' ? (
               <div className="min-w-0 space-y-sm">
-                {(message.thinking || message.searchResults?.length || message.toolCalls?.length || message.toolProposals?.length) && (
+                {Boolean(message.thinking || message.searchResults?.length || message.toolCalls?.length || message.toolProposals?.length) && (
                   <ChatThinking thinking={message.thinking} streaming={message.id === streamingAssistantId}>
                     <>
                       {message.searchResults?.length ? <ChatRetrieval results={message.searchResults} /> : null}
@@ -589,9 +589,11 @@ export function AiChatPane({
                   <p className="text-muted">{t('ai.chat.insufficient')}</p>
                 ) : message.id === streamingAssistantId ? (
                   <div className="text-muted">
-                    {message.thinking || message.toolCalls?.length || message.searchResults?.length
-                      ? t('ai.chat.streaming')
-                      : t('ai.chat.retrieving')}
+                    {message.actionStatus === 'queued'
+                      ? t('ai.chat.queued')
+                      : Boolean(message.thinking || message.toolCalls?.length || message.searchResults?.length)
+                        ? t('ai.chat.streaming')
+                        : t('ai.chat.retrieving')}
                   </div>
                 ) : null}
               </div>

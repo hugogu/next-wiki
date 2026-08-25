@@ -35,7 +35,11 @@ vi.mock('@/server/services/ai-admin', async (original) => {
 
 import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/services/ai-question';
 import { AiProviderError } from '@/server/ai/types';
-import { runToolEnabledWikiQuestionAction, runWikiQuestionAction } from './ai-question';
+import {
+  createBatchedReasoningAppender,
+  runToolEnabledWikiQuestionAction,
+  runWikiQuestionAction,
+} from './ai-question';
 
 describe('Wiki question worker', () => {
   let userId: string;
@@ -446,6 +450,19 @@ describe('Wiki question worker', () => {
       outputTokens: 9,
       cachedInputTokens: 3,
     });
+  });
+
+  it('batches character-sized reasoning deltas without dropping any text', async () => {
+    const events: string[] = [];
+    const reasoning = createBatchedReasoningAppender(async (text) => {
+      events.push(text);
+    }, 4);
+
+    for (const character of 'abcdefghij') await reasoning.append(character);
+    await reasoning.flush();
+
+    expect(events.join('')).toBe('abcdefghij');
+    expect(events).toHaveLength(4);
   });
 
   it('compresses attached sources and retries after a context-length error', async () => {

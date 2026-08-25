@@ -2493,6 +2493,7 @@
         "manage": "Manage in User Settings"
       },
       "empty": "Ask a question grounded in this Wiki.",
+      "queued": "Waiting for an available AI worker…",
       "streaming": "Generating…",
       "retrieving": "Thinking…",
       "retrievedPages": "Retrieved {count} related pages",

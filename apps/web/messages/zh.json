@@ -2493,6 +2493,7 @@
         "manage": "前往用户设置管理"
       },
       "empty": "提出一个基于本 Wiki 内容的问题。",
+      "queued": "正在等待可用的 AI 工作进程…",
       "streaming": "生成中…",
       "retrieving": "思考中…",
       "retrievedPages": "已检索到 {count} 个相关页面",

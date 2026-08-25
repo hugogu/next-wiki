@@ -207,6 +207,11 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
   }, [store]);
 
   const handleActionEvent = useCallback((assistantId: string) => (event: AiClientEvent) => {
+    if (event.type === 'status') {
+      const status = event.payload.status;
+      if (status === 'queued' || status === 'running') store.setActionStatus(assistantId, status);
+      return;
+    }
     if (event.type === 'reasoning_delta') {
       store.think(assistantId, String(event.payload.text ?? ''));
       return;
@@ -291,7 +296,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
     const assistantId = uuid();
     stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
     store.add({ id: userId, role: 'user', text: question });
-    store.add({ id: assistantId, role: 'assistant', text: '', pending: true });
+    store.add({ id: assistantId, role: 'assistant', text: '', pending: true, actionStatus: 'queued' });
 
     const handleEvent = handleActionEvent(assistantId);
     const payload = buildToolEnabledQuestionPayload({
