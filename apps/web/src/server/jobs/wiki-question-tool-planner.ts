@@ -112,7 +112,21 @@ export function buildWikiToolSystemPrompt(
   overrides: WikiToolPromptOverrides = {},
   skills: SkillCatalogEntry[] = [],
 ): string {
-  const toolList = tools.map((tool) => `- ${tool.name} (${tool.category}): ${tool.description}`).join('\n');
+  const toolList = tools
+    .map((tool) => {
+      const required = new Set(tool.inputSchema.required ?? []);
+      const properties = Object.entries(tool.inputSchema.properties);
+      const argumentsHint = properties.length === 0
+        ? '{} (no arguments)'
+        : `{ ${properties
+            .map(([name, schema]) => `${name}${required.has(name) ? '' : '?'}: ${typeof schema.type === 'string' ? schema.type : 'value'}`)
+            .join(', ')} }`;
+      const additionalArguments = tool.inputSchema.additionalProperties === false
+        ? ' No other arguments are accepted.'
+        : '';
+      return `- ${tool.name} (${tool.category}): ${tool.description}\n  Allowed arguments: ${argumentsHint}.${additionalArguments}`;
+    })
+    .join('\n');
   const skillList =
     skills.length > 0
       ? skills.map((skill) => `- ${skill.name}: ${skill.description}`).join('\n')

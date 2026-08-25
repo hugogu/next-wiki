@@ -374,6 +374,20 @@ export function buildCommandMarkdown(
 }
 
 /**
+ * Keep model-supplied web_search compatibility fields out of durable tool
+ * call records. The executor accepts and ignores them so text-protocol models
+ * that emit a conventional `query` field can still complete the turn, but the
+ * original user question remains the only query that can leave the server.
+ */
+export function normalizeToolCallArguments(
+  toolName: string,
+  args: Record<string, unknown>,
+): Record<string, unknown> {
+  if (toolName !== 'web_search') return args;
+  return typeof args.freshness === 'string' ? { freshness: args.freshness } : {};
+}
+
+/**
  * One bounded rendering of a tool result for the model, shared by both
  * tool-call strategies (028, FR-006).
  *
@@ -705,17 +719,20 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     let repeatedCalls = 0;
     for (const planned of step.calls) {
       const tool = resolveExecutableTool(planned.toolName);
+      const plannedArguments = tool
+        ? normalizeToolCallArguments(tool.name, planned.arguments)
+        : planned.arguments;
       if (!tool || !params.isEnabled(tool)) {
         // Record a blocked call so the disabled/unknown tool is visible and the
         // assistant gets a safe explanation instead of a silent no-op.
-        const command = buildCommandMarkdown(planned.toolName, 'none', planned.arguments);
+        const command = buildCommandMarkdown(planned.toolName, 'none', plannedArguments);
         const { call } = await recordToolCall({
           workflowId: params.workflowId,
           aiActionId: params.actionId,
           providerKey: BUILTIN_PROVIDER.key,
           toolName: planned.toolName,
           commandMarkdown: command,
-          arguments: planned.arguments,
+          arguments: plannedArguments,
           requestedReview: planned.requestedReview,
           effectiveReview: 'none',
         });
@@ -728,7 +745,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
             toolName: planned.toolName,
             reason: !tool ? 'tool-not-registered' : 'tool-disabled',
             requestedReview: planned.requestedReview,
-            argumentKeys: Object.keys(planned.arguments),
+            argumentKeys: Object.keys(plannedArguments),
           });
           await blockToolCall(call.id, {
             errorCode: 'TOOL_NOT_ENABLED',
@@ -737,7 +754,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           await emitCall(params.actionId, call.id, {
             sequence: call.sequence,
             toolName: planned.toolName,
-            skillName: skillNameOf(planned.toolName, planned.arguments),
+            skillName: skillNameOf(planned.toolName, plannedArguments),
             command,
             status: 'blocked',
             requestedReview: planned.requestedReview,
@@ -750,7 +767,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         continue;
       }
 
-      const signature = toolCallSignature(tool.name, planned.arguments);
+      const signature = toolCallSignature(tool.name, plannedArguments);
       const cached = tool.category === 'read' || tool.category === 'web' ? readResults.get(signature) : undefined;
       if (cached !== undefined) {
         repeatedCalls += 1;
@@ -759,21 +776,21 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           workflowId: params.workflowId,
           iteration: iterations,
           toolName: tool.name,
-          argumentKeys: Object.keys(planned.arguments),
+          argumentKeys: Object.keys(plannedArguments),
         });
         state.transcript.push(`${REPEATED_CALL_NOTICE}\n${cached}`);
         continue;
       }
 
       const effectiveReview = params.resolveReview(tool, planned.requestedReview);
-      const command = buildCommandMarkdown(planned.toolName, effectiveReview, planned.arguments);
+      const command = buildCommandMarkdown(planned.toolName, effectiveReview, plannedArguments);
       const { call, limitReached } = await recordToolCall({
         workflowId: params.workflowId,
         aiActionId: params.actionId,
         providerKey: BUILTIN_PROVIDER.key,
         toolName: tool.name,
         commandMarkdown: command,
-        arguments: planned.arguments,
+        arguments: plannedArguments,
         requestedReview: planned.requestedReview,
         effectiveReview,
       });
@@ -795,7 +812,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       await emitCall(params.actionId, call.id, {
         sequence: call.sequence,
         toolName: tool.name,
-        skillName: skillNameOf(tool.name, planned.arguments),
+        skillName: skillNameOf(tool.name, plannedArguments),
         category: tool.category,
         command,
         status: 'running',
@@ -804,7 +821,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       });
 
       const toolStartedAt = Date.now();
-      const result = await executeTool(params.ctx, tool, planned.arguments, {
+      const result = await executeTool(params.ctx, tool, plannedArguments, {
         actorUserId: params.actorUserId,
         effectiveReview,
         workflowId: params.workflowId,
@@ -840,7 +857,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         await emitCall(params.actionId, call.id, {
           sequence: call.sequence,
           toolName: tool.name,
-          skillName: skillNameOf(tool.name, planned.arguments),
+          skillName: skillNameOf(tool.name, plannedArguments),
           category: tool.category,
           command,
           status: 'succeeded',
@@ -892,7 +909,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         await emitCall(params.actionId, call.id, {
           sequence: call.sequence,
           toolName: tool.name,
-          skillName: skillNameOf(tool.name, planned.arguments),
+          skillName: skillNameOf(tool.name, plannedArguments),
           category: tool.category,
           command,
           status: 'failed',

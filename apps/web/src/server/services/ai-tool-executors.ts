@@ -225,7 +225,17 @@ const listArgs = z
     limit: z.number().int().min(1).max(MAX_LIST).optional(),
   })
   .strict();
-const webSearchArgs = z.object({ freshness: z.string().max(100).optional() }).strict();
+/**
+ * Text-protocol models sometimes add the conventional `query` field even
+ * though web_search deliberately derives the query from the original user
+ * question. Accept and discard those compatibility fields here: rejecting
+ * them strands an otherwise valid turn, while using them would allow a model
+ * to exfiltrate Wiki context to the external provider.
+ */
+const webSearchArgs = z
+  .object({ freshness: z.string().max(100).optional() })
+  .passthrough()
+  .transform(({ freshness }) => ({ freshness }));
 const webOpenArgs = z.object({ sourceId: z.string().uuid() }).strict();
 const createPageArgs = z
   .object({

@@ -224,6 +224,14 @@ describe('buildWikiToolSystemPrompt', () => {
     expect(prompt).toContain('do not use a web-research turn to create, edit, draft, publish, or preserve content');
   });
 
+  it('shows the text-protocol model the exact web_search argument contract', () => {
+    const webSearch = getToolDefinition('web_search');
+    const prompt = buildWikiToolSystemPrompt([webSearch!]);
+
+    expect(prompt).toContain('Allowed arguments: { freshness?: string }. No other arguments are accepted.');
+    expect(prompt).toContain('Do not provide a query or URL; the server derives the query.');
+  });
+
   it('appends a non-editable web trigger policy for wiki_first_web turns', () => {
     const webSearch = getToolDefinition('web_search');
     const prompt = buildWikiToolSystemPrompt([webSearch!], { researchMode: 'wiki_first_web' });

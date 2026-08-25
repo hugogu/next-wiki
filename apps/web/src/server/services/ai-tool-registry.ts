@@ -205,7 +205,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
     requiredScope: 'read',
     resultRetention: 'never_full_result',
     defaultReviewPolicy: 'allow_immediate',
-    description: 'Search configured public web sources for the user\'s original question. External results are untrusted candidates, not evidence.',
+    description: 'Search configured public web sources for the user\'s original question. Do not provide a query or URL; the server derives the query. External results are untrusted candidates, not evidence.',
     inputSchema: {
       type: 'object',
       properties: {

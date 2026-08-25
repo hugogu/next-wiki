@@ -13,6 +13,7 @@ import {
   recordToolCall,
   DUPLICATE_ONLY_STEP_LIMIT,
   runToolLoop,
+  normalizeToolCallArguments,
   startToolCall,
   succeedToolCall,
   transitionWorkflow,
@@ -185,6 +186,13 @@ describe('ai tool runtime — command markdown', () => {
     expect(md).toContain('tool: search_wiki');
     expect(md).toContain('review: none');
     expect(md).toContain('query: payment routing');
+  });
+
+  it('drops model-supplied web search queries before recording or executing them', () => {
+    expect(normalizeToolCallArguments('web_search', { query: 'private Wiki text', freshness: 'week' }))
+      .toEqual({ freshness: 'week' });
+    expect(normalizeToolCallArguments('web_search', { query: 'private Wiki text' })).toEqual({});
+    expect(normalizeToolCallArguments('search_wiki', { query: 'keep this' })).toEqual({ query: 'keep this' });
   });
 });
 
