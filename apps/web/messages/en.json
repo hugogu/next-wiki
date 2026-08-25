@@ -2568,7 +2568,9 @@
         "disabled": "That tool is disabled by policy.",
         "skillsUsed": "Skills used",
         "skillLabel": "Skill",
-        "rawError": "Error details"
+        "rawError": "Error details",
+        "webSearch": "Search the web",
+        "webOpen": "Open web source"
       }
     },
     "optimize": {

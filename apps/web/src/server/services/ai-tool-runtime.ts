@@ -8,6 +8,7 @@ import {
   AiToolCallStatus,
   AiToolReviewDecision,
   AiToolWorkflowStatus,
+  type ResearchMode,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -306,6 +307,7 @@ export type ToolTurnState = {
    * permission-validated reference, not a retrieval result. */
   currentPage?: { pageId: string; revisionId: string };
   transcript: string[];
+  researchMode?: ResearchMode;
 };
 
 export type ToolPlanner = (state: ToolTurnState) => Promise<ToolPlanStep>;
@@ -319,6 +321,7 @@ export type ToolLoopParams = {
   conversation?: { question: string; answer: string }[];
   wikiSources?: QuestionSource[];
   currentPage?: { pageId: string; revisionId: string };
+  researchMode?: ResearchMode;
   planner: ToolPlanner;
   /** Server-enforced review resolution for one call (strictest wins). */
   resolveReview: (tool: ToolDefinition, requested: AiToolReviewDecision) => AiToolReviewDecision;
@@ -634,6 +637,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     wikiSources: params.wikiSources ?? [],
     currentPage: params.currentPage,
     transcript: [],
+    researchMode: params.researchMode,
   };
   const transcriptBudget = params.transcriptCharBudget ?? DEFAULT_TRANSCRIPT_CHARS;
   const resultMaxChars = effectiveToolResultChars(params.toolResultMaxChars, transcriptBudget);

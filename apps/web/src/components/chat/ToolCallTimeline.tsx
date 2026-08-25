@@ -16,6 +16,12 @@ function skillsConsulted(calls: AiToolCallEventPayload[]): string[] {
   return names;
 }
 
+function toolLabel(toolName: string, t: (key: TranslationKey) => string): string {
+  if (toolName === 'web_search') return t('ai.chat.tools.webSearch');
+  if (toolName === 'web_open') return t('ai.chat.tools.webOpen');
+  return toolName;
+}
+
 export function ToolCallTimeline({
   calls = [],
   proposals = [],
@@ -58,7 +64,7 @@ export function ToolCallTimeline({
                     {t('ai.chat.tools.skillLabel')}: {call.skillName}
                   </span>
                 ) : (
-                  <span className="shrink-0 font-medium">{call.toolName}</span>
+                  <span className="shrink-0 font-medium">{toolLabel(call.toolName, t)}</span>
                 )}
                 <span className="text-muted">{t(`ai.chat.tools.status.${call.status}` as TranslationKey)}</span>
                 {call.resultSummary && (

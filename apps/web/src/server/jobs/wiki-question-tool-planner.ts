@@ -1,4 +1,4 @@
-import { AI_ANSWER_LANGUAGE_DEFAULT, type AiAnswerLanguage, type AiToolReviewDecision } from '@next-wiki/shared';
+import { AI_ANSWER_LANGUAGE_DEFAULT, type AiAnswerLanguage, type AiToolReviewDecision, type ResearchMode } from '@next-wiki/shared';
 import { parse as parseYaml } from 'yaml';
 
 import type { QuestionSource } from '@/server/ai/prompts/wiki-question';
@@ -12,6 +12,8 @@ export type ToolPlannerState = {
   wikiSources: QuestionSource[];
   currentPage?: { pageId: string; revisionId: string };
   transcript: string[];
+  /** The user-selected research profile for this turn. */
+  researchMode?: ResearchMode;
 };
 
 export type ToolPlannerParseResult = ToolPlanStep | { kind: 'invalid_tool_calls' };
@@ -26,6 +28,24 @@ export const TOOL_CATALOG_PLACEHOLDER = '{{TOOLS}}';
  * `load_skill`, so a large skill library costs a few lines per turn rather than
  * scaling with the library (028, FR-018). */
 export const SKILL_CATALOG_PLACEHOLDER = '{{SKILLS}}';
+
+/**
+ * This policy is appended after admin-configured prompts. The assistant prompt
+ * quite intentionally allows general-knowledge answers when Wiki evidence is
+ * missing, but that default is unsafe for a turn where the user opted into
+ * external research: it lets the model silently answer from memory, as if the
+ * web tools were unavailable. Keeping this runtime rule outside editable
+ * storage makes the trigger invariant even when an administrator customizes
+ * the tool prompt.
+ */
+export const WEB_RESEARCH_RUNTIME_POLICY = [
+  '<web_research_policy>',
+  'External web research is enabled for this turn (wiki_first_web). This is a Wiki-first policy: use relevant Wiki evidence when it is sufficient, but do not answer external factual questions from memory when it is not.',
+  'If no relevant Wiki source is supplied or a Wiki read does not answer the question, you MUST call web_search before drafting the final answer. This applies to real-world companies, people, products, markets, news, current facts, and other external factual questions even when you believe you already know the answer.',
+  'After web_search, you MUST call web_open for at least one relevant source before relying on or citing external information. Cite only sources returned by web_open, never search snippets or your own memory.',
+  'For conversational, purely creative, or explicitly hypothetical requests that do not need factual evidence, web_search is not required.',
+  '</web_research_policy>',
+].join('\n');
 
 /**
  * Built-in default for the admin-editable tool system prompt (AI > Prompts).
@@ -78,6 +98,7 @@ export type WikiToolPromptOverrides = {
   assistantSystemPrompt?: string | null;
   toolSystemPrompt?: string | null;
   answerLanguage?: AiAnswerLanguage;
+  researchMode?: ResearchMode;
 };
 
 /**
@@ -105,8 +126,15 @@ export function buildWikiToolSystemPrompt(
   const withSkills = toolSection.includes(SKILL_CATALOG_PLACEHOLDER)
     ? toolSection.replaceAll(SKILL_CATALOG_PLACEHOLDER, skillList)
     : `${toolSection}\n\nAvailable skills:\n${skillList}`;
+  const withResearchPolicy =
+    overrides.researchMode === 'wiki_first_web'
+      ? `${withSkills}\n\n${WEB_RESEARCH_RUNTIME_POLICY}`
+      : withSkills;
   return buildWikiAssistantSystemPrompt(
-    [...answerLanguageRules(overrides.answerLanguage ?? AI_ANSWER_LANGUAGE_DEFAULT), withSkills],
+    [
+      ...answerLanguageRules(overrides.answerLanguage ?? AI_ANSWER_LANGUAGE_DEFAULT),
+      withResearchPolicy,
+    ],
     overrides.assistantSystemPrompt,
   );
 }
@@ -119,22 +147,25 @@ export function extractTaggedThinking(output: string): string {
 }
 
 export function buildPlannerUserPrompt(state: ToolPlannerState): string {
+  const researchPolicy = state.researchMode === 'wiki_first_web' ? [WEB_RESEARCH_RUNTIME_POLICY, ''] : [];
   const sources = state.wikiSources.length > 0
-    ? [
-        '<wiki_sources>',
-        ...state.wikiSources.map(
-          (source) =>
-            `<source id="${source.id}" title="${source.title}" path="${source.path}">\n${source.content}\n</source>`,
-        ),
-        '</wiki_sources>',
-        '',
-      ]
-    : [
-        '<wiki_sources>',
-        'No Wiki sources are attached to this turn by default; decide for yourself whether this question needs them. If the question is about this Wiki\'s content, call search_wiki (then get_page) with a few targeted attempts. If it is general knowledge, conversational, or otherwise unrelated to this Wiki, answer directly from your own knowledge without searching or citing Wiki sources.',
-        '</wiki_sources>',
-        '',
-      ];
+      ? [
+          '<wiki_sources>',
+          ...state.wikiSources.map(
+            (source) =>
+              `<source id="${source.id}" title="${source.title}" path="${source.path}">\n${source.content}\n</source>`,
+          ),
+          '</wiki_sources>',
+          '',
+        ]
+      : [
+          '<wiki_sources>',
+          state.researchMode === 'wiki_first_web'
+            ? "No Wiki sources are attached to this turn by default. Treat that as insufficient Wiki evidence: if the question is an external factual question, call web_search before answering, then web_open a relevant result. If the question is about this Wiki's content, call search_wiki (then get_page) first and use web research only when the Wiki evidence is insufficient."
+            : "No Wiki sources are attached to this turn by default; decide for yourself whether this question needs them. If the question is about this Wiki's content, call search_wiki (then get_page) with a few targeted attempts. If it is general knowledge, conversational, or otherwise unrelated to this Wiki, answer directly from your own knowledge without searching or citing Wiki sources.",
+          '</wiki_sources>',
+          '',
+        ];
   const conversation = state.conversation.length > 0
     ? [
         '<conversation>',
@@ -156,9 +187,10 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       ]
     : [];
   if (state.transcript.length === 0) {
-    return [...sources, ...currentPage, ...conversation, '<question>', state.question, '</question>'].join('\n');
+    return [...researchPolicy, ...sources, ...currentPage, ...conversation, '<question>', state.question, '</question>'].join('\n');
   }
   return [
+    ...researchPolicy,
     ...sources,
     ...currentPage,
     ...conversation,

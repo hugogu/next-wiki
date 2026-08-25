@@ -2568,7 +2568,9 @@
         "disabled": "该工具已被策略停用。",
         "skillsUsed": "使用的技能",
         "skillLabel": "技能",
-        "rawError": "错误详情"
+        "rawError": "错误详情",
+        "webSearch": "联网搜索",
+        "webOpen": "打开网页来源"
       }
     },
     "optimize": {

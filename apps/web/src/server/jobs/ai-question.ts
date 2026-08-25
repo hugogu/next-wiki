@@ -436,6 +436,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       assistantSystemPrompt: runtimeConfig.assistantSystemPrompt,
       toolSystemPrompt: runtimeConfig.toolSystemPrompt,
       answerLanguage: runtimeConfig.answerLanguage,
+      researchMode: webResearch ? 'wiki_first_web' : 'wiki_only',
     },
     enabledSkills.map((skill) => ({ name: skill.name, description: skill.description })),
   );
@@ -521,6 +522,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       conversation,
       wikiSources,
       currentPage: input.currentPage,
+      researchMode: webResearch ? 'wiki_first_web' : 'wiki_only',
       planner,
       resolveReview,
       isEnabled,

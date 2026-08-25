@@ -1907,6 +1907,8 @@ export const translationKeys = [
   "ai.chat.tools.skillsUsed",
   "ai.chat.tools.skillLabel",
   "ai.chat.tools.rawError",
+  "ai.chat.tools.webSearch",
+  "ai.chat.tools.webOpen",
   "ai.optimize.toolbar",
   "ai.optimize.title",
   "ai.optimize.instruction.clarity",

@@ -76,6 +76,16 @@ describe('ToolCallTimeline', () => {
     expect(html).toContain('Error details');
     expect(html).toContain('Error: Invariant: static generation store missing');
   });
+
+  it('shows web research calls in the thinking timeline', () => {
+    const html = render([
+      call({ toolName: 'web_search', status: 'running' }),
+      call({ toolName: 'web_open', status: 'succeeded' }),
+    ]);
+    expect(html).toContain('Search the web');
+    expect(html).toContain('Open web source');
+    expect(html).toContain('Running');
+  });
 });
 
 /**
