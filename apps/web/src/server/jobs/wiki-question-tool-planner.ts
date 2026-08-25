@@ -15,6 +15,8 @@ export type ToolPlannerState = {
   /** The user-selected research profile for this turn. */
   researchMode?: ResearchMode;
   unavailableToolNames?: string[];
+  /** Whether this turn has already attempted the required whole-Wiki search. */
+  wikiSearchAttempted?: boolean;
 };
 
 export type ToolPlannerParseResult = ToolPlanStep | { kind: 'invalid_tool_calls' };
@@ -41,11 +43,12 @@ export const SKILL_CATALOG_PLACEHOLDER = '{{SKILLS}}';
  */
 export const WEB_RESEARCH_RUNTIME_POLICY = [
   '<web_research_policy>',
-  'External web research is enabled for this turn (wiki_first_web). This is a Wiki-first policy: use relevant Wiki evidence when it is sufficient, but do not answer external factual questions from memory when it is not.',
-  'If no relevant Wiki source is supplied or a Wiki read does not answer the question, you MUST call web_search before drafting the final answer. This applies to real-world companies, people, products, markets, news, current facts, and other external factual questions even when you believe you already know the answer.',
-  'After web_search, you MUST call web_open for at least one relevant source before relying on or citing external information. Cite only sources returned by web_open, never search snippets or your own memory.',
+  'External web research is enabled for this turn (wiki_first_web). Follow this evidence order exactly: whole-Wiki search, relevant Wiki page reads, external web research, then clearly labelled general knowledge only as the last fallback.',
+  'FIRST, call search_wiki with scope: "all" and a query derived from the original user question. This is a whole-Wiki search, not a lookup of only the current page. Make this call by itself and wait for its result before calling get_page, any other Wiki read, web_search, or drafting an answer.',
+  'If search_wiki returns a relevant candidate, call get_page and use the resulting Wiki evidence. Only if search_wiki returns no suitable candidate, or the opened Wiki pages do not answer the question, may you continue to external web research.',
+  'For an external factual question with insufficient Wiki evidence, call web_search, then call web_open for at least one relevant source before relying on or citing external information. Cite only sources returned by web_open, never search snippets or your own memory.',
   'If web_search reports that the provider plan limit is exhausted, do not retry web_search or web_open. Continue with available Wiki or general knowledge and clearly disclose that external verification was unavailable.',
-  'For conversational, purely creative, or explicitly hypothetical requests that do not need factual evidence, web_search is not required.',
+  'If neither Wiki nor usable external evidence is available, you may answer from general knowledge, but state that it was not verified by those sources. For conversational, purely creative, or explicitly hypothetical requests, stop after the whole-Wiki search unless its results are relevant; web_search is not required.',
   '</web_research_policy>',
 ].join('\n');
 
@@ -164,6 +167,14 @@ export function extractTaggedThinking(output: string): string {
 
 export function buildPlannerUserPrompt(state: ToolPlannerState): string {
   const researchPolicy = state.researchMode === 'wiki_first_web' ? [WEB_RESEARCH_RUNTIME_POLICY, ''] : [];
+  const wikiSearchConstraint = state.researchMode === 'wiki_first_web' && !state.wikiSearchAttempted
+    ? [
+        '<research_order>',
+        'No whole-Wiki search has completed in this turn. Your next action must be a standalone search_wiki call with scope: "all". Do not read the current page, use web tools, or answer yet.',
+        '</research_order>',
+        '',
+      ]
+    : [];
   const unavailableTools = state.unavailableToolNames?.filter(Boolean) ?? [];
   const toolConstraints = unavailableTools.length > 0
     ? [
@@ -187,7 +198,7 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       : [
           '<wiki_sources>',
           state.researchMode === 'wiki_first_web'
-            ? "No Wiki sources are attached to this turn by default. Treat that as insufficient Wiki evidence: if the question is an external factual question, call web_search before answering, then web_open a relevant result. If the question is about this Wiki's content, call search_wiki (then get_page) first and use web research only when the Wiki evidence is insufficient."
+            ? "No Wiki sources are attached to this turn by default. Begin with the required whole-Wiki search_wiki call. Use web research only after that search and any relevant Wiki page reads are insufficient."
             : "No Wiki sources are attached to this turn by default; decide for yourself whether this question needs them. If the question is about this Wiki's content, call search_wiki (then get_page) with a few targeted attempts. If it is general knowledge, conversational, or otherwise unrelated to this Wiki, answer directly from your own knowledge without searching or citing Wiki sources.",
           '</wiki_sources>',
           '',
@@ -213,10 +224,11 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       ]
     : [];
   if (state.transcript.length === 0) {
-    return [...researchPolicy, ...sources, ...currentPage, ...conversation, ...toolConstraints, '<question>', state.question, '</question>'].join('\n');
+    return [...researchPolicy, ...wikiSearchConstraint, ...sources, ...currentPage, ...conversation, ...toolConstraints, '<question>', state.question, '</question>'].join('\n');
   }
   return [
     ...researchPolicy,
+    ...wikiSearchConstraint,
     ...sources,
     ...currentPage,
     ...conversation,

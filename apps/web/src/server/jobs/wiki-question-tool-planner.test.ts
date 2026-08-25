@@ -197,7 +197,7 @@ describe('buildPlannerUserPrompt', () => {
     expect(prompt).toContain('Do not guess its path or space.');
   });
 
-  it('requires external research when wiki_first_web has no Wiki evidence', () => {
+  it('requires a whole-Wiki search before external research when wiki_first_web has no Wiki evidence', () => {
     const prompt = buildPlannerUserPrompt({
       question: '光子易这家公司怎么样？',
       conversation: [],
@@ -206,9 +206,27 @@ describe('buildPlannerUserPrompt', () => {
       researchMode: 'wiki_first_web',
     });
 
-    expect(prompt).toContain('MUST call web_search before drafting the final answer');
-    expect(prompt).toContain('After web_search, you MUST call web_open');
+    expect(prompt).toContain('FIRST, call search_wiki with scope: "all"');
+    expect(prompt).toContain('Make this call by itself and wait for its result');
+    expect(prompt).toContain('Only if search_wiki returns no suitable candidate');
+    expect(prompt).toContain('call web_search, then call web_open');
+    expect(prompt).toContain('<research_order>');
+    expect(prompt).toContain('Do not read the current page, use web tools, or answer yet.');
     expect(prompt).not.toContain('answer directly from your own knowledge without searching');
+  });
+
+  it('lifts the whole-Wiki search constraint only after the search attempt', () => {
+    const prompt = buildPlannerUserPrompt({
+      question: '场内基金和场外基金的区别是什么？',
+      conversation: [],
+      wikiSources: [],
+      transcript: ['TOOL search_wiki -> {"summary":"0 readable page(s) matched."}'],
+      researchMode: 'wiki_first_web',
+      wikiSearchAttempted: true,
+    });
+
+    expect(prompt).not.toContain('<research_order>');
+    expect(prompt).toContain('Only if search_wiki returns no suitable candidate');
   });
 
   it('tells the planner when a provider-quota failure disables web tools', () => {
@@ -271,7 +289,8 @@ describe('buildWikiToolSystemPrompt', () => {
     const prompt = buildWikiToolSystemPrompt([webSearch!], { researchMode: 'wiki_first_web' });
 
     expect(prompt).toContain('<web_research_policy>');
-    expect(prompt).toContain('MUST call web_search before drafting the final answer');
+    expect(prompt).toContain('FIRST, call search_wiki with scope: "all"');
+    expect(prompt).toContain('call web_search, then call web_open');
   });
 });
 

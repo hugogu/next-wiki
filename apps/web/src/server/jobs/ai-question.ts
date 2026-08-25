@@ -496,7 +496,15 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   const textPlanner = createTextProtocolPlanner(plannerDeps);
   const nativePlanner = createNativeToolPlanner({
     ...plannerDeps,
-    tools: (state) => enabledTools.filter((tool) => !state.unavailableToolNames?.includes(tool.name)),
+    tools: (state) => enabledTools.filter((tool) => {
+      if (state.unavailableToolNames?.includes(tool.name)) return false;
+      // Native function-calling models receive a machine-readable catalogue.
+      // While Wiki-first research has not performed its global search, offer
+      // only that search: the model cannot inspect its result until the next
+      // planner turn, so exposing current-page and web tools here invites it
+      // to skip the evidence order before the runtime can correct it.
+      return !webResearch || state.wikiSearchAttempted || tool.name === 'search_wiki';
+    }),
   });
   // A model that advertises tool support but rejects the payload must not cost
   // the user their turn: downgrade for next time and finish this one on the

@@ -238,6 +238,107 @@ describe('ai tool runtime — bounded loop', () => {
     expect(calls[0]?.status).toBe('succeeded');
   });
 
+  it('requires a standalone whole-Wiki search before current-page or web tools in wiki_first_web mode', async () => {
+    const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: null, maxCalls: 5 });
+    await transitionWorkflow(workflow.id, 'running');
+
+    const result = await runToolLoop({
+      actionId,
+      workflowId: workflow.id,
+      ctx,
+      actorUserId: null,
+      question: '场内基金和场外基金的区别是什么？',
+      researchMode: 'wiki_first_web',
+      planner: scriptedPlanner([
+        {
+          // The model cannot inspect a search result until the next planner
+          // turn, so these trailing calls must be blocked even though this
+          // step starts with search_wiki.
+          kind: 'tool_calls',
+          calls: [
+            { toolName: 'search_wiki', arguments: { query: '场内基金 场外基金', scope: 'all' }, requestedReview: 'none' },
+            { toolName: 'get_page', arguments: { pageId: crypto.randomUUID() }, requestedReview: 'none' },
+            { toolName: 'web_search', arguments: {}, requestedReview: 'none' },
+          ],
+        },
+        { kind: 'final', text: 'The Wiki search did not provide suitable evidence.' },
+      ]),
+      resolveReview: noReview,
+      // Keep the test local to the first-stage ordering. A separate case
+      // covers the required external fallback when the Wiki search is empty.
+      isEnabled: (tool) => tool.name !== 'web_search',
+    });
+
+    expect(result.status).toBe('completed');
+    const calls = await db.query.aiToolCalls.findMany({
+      where: (entry, { eq }) => eq(entry.workflowId, workflow.id),
+      orderBy: (entry, { asc }) => asc(entry.sequence),
+    });
+    expect(calls.map((call) => [call.toolName, call.status, call.errorCode])).toEqual([
+      ['search_wiki', 'succeeded', null],
+      ['get_page', 'blocked', 'WIKI_SEARCH_REQUIRED'],
+      ['web_search', 'blocked', 'WIKI_SEARCH_REQUIRED'],
+    ]);
+  });
+
+  it('re-prompts instead of accepting a final answer before the whole-Wiki search', async () => {
+    const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: null, maxCalls: 5 });
+    await transitionWorkflow(workflow.id, 'running');
+    const seen: Array<{ wikiSearchAttempted?: boolean; transcript: string[] }> = [];
+    const steps: ToolPlanStep[] = [
+      { kind: 'final', text: 'A premature answer.' },
+      { kind: 'tool_calls', calls: [{ toolName: 'search_wiki', arguments: { query: 'funds', scope: 'all' }, requestedReview: 'none' }] },
+      { kind: 'final', text: 'The Wiki search was attempted before this answer.' },
+    ];
+    let index = 0;
+
+    const result = await runToolLoop({
+      actionId,
+      workflowId: workflow.id,
+      ctx,
+      actorUserId: null,
+      question: 'What are funds?',
+      researchMode: 'wiki_first_web',
+      planner: async (state) => {
+        seen.push({ wikiSearchAttempted: state.wikiSearchAttempted, transcript: [...state.transcript] });
+        return steps[index++]!;
+      },
+      resolveReview: noReview,
+      isEnabled: (tool) => tool.name !== 'web_search',
+    });
+
+    expect(result.status).toBe('completed');
+    expect(result.answer).toBe('The Wiki search was attempted before this answer.');
+    expect(seen[0]?.wikiSearchAttempted).toBe(false);
+    expect(seen[1]?.wikiSearchAttempted).toBe(false);
+    expect(seen[1]?.transcript.join('\n')).toContain('WHOLE_WIKI_SEARCH_REQUIRED');
+    expect(seen[2]?.wikiSearchAttempted).toBe(true);
+  });
+
+  it('does not allow a general-knowledge answer after an empty Wiki search while web search is available', async () => {
+    const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: null, maxCalls: 5 });
+    await transitionWorkflow(workflow.id, 'running');
+
+    await expect(runToolLoop({
+      actionId,
+      workflowId: workflow.id,
+      ctx,
+      actorUserId: null,
+      question: 'What are funds?',
+      researchMode: 'wiki_first_web',
+      planner: scriptedPlanner([
+        { kind: 'tool_calls', calls: [{ toolName: 'search_wiki', arguments: { query: 'funds', scope: 'all' }, requestedReview: 'none' }] },
+        { kind: 'final', text: 'An unverified answer before web search.' },
+        { kind: 'final', text: 'The provider still refused web search.' },
+      ]),
+      resolveReview: noReview,
+      isEnabled: allowAll,
+    })).rejects.toMatchObject({
+      code: 'INVALID_RESPONSE',
+      message: 'The AI provider did not perform the required external research fallback. Try again or select a model with reliable tool calling.',
+    });
+  });
+
   it('rejects an empty final step instead of completing with no answer', async () => {
     const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: null, maxCalls: 5 });
     await transitionWorkflow(workflow.id, 'running');

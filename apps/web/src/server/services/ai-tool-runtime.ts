@@ -312,6 +312,8 @@ export type ToolTurnState = {
   /** Tools that became unavailable during this turn (for example, a provider
    * plan quota was exhausted). Planners must not offer or call them again. */
   unavailableToolNames?: string[];
+  /** Whether this turn has already attempted the required whole-Wiki search. */
+  wikiSearchAttempted?: boolean;
 };
 
 export type ToolPlanner = (state: ToolTurnState) => Promise<ToolPlanStep>;
@@ -571,6 +573,19 @@ function stableStringify(value: unknown): string {
  */
 export const DUPLICATE_ONLY_STEP_LIMIT = 3;
 
+/**
+ * A model that skips the required Wiki search needs a bounded correction, not
+ * an unbounded planner loop. The next prompt includes the exact precondition;
+ * a second refusal is a provider-planning failure rather than an answer.
+ */
+export const WIKI_SEARCH_FINAL_RETRY_LIMIT = 2;
+
+const WIKI_SEARCH_REQUIRED_MESSAGE =
+  'WHOLE_WIKI_SEARCH_REQUIRED: Before using the current page, any other Wiki tool, web_search, or writing an answer, call search_wiki with scope: "all" for the original question. Wait for that result before the next action.';
+
+const WEB_SEARCH_FALLBACK_REQUIRED_MESSAGE =
+  'WEB_SEARCH_FALLBACK_REQUIRED: The whole-Wiki search found no readable candidates. Before answering from general knowledge, call web_search and wait for its result. If the external provider returns no suitable candidates or is unavailable, then write a clearly labelled general-knowledge fallback.';
+
 const REPEATED_CALL_NOTICE =
   '[repeated call: this tool already ran with identical arguments in this turn, so the server did not run it again. Its earlier result follows unchanged. If it does not answer the question, change the arguments or answer from what you already have.]';
 
@@ -604,6 +619,12 @@ function citationFromCandidate(value: unknown): AiCitation | null {
     revisionHash,
     ...(typeof candidate.spaceSlug === 'string' ? { spaceSlug: candidate.spaceSlug } : {}),
   };
+}
+
+function resultHasEntries(data: unknown, key: 'items' | 'candidates'): boolean {
+  if (!data || typeof data !== 'object') return false;
+  const value = (data as Record<string, unknown>)[key];
+  return Array.isArray(value) && value.length > 0;
 }
 
 export function collectToolCitations(toolName: string, data: unknown): AiCitation[] {
@@ -671,6 +692,17 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   const readResults = new Map<string, string>();
   let duplicateOnlySteps = 0;
   const unavailableToolNames = new Set<string>();
+  const wholeWikiSearchTool = resolveExecutableTool('search_wiki');
+  const wholeWikiSearchRequired =
+    params.researchMode === 'wiki_first_web' &&
+    Boolean(wholeWikiSearchTool && params.isEnabled(wholeWikiSearchTool));
+  const webSearchTool = resolveExecutableTool('web_search');
+  const webSearchAvailable = Boolean(webSearchTool && params.isEnabled(webSearchTool));
+  let wikiSearchAttempted = false;
+  let wikiSearchHadCandidates: boolean | undefined;
+  let webSearchAttempted = false;
+  let finalBeforeWikiSearchAttempts = 0;
+  let finalBeforeWebSearchFallbackAttempts = 0;
 
   logger.info('tool loop started', {
     actionId: params.actionId,
@@ -679,6 +711,8 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     questionBytes: Buffer.byteLength(params.question),
     conversationTurns: (params.conversation ?? []).length,
     wikiSourceCount: (params.wikiSources ?? []).length,
+    wholeWikiSearchRequired,
+    webSearchAvailable,
   });
 
   for (;;) {
@@ -699,6 +733,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     // appending, and what matters is the size of the prompt actually sent.
     state.transcript = boundTranscript(state.transcript, transcriptBudget);
     state.unavailableToolNames = [...unavailableToolNames];
+    state.wikiSearchAttempted = wikiSearchAttempted;
     const step = await params.planner(state);
     logger.info('tool loop planner step', {
       actionId: params.actionId,
@@ -716,6 +751,46 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         // panel and no answer.
         throw new DomainError('INVALID_RESPONSE', 'The AI provider returned no answer or tool call.');
       }
+      if (wholeWikiSearchRequired && !wikiSearchAttempted) {
+        finalBeforeWikiSearchAttempts += 1;
+        logger.warn('tool planner tried to answer before whole-Wiki search', {
+          actionId: params.actionId,
+          workflowId: params.workflowId,
+          iteration: iterations,
+          finalBeforeWikiSearchAttempts,
+        });
+        if (finalBeforeWikiSearchAttempts >= WIKI_SEARCH_FINAL_RETRY_LIMIT) {
+          throw new DomainError(
+            'INVALID_RESPONSE',
+            'The AI provider did not search the Wiki before answering. Try again or select a model with reliable tool calling.',
+          );
+        }
+        state.transcript.push(WIKI_SEARCH_REQUIRED_MESSAGE);
+        continue;
+      }
+      if (
+        wholeWikiSearchRequired &&
+        wikiSearchHadCandidates === false &&
+        !webSearchAttempted &&
+        webSearchAvailable &&
+        !unavailableToolNames.has('web_search')
+      ) {
+        finalBeforeWebSearchFallbackAttempts += 1;
+        logger.warn('tool planner tried to use general knowledge before web fallback', {
+          actionId: params.actionId,
+          workflowId: params.workflowId,
+          iteration: iterations,
+          finalBeforeWebSearchFallbackAttempts,
+        });
+        if (finalBeforeWebSearchFallbackAttempts >= WIKI_SEARCH_FINAL_RETRY_LIMIT) {
+          throw new DomainError(
+            'INVALID_RESPONSE',
+            'The AI provider did not perform the required external research fallback. Try again or select a model with reliable tool calling.',
+          );
+        }
+        state.transcript.push(WEB_SEARCH_FALLBACK_REQUIRED_MESSAGE);
+        continue;
+      }
       answer = step.text;
       logger.info('tool loop completed', {
         actionId: params.actionId,
@@ -731,21 +806,33 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     }
 
     let repeatedCalls = 0;
+    // Tool results are not visible to the planner until the next iteration.
+    // A first planner step that includes search_wiki plus get_page/web_search
+    // has not actually made an evidence-based fallback decision yet, so only
+    // its whole-Wiki search is allowed to run.
+    const wikiSearchRequiredAtStepStart = wholeWikiSearchRequired && !wikiSearchAttempted;
     for (const planned of step.calls) {
       const tool = resolveExecutableTool(planned.toolName);
       const plannedArguments = tool
         ? normalizeToolCallArguments(tool.name, planned.arguments)
         : planned.arguments;
       const providerUnavailable = Boolean(tool && unavailableToolNames.has(tool.name));
-      if (!tool || !params.isEnabled(tool) || providerUnavailable) {
+      const blockedByResearchOrder = Boolean(
+        tool && wikiSearchRequiredAtStepStart && tool.name !== 'search_wiki',
+      );
+      if (!tool || !params.isEnabled(tool) || providerUnavailable || blockedByResearchOrder) {
         // Record a blocked call so the disabled/unknown tool is visible and the
         // assistant gets a safe explanation instead of a silent no-op.
-        const blockedErrorCode = providerUnavailable
-          ? 'WEB_RESEARCH_QUOTA_EXCEEDED'
-          : 'TOOL_NOT_ENABLED';
-        const blockedErrorMessage = providerUnavailable
-          ? 'External web research is unavailable for the remainder of this turn because the provider plan limit was reached.'
-          : 'That tool is disabled by policy.';
+        const blockedErrorCode = blockedByResearchOrder
+          ? 'WIKI_SEARCH_REQUIRED'
+          : providerUnavailable
+            ? 'WEB_RESEARCH_QUOTA_EXCEEDED'
+            : 'TOOL_NOT_ENABLED';
+        const blockedErrorMessage = blockedByResearchOrder
+          ? 'A whole-Wiki search must complete before this tool can run. Call search_wiki with scope "all" first and wait for its result.'
+          : providerUnavailable
+            ? 'External web research is unavailable for the remainder of this turn because the provider plan limit was reached.'
+            : 'That tool is disabled by policy.';
         const command = buildCommandMarkdown(planned.toolName, 'none', plannedArguments);
         const { call } = await recordToolCall({
           workflowId: params.workflowId,
@@ -764,7 +851,13 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
             workflowId: params.workflowId,
             toolCallId: call.id,
             toolName: planned.toolName,
-            reason: providerUnavailable ? 'provider-quota-exhausted' : !tool ? 'tool-not-registered' : 'tool-disabled',
+            reason: blockedByResearchOrder
+              ? 'whole-wiki-search-required'
+              : providerUnavailable
+                ? 'provider-quota-exhausted'
+                : !tool
+                  ? 'tool-not-registered'
+                  : 'tool-disabled',
             requestedReview: planned.requestedReview,
             argumentKeys: Object.keys(plannedArguments),
           });
@@ -785,7 +878,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           });
         }
         state.transcript.push(`TOOL ${planned.toolName} -> blocked: ${blockedErrorMessage}`);
-        if (providerUnavailable) repeatedCalls += 1;
+        if (providerUnavailable || blockedByResearchOrder) repeatedCalls += 1;
         continue;
       }
 
@@ -857,6 +950,19 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         scheduledAiJobRunId: params.scheduledAiJobRunId,
       });
       const toolDurationMs = Date.now() - toolStartedAt;
+      if (tool.name === 'search_wiki') {
+        // An empty or failed search is still an attempted whole-Wiki search;
+        // it lets the planner decide whether external research or the final
+        // general-knowledge fallback is warranted on the next iteration.
+        wikiSearchAttempted = true;
+        state.wikiSearchAttempted = true;
+        wikiSearchHadCandidates = result.ok && resultHasEntries(result.data, 'items');
+      }
+      if (tool.name === 'web_search') {
+        // A no-result or failed external search is the documented point at
+        // which a general-knowledge fallback becomes permissible.
+        webSearchAttempted = true;
+      }
 
       if (result.ok) {
         for (const citation of collectToolCitations(tool.name, result.data)) {
