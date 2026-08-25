@@ -63,6 +63,13 @@ const entitlements = {
   reasons: [],
 };
 
+const webResearchEntitlements = {
+  ...entitlements,
+  webResearchEnabled: true,
+  webResearchPreference: true,
+  webResearchAvailable: true,
+};
+
 describe('AiChatPane viewport modes', () => {
   beforeEach(() => {
     chatState.running = false;
@@ -128,6 +135,16 @@ describe('AiChatPane viewport modes', () => {
     expect(html).toContain('ai.chat.retrievedPages');
     expect(html).toContain('Payments');
     expect(html).toContain('ai.chat.streaming');
+  });
+
+  it('keeps the web research notice in the composer flow instead of covering messages', () => {
+    const html = renderToStaticMarkup(<AiChatPane entitlements={webResearchEntitlements} />);
+    const notice = html.indexOf('ai.chat.research.notice');
+    const composer = html.indexOf('<textarea');
+
+    expect(notice).toBeGreaterThan(-1);
+    expect(notice).toBeLessThan(composer);
+    expect(html).not.toContain('absolute bottom-full');
   });
 });
 

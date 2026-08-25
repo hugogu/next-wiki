@@ -590,40 +590,42 @@ export function AiChatPane({
           </article>
         ))}
       </div>
-      <form
-        className="relative flex shrink-0 items-end gap-sm border-t border-border p-md"
-        onSubmit={(event) => {
-          event.preventDefault();
-          askQuestion(question);
-        }}
-      >
+      <div className="shrink-0 border-t border-border bg-surface">
         {externalResearchEnabled && (
-          <div className="absolute bottom-full left-0 right-0 space-y-xs border-t border-border bg-surface p-sm text-xs">
+          <div className="space-y-xs px-md pt-sm text-xs">
             <span>{t('ai.chat.research.notice')}</span>{' '}
             <Link className="text-primary hover:underline" href="/user-center/settings">
               {t('ai.chat.research.manage')}
             </Link>
           </div>
         )}
-        <textarea
-          className="min-h-10 max-h-40 min-w-0 flex-1 resize-y rounded-md border border-border bg-background p-sm text-sm"
-          value={question}
-          onChange={(event) => setQuestion(event.target.value)}
-          placeholder={t('ai.chat.placeholder')}
-          maxLength={16_000}
-        />
-        <Tooltip label={chat.running ? t('ai.chat.stop') : t('ai.chat.send')}>
-          <Button
-            type={chat.running ? 'button' : 'submit'}
-            size="icon"
-            aria-label={chat.running ? t('ai.chat.stop') : t('ai.chat.send')}
-            disabled={!chat.running && !question.trim()}
-            onClick={chat.running ? () => { void chat.cancel(); } : undefined}
-          >
-            {chat.running ? <StopIcon /> : <SendIcon />}
-          </Button>
-        </Tooltip>
-      </form>
+        <form
+          className="flex items-end gap-sm p-md"
+          onSubmit={(event) => {
+            event.preventDefault();
+            askQuestion(question);
+          }}
+        >
+          <textarea
+            className="min-h-10 max-h-40 min-w-0 flex-1 resize-y rounded-md border border-border bg-background p-sm text-sm"
+            value={question}
+            onChange={(event) => setQuestion(event.target.value)}
+            placeholder={t('ai.chat.placeholder')}
+            maxLength={16_000}
+          />
+          <Tooltip label={chat.running ? t('ai.chat.stop') : t('ai.chat.send')}>
+            <Button
+              type={chat.running ? 'button' : 'submit'}
+              size="icon"
+              aria-label={chat.running ? t('ai.chat.stop') : t('ai.chat.send')}
+              disabled={!chat.running && !question.trim()}
+              onClick={chat.running ? () => { void chat.cancel(); } : undefined}
+            >
+              {chat.running ? <StopIcon /> : <SendIcon />}
+            </Button>
+          </Tooltip>
+        </form>
+      </div>
       {pendingResearchQuestion && (
         <ModalDialog
           title={t('ai.chat.research.enable')}
