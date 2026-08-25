@@ -113,6 +113,18 @@ describe('parseToolPlan — provider-agnostic tool protocol', () => {
     const output = 'Some logs:\n```jsonl\n{"a":1}\n{"b":2}\n```';
     expect(parseToolPlan(output)).toEqual({ kind: 'final', text: output.trim() });
   });
+
+  it('executes the compact dots function-call dialect as a wiki search', () => {
+    const step = parseToolPlan('<dots_function_call><search_wiki"> 光子易 </dots_function_call>');
+    expect(step).toEqual({
+      kind: 'tool_calls',
+      calls: [{
+        toolName: 'search_wiki',
+        arguments: { query: '光子易' },
+        requestedReview: 'none',
+      }],
+    });
+  });
 });
 
 describe('buildPlannerUserPrompt', () => {
@@ -350,6 +362,7 @@ describe('parseToolPlan — foreign tool-call dialects', () => {
     ['a <tool_call> wrapper', '好的。<tool_call>{"name":"list_tags"}</tool_call>'],
     ['bare MiniMax delimiters', '好的。]<]minimax[>[<invoke name="get_page">]<]minimax[>[</invoke>'],
     ['a <function_calls> block', '好的。<function_calls><invoke name="get_page"></invoke></function_calls>'],
+    ['an incomplete dots function-call block', '好的。<dots_function_call><search_wiki">光子易'],
   ])('retries rather than answering with %s', (_label, output) => {
     expect(parseToolPlan(output).kind).toBe('invalid_tool_calls');
   });

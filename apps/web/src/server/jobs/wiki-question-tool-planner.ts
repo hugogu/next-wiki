@@ -250,6 +250,7 @@ const NATIVE_TOOL_SYNTAX = [
   /<\/?tool_call>/i,
   /<\|?tool_calls?\|?>/i,
   /<\/?function_calls>/i,
+  /<\/?dots_function_call\b/i,
   /\]<\]minimax\[>\[/,
 ];
 
@@ -262,6 +263,54 @@ function looksLikeForeignToolCall(output: string): boolean {
 function looksLikeBareToolProtocol(output: string): boolean {
   return /(?:^|\n)\s*tool_calls\s*:\s*\n\s*-\s*tool\s*:/i.test(output) ||
     /^\s*\{\s*"tool_calls"\s*:/i.test(output);
+}
+
+/**
+ * A few OpenAI-compatible models emit a compact XML-like function dialect
+ * instead of the requested fenced protocol, for example:
+ * `<dots_function_call><search_wiki"> 光子易 </dots_function_call>`.
+ *
+ * This format carries a single positional value rather than named JSON
+ * arguments. Translate only the read/search shapes we can do safely; writes
+ * and unknown functions remain invalid and will be retried with the canonical
+ * protocol instead of guessing their arguments.
+ */
+function parseDotsFunctionCall(output: string): ToolPlanStep | null {
+  const match = output.match(
+    /<dots_function_call\b[^>]*>\s*<([A-Za-z_][\w.-]*)["']?\s*>([\s\S]*?)\s*(?:<\/\1\s*>)?\s*<\/dots_function_call\s*>/i,
+  );
+  if (!match) return null;
+
+  const toolName = match[1]!;
+  const value = match[2]!.trim();
+  let arguments_: Record<string, unknown>;
+  switch (toolName) {
+    case 'search_wiki':
+      if (!value) return null;
+      arguments_ = { query: value };
+      break;
+    case 'web_search':
+      // The server derives the external query from the original user
+      // question; accepting a model-supplied query would leak Wiki context.
+      arguments_ = {};
+      break;
+    case 'get_page':
+    case 'get_backlinks':
+    case 'get_neighborhood':
+    case 'list_pages':
+      if (!value) return null;
+      arguments_ = { path: value };
+      break;
+    case 'list_tags':
+      arguments_ = value ? { q: value } : {};
+      break;
+    default:
+      return null;
+  }
+  return {
+    kind: 'tool_calls',
+    calls: [{ toolName, arguments: arguments_, requestedReview: 'none' }],
+  };
 }
 
 /** Parse one planner turn: a valid tool-call block requests tools; malformed
@@ -308,6 +357,8 @@ export function parseToolPlan(output: string): ToolPlannerParseResult {
   if (/```(?:tool|json)\b\s*\n/.test(output)) {
     return { kind: 'invalid_tool_calls' };
   }
+  const dotsCall = parseDotsFunctionCall(output);
+  if (dotsCall) return dotsCall;
   // A model that tried to call a tool in its own dialect did not write an
   // answer. Delivering this text would show the user raw protocol and silently
   // drop the work they asked for, so retry with explicit protocol feedback.
