@@ -72,7 +72,6 @@ import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from 
 import { deriveOkfTypeFromPath, ensureOkfConformance } from '@/server/services/okf';
 import * as rawEntries from '@/server/services/raw-entries';
 import * as pageAddresses from '@/server/services/page-addresses';
-import { getPageHref } from '@/lib/path';
 import type { PublicPageAddressList, PublicPageAddress } from '@next-wiki/shared';
 
 type PageRow = typeof schema.pages.$inferSelect;
@@ -882,9 +881,13 @@ function toWireAddress(address: { id: string; address: string; kind: 'retained' 
 
 // 035 (US4): a page's canonical address and every alias (FR-020).
 export async function listPageAddresses(pageId: string): Promise<PublicPageAddressList> {
+  const page = await getPageRowById(pageId);
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getPageSpace(page);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   const { canonical, aliases } = await pageAddresses.listAddresses(pageId);
   return {
-    canonical: { address: canonical, url: getPageHref(canonical) },
+    canonical: { address: canonical, url: canonicalSpacePath(space, canonical) },
     aliases: aliases.map(toWireAddress),
   };
 }
