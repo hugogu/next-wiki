@@ -1166,7 +1166,7 @@ async function assertWebToolEnabled(name: 'web_search' | 'web_open'): Promise<vo
   if (!definition) throw new DomainError('NOT_FOUND', 'Web research tool is not available');
   const rows = await getPolicyRowsByProvider(provider.id);
   if (!resolveToolEnabled(definition, policyLayersFor(definition, rows), provider.enabled)) {
-    throw new DomainError('AI_FEATURE_DISABLED', 'Web research is disabled by tool policy');
+    throw new DomainError('WEB_RESEARCH_POLICY_BLOCKED', 'Web research is disabled by tool policy');
   }
 }
 

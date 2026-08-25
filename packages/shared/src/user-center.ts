@@ -22,11 +22,13 @@ export const localePreferenceSchema = z.enum(['en', 'zh']);
 export const updatePreferencesInputSchema = z.object({
   theme: themePreferenceSchema.nullable().optional(),
   locale: localePreferenceSchema.nullable().optional(),
+  webResearchPreference: z.boolean().optional(),
 });
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesInputSchema>;
 
 export const preferencesViewSchema = z.object({
   theme: themePreferenceSchema.nullable(),
   locale: localePreferenceSchema.nullable(),
+  webResearchPreference: z.boolean(),
 });
 export type PreferencesView = z.infer<typeof preferencesViewSchema>;

@@ -2566,11 +2566,16 @@
               "zh"
             ],
             "description": "Preferred locale, or null when using the default."
+          },
+          "webResearchPreference": {
+            "type": "boolean",
+            "description": "Whether external web research is enabled for this user."
           }
         },
         "required": [
           "theme",
-          "locale"
+          "locale",
+          "webResearchPreference"
         ],
         "description": "Current user preferences."
       },
@@ -9979,6 +9984,10 @@
               "zh"
             ],
             "description": "Preferred locale, or null to reset to the default."
+          },
+          "webResearchPreference": {
+            "type": "boolean",
+            "description": "Whether to use external web research when Wiki evidence is insufficient."
           }
         },
         "description": "Update the current user preferences."
@@ -23680,7 +23689,7 @@
       "patch": {
         "operationId": "patch-user-preferences",
         "summary": "Update preferences",
-        "description": "Updates the signed-in user's theme and/or locale preference.",
+        "description": "Updates the signed-in user's theme, locale, and external web-research preference.",
         "tags": [
           "User"
         ],

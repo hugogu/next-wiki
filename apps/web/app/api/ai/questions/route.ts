@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // grounded Q&A worker, which evaluates retrieval with anonymous page
     // permissions instead.
     if (research?.mode === 'wiki_first_web' && (!tools?.enabled || ctx.actor.kind === 'anonymous')) {
-      throw new DomainError('AI_FEATURE_DISABLED', 'Web research requires an authenticated tool-enabled Wiki AI session');
+      throw new DomainError('WEB_RESEARCH_ACCESS_DENIED', 'Web research requires an authenticated tool-enabled Wiki AI session');
     }
     if (tools?.enabled && ctx.actor.kind !== 'anonymous') {
       const result = await createToolEnabledWikiQuestion(ctx, {

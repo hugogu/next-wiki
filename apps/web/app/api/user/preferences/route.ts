@@ -42,7 +42,7 @@ async function handlePATCH(request: NextRequest) {
  *
  * @openapi
  * @summary Update preferences
- * @description Updates the signed-in user's theme and/or locale preference.
+ * @description Updates the signed-in user's theme, locale, and external web-research preference.
  * @tag User
  * @auth bearer
  * @body UpdatePreferencesInput

@@ -165,6 +165,10 @@ export const UpdatePreferencesInput = z
       .optional()
       .describe('Preferred theme, or null to reset to the default.'),
     locale: z.enum(['en', 'zh']).nullable().optional().describe('Preferred locale, or null to reset to the default.'),
+    webResearchPreference: z
+      .boolean()
+      .optional()
+      .describe('Whether to use external web research when Wiki evidence is insufficient.'),
   })
   .describe('Update the current user preferences.');
 
@@ -172,6 +176,7 @@ export const PreferencesView = z
   .object({
     theme: z.enum(['light', 'dark', 'auto']).nullable().describe('Preferred theme, or null when using the default.'),
     locale: z.enum(['en', 'zh']).nullable().describe('Preferred locale, or null when using the default.'),
+    webResearchPreference: z.boolean().describe('Whether external web research is enabled for this user.'),
   })
   .describe('Current user preferences.');
 

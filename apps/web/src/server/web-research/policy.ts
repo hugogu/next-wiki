@@ -3,10 +3,21 @@ import { getWebResearchConnector } from './registry';
 import { getEffectiveWebResearchSettings } from './settings';
 
 export async function requireWebResearchConfiguration() {
-  const settings = await getEffectiveWebResearchSettings();
+  let settings: Awaited<ReturnType<typeof getEffectiveWebResearchSettings>>;
+  try {
+    settings = await getEffectiveWebResearchSettings();
+  } catch {
+    throw new DomainError(
+      'WEB_RESEARCH_UNAVAILABLE',
+      'External web research credentials are invalid. Ask an administrator to reconfigure the connector.',
+    );
+  }
   const connector = getWebResearchConnector(settings.provider);
   if (!settings.enabled || !settings.apiKey || !connector) {
-    throw new DomainError('AI_FEATURE_DISABLED', 'Web research is not currently available');
+    throw new DomainError(
+      'WEB_RESEARCH_UNAVAILABLE',
+      'External web research is not configured. Ask an administrator to configure the connector first.',
+    );
   }
   return { settings, connector, apiKey: settings.apiKey };
 }

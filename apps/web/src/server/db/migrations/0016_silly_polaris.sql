@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "web_research_preference" boolean DEFAULT false NOT NULL;

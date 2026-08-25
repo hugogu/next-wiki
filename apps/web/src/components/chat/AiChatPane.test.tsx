@@ -53,6 +53,8 @@ const entitlements = {
   textOptimizationEnabled: false,
   imageGenerationEnabled: false,
   webResearchEnabled: false,
+  webResearchPreference: false,
+  webResearchAvailable: false,
   reasons: [],
 };
 

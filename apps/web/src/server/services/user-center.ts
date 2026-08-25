@@ -132,6 +132,7 @@ export async function updatePreferences(
   const updates: Partial<typeof schema.users.$inferInsert> = { updatedAt: new Date() };
   if (input.theme !== undefined) updates.themePreference = input.theme;
   if (input.locale !== undefined) updates.localePreference = input.locale;
+  if (input.webResearchPreference !== undefined) updates.webResearchPreference = input.webResearchPreference;
 
   const [updated] = await db
     .update(schema.users)
@@ -146,6 +147,7 @@ export async function updatePreferences(
   return {
     theme: updated.themePreference as PreferencesView['theme'],
     locale: updated.localePreference as PreferencesView['locale'],
+    webResearchPreference: updated.webResearchPreference,
   };
 }
 
@@ -155,7 +157,7 @@ export async function getPreferences(ctx: PermCtx): Promise<PreferencesView | nu
 
   const user = await db.query.users.findFirst({
     where: eq(schema.users.id, userId),
-    columns: { themePreference: true, localePreference: true },
+    columns: { themePreference: true, localePreference: true, webResearchPreference: true },
   });
 
   if (!user) return null;
@@ -163,5 +165,6 @@ export async function getPreferences(ctx: PermCtx): Promise<PreferencesView | nu
   return {
     theme: (user.themePreference as PreferencesView['theme']) ?? null,
     locale: (user.localePreference as PreferencesView['locale']) ?? null,
+    webResearchPreference: user.webResearchPreference,
   };
 }

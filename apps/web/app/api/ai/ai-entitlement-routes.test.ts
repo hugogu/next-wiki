@@ -23,6 +23,9 @@ const entitlement = {
   questionAnsweringEnabled: true,
   textOptimizationEnabled: false,
   imageGenerationEnabled: false,
+  webResearchEnabled: false,
+  webResearchPreference: false,
+  webResearchAvailable: false,
 };
 
 describe('AI entitlement REST routes', () => {

@@ -2277,6 +2277,20 @@
       "feishu": "Feishu binding",
       "settings": "User Settings"
     },
+    "webResearch": {
+      "pageTitle": "User Settings",
+      "pageDescription": "Manage your personal AI and external research preferences.",
+      "title": "External web research",
+      "description": "When enabled, Wiki AI may send a question to the configured search provider after Wiki evidence is insufficient. This preference is saved to your account.",
+      "enabled": "Use external web research when Wiki evidence is insufficient",
+      "enabledHint": "Your question may leave this Wiki and be processed by the configured third-party provider.",
+      "notEntitled": "External web research has not been enabled for your account. Ask an administrator for access.",
+      "notConfigured": "External web research is not configured by an administrator yet.",
+      "privacy": "You can turn this preference off at any time. Wiki-only questions never use the external provider.",
+      "profileLink": "Back to profile",
+      "saved": "User settings updated.",
+      "error": "Could not save this user setting. Please try again."
+    },
     "readingTheme": {
       "title": "Reading theme",
       "description": "Choose the colors, fonts, and sizes used when you read Markdown content. Changes apply inside the reader (the rest of the site keeps the admin system theme).",
@@ -2473,7 +2487,9 @@
       "providerNotice": "Your question and relevant Wiki content may be sent to the configured AI provider.",
       "research": {
         "enable": "Use external web research when Wiki evidence is insufficient",
-        "consent": "I understand that this question will be sent to a third-party search provider. I will not include personal or confidential information."
+        "consent": "I understand that this question will be sent to a third-party search provider. I will not include personal or confidential information.",
+        "notice": "External web research is enabled for this account; questions may be sent to the configured search provider.",
+        "manage": "Manage in User Settings"
       },
       "empty": "Ask a question grounded in this Wiki.",
       "streaming": "Generating…",
@@ -2528,6 +2544,8 @@
         "sessionExpired": "Your session has expired. Sign in again to use Wiki AI.",
         "invalidRequest": "Wiki AI could not use this conversation context. Start a new session and retry.",
         "notAvailable": "Wiki AI is not currently available. Check the AI configuration or your access.",
+        "webResearchUnavailable": "External web research is not configured. Ask an administrator to configure it, or turn it off in User Settings.",
+        "webResearchAccessDenied": "External web research is not enabled for your account. Update User Settings or ask an administrator for access.",
         "timeout": "The AI provider timed out while starting this request. Please retry.",
         "requestFailed": "Wiki AI could not start this request. Please retry."
       },

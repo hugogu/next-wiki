@@ -37,7 +37,7 @@ async function assertActionMayCallProvider(actionId: string, kind: 'search' | 'o
     ));
   if ((row?.value ?? 0) >= limit) {
     await recordAttempt({ actionId, kind, outcome: 'denied', policyDisposition: 'turn_limit' });
-    throw new DomainError('AI_FEATURE_DISABLED', `Web research ${kind} limit reached for this answer`);
+    throw new DomainError('WEB_RESEARCH_BUDGET_EXCEEDED', `Web research ${kind} limit reached for this answer`);
   }
 }
 

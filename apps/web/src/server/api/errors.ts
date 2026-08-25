@@ -46,6 +46,18 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 409);
     case 'AI_FEATURE_DISABLED':
       return apiError(code, message, 403);
+    case 'WEB_RESEARCH_ACCESS_DENIED':
+    case 'WEB_RESEARCH_CONSENT_REQUIRED':
+    case 'WEB_RESEARCH_POLICY_BLOCKED':
+    case 'WEB_SOURCE_UNCAPTURABLE':
+      return apiError(code, message, 403);
+    case 'WEB_RESEARCH_UNAVAILABLE':
+      return apiError(code, message, 503);
+    case 'WEB_RESEARCH_BUDGET_EXCEEDED':
+      return apiError(code, message, 429);
+    case 'WEB_SOURCE_NOT_FOUND':
+    case 'WEB_SOURCE_EXPIRED':
+      return apiError(code, message, 404);
     case 'PROVIDER_IN_USE':
     case 'MODEL_IN_USE':
     case 'CAPABILITY_MISMATCH':

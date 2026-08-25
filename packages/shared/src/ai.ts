@@ -549,6 +549,8 @@ export type AiEntitlementUpdate = z.infer<typeof aiEntitlementUpdateSchema>;
 export const aiEntitlementViewSchema = aiEntitlementUpdateSchema.extend({
   userId: z.string().uuid(),
   webResearchEnabled: z.boolean(),
+  webResearchPreference: z.boolean(),
+  webResearchAvailable: z.boolean(),
   aiEnabled: z.boolean(),
   reasons: z.array(z.string()),
 });

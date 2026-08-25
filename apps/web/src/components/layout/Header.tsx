@@ -341,8 +341,10 @@ export function Header({
   const isOnUserCenter = pathname.startsWith('/user-center');
   const isOnAdmin = pathname.startsWith('/admin');
   const routeTitle =
-    pathname === '/user-center/profile'
-      ? t('userCenter.nav.profile')
+      pathname === '/user-center/profile'
+        ? t('userCenter.nav.profile')
+      : pathname === '/user-center/settings'
+        ? t('userCenter.nav.settings')
       : pathname === '/user-center/password'
         ? t('userCenter.nav.password')
         : pathname === '/user-center/api-keys'

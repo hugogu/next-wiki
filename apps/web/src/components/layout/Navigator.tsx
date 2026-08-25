@@ -556,6 +556,11 @@ export function Navigator({
       icon: <UserIcon className="shrink-0" />,
     },
     {
+      href: '/user-center/settings',
+      label: t('userCenter.nav.settings'),
+      icon: <SettingsIcon className="shrink-0" />,
+    },
+    {
       href: '/user-center/password',
       label: t('userCenter.nav.password'),
       icon: <LockIcon className="shrink-0" />,

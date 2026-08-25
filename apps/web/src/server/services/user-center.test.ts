@@ -121,6 +121,17 @@ describe('user-center service', () => {
       expect(row?.localePreference).toBe('zh');
     });
 
+    it('saves the per-user external web-research preference', async () => {
+      const user = await createTestUser({ email: 'prefs-web@example.com' });
+      const ctx = buildUserCtx(user.id, user.role);
+
+      const result = await userCenterService.updatePreferences(ctx, { webResearchPreference: true });
+
+      expect(result.webResearchPreference).toBe(true);
+      const row = await db.query.users.findFirst({ where: eq(schema.users.id, user.id) });
+      expect(row?.webResearchPreference).toBe(true);
+    });
+
     it('rejects anonymous actor', async () => {
       await expect(
         userCenterService.updatePreferences(buildAnonymousCtx(), { theme: 'dark' }),

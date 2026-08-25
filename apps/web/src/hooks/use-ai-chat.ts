@@ -148,6 +148,10 @@ export function wikiAiErrorTranslationKey(error: {
   if (code === 'TIMEOUT') return 'ai.chat.errors.timeout';
   if (code === 'UNAUTHORIZED') return 'ai.chat.errors.sessionExpired';
   if (code === 'BAD_REQUEST') return 'ai.chat.errors.invalidRequest';
+  if (code === 'WEB_RESEARCH_UNAVAILABLE') return 'ai.chat.errors.webResearchUnavailable';
+  if (code === 'WEB_RESEARCH_ACCESS_DENIED' || code === 'WEB_RESEARCH_CONSENT_REQUIRED') {
+    return 'ai.chat.errors.webResearchAccessDenied';
+  }
   if (
     code === 'AI_DISABLED' ||
     code === 'AI_FEATURE_DISABLED' ||

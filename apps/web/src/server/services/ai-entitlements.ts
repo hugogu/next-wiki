@@ -5,6 +5,8 @@ import * as schema from '@/server/db/schema';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { getAiSettings } from './ai-actions';
+import { getEffectiveWebResearchSettings } from '@/server/web-research/settings';
+import { getWebResearchConnector } from '@/server/web-research/registry';
 
 const disabled = {
   questionAnsweringEnabled: false,
@@ -27,6 +29,8 @@ const ANONYMOUS_ENTITLEMENTS: AiEntitlementView = {
   textOptimizationEnabled: false,
   imageGenerationEnabled: false,
   webResearchEnabled: false,
+  webResearchPreference: false,
+  webResearchAvailable: false,
   aiEnabled: true,
   reasons: [],
 };
@@ -61,6 +65,17 @@ async function availabilityReasons(): Promise<string[]> {
   return reasons;
 }
 
+async function webResearchAvailable(): Promise<boolean> {
+  try {
+    const settings = await getEffectiveWebResearchSettings();
+    return Boolean(settings.enabled && settings.apiKey && getWebResearchConnector(settings.provider));
+  } catch {
+    // A stale or malformed encrypted credential should fail closed in the UI;
+    // the request path still returns the typed WEB_RESEARCH_UNAVAILABLE error.
+    return false;
+  }
+}
+
 export async function getUserEntitlements(ctx: PermCtx, userId: string): Promise<AiEntitlementView> {
   assertAdmin(ctx);
   const user = await db.query.users.findFirst({ where: eq(schema.users.id, userId) });
@@ -69,9 +84,12 @@ export async function getUserEntitlements(ctx: PermCtx, userId: string): Promise
     where: eq(schema.userAiEntitlements.userId, userId),
   });
   const reasons = await availabilityReasons();
+  const researchAvailable = await webResearchAvailable();
   return {
     userId,
     ...(row ?? defaultEntitlementsFor(user.role)),
+    webResearchPreference: user.webResearchPreference,
+    webResearchAvailable: researchAvailable,
     aiEnabled: user.status === 'active' && !reasons.includes('AI_DISABLED'),
     reasons: user.status === 'active' ? reasons : ['USER_DISABLED', ...reasons],
   };
@@ -112,9 +130,12 @@ export async function getMyEntitlements(ctx: PermCtx): Promise<AiEntitlementView
     where: eq(schema.userAiEntitlements.userId, userId),
   });
   const reasons = await availabilityReasons();
+  const researchAvailable = await webResearchAvailable();
   return {
     userId,
     ...(row ?? defaultEntitlementsFor(user.role)),
+    webResearchPreference: user.webResearchPreference,
+    webResearchAvailable: researchAvailable,
     aiEnabled: !reasons.includes('AI_DISABLED'),
     reasons,
   };
@@ -165,10 +186,14 @@ export async function assertAiFeature(
   }
   if (feature === 'web_research') {
     if (ctx.actor.kind !== 'user') {
-      throw new DomainError('AI_FEATURE_DISABLED', 'Web research requires a signed-in user session');
+      throw new DomainError('WEB_RESEARCH_ACCESS_DENIED', 'Web research requires a signed-in user session');
     }
-    if (!entitlements.questionAnsweringEnabled || !entitlements.webResearchEnabled) {
-      throw new DomainError('AI_FEATURE_DISABLED', 'Web research is not enabled for this user');
+    if (
+      !entitlements.questionAnsweringEnabled ||
+      !entitlements.webResearchEnabled ||
+      !entitlements.webResearchPreference
+    ) {
+      throw new DomainError('WEB_RESEARCH_ACCESS_DENIED', 'Web research is not enabled for this user');
     }
   }
   return entitlements;

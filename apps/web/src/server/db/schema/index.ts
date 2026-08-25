@@ -176,6 +176,9 @@ export const users = pgTable(
     displayName: text('display_name'),
     themePreference: text('theme_preference'),
     localePreference: text('locale_preference'),
+    // Per-user opt-in for external web research. This is separate from the
+    // admin-managed AI entitlement and connector availability.
+    webResearchPreference: boolean('web_research_preference').notNull().default(false),
     // Set whenever a session is established (password login, first-run setup).
     lastLoginAt: timestamp('last_login_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),

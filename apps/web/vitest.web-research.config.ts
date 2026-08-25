@@ -16,6 +16,7 @@ export default defineConfig({
       'src/components/chat/AiChatPane.test.tsx',
       'src/components/chat/chat-url.test.ts',
       'src/components/chat/linkify-citations.test.ts',
+      'src/hooks/use-ai-chat.test.ts',
       'src/server/services/feishu-notifications.citation-url.test.ts',
     ],
     exclude: ['node_modules', 'dist', '.next', 'e2e'],

@@ -71,7 +71,7 @@ export function NavFooterMenu({ user, onNavigate }: { user: Actor; onNavigate?: 
         >
           {isSignedIn && (
             <MenuLink
-              href="/user-center/profile"
+              href="/user-center/settings"
               icon={<UserIcon className="h-4 w-4" />}
               active={pathname.startsWith('/user-center')}
               onClick={close}

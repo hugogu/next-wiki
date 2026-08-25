@@ -69,6 +69,7 @@ describe('useAiChat payload helpers', () => {
         },
       ],
       tools: { enabled: true, requestedReview: 'admin_review' },
+      research: { mode: 'wiki_only', externalResearchConsent: false },
     });
   });
 
@@ -115,6 +116,10 @@ describe('useAiChat payload helpers', () => {
       .toBe('ai.chat.errors.invalidRequest');
     expect(wikiAiErrorTranslationKey({ code: 'AI_NOT_CONFIGURED' }))
       .toBe('ai.chat.errors.notAvailable');
+    expect(wikiAiErrorTranslationKey({ code: 'WEB_RESEARCH_UNAVAILABLE' }))
+      .toBe('ai.chat.errors.webResearchUnavailable');
+    expect(wikiAiErrorTranslationKey({ code: 'WEB_RESEARCH_ACCESS_DENIED' }))
+      .toBe('ai.chat.errors.webResearchAccessDenied');
     expect(wikiAiErrorTranslationKey({ message: 'AI request failed' }))
       .toBe('ai.chat.errors.requestFailed');
   });

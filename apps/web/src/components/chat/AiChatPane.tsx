@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
 import type { AiEntitlementView } from '@next-wiki/shared';
 import type { PageContext } from '@/components/layout/types';
 import { useAiChat } from '@/hooks/use-ai-chat';
@@ -106,7 +107,6 @@ export function AiChatPane({
     getAnonymousChatHistoryStatus,
   );
   const [question, setQuestion] = useState('');
-  const [externalResearchConsent, setExternalResearchConsent] = useState(false);
   const [chatUrlSettled, setChatUrlSettled] = useState(false);
   const [internalMaximized, setInternalMaximized] = useState(false);
   const maximized = maximizedProp ?? internalMaximized;
@@ -126,6 +126,12 @@ export function AiChatPane({
       ? { pageId: pageContext.pageId, revisionId: pageContext.revisionId }
       : undefined,
   );
+  const externalResearchEnabled = Boolean(
+    entitlements.webResearchEnabled &&
+      entitlements.webResearchPreference &&
+      entitlements.webResearchAvailable,
+  );
+  const effectiveResearchMode = externalResearchEnabled ? 'wiki_first_web' : 'wiki_only';
   // Destructure the pieces we need in effect dependency arrays. `cancel` is
   // stable; `running` is the reactive signal that starts/stops recovery polling.
   const { running, cancel } = chat;
@@ -203,7 +209,9 @@ export function AiChatPane({
     void Promise.resolve(useChatStore.persist.rehydrate()).then(() => {
       if (cancelled) return;
       const researchMode = readResearchModeFromUrl(window.location.search);
-      if (researchMode) useChatStore.getState().setResearchMode(researchMode);
+      useChatStore.getState().setResearchMode(
+        externalResearchEnabled && researchMode === 'wiki_first_web' ? researchMode : effectiveResearchMode,
+      );
       setRehydrated(true);
       // After rehydration, reconcile any assistant message that was marked
       // failed client-side with the authoritative server state. The server
@@ -244,7 +252,7 @@ export function AiChatPane({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [effectiveResearchMode, externalResearchEnabled]);
 
   // Arriving on a `?chat=` link loads that conversation over whatever this tab
   // had. It runs before the mirror below starts, so a shared link never strips
@@ -288,8 +296,8 @@ export function AiChatPane({
   // the store either way.
   useEffect(() => {
     if (!chatUrlSettled) return;
-    syncChatKeyToUrl(chat.open ? chat.conversationKey : null, chat.researchMode);
-  }, [chatUrlSettled, chat.open, chat.conversationKey, chat.researchMode]);
+    syncChatKeyToUrl(chat.open ? chat.conversationKey : null, effectiveResearchMode);
+  }, [chatUrlSettled, chat.open, chat.conversationKey, effectiveResearchMode]);
 
   useEffect(() => {
     if (!anonymous) return;
@@ -503,14 +511,12 @@ export function AiChatPane({
               <button
                 type="button"
                 className="mt-xs text-xs text-primary hover:underline"
-                disabled={chat.researchMode === 'wiki_first_web' && !externalResearchConsent}
                 onClick={() => {
                   const index = chat.messages.findIndex((item) => item.id === message.id);
                   const previous = index > 0 ? chat.messages[index - 1] : null;
-                  if (chat.researchMode === 'wiki_first_web' && !externalResearchConsent) return;
                   if (previous?.role === 'user') void chat.ask(previous.text, 'retrieval', {
-                    mode: chat.researchMode,
-                    externalResearchConsent: chat.researchMode === 'wiki_first_web' && externalResearchConsent,
+                    mode: effectiveResearchMode,
+                    externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
                   });
                 }}
               >
@@ -528,32 +534,18 @@ export function AiChatPane({
           const value = question.trim();
           if (!value || chat.running) return;
           setQuestion('');
-          if (chat.researchMode === 'wiki_first_web' && !externalResearchConsent) return;
           void chat.ask(value, 'retrieval', {
-            mode: chat.researchMode,
-            externalResearchConsent: chat.researchMode === 'wiki_first_web' && externalResearchConsent,
+            mode: effectiveResearchMode,
+            externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
           });
         }}
       >
-        {entitlements.webResearchEnabled && (
+        {externalResearchEnabled && (
           <div className="absolute bottom-full left-0 right-0 space-y-xs border-t border-border bg-surface p-sm text-xs">
-            <label className="flex items-center gap-xs">
-              <input
-                type="checkbox"
-                checked={chat.researchMode === 'wiki_first_web'}
-                onChange={(event) => {
-                  chat.setResearchMode(event.target.checked ? 'wiki_first_web' : 'wiki_only');
-                  if (!event.target.checked) setExternalResearchConsent(false);
-                }}
-              />
-              {t('ai.chat.research.enable')}
-            </label>
-            {chat.researchMode === 'wiki_first_web' && (
-              <label className="flex items-start gap-xs text-muted">
-                <input type="checkbox" checked={externalResearchConsent} onChange={(event) => setExternalResearchConsent(event.target.checked)} />
-                <span>{t('ai.chat.research.consent')}</span>
-              </label>
-            )}
+            <span>{t('ai.chat.research.notice')}</span>{' '}
+            <Link className="text-primary hover:underline" href="/user-center/settings">
+              {t('ai.chat.research.manage')}
+            </Link>
           </div>
         )}
         <textarea
@@ -568,7 +560,7 @@ export function AiChatPane({
             type={chat.running ? 'button' : 'submit'}
             size="icon"
             aria-label={chat.running ? t('ai.chat.stop') : t('ai.chat.send')}
-            disabled={!chat.running && (!question.trim() || (chat.researchMode === 'wiki_first_web' && !externalResearchConsent))}
+            disabled={!chat.running && !question.trim()}
             onClick={chat.running ? () => { void chat.cancel(); } : undefined}
           >
             {chat.running ? <StopIcon /> : <SendIcon />}

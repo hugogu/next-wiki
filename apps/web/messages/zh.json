@@ -2277,6 +2277,20 @@
       "feishu": "飞书绑定",
       "settings": "用户设置"
     },
+    "webResearch": {
+      "pageTitle": "用户设置",
+      "pageDescription": "管理你的个人 AI 与外部联网研究偏好。",
+      "title": "外部联网研究",
+      "description": "启用后，当 Wiki 证据不足时，Wiki AI 可以将问题发送给系统配置的搜索服务商。此偏好会保存到你的账号。",
+      "enabled": "在 Wiki 证据不足时使用外部联网研究",
+      "enabledHint": "你的问题可能离开当前 Wiki，并由系统配置的第三方服务商处理。",
+      "notEntitled": "你的账号尚未启用外部联网研究，请联系管理员申请权限。",
+      "notConfigured": "管理员尚未完成外部联网研究配置。",
+      "privacy": "你可以随时关闭此偏好；仅使用 Wiki 的问题不会调用外部服务商。",
+      "profileLink": "返回个人资料",
+      "saved": "用户设置已更新。",
+      "error": "无法保存此用户设置，请重试。"
+    },
     "readingTheme": {
       "title": "阅读主题",
       "description": "选择阅读 Markdown 内容时使用的颜色、字体与字号。修改仅作用于阅读器（站点其他部分仍使用管理员设置的系统主题）。",
@@ -2473,7 +2487,9 @@
       "providerNotice": "你的问题和相关 Wiki 内容可能会发送给系统配置的 AI 平台。",
       "research": {
         "enable": "在 Wiki 证据不足时使用外部联网研究",
-        "consent": "我理解该问题将发送给第三方搜索服务商，且不会包含个人信息或机密信息。"
+        "consent": "我理解该问题将发送给第三方搜索服务商，且不会包含个人信息或机密信息。",
+        "notice": "当前账号已启用外部联网研究，问题可能会发送给系统配置的搜索服务商。",
+        "manage": "前往用户设置管理"
       },
       "empty": "提出一个基于本 Wiki 内容的问题。",
       "streaming": "生成中…",
@@ -2528,6 +2544,8 @@
         "sessionExpired": "登录状态已失效，请重新登录后使用 Wiki AI。",
         "invalidRequest": "Wiki AI 无法使用当前会话上下文，请新建会话后重试。",
         "notAvailable": "Wiki AI 当前不可用，请检查 AI 配置或账号权限。",
+        "webResearchUnavailable": "外部联网研究尚未配置，请联系管理员完成配置，或在用户设置中关闭联网研究。",
+        "webResearchAccessDenied": "你的账号未启用外部联网研究，请在用户设置中关闭该选项，或联系管理员申请权限。",
         "timeout": "AI 服务在启动本次请求时超时，请重试。",
         "requestFailed": "Wiki AI 无法开始本次请求，请重试。"
       },

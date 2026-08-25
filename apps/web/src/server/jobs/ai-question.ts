@@ -317,7 +317,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   const webResearch = input.research?.mode === 'wiki_first_web';
   if (webResearch) {
     if (!input.research?.externalResearchConsent) {
-      throw new DomainError('BAD_REQUEST', 'External research confirmation is required');
+      throw new DomainError('WEB_RESEARCH_CONSENT_REQUIRED', 'External research confirmation is required');
     }
     await assertAiFeature(ctx, 'web_research');
     await requireWebResearchConfiguration();
