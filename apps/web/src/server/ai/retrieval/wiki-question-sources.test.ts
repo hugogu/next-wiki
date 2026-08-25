@@ -9,7 +9,7 @@ import { captureConversation } from '@/server/services/raw-conversations';
 import { createSearchFixtureCorpus, CHINESE_NEAR_MATCH, ENGLISH_TERM, HIDDEN_TOKEN } from '@/server/services/search/test-support';
 import { clearAiData, createAiTestUser, createWikiQuestionAction, removeAiTestUser, seedCompletedConversationEvents } from '../../../../test/ai-fixtures';
 import { ensurePublicApiDefaultSpace } from '../../../../test/public-wiki-api-fixtures';
-import { loadWikiQuestionSources, SEMANTIC_NOISE_FLOOR } from './wiki-question-sources';
+import { loadWikiQuestionSources, searchWikiSources, SEMANTIC_NOISE_FLOOR } from './wiki-question-sources';
 
 /**
  * Wiki AI's citation retrieval now shares the same full_text + fuzzy + semantic
@@ -99,6 +99,17 @@ describe('loadWikiQuestionSources', () => {
     } finally {
       await removeAiTestUser(admin);
     }
+  });
+
+  it('exposes the same hybrid retrieval to search_wiki, including its filters', async () => {
+    const corpus = await createSearchFixtureCorpus(`wq-tool-${randomUUID().slice(0, 8)}`);
+    const results = await searchWikiSources({
+      ctx: corpus.editorCtx,
+      actionId: randomUUID(),
+      query: ENGLISH_TERM,
+      options: { scope: 'all', space: 'wiki', limit: 10 },
+    });
+    expect(results.map((result) => result.pageId)).toContain(corpus.pages.english.pageId);
   });
 
   it('succeeds with lexical-only citations when semantic search is disabled and no semantic index/model/provider is configured at all', async () => {

@@ -2,7 +2,6 @@ import { z } from 'zod';
 import { eq, inArray } from 'drizzle-orm';
 import { diffArrays } from 'diff';
 import {
-  publicPageSearchQuerySchema,
   type AiToolReviewDecision,
   type PublicPageInclude,
   type PublicPageResource,
@@ -30,6 +29,7 @@ import { promoteGeneratedArtifact } from '@/server/services/ai-artifacts';
 import { insertGeneratedImages } from '@/server/services/ai-generated-image-insertion';
 import { listSpaces } from '@/server/services/spaces';
 import { openWebSource, searchWebSources } from '@/server/web-research/sources';
+import { searchWikiSources } from '@/server/ai/retrieval/wiki-question-sources';
 import { assertAiFeature } from '@/server/services/ai-entitlements';
 import { ensureBuiltinProvider, getPolicyRowsByProvider, policyLayersFor, resolveToolEnabled } from '@/server/services/ai-tool-policy';
 
@@ -348,20 +348,34 @@ function pageCitationData(page: PublicPageResource) {
   };
 }
 
-async function execSearchWiki(ctx: PermCtx, rawArgs: unknown): Promise<ToolExecutionResult> {
+async function execSearchWiki(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
   const args = searchArgs.parse(rawArgs);
-  const query = publicPageSearchQuerySchema.parse({
-    q: args.query,
-    scope: args.scope,
-    ...(args.space && args.space !== 'wiki' ? { space: args.space } : {}),
-    createdStart: args.createdStart,
-    createdEnd: args.createdEnd,
-    order: args.order,
-    limit: args.limit ?? 10,
-    include: READ_INCLUDE.join(','),
+  const results = await searchWikiSources({
+    ctx,
+    actionId: execCtx.actionId,
+    query: args.query,
+    options: {
+      scope: args.scope,
+      space: args.space,
+      createdStart: args.createdStart,
+      createdEnd: args.createdEnd,
+      order: args.order,
+      limit: args.limit ?? 10,
+    },
   });
-  const result = await content.searchPages(ctx, query);
-  const items = result.items.slice(0, MAX_LIST).map((item) => pageCitationData(item.page));
+  const items = results.slice(0, MAX_LIST).map((result) => ({
+    pageId: result.pageId,
+    path: result.path,
+    title: result.title,
+    locale: result.locale,
+    spaceSlug: result.spaceSlug === 'default' ? 'wiki' : result.spaceSlug,
+    revisionId: result.revisionId,
+    revisionHash: result.revisionHash,
+  }));
   return { ok: true, summary: `${items.length} readable page(s) matched.`, data: { items } };
 }
 
@@ -1239,7 +1253,7 @@ async function executeAcrossReadableSpaces(
 }
 
 const EXECUTORS: Record<string, Executor> = {
-  search_wiki: (ctx, args) => execSearchWiki(ctx, args),
+  search_wiki: execSearchWiki,
   get_page: execGetPage,
   list_pages: (ctx, args) => execListPages(ctx, args),
   get_backlinks: (ctx, args) => execGetBacklinks(ctx, args),

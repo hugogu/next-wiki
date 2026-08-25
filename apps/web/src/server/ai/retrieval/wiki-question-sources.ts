@@ -57,6 +57,15 @@ type WikiQuestionSources = {
   degradation?: RetrievalDegradation;
 };
 
+export type WikiSearchOptions = {
+  scope?: 'path' | 'title' | 'content' | 'all';
+  space?: string;
+  createdStart?: Date;
+  createdEnd?: Date;
+  order?: 'relevance' | 'createdAtAsc' | 'createdAtDesc' | 'updatedAtAsc' | 'updatedAtDesc';
+  limit?: number;
+};
+
 function waitForEmbeddingRetry(attempt: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, QUERY_EMBEDDING_RETRY_DELAYS_MS[attempt] ?? 0));
 }
@@ -116,6 +125,7 @@ export async function loadWikiQuestionSources(input: {
   question: string;
   mode: AiQuestionMode;
   textContextWindow: number | null;
+  search?: WikiSearchOptions;
 }): Promise<WikiQuestionSources> {
   if (input.mode === 'full') {
     return {
@@ -130,14 +140,21 @@ export async function loadWikiQuestionSources(input: {
   // (`apps/web/src/server/services/search/coordinator.ts`) — Wiki AI citations
   // and site Search results are found by one shared pipeline, not two.
   const settings = await getSearchSettings();
-  const spaces = await readableSpaces(input.ctx);
+  const spaces = (await readableSpaces(input.ctx)).filter((space) => {
+    if (!input.search?.space) return true;
+    const requested = input.search.space === 'wiki' ? 'default' : input.search.space;
+    return space.slug === requested;
+  });
   const spaceIds = spaces.map((space) => space.id);
   const spaceSlugs = spaces.map((space) => space.slug);
+  const searchLimit = Math.min(Math.max(input.search?.limit ?? SOURCE_LIMIT, 1), 100);
+  const candidateLimit = Math.min(Math.max(searchLimit * 2, CANDIDATE_POOL_LIMIT), 50);
+  const question = input.question.trim();
 
   const registry = productionSearchEngineRegistry();
   const engineQuery = {
-    q: input.question,
-    limit: CANDIDATE_POOL_LIMIT,
+    q: question,
+    limit: candidateLimit,
     deadlineMs: settings.immediateSearchTimeoutMs,
     spaceIds,
     spaceSlugs,
@@ -158,29 +175,26 @@ export async function loadWikiQuestionSources(input: {
   let retrievalUsage: Record<string, unknown> = {};
   let degradation: RetrievalDegradation | undefined;
   if (settings.semanticSearchEnabled) {
-    // Enforced only here, not up front: an administrator who has turned
-    // semantic search off must still get lexical-only citations even when
-    // the semantic index/model/provider isn't configured at all.
-    const generation = await db.query.aiIndexGenerations.findFirst({
-      where: eq(schema.aiIndexGenerations.isActive, true),
-    });
-    if (!generation || generation.status !== 'ready') {
-      throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
-    }
-    const embeddingModel = await db.query.aiModels.findFirst({
-      where: eq(schema.aiModels.id, generation.modelId),
-    });
-    if (!embeddingModel) throw new DomainError('MODEL_NOT_FOUND', 'Embedding model not found');
-    const embeddingProvider = await db.query.aiProviders.findFirst({
-      where: eq(schema.aiProviders.id, embeddingModel.providerId),
-    });
-    if (!embeddingProvider?.enabled) {
-      throw new DomainError('PROVIDER_DISABLED', 'Embedding provider is disabled');
-    }
     try {
+      const generation = await db.query.aiIndexGenerations.findFirst({
+        where: eq(schema.aiIndexGenerations.isActive, true),
+      });
+      if (!generation || generation.status !== 'ready') {
+        throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
+      }
+      const embeddingModel = await db.query.aiModels.findFirst({
+        where: eq(schema.aiModels.id, generation.modelId),
+      });
+      if (!embeddingModel) throw new DomainError('MODEL_NOT_FOUND', 'Embedding model not found');
+      const embeddingProvider = await db.query.aiProviders.findFirst({
+        where: eq(schema.aiProviders.id, embeddingModel.providerId),
+      });
+      if (!embeddingProvider?.enabled) {
+        throw new DomainError('PROVIDER_DISABLED', 'Embedding provider is disabled');
+      }
       const embedded: EmbeddingOutput = await embedQuestionWithRetries({
         actionId: input.actionId,
-        question: input.question,
+        question,
         modelExternalId: embeddingModel.externalId,
         expectedDimensions: generation.embeddingDimensions,
         providerId: embeddingProvider.id,
@@ -191,16 +205,16 @@ export async function loadWikiQuestionSources(input: {
       // one production index held 886 conversation chunks that would
       // otherwise crowd out real content before fusion ever sees it. See
       // `exactCosineSearch`'s own docstring for the numbers.
-      const semanticResults = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, CANDIDATE_POOL_LIMIT, {
+      const semanticResults = await retrieve(input.ctx, generation.id, embedded.vectors[0]!, candidateLimit, {
         excludeCapturedConversations: true,
       });
       semanticCandidates = toSemanticCandidates(semanticResults);
       chunkIdByPageId = new Map(semanticResults.map((result) => [result.pageId, result.chunkId!]));
     } catch (error) {
-      const normalized = normalizeProviderError(error);
-      // RAG improves an answer but must not make the conversational agent
-      // unavailable when its embedding endpoint fails: fall back to whatever
-      // full_text/fuzzy already found instead of failing the whole turn.
+      // RAG improves an answer but must not make the conversational agent or
+      // search_wiki unavailable when its index/model/provider is incomplete or
+      // its embedding endpoint fails: fall back to whatever full_text/fuzzy
+      // already found instead of failing the whole turn.
       //
       // This deliberately does not gate on `retryable`: an upstream gateway
       // reports its own outage however it likes, and one returning HTTP 400 for
@@ -209,12 +223,22 @@ export async function loadWikiQuestionSources(input: {
       // produce a valid Wiki operation. Retry or rephrase the request.", advice
       // no rephrasing could satisfy. A cancel still propagates: the user asked
       // for the turn to stop, not for a degraded one.
-      if (normalized.code === 'CANCELLED') throw normalized;
-      logger.warn('Wiki question semantic retrieval degraded after embedding retries', {
-        actionId: input.actionId,
-        errorCode: normalized.code,
-      });
-      degradation = { code: normalized.code };
+      if (error instanceof DomainError) {
+        if (error.code === 'CANCELLED') throw error;
+        degradation = { code: error.code };
+        logger.warn('Wiki question semantic retrieval degraded before embedding', {
+          actionId: input.actionId,
+          errorCode: error.code,
+        });
+      } else {
+        const normalized = normalizeProviderError(error);
+        if (normalized.code === 'CANCELLED') throw normalized;
+        degradation = { code: normalized.code };
+        logger.warn('Wiki question semantic retrieval degraded after embedding retries', {
+          actionId: input.actionId,
+          errorCode: normalized.code,
+        });
+      }
     }
   }
 
@@ -233,23 +257,46 @@ export async function loadWikiQuestionSources(input: {
   // space kind, etc.) never becomes a citation.
   const readable = await projectReadableCandidatePages(input.ctx, fused.map((candidate) => candidate.pageId), spaceIds);
 
+  const scope = input.search?.scope ?? 'all';
+  const scopedPageIds = scope === 'all'
+    ? null
+    : new Set(
+        [fullTextOutcome, fuzzyOutcome, { state: 'ready' as const, candidates: semanticCandidates }]
+          .flatMap((outcome) => outcome.state === 'ready' ? outcome.candidates : [])
+          .filter((candidate) => candidate.field === scope)
+          .map((candidate) => candidate.pageId),
+      );
   const survivors = fused
     .filter((candidate) => {
       const entry = readable.get(candidate.pageId);
       if (!entry) return false;
+      if (scopedPageIds && !scopedPageIds.has(candidate.pageId)) return false;
       // Captured conversations can only reach here via full_text/fuzzy (the
       // semantic leg already excludes them in SQL above); a Feishu-captured
       // conversation must never become the evidence for an answer.
       if (entry.page.rawCategorySystemKey === 'conversation') return false;
+      if (input.search?.createdStart && new Date(entry.page.createdAt) < input.search.createdStart) return false;
+      if (input.search?.createdEnd && new Date(entry.page.createdAt) > input.search.createdEnd) return false;
       const relevance = Math.max(-1, Math.min(1, candidate.compatRelevance));
       return relevance >= settings.minRelevanceScore;
     })
-    .sort(compareFusedCandidates)
-    .slice(0, SOURCE_LIMIT);
+    .sort((a, b) => {
+      const order = input.search?.order ?? 'relevance';
+      if (order === 'createdAtAsc' || order === 'createdAtDesc' || order === 'updatedAtAsc' || order === 'updatedAtDesc') {
+        const aPage = readable.get(a.pageId)!.page;
+        const bPage = readable.get(b.pageId)!.page;
+        const field: 'createdAt' | 'updatedAt' = order.startsWith('created') ? 'createdAt' : 'updatedAt';
+        const direction = order.endsWith('Asc') ? 1 : -1;
+        return direction * (new Date(aPage[field]).getTime() - new Date(bPage[field]).getTime())
+          || aPage.path.localeCompare(bPage.path);
+      }
+      return compareFusedCandidates(a, b);
+    })
+    .slice(0, searchLimit);
 
   const results: AiSearchResult[] = survivors.map((candidate) => {
     const entry = readable.get(candidate.pageId)!;
-    const excerpt = candidate.excerpt ?? buildExcerpt(entry.contentSource ?? '', input.question, 1200) ?? '';
+    const excerpt = candidate.excerpt ?? buildExcerpt(entry.contentSource ?? '', question, 1200) ?? '';
     return {
       pageId: candidate.pageId,
       title: entry.page.title,
@@ -273,4 +320,27 @@ export async function loadWikiQuestionSources(input: {
     results,
     ...(degradation ? { degradation } : {}),
   };
+}
+
+/**
+ * Search tool entry point. It deliberately uses the same hybrid retrieval
+ * implementation as Wiki AI's baseline sources, rather than the legacy
+ * contiguous-ILIKE `content.searchPages` path. This keeps tool searches and
+ * the header search aligned for Chinese, semantic, and cross-space queries.
+ */
+export async function searchWikiSources(input: {
+  ctx: PermCtx;
+  actionId: string;
+  query: string;
+  options?: WikiSearchOptions;
+}): Promise<AiSearchResult[]> {
+  const result = await loadWikiQuestionSources({
+    ctx: input.ctx,
+    actionId: input.actionId,
+    question: input.query,
+    mode: 'retrieval',
+    textContextWindow: null,
+    search: input.options,
+  });
+  return result.results;
 }
