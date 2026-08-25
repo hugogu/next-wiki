@@ -63,6 +63,8 @@ export type ChatMessage = {
   searchResults?: ChatRetrievalResult[];
   error?: string;
   insufficient?: boolean;
+  /** True until this turn reaches a terminal action event or local start failure. */
+  pending?: boolean;
   /**
    * Server-side `ai_actions.id` for the assistant turn, set when `action.start`
    * succeeds. Persisted so the pane can reconcile a failed message with the
@@ -98,6 +100,7 @@ type ChatState = {
   insufficient: (id: string) => void;
   citations: (id: string, citations: AiCitation[]) => void;
   fail: (id: string, error: string) => void;
+  setPending: (id: string, pending: boolean) => void;
   /**
    * Stamp an assistant message with the server-side actionId so the pane can
    * reconcile it with the authoritative server state on mount if the
@@ -118,9 +121,11 @@ type ChatState = {
       thinking?: string;
       citations?: AiCitation[];
       toolCalls?: AiToolCallEventPayload[];
+      toolProposals?: AiToolProposalEventPayload[];
       searchResults?: ChatRetrievalResult[];
       error?: string;
       insufficient?: boolean;
+      pending?: boolean;
     },
   ) => void;
   newSession: () => void;
@@ -201,9 +206,12 @@ export const useChatStore = create<ChatState>()(
         messages: state.messages.map((message) => message.id === id ? { ...message, citations } : message),
       })),
       fail: (id, error) => set((state) => ({
-        messages: state.messages.map((message) => message.id === id ? { ...message, error } : message),
+        messages: state.messages.map((message) => message.id === id ? { ...message, error, pending: false } : message),
       })),
-  recoverMessage: (id, recovery) => set((state) => ({
+      setPending: (id, pending) => set((state) => ({
+        messages: state.messages.map((message) => message.id === id ? { ...message, pending } : message),
+      })),
+      recoverMessage: (id, recovery) => set((state) => ({
         messages: state.messages.map((message) => {
           if (message.id !== id) return message;
           const next: ChatMessage = { ...message };
@@ -211,8 +219,10 @@ export const useChatStore = create<ChatState>()(
           if ('thinking' in recovery) next.thinking = recovery.thinking ?? '';
           if ('citations' in recovery) next.citations = recovery.citations ?? [];
           if ('toolCalls' in recovery) next.toolCalls = recovery.toolCalls ?? [];
+          if ('toolProposals' in recovery) next.toolProposals = recovery.toolProposals ?? [];
           if ('searchResults' in recovery) next.searchResults = recovery.searchResults ?? [];
           if ('insufficient' in recovery) next.insufficient = recovery.insufficient ?? false;
+          if ('pending' in recovery) next.pending = recovery.pending ?? false;
           // A successful recovery always clears the error; an explicit error
           // recovery (e.g. server says failed/cancelled) sets it.
           if (recovery.error !== undefined) {

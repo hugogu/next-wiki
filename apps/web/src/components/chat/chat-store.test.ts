@@ -98,4 +98,22 @@ describe('useChatStore', () => {
     expect(message.toolCalls?.[0]).toMatchObject({ status: 'succeeded', resultSummary: 'Created draft page "Design".' });
     expect(message.toolProposals?.[0]).toMatchObject({ title: 'Update metadata' });
   });
+
+  it('persists a pending turn and settles it without losing its action handle', () => {
+    useChatStore.getState().add({
+      id: 'assistant',
+      role: 'assistant',
+      text: '',
+      pending: true,
+      actionId: '00000000-0000-4000-8000-000000000001',
+    });
+
+    useChatStore.getState().recoverMessage('assistant', { text: 'Recovered answer', pending: false });
+
+    expect(useChatStore.getState().messages[0]).toMatchObject({
+      text: 'Recovered answer',
+      pending: false,
+      actionId: '00000000-0000-4000-8000-000000000001',
+    });
+  });
 });

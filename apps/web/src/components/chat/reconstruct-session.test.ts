@@ -1,5 +1,9 @@
 import type { AiActionEvent } from '@next-wiki/shared';
-import { reconstructSessionFromEvents, recoverSessionFromServer } from './reconstruct-session';
+import {
+  reconstructSessionFromEvents,
+  recoverLatestSessionTurnFromServer,
+  recoverSessionFromServer,
+} from './reconstruct-session';
 
 function event(overrides: Partial<AiActionEvent>): AiActionEvent {
   return {
@@ -159,5 +163,83 @@ describe('recoverSessionFromServer', () => {
     vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockRejectedValue(new Error('NOT_FOUND'));
     const result = await recoverSessionFromServer('action-1');
     expect(result).toBeNull();
+  });
+});
+
+describe('recoverLatestSessionTurnFromServer', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('finds the newest matching question in the persisted browser session', async () => {
+    const apiGet = vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
+      conversation: { conversationKey: 'legacy:session-1' },
+      turns: [
+        {
+          action: { id: 'action-2', status: 'running' },
+          events: [event({ id: 2, type: 'question', payload: { text: 'Current question' } })],
+        },
+        {
+          action: { id: 'action-1', status: 'completed' },
+          events: [event({ id: 1, type: 'question', payload: { text: 'Earlier question' } })],
+        },
+      ],
+    });
+
+    await expect(recoverLatestSessionTurnFromServer('session-1', 'Current question')).resolves.toMatchObject({
+      actionId: 'action-2',
+      status: 'running',
+      question: 'Current question',
+    });
+    expect(apiGet).toHaveBeenCalledWith('/api/ai/sessions/legacy:session-1');
+  });
+
+  it('recovers a queued action before its worker has emitted the question event', async () => {
+    vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
+      conversation: { conversationKey: 'legacy:session-1' },
+      turns: [{
+        action: { id: 'queued-action', status: 'queued' },
+        events: [event({ id: 1, type: 'status', payload: { status: 'queued' } })],
+      }],
+    });
+
+    await expect(recoverLatestSessionTurnFromServer('session-1', 'Question sent during navigation')).resolves.toMatchObject({
+      actionId: 'queued-action',
+      status: 'queued',
+      question: '',
+    });
+  });
+
+  it('prefers a new queued turn over an older identical completed question', async () => {
+    vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
+      conversation: { conversationKey: 'legacy:session-1' },
+      turns: [
+        {
+          action: { id: 'queued-action', status: 'queued' },
+          events: [event({ id: 3, type: 'status', payload: { status: 'queued' } })],
+        },
+        {
+          action: { id: 'old-action', status: 'completed' },
+          events: [event({ id: 2, type: 'question', payload: { text: 'Repeat question' } })],
+        },
+      ],
+    });
+
+    await expect(recoverLatestSessionTurnFromServer('session-1', 'Repeat question')).resolves.toMatchObject({
+      actionId: 'queued-action',
+      status: 'queued',
+    });
+  });
+
+  it('does not substitute an unrelated completed turn', async () => {
+    vi.spyOn(await import('@/lib/api/client'), 'apiGet').mockResolvedValue({
+      conversation: { conversationKey: 'legacy:session-1' },
+      turns: [{
+        action: { id: 'old-action', status: 'completed' },
+        events: [event({ id: 1, type: 'question', payload: { text: 'Old question' } })],
+      }],
+    });
+
+    await expect(recoverLatestSessionTurnFromServer('session-1', 'New question')).resolves.toBeNull();
   });
 });

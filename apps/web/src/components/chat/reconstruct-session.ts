@@ -13,6 +13,11 @@ export type ReconstructedSession = {
   errorMessage: string | null;
 };
 
+export type RecoveredChatTurn = ReconstructedSession & {
+  actionId: string;
+  status: string;
+};
+
 /**
  * Replays a session's stored event log through the same text/think splitter
  * `useAiChat` applies while streaming live, so a historical session renders
@@ -101,6 +106,42 @@ export async function recoverSessionFromServer(actionId: string): Promise<(Recon
     // Permission revoked / session expired / not found / network blip. The
     // caller (pane auto-recovery) treats null as "leave the persisted error
     // alone" and the message stays failed; the user can retry manually.
+    return null;
+  }
+}
+
+/**
+ * Recover the newest server turn that belongs to a persisted browser chat
+ * session. This closes the small but important gap before the browser receives
+ * the POST response containing `actionId`: a navigation can detach that
+ * response even though the action was accepted and queued successfully.
+ *
+ * Prefer the exact question match. A just-created queued action has not yet
+ * emitted its `question` event, so its empty event log is a safe fallback for
+ * this one-tab session, where the composer permits only one pending turn.
+ */
+export async function recoverLatestSessionTurnFromServer(
+  sessionId: string,
+  expectedQuestion: string,
+): Promise<RecoveredChatTurn | null> {
+  try {
+    const detail = await apiGet<AiConversationDetail>(`/api/ai/sessions/legacy:${sessionId}`);
+    const expected = expectedQuestion.trim();
+    const reconstructed = detail.turns.map((turn) => ({
+      turn,
+      state: reconstructSessionFromEvents(turn.events),
+    }));
+    const match = reconstructed.find(({ turn, state }) => (
+      (turn.action.status === 'queued' || turn.action.status === 'running') &&
+      (state.question.trim() === expected || state.question.trim() === '')
+    )) ?? reconstructed.find(({ state }) => state.question.trim() === expected);
+    if (!match) return null;
+    return {
+      ...match.state,
+      actionId: match.turn.action.id,
+      status: match.turn.action.status,
+    };
+  } catch {
     return null;
   }
 }

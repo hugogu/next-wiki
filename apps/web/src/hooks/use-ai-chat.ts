@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef } from 'react';
+import { useCallback, useRef } from 'react';
 import { type AiClientEvent, useAiAction } from './use-ai-action';
 import { type ChatMessage, useChatStore } from '@/components/chat/chat-store';
 import {
@@ -190,7 +190,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
   const action = useAiAction();
   const stateRef = useRef<StreamState>({ markerBuffer: '', tagBuffer: '', insideThink: false });
 
-  function emitAnswer(assistantId: string, text: string) {
+  const emitAnswer = useCallback((assistantId: string, text: string) => {
     if (!text || stateRef.current.discardLegacyInsufficient) return;
     stateRef.current.markerBuffer += text;
     const trimmed = stateRef.current.markerBuffer.trimStart();
@@ -204,62 +204,96 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
       store.append(assistantId, stateRef.current.markerBuffer);
       stateRef.current.markerBuffer = '';
     }
-  }
+  }, [store]);
+
+  const handleActionEvent = useCallback((assistantId: string) => (event: AiClientEvent) => {
+    if (event.type === 'reasoning_delta') {
+      store.think(assistantId, String(event.payload.text ?? ''));
+      return;
+    }
+    if (event.type === 'tool_call') {
+      store.toolCall(assistantId, event.payload as AiToolCallEventPayload);
+      return;
+    }
+    if (event.type === 'tool_proposal') {
+      store.toolProposal(assistantId, event.payload as AiToolProposalEventPayload);
+      return;
+    }
+    if (event.type === 'search_results') {
+      const raw = Array.isArray(event.payload.results) ? event.payload.results : [];
+      const results = raw
+        .map((item) => {
+          const candidate = item as { title?: unknown; path?: unknown; spaceSlug?: unknown };
+          if (typeof candidate.title !== 'string' || typeof candidate.path !== 'string') return null;
+          return {
+            title: candidate.title,
+            path: candidate.path,
+            ...(typeof candidate.spaceSlug === 'string' ? { spaceSlug: candidate.spaceSlug } : {}),
+          };
+        })
+        .filter((item): item is { title: string; path: string; spaceSlug?: string } => Boolean(item));
+      store.searchResults(assistantId, results);
+      return;
+    }
+    if (event.type === 'text_delta') {
+      const { answerText, thinkingText } = processTextDelta(stateRef.current, String(event.payload.text ?? ''));
+      if (thinkingText) store.think(assistantId, thinkingText);
+      emitAnswer(assistantId, answerText);
+    }
+    if (event.type === 'citations') store.citations(assistantId, (event.payload.citations ?? []) as AiCitation[]);
+    if (event.type === 'error') store.fail(assistantId, t(wikiAiErrorTranslationKey(event.payload)));
+    if (event.type === 'completed' || event.type === 'error') {
+      const { answerText, thinkingText } = flushStreamState(stateRef.current);
+      if (thinkingText) store.think(assistantId, thinkingText);
+      emitAnswer(assistantId, answerText);
+      if (stateRef.current.markerBuffer) {
+        store.append(assistantId, stateRef.current.markerBuffer);
+        stateRef.current.markerBuffer = '';
+      }
+      if (event.type === 'completed') store.setPending(assistantId, false);
+      stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
+    }
+  }, [emitAnswer, store, t]);
+
+  const resume = useCallback(async (assistantId: string, actionId: string) => {
+    // Restart the replay from event zero after navigation. Resetting the local
+    // projection prevents duplicate streamed text while preserving the same
+    // durable assistant message and its action handle.
+    stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
+    store.recoverMessage(assistantId, {
+      text: '',
+      thinking: '',
+      citations: [],
+      toolCalls: [],
+      toolProposals: [],
+      searchResults: [],
+      insufficient: false,
+      pending: true,
+    });
+    try {
+      action.resume({
+        id: actionId,
+        eventsUrl: `/api/ai/actions/${actionId}/events`,
+      }, handleActionEvent(assistantId));
+    } catch (error) {
+      store.fail(assistantId, t(wikiAiErrorTranslationKey(error as { code?: unknown; message?: unknown })));
+    }
+  }, [action, handleActionEvent, store, t]);
+
+  const cancel = useCallback(async () => {
+    const assistant = [...store.messages].reverse().find((message) => message.role === 'assistant' && message.pending);
+    if (assistant) store.setPending(assistant.id, false);
+    await action.cancel();
+  }, [action, store]);
 
   async function ask(question: string, mode: AiQuestionMode, research: { mode: ResearchMode; externalResearchConsent: boolean } = { mode: 'wiki_only', externalResearchConsent: false }) {
     const userId = uuid();
     const assistantId = uuid();
     stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
     store.add({ id: userId, role: 'user', text: question });
-    store.add({ id: assistantId, role: 'assistant', text: '' });
+    store.add({ id: assistantId, role: 'assistant', text: '', pending: true });
 
-    const handleEvent = (event: AiClientEvent) => {
-      if (event.type === 'reasoning_delta') {
-        store.think(assistantId, String(event.payload.text ?? ''));
-        return;
-      }
-      if (event.type === 'tool_call') {
-        store.toolCall(assistantId, event.payload as AiToolCallEventPayload);
-        return;
-      }
-      if (event.type === 'tool_proposal') {
-        store.toolProposal(assistantId, event.payload as AiToolProposalEventPayload);
-        return;
-      }
-      if (event.type === 'search_results') {
-        const raw = Array.isArray(event.payload.results) ? event.payload.results : [];
-        const results = raw
-          .map((item) => {
-            const candidate = item as { title?: unknown; path?: unknown; spaceSlug?: unknown };
-            if (typeof candidate.title !== 'string' || typeof candidate.path !== 'string') return null;
-            return {
-              title: candidate.title,
-              path: candidate.path,
-              ...(typeof candidate.spaceSlug === 'string' ? { spaceSlug: candidate.spaceSlug } : {}),
-            };
-          })
-          .filter((item): item is { title: string; path: string; spaceSlug?: string } => Boolean(item));
-        store.searchResults(assistantId, results);
-        return;
-      }
-      if (event.type === 'text_delta') {
-        const { answerText, thinkingText } = processTextDelta(stateRef.current, String(event.payload.text ?? ''));
-        if (thinkingText) store.think(assistantId, thinkingText);
-        emitAnswer(assistantId, answerText);
-      }
-      if (event.type === 'citations') store.citations(assistantId, (event.payload.citations ?? []) as AiCitation[]);
-      if (event.type === 'error') store.fail(assistantId, t(wikiAiErrorTranslationKey(event.payload)));
-      if (event.type === 'completed' || event.type === 'error') {
-        const { answerText, thinkingText } = flushStreamState(stateRef.current);
-        if (thinkingText) store.think(assistantId, thinkingText);
-        emitAnswer(assistantId, answerText);
-        if (stateRef.current.markerBuffer) {
-          store.append(assistantId, stateRef.current.markerBuffer);
-          stateRef.current.markerBuffer = '';
-        }
-        stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };
-      }
-    };
+    const handleEvent = handleActionEvent(assistantId);
     const payload = buildToolEnabledQuestionPayload({
       question,
       mode,
@@ -279,5 +313,5 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
       store.fail(assistantId, t(wikiAiErrorTranslationKey(error as { code?: unknown; message?: unknown })));
     }
   }
-  return { ...store, ...action, ask };
+  return { ...store, ...action, ask, resume, cancel };
 }

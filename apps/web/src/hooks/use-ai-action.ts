@@ -1,10 +1,11 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { AiActionAccepted, AiEventType } from '@next-wiki/shared';
 import type { ApiError } from '@/lib/api/client';
 
 export type AiClientEvent = { type: AiEventType; payload: Record<string, unknown> };
+type AiActionStream = Pick<AiActionAccepted, 'id' | 'eventsUrl'>;
 
 export function normalizeAiRequestError(error: unknown): ApiError {
   if (typeof error === 'object' && error !== null) {
@@ -61,8 +62,50 @@ export async function requestAiAction(path: string, input: unknown): Promise<AiA
 export function useAiAction() {
   const sourceRef = useRef<EventSource | null>(null);
   const actionIdRef = useRef<string | null>(null);
+  const mountedRef = useRef(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<ApiError | null>(null);
+
+  // A route change replaces the chat pane. Detach only this browser's event
+  // stream: the queued action belongs to the server and the next pane mount
+  // will recover it from the persisted chat session. Cancelling here would
+  // discard a response merely because the reader followed a Wiki link.
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      sourceRef.current?.close();
+      sourceRef.current = null;
+      actionIdRef.current = null;
+    };
+  }, []);
+
+  const connect = useCallback((action: AiActionStream, onEvent: (event: AiClientEvent) => void) => {
+    actionIdRef.current = action.id;
+    const source = new EventSource(action.eventsUrl);
+    sourceRef.current = source;
+    const eventTypes: AiEventType[] = [
+      'status', 'text_delta', 'reasoning_delta', 'search_results', 'citations', 'optimization',
+      'image_ready', 'tool_call', 'tool_proposal', 'tool_evidence', 'completed', 'error',
+    ];
+    for (const type of eventTypes) {
+      source.addEventListener(type, (raw) => {
+        const event = raw as MessageEvent<string>;
+        const payload = JSON.parse(event.data || '{}') as Record<string, unknown>;
+        onEvent({ type, payload });
+        if (type === 'completed' || type === 'error') {
+          source.close();
+          if (sourceRef.current === source) sourceRef.current = null;
+          if (actionIdRef.current === action.id) actionIdRef.current = null;
+          setRunning(false);
+          if (type === 'error') setError({ code: String(payload.code ?? 'AI_ERROR'), message: String(payload.message ?? 'AI action failed') });
+        }
+      });
+    }
+    source.onerror = () => {
+      // Native EventSource reconnects with Last-Event-ID. Terminal events close explicitly.
+    };
+  }, []);
 
   const cancel = useCallback(async () => {
     const actionId = actionIdRef.current;
@@ -94,30 +137,10 @@ export function useAiAction() {
     setRunning(true);
     try {
       const action = await requestAiAction(path, input);
-      actionIdRef.current = action.id;
-      const source = new EventSource(action.eventsUrl);
-      sourceRef.current = source;
-      const eventTypes: AiEventType[] = [
-        'status', 'text_delta', 'reasoning_delta', 'search_results', 'citations', 'optimization',
-        'image_ready', 'tool_call', 'tool_proposal', 'tool_evidence', 'completed', 'error',
-      ];
-      for (const type of eventTypes) {
-        source.addEventListener(type, (raw) => {
-          const event = raw as MessageEvent<string>;
-          const payload = JSON.parse(event.data || '{}') as Record<string, unknown>;
-          onEvent({ type, payload });
-          if (type === 'completed' || type === 'error') {
-            source.close();
-            if (sourceRef.current === source) sourceRef.current = null;
-            if (actionIdRef.current === action.id) actionIdRef.current = null;
-            setRunning(false);
-            if (type === 'error') setError({ code: String(payload.code ?? 'AI_ERROR'), message: String(payload.message ?? 'AI action failed') });
-          }
-        });
-      }
-      source.onerror = () => {
-        // Native EventSource reconnects with Last-Event-ID. Terminal events close explicitly.
-      };
+      // A POST can resolve after a route transition. Return its durable action
+      // handle to the chat store, but never create an orphaned EventSource for
+      // the component that has already unmounted.
+      if (mountedRef.current) connect(action, onEvent);
       return action;
     } catch (error) {
       const apiError = normalizeAiRequestError(error);
@@ -128,7 +151,23 @@ export function useAiAction() {
       sourceRef.current = null;
       throw apiError;
     }
-  }, [cancel]);
+  }, [cancel, connect]);
 
-  return { start, cancel, running, error };
+  const resume = useCallback((action: AiActionStream, onEvent: (event: AiClientEvent) => void) => {
+    sourceRef.current?.close();
+    sourceRef.current = null;
+    actionIdRef.current = null;
+    setError(null);
+    setRunning(true);
+    try {
+      connect(action, onEvent);
+    } catch (error) {
+      const apiError = normalizeAiRequestError(error);
+      setError(apiError);
+      setRunning(false);
+      throw apiError;
+    }
+  }, [connect]);
+
+  return { start, resume, cancel, running, error };
 }

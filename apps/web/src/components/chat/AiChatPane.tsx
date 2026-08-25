@@ -23,7 +23,7 @@ import { Tooltip } from '@/components/ui/Tooltip';
 import { useChatStore } from './chat-store';
 import { readResearchModeFromUrl, syncChatKeyToUrl, takeArrivalChatKey } from './chat-url';
 import { restoreLinkedConversation } from './load-conversation';
-import { recoverSessionFromServer } from './reconstruct-session';
+import { recoverLatestSessionTurnFromServer, recoverSessionFromServer } from './reconstruct-session';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
 import { ChatRetrieval } from './ChatRetrieval';
@@ -184,6 +184,12 @@ export function AiChatPane({
     messages: typeof chat.messages;
     latestQueuedAt: typeof chat.latestQueuedAt;
   } | null>(null);
+  const recoveryAttemptRef = useRef(new Set<string>());
+  const recoveryResumeRef = useRef(chat.resume);
+
+  useEffect(() => {
+    recoveryResumeRef.current = chat.resume;
+  }, [chat.resume]);
 
   // Restore the saved scrollTop once per mount, after the first messages
   // have rendered (the pane rehydrates asynchronously, so waiting for the
@@ -252,46 +258,66 @@ export function AiChatPane({
         clearWebResearchConsent(entitlements.userId);
       }
       setRehydrated(true);
-      // After rehydration, reconcile any assistant message that was marked
-      // failed client-side with the authoritative server state. The server
-      // may have completed the turn despite a proxy/VPN interrupting the
-      // POST or EventSource, and a stored actionId is the only handle we
-      // need to ask `/api/ai/sessions/legacy:turn:{actionId}` for the durable
-      // record (preferring the captured Raw conversation over event reconstruction).
-      const store = useChatStore.getState();
-      const stale = store.messages.filter(
-        (message) => message.role === 'assistant' && message.error && message.actionId,
-      );
-      for (const message of stale) {
-        const actionId = message.actionId!;
-        void recoverSessionFromServer(actionId).then((recovered) => {
-          if (cancelled || !recovered) return;
-          const { answer, thinking, citations, toolCalls, searchResults, insufficient, errorMessage, status } = recovered;
-          if (status === 'completed') {
-            store.recoverMessage(message.id, {
-              text: insufficient ? '' : answer,
-              thinking,
-              citations,
-              toolCalls,
-              searchResults,
-              insufficient,
-            });
-          } else if (status === 'failed' || status === 'cancelled' || status === 'expired') {
-            // The server confirms the failure — overwrite the (possibly less
-            // accurate) client-side error string with whatever the server has.
-            store.recoverMessage(message.id, { error: errorMessage ?? 'AI request failed' });
-          }
-          // queued/running: leave the message alone; the server is still
-          // processing and the EventSource would have handled it otherwise.
-        }).catch(() => {
-          // Network blip — keep the persisted error, try again next mount.
-        });
-      }
     });
     return () => {
       cancelled = true;
     };
   }, [effectiveResearchMode, entitlements.userId, externalResearchEnabled]);
+
+  // Recover a turn interrupted by an in-app navigation. The normal fast path
+  // already has an actionId; the narrow POST-response race does not, so a
+  // signed-in pane also resolves the newest matching action from its own
+  // server-side chat session. Once found, replay its event stream rather than
+  // showing a stale "could not start" error or silently losing the response.
+  useEffect(() => {
+    if (!rehydrated) return;
+    const store = useChatStore.getState();
+    const assistantIndex = [...store.messages].map((message) => message.role).lastIndexOf('assistant');
+    if (assistantIndex < 1) return;
+    const assistant = store.messages[assistantIndex]!;
+    const user = store.messages[assistantIndex - 1];
+    if (assistant.role !== 'assistant' || user?.role !== 'user' || (!assistant.pending && !assistant.error)) return;
+
+    const attemptKey = `${assistant.id}:${assistant.actionId ?? 'unresolved'}`;
+    if (recoveryAttemptRef.current.has(attemptKey)) return;
+    recoveryAttemptRef.current.add(attemptKey);
+
+    let cancelled = false;
+    void (async () => {
+      const recovered = assistant.actionId
+        ? await recoverSessionFromServer(assistant.actionId)
+        : anonymous
+          ? null
+          : await recoverLatestSessionTurnFromServer(store.sessionId, user.text);
+      if (cancelled || !recovered) return;
+
+      const recoveredActionId = 'actionId' in recovered && typeof recovered.actionId === 'string'
+        ? recovered.actionId
+        : null;
+      const actionId = assistant.actionId ?? recoveredActionId;
+      if (!actionId) return;
+      store.setActionId(assistant.id, actionId);
+      const { answer, thinking, citations, toolCalls, searchResults, insufficient, errorMessage, status } = recovered;
+      if (status === 'completed') {
+        store.recoverMessage(assistant.id, {
+          text: insufficient ? '' : answer,
+          thinking,
+          citations,
+          toolCalls,
+          searchResults,
+          insufficient,
+          pending: false,
+        });
+      } else if (status === 'failed' || status === 'cancelled' || status === 'expired') {
+        store.recoverMessage(assistant.id, { error: errorMessage ?? 'AI request failed', pending: false });
+      } else if (status === 'queued' || status === 'running') {
+        void recoveryResumeRef.current(assistant.id, actionId);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [anonymous, chat.messages, chat.sessionId, rehydrated]);
 
   // Arriving on a `?chat=` link loads that conversation over whatever this tab
   // had. It runs before the mirror below starts, so a shared link never strips
