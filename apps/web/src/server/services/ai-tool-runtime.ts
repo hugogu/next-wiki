@@ -308,6 +308,9 @@ export type ToolTurnState = {
   currentPage?: { pageId: string; revisionId: string };
   transcript: string[];
   researchMode?: ResearchMode;
+  /** Tools that became unavailable during this turn (for example, a provider
+   * plan quota was exhausted). Planners must not offer or call them again. */
+  unavailableToolNames?: string[];
 };
 
 export type ToolPlanner = (state: ToolTurnState) => Promise<ToolPlanStep>;
@@ -666,6 +669,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
   // budget — and makes the repetition visible to it in-band.
   const readResults = new Map<string, string>();
   let duplicateOnlySteps = 0;
+  const unavailableToolNames = new Set<string>();
 
   logger.info('tool loop started', {
     actionId: params.actionId,
@@ -693,6 +697,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
     // Bound immediately before planning rather than on push: the loop keeps
     // appending, and what matters is the size of the prompt actually sent.
     state.transcript = boundTranscript(state.transcript, transcriptBudget);
+    state.unavailableToolNames = [...unavailableToolNames];
     const step = await params.planner(state);
     logger.info('tool loop planner step', {
       actionId: params.actionId,
@@ -722,9 +727,16 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       const plannedArguments = tool
         ? normalizeToolCallArguments(tool.name, planned.arguments)
         : planned.arguments;
-      if (!tool || !params.isEnabled(tool)) {
+      const providerUnavailable = Boolean(tool && unavailableToolNames.has(tool.name));
+      if (!tool || !params.isEnabled(tool) || providerUnavailable) {
         // Record a blocked call so the disabled/unknown tool is visible and the
         // assistant gets a safe explanation instead of a silent no-op.
+        const blockedErrorCode = providerUnavailable
+          ? 'WEB_RESEARCH_QUOTA_EXCEEDED'
+          : 'TOOL_NOT_ENABLED';
+        const blockedErrorMessage = providerUnavailable
+          ? 'External web research is unavailable for the remainder of this turn because the provider plan limit was reached.'
+          : 'That tool is disabled by policy.';
         const command = buildCommandMarkdown(planned.toolName, 'none', plannedArguments);
         const { call } = await recordToolCall({
           workflowId: params.workflowId,
@@ -743,13 +755,13 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
             workflowId: params.workflowId,
             toolCallId: call.id,
             toolName: planned.toolName,
-            reason: !tool ? 'tool-not-registered' : 'tool-disabled',
+            reason: providerUnavailable ? 'provider-quota-exhausted' : !tool ? 'tool-not-registered' : 'tool-disabled',
             requestedReview: planned.requestedReview,
             argumentKeys: Object.keys(plannedArguments),
           });
           await blockToolCall(call.id, {
-            errorCode: 'TOOL_NOT_ENABLED',
-            errorMessage: 'That tool is disabled by policy.',
+            errorCode: blockedErrorCode,
+            errorMessage: blockedErrorMessage,
           });
           await emitCall(params.actionId, call.id, {
             sequence: call.sequence,
@@ -759,11 +771,12 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
             status: 'blocked',
             requestedReview: planned.requestedReview,
             effectiveReview: 'none',
-            errorCode: 'TOOL_NOT_ENABLED',
-            errorMessage: 'That tool is disabled by policy.',
+            errorCode: blockedErrorCode,
+            errorMessage: blockedErrorMessage,
           });
         }
-        state.transcript.push(`TOOL ${planned.toolName} -> blocked: disabled by policy`);
+        state.transcript.push(`TOOL ${planned.toolName} -> blocked: ${blockedErrorMessage}`);
+        if (providerUnavailable) repeatedCalls += 1;
         continue;
       }
 
@@ -934,6 +947,14 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         state.transcript.push(
           `TOOL ${tool.name} -> failed: ${result.errorMessage ?? result.summary}`,
         );
+        if (result.errorCode === 'WEB_RESEARCH_QUOTA_EXCEEDED') {
+          unavailableToolNames.add('web_search');
+          unavailableToolNames.add('web_open');
+          state.unavailableToolNames = [...unavailableToolNames];
+          state.transcript.push(
+            'WEB_RESEARCH_DISABLED_FOR_TURN: The provider plan limit is exhausted. Do not call web_search or web_open again. Continue by answering with available Wiki or general knowledge and clearly disclose that external verification was unavailable.',
+          );
+        }
       }
     }
 

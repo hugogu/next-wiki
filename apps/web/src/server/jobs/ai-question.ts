@@ -494,7 +494,10 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     reason: strategy.reason,
   });
   const textPlanner = createTextProtocolPlanner(plannerDeps);
-  const nativePlanner = createNativeToolPlanner({ ...plannerDeps, tools: () => enabledTools });
+  const nativePlanner = createNativeToolPlanner({
+    ...plannerDeps,
+    tools: (state) => enabledTools.filter((tool) => !state.unavailableToolNames?.includes(tool.name)),
+  });
   // A model that advertises tool support but rejects the payload must not cost
   // the user their turn: downgrade for next time and finish this one on the
   // text protocol.

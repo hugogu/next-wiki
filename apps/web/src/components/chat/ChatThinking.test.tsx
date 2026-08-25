@@ -45,6 +45,15 @@ afterEach(() => {
 const THINKING = 'Checking **deploy** docs:\n\n- read `docker-compose.yml`\n- compare ports';
 
 describe('ChatThinking', () => {
+  it('leaves vertical scrolling to the chat message list', async () => {
+    await mount(<ChatThinking thinking={THINKING} streaming />);
+
+    const content = container.querySelector('button')?.nextElementSibling;
+    expect(content).not.toBeNull();
+    expect(content?.classList.contains('max-h-64')).toBe(false);
+    expect(content?.classList.contains('overflow-auto')).toBe(false);
+  });
+
   it('renders the reasoning as Markdown once the stream has settled', async () => {
     await mount(<ChatThinking thinking={THINKING} streaming />);
 

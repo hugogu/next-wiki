@@ -154,6 +154,27 @@ describe('planner equivalence', () => {
     }
   });
 
+  it('removes tools unavailable for the remainder of the turn from the native catalogue', async () => {
+    const fixture = await startAiProviderFixture({ toolMode: 'single' });
+    try {
+      const tools = listToolDefinitions().filter((tool) =>
+        ['search_wiki', 'web_search'].includes(tool.name),
+      );
+      await createNativeToolPlanner({
+        ...deps(fixture.baseUrl, [], []),
+        tools: (state) => tools.filter(
+          (tool) => !state.unavailableToolNames?.includes(tool.name),
+        ),
+      })({ ...STATE, unavailableToolNames: ['web_search'] });
+      const body = fixture.requests.at(-1)?.body as {
+        tools?: Array<{ function?: { name?: string } }>;
+      };
+      expect(body.tools?.map((tool) => tool.function?.name)).toEqual(['search_wiki']);
+    } finally {
+      await fixture.close();
+    }
+  });
+
   it('never lets a native call request less review than the text protocol could', async () => {
     const fixture = await startAiProviderFixture({ toolMode: 'single' });
     try {

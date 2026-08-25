@@ -191,6 +191,21 @@ describe('buildPlannerUserPrompt', () => {
     expect(prompt).toContain('After web_search, you MUST call web_open');
     expect(prompt).not.toContain('answer directly from your own knowledge without searching');
   });
+
+  it('tells the planner when a provider-quota failure disables web tools', () => {
+    const prompt = buildPlannerUserPrompt({
+      question: '光子易这家公司怎么样？',
+      conversation: [],
+      wikiSources: [],
+      transcript: ['TOOL web_search -> failed: provider quota exhausted'],
+      researchMode: 'wiki_first_web',
+      unavailableToolNames: ['web_search', 'web_open'],
+    });
+
+    expect(prompt).toContain('<tool_constraints>');
+    expect(prompt).toContain('Do not call them again.');
+    expect(prompt).toContain('Continue with the remaining tools or write the final answer');
+  });
 });
 
 describe('buildWikiToolSystemPrompt', () => {

@@ -126,6 +126,13 @@ function toSafeFailure(
     argumentKeys?: string[];
   },
 ): ToolExecutionResult {
+  if (error instanceof Error && /^WEB_RESEARCH_HTTP_(432|433)$/.test(error.message)) {
+    return fail(
+      'WEB_RESEARCH_QUOTA_EXCEEDED',
+      'External web research has reached the provider plan limit. Do not retry web_search or web_open in this turn; continue with available Wiki or general knowledge and disclose that external verification was unavailable.',
+      originalErrorDetail(error),
+    );
+  }
   if (error instanceof DomainError) {
     if (error.code === 'FORBIDDEN') {
       return fail('FORBIDDEN', 'You do not have permission to perform that operation.');

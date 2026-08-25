@@ -37,7 +37,11 @@ export function ChatThinking({
           {streaming ? t('ai.chat.thinking') : open ? t('ai.chat.hideThinking') : t('ai.chat.showThinking')}
         </span>
       </button>
-      <div hidden={!open} className="max-h-64 overflow-auto border-t border-border text-xs text-muted">
+      {/* Keep the chat pane as the only vertical scroll container. A second
+          scrolling viewport here could retain a stale scroll range while
+          streamed Markdown was replaced by the rendered preview, leaving the
+          thumb visually halfway down with no way to reach the final lines. */}
+      <div hidden={!open} className="border-t border-border text-xs text-muted">
         {/* Models write their reasoning in Markdown too. Render it once the
             panel is open and the stream has settled; a collapsed block stays
             raw so a long history does not fire a preview request per turn. */}

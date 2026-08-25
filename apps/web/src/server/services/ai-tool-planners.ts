@@ -78,11 +78,11 @@ export function createTextProtocolPlanner(deps: PlannerDeps): ToolPlanner {
  * events instead of a fenced block.
  */
 export function createNativeToolPlanner(
-  deps: PlannerDeps & { tools: () => ToolDefinition[] },
+  deps: PlannerDeps & { tools: (state: ToolTurnState) => ToolDefinition[] },
 ): ToolPlanner {
   return async (state: ToolTurnState): Promise<ToolPlanStep> => {
     const prompt = buildPlannerUserPrompt(state);
-    const definitions = deps.tools().map(toNeutralDefinition);
+    const definitions = deps.tools(state).map(toNeutralDefinition);
     let text = '';
     const calls: NeutralToolCall[] = [];
     try {

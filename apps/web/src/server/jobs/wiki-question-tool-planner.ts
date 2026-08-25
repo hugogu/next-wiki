@@ -14,6 +14,7 @@ export type ToolPlannerState = {
   transcript: string[];
   /** The user-selected research profile for this turn. */
   researchMode?: ResearchMode;
+  unavailableToolNames?: string[];
 };
 
 export type ToolPlannerParseResult = ToolPlanStep | { kind: 'invalid_tool_calls' };
@@ -43,6 +44,7 @@ export const WEB_RESEARCH_RUNTIME_POLICY = [
   'External web research is enabled for this turn (wiki_first_web). This is a Wiki-first policy: use relevant Wiki evidence when it is sufficient, but do not answer external factual questions from memory when it is not.',
   'If no relevant Wiki source is supplied or a Wiki read does not answer the question, you MUST call web_search before drafting the final answer. This applies to real-world companies, people, products, markets, news, current facts, and other external factual questions even when you believe you already know the answer.',
   'After web_search, you MUST call web_open for at least one relevant source before relying on or citing external information. Cite only sources returned by web_open, never search snippets or your own memory.',
+  'If web_search reports that the provider plan limit is exhausted, do not retry web_search or web_open. Continue with available Wiki or general knowledge and clearly disclose that external verification was unavailable.',
   'For conversational, purely creative, or explicitly hypothetical requests that do not need factual evidence, web_search is not required.',
   '</web_research_policy>',
 ].join('\n');
@@ -162,6 +164,16 @@ export function extractTaggedThinking(output: string): string {
 
 export function buildPlannerUserPrompt(state: ToolPlannerState): string {
   const researchPolicy = state.researchMode === 'wiki_first_web' ? [WEB_RESEARCH_RUNTIME_POLICY, ''] : [];
+  const unavailableTools = state.unavailableToolNames?.filter(Boolean) ?? [];
+  const toolConstraints = unavailableTools.length > 0
+    ? [
+        '<tool_constraints>',
+        `The following tools are unavailable for the remainder of this turn: ${unavailableTools.join(', ')}. Do not call them again.`,
+        'Continue with the remaining tools or write the final answer with a clear limitation note.',
+        '</tool_constraints>',
+        '',
+      ]
+    : [];
   const sources = state.wikiSources.length > 0
       ? [
           '<wiki_sources>',
@@ -201,13 +213,14 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
       ]
     : [];
   if (state.transcript.length === 0) {
-    return [...researchPolicy, ...sources, ...currentPage, ...conversation, '<question>', state.question, '</question>'].join('\n');
+    return [...researchPolicy, ...sources, ...currentPage, ...conversation, ...toolConstraints, '<question>', state.question, '</question>'].join('\n');
   }
   return [
     ...researchPolicy,
     ...sources,
     ...currentPage,
     ...conversation,
+    ...toolConstraints,
     '<question>',
     state.question,
     '</question>',

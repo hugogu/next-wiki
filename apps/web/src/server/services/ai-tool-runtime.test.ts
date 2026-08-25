@@ -85,7 +85,9 @@ describe('ai tool runtime — evidence citations', () => {
   });
 
   it('keeps a page whose content was actually read', () => {
-    expect(collectToolCitations('get_page', { ...page, contentSource: '# Zhang Fei' })).toEqual([page]);
+    expect(collectToolCitations('get_page', { ...page, contentSource: '# Zhang Fei' })).toEqual([
+      { kind: 'wiki', ...page },
+    ]);
   });
 });
 
