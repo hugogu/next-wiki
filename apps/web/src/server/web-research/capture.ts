@@ -19,6 +19,25 @@ export async function captureWebSource(ctx: PermCtx, input: { actionId: string; 
   if (action.feature !== 'wiki_question' && action.feature !== 'wiki_tool_chat') {
     throw new DomainError('NOT_FOUND', 'Web evidence is only available for Wiki AI answers');
   }
+  // Preserve is deliberately idempotent. The citation UI keeps the source id,
+  // not the local button state, so a reload can legitimately submit the same
+  // request again after the temporary source has already become durable Raw
+  // evidence. Captured rows may have expired their encrypted body, therefore
+  // return the durable relation before attempting to read the opened body.
+  const existing = await db.query.aiWebSources.findFirst({
+    where: and(
+      eq(schema.aiWebSources.id, input.sourceId),
+      eq(schema.aiWebSources.aiActionId, input.actionId),
+      eq(schema.aiWebSources.status, 'captured'),
+    ),
+  });
+  if (existing?.capturedRawPageId && existing.capturedRawRevisionId) {
+    return {
+      pageId: existing.capturedRawPageId,
+      versionId: existing.capturedRawRevisionId,
+      rawPath: `web-evidence/${existing.id}`,
+    };
+  }
   const { source, content } = await readOpenedWebSource(input.actionId, input.sourceId);
   const category = await ensureToolEvidenceCategory();
   const retrievedAt = source.retrievedAt.toISOString();

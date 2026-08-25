@@ -52,8 +52,8 @@ It appears in the source actions area rather than consuming reading-body space.
 
 | State | Behavior |
 |---|---|
-| Eligible opened source | User can initiate capture; the UI immediately shows queued action status. |
-| Capture queued/running | Disable duplicate interaction and show progress via existing action events. |
+| Eligible opened source | User can initiate capture; the UI disables the control while the synchronous request is in flight. |
+| Capture in progress | Disable duplicate interaction and keep the control in its preserving state. |
 | Capture succeeded | Replace the control with a link to the Raw original source/revision. |
 | Already captured | Render the durable evidence link; no duplicate source is created. |
 | Expired/failed/policy/permission denied | Disable capture and show a concise reason; create no placeholder evidence. |

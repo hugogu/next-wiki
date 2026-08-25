@@ -146,11 +146,11 @@ capture creates no record.
 
 - [ ] T051 [P] [US3] Add trusted Raw external-fetch writer, provenance, and idempotency tests in apps/web/src/server/web-research/evidence.test.ts and apps/web/src/server/services/raw-entries.test.ts
 - [ ] T052 [P] [US3] Add capture action ownership, permission, expiry, failure, and no-page-mutation tests in apps/web/src/server/services/ai-actions.test.ts and apps/web/src/server/jobs/ai-actions.test.ts
-- [ ] T053 [P] [US3] Add capture sub-resource authorization/idempotency/OpenAPI tests in apps/web/app/api/ai/actions/[actionId]/web-sources/[sourceId]/captures/route.test.ts and apps/web/src/server/api/openapi-schemas.test.ts
-- [ ] T054 [P] [US3] Add preserve-control queued/succeeded/expired/denied rendering tests in apps/web/src/components/chat/ChatCitations.test.tsx
+- [ ] T053 [P] [US3] Add capture sub-resource authorization/idempotency/OpenAPI tests in apps/web/app/api/ai/web-research/sources/[sourceId]/capture/route.test.ts and apps/web/src/server/api/openapi-schemas.test.ts
+- [ ] T054 [P] [US3] Add preserve-control preserving/succeeded/expired/denied rendering tests in apps/web/src/components/chat/ChatCitations.test.tsx
 - [X] T055 [US3] Implement the trusted capture service that maps one opened AiWebSource to a Raw external-fetch page/revision and stores the durable relation in apps/web/src/server/web-research/evidence.ts and apps/web/src/server/services/raw-entries.ts
 - [ ] T056 [US3] Register the web_evidence_capture worker handler with ownership, Raw-create permission, source status, and idempotency checks in apps/web/src/server/jobs/ai-actions.ts and apps/web/src/server/services/ai-actions.ts
-- [X] T057 [US3] Implement the capture sub-resource route and regenerate its OpenAPI schema in apps/web/app/api/ai/actions/[actionId]/web-sources/[sourceId]/captures/route.ts and apps/web/src/server/api/openapi-schemas.ts
+- [X] T057 [US3] Implement the capture sub-resource route and regenerate its OpenAPI schema in apps/web/app/api/ai/web-research/sources/[sourceId]/capture/route.ts and apps/web/src/server/api/openapi-schemas.ts
 - [X] T058 [US3] Add source-specific Preserve as evidence controls, action progress, and durable Raw evidence links in apps/web/src/components/chat/ChatCitations.tsx and apps/web/src/components/chat/ChatAnswer.tsx
 - [X] T059 [US3] Extend periodic AI cleanup to expire unpreserved bodies/source rows within 24 hours while retaining captured Raw evidence in apps/web/src/server/jobs/ai-cleanup.ts and apps/web/src/server/services/ai-actions.ts
 - [ ] T060 [US3] Add cleanup retention and captured-evidence survival tests in apps/web/src/server/jobs/ai-cleanup.test.ts and apps/web/src/server/web-research/sources.test.ts

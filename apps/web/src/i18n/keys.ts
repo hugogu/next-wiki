@@ -1858,7 +1858,7 @@ export const translationKeys = [
   "ai.chat.hideThinking",
   "ai.chat.showThinking",
   "ai.chat.capacity",
-  "ai.chat.citations",
+  "ai.chat.citations.title",
   "ai.chat.citations.external",
   "ai.chat.citations.preserve",
   "ai.chat.citations.preserving",

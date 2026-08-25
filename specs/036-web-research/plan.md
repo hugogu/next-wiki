@@ -18,7 +18,7 @@ External evidence is transient and encrypted, expiring within 24 hours unless a
 user explicitly captures it into the existing Raw original-source workflow.
 Answers use a discriminated citation contract so external links remain visibly
 different from immutable Wiki revision citations. Connection tests and evidence
-capture use the existing pg-boss AI-action infrastructure.
+capture use bounded synchronous routes with terminal AI-action audit records.
 
 ## Technical Context
 
@@ -67,7 +67,7 @@ automatic publication are out of scope.
 | P3 — portable, grounded memory | Search output is transient. Only a deliberate user capture writes a Raw original source with URL, title, retrieval time, provider identity, and content hash; generated edits stay separate and governed. | Pass |
 | P5 — permissions first | Creation, worker execution, source opening, capture, and reader access each re-check actor/session permission, entitlement, global enablement, action ownership, and source policy. API keys, anonymous users, bots, MCP, and jobs cannot request web research in v1. | Pass |
 | P6 — UI consistency | Chat mode, disclosure, source chips, and admin panels use existing UI primitives, i18n keys, tokens, and header/tab patterns. | Pass |
-| P7 — async heavy operations | Search/open runs in the existing queued AI question job. Connection tests and evidence capture are separate queued AI actions; routes return action IDs. Workers use runWithoutDataCache. | Pass |
+| P7 — async heavy operations | Search/open runs in the existing queued AI question job. Connection tests and evidence capture are bounded synchronous routes; each retains a terminal action audit record. Workers use runWithoutDataCache. | Pass |
 | P10 — explicit registries | Connector capabilities, tool definitions/executors, configuration, permission checks, action handlers, output events, cleanup, and tests are registered explicitly. No import-time discovery. | Pass |
 | P11 — URL state | Research mode is persisted in conversation metadata and the chat URL state so refresh and shared/returned navigation restore it. | Pass |
 
@@ -128,7 +128,7 @@ apps/web/
 │   │   ├── web-research/
 │   │   │   ├── settings/route.ts
 │   │   │   └── connection-tests/route.ts
-│   │   └── actions/[actionId]/web-sources/[sourceId]/captures/route.ts
+│   │   └── web-research/sources/[sourceId]/capture/route.ts
 │   └── (admin)/admin/ai/research/page.tsx
 ├── src/
 │   ├── components/ai/                 # chat mode, citations, source capture
@@ -173,7 +173,7 @@ an external MCP bridge or a second provider runtime.
    - Resolve active service, actor entitlement, domain allow/deny, budget,
      cancellation, and global switch at each external call; a worker-start
      snapshot alone is insufficient.
-   - Implement admin settings and queued connection-test actions. Credentials
+   - Implement admin settings and synchronous connection-test actions. Credentials
      are encrypted and write-only. Update OpenAPI source schemas and regenerate
      public/openapi.json.
 
@@ -192,7 +192,7 @@ an external MCP bridge or a second provider runtime.
    - Add an admin AI Research panel/tab and user entitlement control.
    - Add a URL-restorable mode selector and first-use egress notice; do not
      submit until the user confirms. Avoid leaking configuration details.
-   - Add action-backed source capture. A trusted Raw writer creates
+   - Add synchronous source capture. A trusted Raw writer creates
      external-fetch original evidence and associates it with the source row. It
      is idempotent, never automatic, and never changes/publishes a Wiki page.
 

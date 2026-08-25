@@ -75,21 +75,24 @@ Response: 200 with the GET representation, omitting apiKey.
 
 ### POST /api/ai/web-research/connection-tests
 
-Queues a bounded connector test using the saved configuration. It does not
-create a page, save external body content, or disclose results beyond safe
-status/error detail.
+Runs a bounded connector test synchronously using the saved configuration. It
+does not create a page, save external body content, or disclose results beyond
+safe status/error detail. The returned terminal `actionId` is retained only
+for audit/history correlation.
 
-Response 202:
+Response 200:
 
 ~~~json
 {
-  "actionId": "UUID",
-  "status": "queued"
+  "ok": true,
+  "status": "succeeded",
+  "provider": "tavily",
+  "latencyMs": 42,
+  "candidateCount": 1,
+  "testedAt": "2026-08-24T10:00:00.000Z",
+  "actionId": "UUID"
 }
 ~~~
-
-The existing action-status/events endpoints provide asynchronous progress and
-the final safe result.
 
 ## Question extension
 
@@ -117,24 +120,32 @@ citation metadata only.
 
 ## Source capture action
 
-### POST /api/ai/actions/{actionId}/web-sources/{sourceId}/captures
+### POST /api/ai/web-research/sources/{sourceId}/capture
 
-Queues an idempotent capture of one opened, unexpired external source into the
-existing Raw original-source system.
+Captures one opened, unexpired external source into the existing Raw
+original-source system. The `actionId` is supplied in the JSON request body.
 
-Response 202:
+Request:
 
 ~~~json
 {
-  "actionId": "UUID",
-  "status": "queued",
-  "existingRawPageId": null
+  "actionId": "UUID"
 }
 ~~~
 
-For an already captured source, the response may return the existing Raw page
-identifier and no duplicate capture work. The subsequent capture action reports
-the new Raw page/revision identifiers through normal action state.
+Response 201:
+
+~~~json
+{
+  "pageId": "UUID",
+  "versionId": "UUID",
+  "rawPath": "web-evidence/{sourceId}"
+}
+~~~
+
+The request is idempotent. For an already captured source, the response returns
+the existing Raw page and revision identifiers and does not create a duplicate
+entry.
 
 ## Stable error codes
 

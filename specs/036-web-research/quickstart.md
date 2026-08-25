@@ -56,8 +56,8 @@ tests must use the connector mock/fixture, never a paid live endpoint.
 2. Confirm the feature is globally disabled and the credential is not displayed.
 3. Enter a Tavily key, a safe temporary domain policy, and default bounded
    limits; save. Reload and verify only credentialConfigured is visible.
-4. Start a connection test. It must return an action ID immediately, show queued
-   and completed status asynchronously, and reveal no query/key/raw body.
+4. Start a connection test. It must return a synchronous terminal result and
+   audit action ID, and reveal no query/key/raw body.
 5. Grant webResearchEnabled to exactly one non-admin user. Keep another user
    unentitled.
 
@@ -82,8 +82,8 @@ or durable source record.
    not opened as evidence do not appear as citations.
 7. Refresh/reopen the conversation and confirm the chosen research mode is
    recovered from chat URL/session state.
-8. Select Preserve as evidence on one opened external source. Expect a queued
-   capture action, then a link to a Raw original source with URL, title,
+8. Select Preserve as evidence on one opened external source. Expect a
+   synchronous capture result, then a link to a Raw original source with URL, title,
    provider, retrieval time, and content identity. Confirm no Wiki page was
    edited or published.
 9. Attempt capture as a user without evidence-create permission and after
