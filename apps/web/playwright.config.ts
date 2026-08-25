@@ -37,6 +37,11 @@ export default defineConfig({
   ],
   webServer: {
     command:
+      // Static-site publishing is exercised by E2E tests, but its hashed CSS
+      // and runtime assets are intentionally ignored build artifacts. Generate
+      // them as part of the isolated test server startup so a fresh checkout
+      // cannot fail after all application assertions pass.
+      `pnpm run build:static-site-assets && ` +
       `E2E_DATABASE_URL="${E2E_DATABASE_URL}" node test/prepare-e2e-db.mjs && ` +
       `DATABASE_URL="${E2E_DATABASE_URL}" ` +
       `NEXT_WIKI_E2E=true ` +
