@@ -180,6 +180,22 @@ export const PreferencesView = z
   })
   .describe('Current user preferences.');
 
+export const WebResearchConnectionTestResult = z
+  .object({
+    ok: z.boolean().describe('Whether the configured web-research connector responded successfully.'),
+    status: z.enum(['succeeded', 'failed', 'rate_limited', 'timed_out']),
+    provider: z.literal('tavily').nullable(),
+    latencyMs: z.number().int().nonnegative(),
+    providerRequestId: z.string().optional(),
+    creditsUsed: z.number().nonnegative().optional(),
+    candidateCount: z.number().int().nonnegative().optional(),
+    testedAt: z.string(),
+    errorCode: z.string().optional(),
+    errorMessage: z.string().optional(),
+    actionId: z.string().uuid().describe('Synchronous terminal action retained for audit history.'),
+  })
+  .describe('Synchronous web-research connector health result.');
+
 export const CreateApiKeyInput = z
   .object({
     name: z.string().min(1).max(100).describe('Human-readable name for the API key.'),

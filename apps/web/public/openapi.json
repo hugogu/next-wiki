@@ -10198,6 +10198,71 @@
         ],
         "description": "User account view."
       },
+      "WebResearchConnectionTestResult": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Whether the configured web-research connector responded successfully."
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "succeeded",
+              "failed",
+              "rate_limited",
+              "timed_out"
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "tavily"
+            ]
+          },
+          "latencyMs": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "providerRequestId": {
+            "type": "string"
+          },
+          "creditsUsed": {
+            "type": "number",
+            "minimum": 0
+          },
+          "candidateCount": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "testedAt": {
+            "type": "string"
+          },
+          "errorCode": {
+            "type": "string"
+          },
+          "errorMessage": {
+            "type": "string"
+          },
+          "actionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Synchronous terminal action retained for audit history."
+          }
+        },
+        "required": [
+          "ok",
+          "status",
+          "provider",
+          "latencyMs",
+          "testedAt",
+          "actionId"
+        ],
+        "description": "Synchronous web-research connector health result."
+      },
       "WritingModeSettingsView": {
         "type": "object",
         "properties": {
@@ -13437,7 +13502,7 @@
     "/ai/web-research/connection-tests": {
       "post": {
         "operationId": "post-ai-web-research-connection-tests",
-        "summary": "Queue a Web Research connection test @tag AI Admin @auth bearer",
+        "summary": "Test a Web Research connection synchronously",
         "description": "",
         "tags": [
           "AI Admin"
@@ -13449,102 +13514,12 @@
           }
         ],
         "responses": {
-          "202": {
+          "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "type": "string",
-                      "enum": [
-                        "queued"
-                      ]
-                    },
-                    "id": {
-                      "type": "string"
-                    },
-                    "feature": {
-                      "oneOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "provider_test"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "model_sync"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "index_rebuild"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "semantic_search"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "wiki_question"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "scheduled_ai_job"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "text_optimization"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "image_generation"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "wiki_tool_chat"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "web_research_test"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "web_evidence_capture"
-                          ]
-                        }
-                      ]
-                    },
-                    "eventsUrl": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "id",
-                    "feature",
-                    "eventsUrl"
-                  ]
+                  "$ref": "#/components/schemas/WebResearchConnectionTestResult"
                 }
               }
             }

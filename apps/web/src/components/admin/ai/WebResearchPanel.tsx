@@ -17,6 +17,16 @@ export type WebResearchSettingsView = {
   lastConnectionTest: { status: string | null; completedAt: string } | null;
 };
 
+type WebResearchConnectionTestResult = {
+  ok: boolean;
+  status: string;
+  latencyMs: number;
+  candidateCount?: number;
+  errorCode?: string;
+  errorMessage?: string;
+  testedAt: string;
+};
+
 function domains(value: string): string[] {
   return value.split(/[\n,]/).map((item) => item.trim()).filter(Boolean);
 }
@@ -53,9 +63,33 @@ export function WebResearchPanel({ initial }: { initial: WebResearchSettingsView
   const test = async () => {
     setSaving(true);
     setMessage(null);
-    const response = await fetch('/api/ai/web-research/connection-tests', { method: 'POST' });
-    setMessage(response.ok ? t('admin.ai.webResearch.testQueued') : t('admin.ai.webResearch.saveError'));
-    setSaving(false);
+    try {
+      const response = await fetch('/api/ai/web-research/connection-tests', { method: 'POST' });
+      const result = await response.json().catch(() => null) as WebResearchConnectionTestResult | { message?: string } | null;
+      if (!response.ok) {
+        setMessage((result && 'message' in result ? result.message : undefined) ?? t('admin.ai.webResearch.saveError'));
+        return;
+      }
+      const health = result as WebResearchConnectionTestResult;
+      setSettings((current) => ({
+        ...current,
+        lastConnectionTest: { status: health.status, completedAt: health.testedAt },
+      }));
+      setMessage(
+        health.ok
+          ? t('admin.ai.webResearch.testOk', {
+              latency: health.latencyMs,
+              candidates: health.candidateCount ?? 0,
+            })
+          : t('admin.ai.webResearch.testFailed', {
+              detail: health.errorMessage ?? health.errorCode ?? health.status,
+            }),
+      );
+    } catch {
+      setMessage(t('admin.ai.webResearch.saveError'));
+    } finally {
+      setSaving(false);
+    }
   };
 
   const setLimit = (key: keyof WebResearchSettingsView['limits'], value: string) => {

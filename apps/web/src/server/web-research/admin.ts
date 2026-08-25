@@ -4,9 +4,14 @@ import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { getActorUserId, type PermCtx } from '@/server/permissions';
 import { assertCanManageAi } from '@/server/services/ai-admin';
-import { createAction, getAiSettings } from '@/server/services/ai-actions';
+import { getAiSettings, recordTerminalAction } from '@/server/services/ai-actions';
 import { encryptWebResearchApiKey } from './settings';
 import { validateDomains } from './url-policy';
+import {
+  executeWebResearchConnectionTest,
+  persistWebResearchConnectionTest,
+  recordWebResearchConnectionAttempt,
+} from './connection-test';
 
 const limitsSchema = z.object({
   maxSearchesPerTurn: z.number().int().min(1).max(5),
@@ -93,11 +98,25 @@ export async function updateWebResearchSettings(
   return view(saved!);
 }
 
-export async function createWebResearchConnectionTest(ctx: PermCtx) {
+export async function testWebResearchConnection(ctx: PermCtx) {
   assertCanManageAi(ctx);
-  const settings = await getAiSettings();
-  if (!settings.webResearchApiKeyEncrypted || !settings.webResearchProvider) {
-    throw new DomainError('BAD_REQUEST', 'Configure a web research credential before testing it');
-  }
-  return createAction(ctx, { feature: 'web_research_test', input: { requestedAt: new Date().toISOString() } });
+  const result = await executeWebResearchConnectionTest();
+  await persistWebResearchConnectionTest(result);
+  const actionId = await recordTerminalAction(ctx, {
+    feature: 'web_research_test',
+    status: result.ok ? 'completed' : 'failed',
+    requestMetadata: { mode: 'synchronous', provider: result.provider ?? 'tavily' },
+    resultMetadata: {
+      provider: result.provider,
+      status: result.status,
+      latencyMs: result.latencyMs,
+      ...(result.providerRequestId ? { providerRequestId: result.providerRequestId } : {}),
+      ...(result.creditsUsed === undefined ? {} : { creditsUsed: result.creditsUsed }),
+      ...(result.candidateCount === undefined ? {} : { candidateCount: result.candidateCount }),
+    },
+    errorCode: result.errorCode ?? null,
+    errorMessage: result.errorMessage ?? null,
+  });
+  await recordWebResearchConnectionAttempt(actionId, result);
+  return { ...result, actionId };
 }

@@ -1759,7 +1759,8 @@
         "saved": "已保存。",
         "saveError": "无法保存联网研究设置。",
         "test": "测试连接",
-        "testQueued": "连接测试已加入队列。",
+        "testOk": "连接测试成功，耗时 {latency} 毫秒（{candidates} 个候选来源）。",
+        "testFailed": "连接测试失败：{detail}",
         "lastTest": "上次连接测试：{status}",
         "loading": "正在加载联网研究设置…",
         "loadError": "无法加载联网研究设置。"

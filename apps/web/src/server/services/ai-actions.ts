@@ -203,25 +203,29 @@ export async function recordTerminalAction(
     errorMessage?: string | null;
     errorDetail?: string | null;
   },
-): Promise<void> {
+): Promise<string> {
   const settings = await getAiSettings();
   const now = new Date();
-  await db.insert(schema.aiActions).values({
-    feature: input.feature,
-    status: input.status,
-    actorUserId: getActorUserId(ctx) ?? null,
-    providerId: input.providerId ?? null,
-    modelId: input.modelId ?? null,
-    requestMetadata: input.requestMetadata ?? {},
-    resultMetadata: input.resultMetadata ?? {},
-    errorCode: input.errorCode ?? null,
-    errorMessage: input.errorMessage?.slice(0, 500) ?? null,
-    errorDetail: input.errorDetail?.slice(0, 8_000) ?? null,
-    queuedAt: now,
-    startedAt: now,
-    finishedAt: now,
-    expiresAt: expiry(settings.eventRetentionHours),
-  });
+  const [row] = await db
+    .insert(schema.aiActions)
+    .values({
+      feature: input.feature,
+      status: input.status,
+      actorUserId: getActorUserId(ctx) ?? null,
+      providerId: input.providerId ?? null,
+      modelId: input.modelId ?? null,
+      requestMetadata: input.requestMetadata ?? {},
+      resultMetadata: input.resultMetadata ?? {},
+      errorCode: input.errorCode ?? null,
+      errorMessage: input.errorMessage?.slice(0, 500) ?? null,
+      errorDetail: input.errorDetail?.slice(0, 8_000) ?? null,
+      queuedAt: now,
+      startedAt: now,
+      finishedAt: now,
+      expiresAt: expiry(settings.eventRetentionHours),
+    })
+    .returning({ id: schema.aiActions.id });
+  return row!.id;
 }
 
 export async function readActionInput<T>(actionId: string): Promise<T | null> {

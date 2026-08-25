@@ -1759,7 +1759,8 @@
         "saved": "Saved.",
         "saveError": "Could not save web research settings.",
         "test": "Test connection",
-        "testQueued": "Connection test queued.",
+        "testOk": "Connection test succeeded in {latency} ms ({candidates} candidate).",
+        "testFailed": "Connection test failed: {detail}",
         "lastTest": "Last connection test: {status}",
         "loading": "Loading web research settings…",
         "loadError": "Could not load web research settings."
