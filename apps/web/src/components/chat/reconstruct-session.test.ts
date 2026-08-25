@@ -72,6 +72,40 @@ describe('reconstructSessionFromEvents', () => {
     const result = reconstructSessionFromEvents(events);
     expect(result.errorMessage).toBe('Provider timed out');
   });
+
+  it('keeps the final tool-call state and its search result links', () => {
+    const toolCallId = '00000000-0000-0000-0000-000000000001';
+    const basePayload = {
+      toolCallId,
+      sequence: 1,
+      providerKey: 'next-wiki',
+      toolName: 'search_wiki',
+      commandMarkdown: '```tool-call\\ntool: search_wiki\\n```',
+      requestedReview: 'none' as const,
+      effectiveReview: 'none' as const,
+    };
+    const result = reconstructSessionFromEvents([
+      event({ id: 1, type: 'tool_call', payload: { ...basePayload, status: 'running' } }),
+      event({
+        id: 2,
+        type: 'tool_call',
+        payload: {
+          ...basePayload,
+          status: 'succeeded',
+          resultSummary: '1 readable page(s) matched.',
+          wikiSearchResults: [{ title: 'Fund guide', path: 'finance/funds', spaceSlug: 'wiki' }],
+        },
+      }),
+    ]);
+
+    expect(result.toolCalls).toEqual([
+      expect.objectContaining({
+        toolCallId,
+        status: 'succeeded',
+        wikiSearchResults: [{ title: 'Fund guide', path: 'finance/funds', spaceSlug: 'wiki' }],
+      }),
+    ]);
+  });
 });
 
 describe('recoverSessionFromServer', () => {

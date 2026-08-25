@@ -267,6 +267,18 @@ export type AiToolCallRequest = z.infer<typeof aiToolCallRequestSchema>;
 
 // ---- Action event payloads --------------------------------------------------
 
+/** A permission-filtered Wiki page returned by `search_wiki`.
+ *
+ * This is deliberately limited to link metadata. Tool events never retain the
+ * page body or search snippets, but readers can still inspect the pages the
+ * assistant considered during a search. */
+export const aiToolSearchResultSchema = z.object({
+  title: z.string().min(1).max(200),
+  path: z.string().min(1).max(200),
+  spaceSlug: z.string().min(1).max(100).optional(),
+});
+export type AiToolSearchResult = z.infer<typeof aiToolSearchResultSchema>;
+
 /** Payload of a `tool_call` action event. Safe for the initiating user after
  * permission filtering; never carries full arbitrary result payloads. */
 export const aiToolCallEventPayloadSchema = z.object({
@@ -287,6 +299,10 @@ export const aiToolCallEventPayloadSchema = z.object({
   errorDetail: z.string().nullable().optional(),
   proposalId: z.string().uuid().nullable().optional(),
   evidencePageId: z.string().uuid().nullable().optional(),
+  /** Whitelisted link metadata from a successful `search_wiki` call. The
+   * result body remains in the model-only transcript and is never persisted in
+   * the action event. */
+  wikiSearchResults: z.array(aiToolSearchResultSchema).max(100).optional(),
   /** Set when the call loaded a skill or one of its files (028). Carried
    * explicitly rather than parsed back out of the command record, so the chat
    * can name the procedure the assistant followed instead of showing a bare

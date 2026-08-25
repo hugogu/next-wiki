@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { aiToolChatOptionSchema, toolCallStrategySchema } from './ai-tools';
+import { aiToolChatOptionSchema, aiToolSearchResultSchema, toolCallStrategySchema } from './ai-tools';
 
 export const aiProviderTypeSchema = z.enum(['chat', 'embedding', 'image']);
 export type AiProviderType = z.infer<typeof aiProviderTypeSchema>;
@@ -630,6 +630,8 @@ export const conversationToolCallSchema = z.object({
   skillName: z.string().nullable().optional(),
   /** The original diagnostic text retained from a failed tool call. */
   errorDetail: z.string().nullable().optional(),
+  /** Permission-filtered page links returned by a `search_wiki` call. */
+  wikiSearchResults: z.array(aiToolSearchResultSchema).max(100).optional(),
 });
 export type ConversationToolCall = z.infer<typeof conversationToolCallSchema>;
 

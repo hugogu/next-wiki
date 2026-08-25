@@ -30,7 +30,7 @@ export function reconstructSessionFromEvents(events: AiActionEvent[]): Reconstru
   let answer = '';
   let thinking = '';
   let citations: AiCitation[] = [];
-  const toolCalls: AiToolCallEventPayload[] = [];
+  const toolCallsById = new Map<string, AiToolCallEventPayload>();
   const searchResults: Array<{ title: string; path: string; spaceSlug?: string }> = [];
   let errorMessage: string | null = null;
 
@@ -59,7 +59,8 @@ export function reconstructSessionFromEvents(events: AiActionEvent[]): Reconstru
       }
     } else if (event.type === 'tool_call') {
       const payload = event.payload as AiToolCallEventPayload;
-      toolCalls.push(payload);
+      const previous = toolCallsById.get(payload.toolCallId);
+      toolCallsById.set(payload.toolCallId, previous ? { ...previous, ...payload } : payload);
     } else if (event.type === 'error') {
       errorMessage = String(event.payload.message ?? 'AI request failed');
     }
@@ -69,6 +70,7 @@ export function reconstructSessionFromEvents(events: AiActionEvent[]): Reconstru
   thinking += flushed.thinkingText;
 
   const insufficient = isLegacyInsufficientWikiAnswer(answer);
+  const toolCalls = [...toolCallsById.values()].sort((left, right) => left.sequence - right.sequence);
   return { question, answer: insufficient ? '' : answer, thinking, citations, toolCalls, searchResults, insufficient, errorMessage };
 }
 

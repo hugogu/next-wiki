@@ -112,6 +112,28 @@ describe('ConversationSessionView', () => {
     expect(html).toContain('Error: Invariant: static generation store missing');
   });
 
+  it('renders captured search_wiki matches as canonical page links', () => {
+    const html = render(conversation({
+      turns: [{
+        status: 'completed',
+        question: 'Find the fund guide',
+        answer: 'Found it.',
+        thinking: '',
+        citations: [],
+        toolCalls: [{
+          toolName: 'search_wiki',
+          status: 'succeeded',
+          commandMarkdown: '```tool-call\\ntool: search_wiki\\n```',
+          wikiSearchResults: [{ title: 'Fund guide', path: 'finance/funds', spaceSlug: 'wiki' }],
+        }],
+        insufficient: false,
+        errorMessage: null,
+      }],
+    }));
+    expect(html).toContain('Fund guide');
+    expect(html).toContain('href="/finance/funds"');
+  });
+
   it('renders open thinking for a still-running session and citations regardless of status', () => {
     const html = render(conversation({
       status: 'running',

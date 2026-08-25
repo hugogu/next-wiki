@@ -19,15 +19,24 @@ export function ChatRetrieval({ results }: { results?: ChatRetrievalResult[] }) 
         <span className="text-muted transition-transform group-open:rotate-90">&gt;</span>
         <span className="shrink-0 font-medium">{t('ai.chat.retrievedPages', { count: results.length })}</span>
       </summary>
-      <ul className="min-w-0 space-y-xxs border-t border-border p-xs">
-        {results.map((result) => (
-          <li key={`${result.spaceSlug ?? 'wiki'}:${result.path}`} className="truncate">
-            <a className="text-primary hover:underline" href={getCitationHref(result)}>
-              {result.title}
-            </a>
-          </li>
-        ))}
-      </ul>
+      <ChatRetrievalLinks results={results} />
     </details>
+  );
+}
+
+/** Reused in the tool timeline so baseline retrieval and `search_wiki` show
+ * the same canonical, permission-filtered Wiki links. */
+export function ChatRetrievalLinks({ results }: { results?: ChatRetrievalResult[] }) {
+  if (!results?.length) return null;
+  return (
+    <ul className="min-w-0 space-y-xxs border-t border-border p-xs">
+      {results.map((result) => (
+        <li key={`${result.spaceSlug ?? 'wiki'}:${result.path}`} className="truncate">
+          <a className="text-primary hover:underline" href={getCitationHref(result)}>
+            {result.title}
+          </a>
+        </li>
+      ))}
+    </ul>
   );
 }

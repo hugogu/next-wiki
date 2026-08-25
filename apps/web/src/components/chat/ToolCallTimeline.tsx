@@ -3,6 +3,7 @@
 import type { AiToolCallEventPayload, AiToolProposalEventPayload } from '@next-wiki/shared';
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/keys';
+import { ChatRetrievalLinks } from './ChatRetrieval';
 
 /** Skills the assistant actually consulted, in the order it reached for them.
  * Only successful loads count: a denied or failed one did not shape the answer,
@@ -81,6 +82,9 @@ export function ToolCallTimeline({
                   </pre>
                 )}
                 {call.resultSummary && <p className="break-words text-muted">{call.resultSummary}</p>}
+                {call.wikiSearchResults?.length ? (
+                  <ChatRetrievalLinks results={call.wikiSearchResults} />
+                ) : null}
                 {call.errorMessage && <p className="break-words text-danger">{call.errorMessage}</p>}
                 {call.errorDetail && (
                   <div className="space-y-xxs">

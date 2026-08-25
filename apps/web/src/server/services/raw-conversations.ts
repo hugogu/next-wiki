@@ -1,6 +1,7 @@
 import { asc, and, eq, max, sql } from 'drizzle-orm';
 import {
   isLegacyInsufficientWikiAnswer,
+  aiToolSearchResultSchema,
   rawConversationSourceMetadataSchema,
   type AiActionStatus,
   type AiCitation,
@@ -49,6 +50,7 @@ export type ReconstructedConversation = {
      * procedure the assistant followed rather than a bare `load_skill`. */
     skillName?: string | null;
     errorDetail?: string | null;
+    wikiSearchResults?: Array<{ title: string; path: string; spaceSlug?: string }>;
   }[];
   insufficient: boolean;
   errorMessage: string | null;
@@ -94,6 +96,7 @@ export async function reconstructConversation(actionId: string, tx: Tx | typeof 
   let thinking = '';
   let citations: AiCitation[] = [];
   const toolCalls: ReconstructedConversation['toolCalls'] = [];
+  const toolCallIndices = new Map<string, number>();
   let errorMessage: string | null = null;
   let eventCursor = 0;
   for (const event of events) {
@@ -113,13 +116,30 @@ export async function reconstructConversation(actionId: string, tx: Tx | typeof 
         citations = Array.isArray(payload.citations) ? (payload.citations as AiCitation[]) : [];
         break;
       case 'tool_call':
-        toolCalls.push({
-          toolName: typeof payload.toolName === 'string' ? payload.toolName : 'tool',
-          status: typeof payload.status === 'string' ? payload.status : 'running',
-          commandMarkdown: typeof payload.commandMarkdown === 'string' ? payload.commandMarkdown : '',
-          skillName: typeof payload.skillName === 'string' ? payload.skillName : null,
-          errorDetail: typeof payload.errorDetail === 'string' ? payload.errorDetail : null,
-        });
+        {
+          const wikiSearchResults = Array.isArray(payload.wikiSearchResults)
+            ? payload.wikiSearchResults
+                .map((item) => aiToolSearchResultSchema.safeParse(item))
+                .flatMap((parsed) => (parsed.success ? [parsed.data] : []))
+                .slice(0, 100)
+            : undefined;
+          const toolCall = {
+            toolName: typeof payload.toolName === 'string' ? payload.toolName : 'tool',
+            status: typeof payload.status === 'string' ? payload.status : 'running',
+            commandMarkdown: typeof payload.commandMarkdown === 'string' ? payload.commandMarkdown : '',
+            skillName: typeof payload.skillName === 'string' ? payload.skillName : null,
+            errorDetail: typeof payload.errorDetail === 'string' ? payload.errorDetail : null,
+            ...(wikiSearchResults?.length ? { wikiSearchResults } : {}),
+          };
+          const toolCallId = typeof payload.toolCallId === 'string' ? payload.toolCallId : null;
+          const existingIndex = toolCallId ? toolCallIndices.get(toolCallId) : undefined;
+          if (existingIndex === undefined) {
+            if (toolCallId) toolCallIndices.set(toolCallId, toolCalls.length);
+            toolCalls.push(toolCall);
+          } else {
+            toolCalls[existingIndex] = { ...toolCalls[existingIndex], ...toolCall };
+          }
+        }
         break;
       case 'error':
         errorMessage =

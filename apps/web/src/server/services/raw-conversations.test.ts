@@ -96,6 +96,35 @@ describe('raw conversations service', () => {
       expect(result).toMatchObject({ status: 'failed', errorMessage: 'The provider timed out.' });
     });
 
+    it('retains only safe Wiki links from a completed search_wiki call', async () => {
+      const actionId = await createWikiQuestionAction(userId, { status: 'completed' });
+      const toolCallId = '00000000-0000-0000-0000-000000000001';
+      const basePayload = {
+        toolCallId,
+        sequence: 1,
+        providerKey: 'next-wiki',
+        toolName: 'search_wiki',
+        commandMarkdown: '```tool-call\\ntool: search_wiki\\n```',
+        requestedReview: 'none',
+        effectiveReview: 'none',
+      };
+      await appendConversationEvent(actionId, 'tool_call', { ...basePayload, status: 'running' });
+      await appendConversationEvent(actionId, 'tool_call', {
+        ...basePayload,
+        status: 'succeeded',
+        wikiSearchResults: [{ title: 'Fund guide', path: 'finance/funds', spaceSlug: 'wiki' }],
+      });
+
+      const result = await reconstructConversation(actionId);
+      expect(result?.toolCalls).toEqual([
+        expect.objectContaining({
+          toolName: 'search_wiki',
+          status: 'succeeded',
+          wikiSearchResults: [{ title: 'Fund guide', path: 'finance/funds', spaceSlug: 'wiki' }],
+        }),
+      ]);
+    });
+
     it('maps queued actions to a running conversation status', async () => {
       const actionId = await createWikiQuestionAction(userId, { status: 'queued' });
       await appendConversationEvent(actionId, 'question', { text: 'Still queued' });

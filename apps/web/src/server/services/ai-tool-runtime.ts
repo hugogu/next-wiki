@@ -627,6 +627,35 @@ function resultHasEntries(data: unknown, key: 'items' | 'candidates'): boolean {
   return Array.isArray(value) && value.length > 0;
 }
 
+/**
+ * `search_wiki` results are useful audit context, but its model-facing result
+ * also contains IDs and revision hashes that do not belong in an action event.
+ * Persist only the permission-filtered fields needed to render page links.
+ */
+function wikiSearchResultsForTimeline(data: unknown): AiToolCallEventPayload['wikiSearchResults'] {
+  if (!data || typeof data !== 'object') return undefined;
+  const items = (data as Record<string, unknown>).items;
+  if (!Array.isArray(items)) return undefined;
+
+  const results: NonNullable<AiToolCallEventPayload['wikiSearchResults']> = [];
+  for (const item of items) {
+    if (!item || typeof item !== 'object') continue;
+    const candidate = item as Record<string, unknown>;
+    const title = typeof candidate.title === 'string' ? candidate.title.trim() : '';
+    const path = typeof candidate.path === 'string' ? candidate.path.trim() : '';
+    if (!title || !path) continue;
+    results.push({
+      title: title.slice(0, 200),
+      path: path.slice(0, 200),
+      ...(typeof candidate.spaceSlug === 'string' && candidate.spaceSlug.trim()
+        ? { spaceSlug: candidate.spaceSlug.trim().slice(0, 100) }
+        : {}),
+    });
+    if (results.length === 100) break;
+  }
+  return results.length > 0 ? results : undefined;
+}
+
 export function collectToolCitations(toolName: string, data: unknown): AiCitation[] {
   // Search/list results are discovery candidates, not evidence that the model
   // actually read. Including every candidate made the final Sources list noisy
@@ -983,6 +1012,9 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         const storedSummary = rendered.truncated
           ? `${result.summary.slice(0, 480)} (result truncated)`
           : result.summary.slice(0, 500);
+        const wikiSearchResults = tool.name === 'search_wiki'
+          ? wikiSearchResultsForTimeline(result.data)
+          : undefined;
         await succeedToolCall(call.id, { resultSummary: storedSummary, resultHash });
         await auditToolCall(params.actorUserId, { toolName: tool.name, status: 'succeeded' });
         await emitCall(params.actionId, call.id, {
@@ -997,6 +1029,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           resultSummary: storedSummary,
           proposalId: result.proposalId ?? null,
           evidencePageId: result.evidencePageId ?? null,
+          ...(wikiSearchResults ? { wikiSearchResults } : {}),
         });
         if (result.proposalId) {
           const proposal = await getProposalRow(result.proposalId);

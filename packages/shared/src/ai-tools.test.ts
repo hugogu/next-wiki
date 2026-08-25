@@ -94,9 +94,13 @@ describe('ai-tools shared contract', () => {
       requestedReview: 'none',
       effectiveReview: 'none',
       errorDetail: 'Error: diagnostic',
+      wikiSearchResults: [{ title: 'Fund guide', path: 'finance/funds', spaceSlug: 'wiki' }],
     });
     expect(payload.status).toBe('running');
     expect(payload.errorDetail).toBe('Error: diagnostic');
+    expect(payload.wikiSearchResults).toEqual([
+      { title: 'Fund guide', path: 'finance/funds', spaceSlug: 'wiki' },
+    ]);
   });
 
   it('validates a full proposal detail shape', () => {

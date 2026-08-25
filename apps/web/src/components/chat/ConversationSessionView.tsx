@@ -7,6 +7,7 @@ import type { TranslationKey } from '@/i18n/types';
 import { ChatAnswer } from './ChatAnswer';
 import { ChatCitations } from './ChatCitations';
 import { ChatThinking } from './ChatThinking';
+import { ChatRetrievalLinks } from './ChatRetrieval';
 
 const STATUS_LABELS: Record<ConversationSessionViewModel['status'], TranslationKey> = {
   queued: 'admin.ai.actionStatus.queued',
@@ -131,6 +132,9 @@ function ConversationTurn({
                       ({call.status})
                     </summary>
                     {call.commandMarkdown && <pre className="mt-xs overflow-x-auto whitespace-pre-wrap font-mono">{call.commandMarkdown}</pre>}
+                    {call.wikiSearchResults?.length ? (
+                      <ChatRetrievalLinks results={call.wikiSearchResults} />
+                    ) : null}
                     {call.errorDetail && <pre className="mt-xs overflow-x-auto whitespace-pre-wrap font-mono text-danger">{call.errorDetail}</pre>}
                   </details>
                 ))

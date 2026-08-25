@@ -65,6 +65,24 @@ describe('ToolCallTimeline', () => {
     expect(html).not.toContain('RAW_RESULT_BODY');
   });
 
+  it('lists permission-filtered search_wiki matches as links when expanded', () => {
+    const html = render([
+      call({
+        status: 'succeeded',
+        resultSummary: '2 readable page(s) matched.',
+        wikiSearchResults: [
+          { title: 'Fund guide', path: 'finance/funds', spaceSlug: 'wiki' },
+          { title: 'Generated comparison', path: 'funds/compare', spaceSlug: 'generated' },
+        ],
+      }),
+    ]);
+
+    expect(html).toContain('Fund guide');
+    expect(html).toContain('href="/finance/funds"');
+    expect(html).toContain('Generated comparison');
+    expect(html).toContain('href="/generated/funds/compare"');
+  });
+
   it('shows the original tool error only after the call is expanded', () => {
     const html = render([
       call({
