@@ -33,6 +33,9 @@ const MAX_TOOL_PROTOCOL_RETRIES = 3;
 const RETRY_INSTRUCTION =
   '\n\nYour previous tool-call block was invalid or truncated. Re-emit the complete tool call as valid YAML or JSON using the exact documented argument names. Prefer a YAML block scalar (`contentSource: |`) for multiline Markdown.';
 
+const EMPTY_PLANNER_RESPONSE_RETRY_INSTRUCTION =
+  '\n\nYour previous response contained only hidden reasoning and no tool call or final answer. Continue the turn now: emit one complete fenced tool call using the exact documented argument names, or write the final answer as plain prose. Do not stop after reasoning.';
+
 export type PlannerDeps = {
   adapter: AiProviderAdapter;
   actionId: string;
@@ -58,9 +61,14 @@ export type PlannerDeps = {
 export function createTextProtocolPlanner(deps: PlannerDeps): ToolPlanner {
   return async (state: ToolTurnState): Promise<ToolPlanStep> => {
     const basePrompt = buildPlannerUserPrompt(state);
+    let previousOutput = '';
     for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
-      const prompt = `${basePrompt}${attempt > 0 ? RETRY_INSTRUCTION : ''}`;
+      const retryInstruction = attempt > 0
+        ? (isEmptyPlannerOutput(previousOutput) ? EMPTY_PLANNER_RESPONSE_RETRY_INSTRUCTION : RETRY_INSTRUCTION)
+        : '';
+      const prompt = `${basePrompt}${retryInstruction}`;
       const output = await streamPlainText(deps, [{ role: 'user', content: prompt }], prompt);
+      previousOutput = output;
       const parsed = parseToolPlan(output);
       if (parsed.kind === 'tool_calls') {
         const taggedThinking = extractTaggedThinking(output);
@@ -70,6 +78,10 @@ export function createTextProtocolPlanner(deps: PlannerDeps): ToolPlanner {
     }
     throw new DomainError('INVALID_RESPONSE', 'The AI provider repeatedly returned an invalid tool call.');
   };
+}
+
+function isEmptyPlannerOutput(output: string): boolean {
+  return output.trim() === '' || /^\s*<think>[\s\S]*<\/think>\s*$/i.test(output);
 }
 
 /**

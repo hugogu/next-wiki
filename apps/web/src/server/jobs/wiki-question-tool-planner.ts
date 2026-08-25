@@ -316,6 +316,14 @@ function parseDotsFunctionCall(output: string): ToolPlanStep | null {
 /** Parse one planner turn: a valid tool-call block requests tools; malformed
  * protocol output is explicitly retried by the caller; plain prose is final. */
 export function parseToolPlan(output: string): ToolPlannerParseResult {
+  // Reasoning-only provider responses are not answers. Some OpenAI-compatible
+  // gateways stream reasoning deltas and then finish without content or a
+  // native tool call (often because the model hit its completion budget). If
+  // this is accepted as `{ kind: 'final', text: '' }`, the action is marked
+  // completed with no answer and the user sees a frozen-looking thinking panel.
+  if (output.trim() === '' || /^\s*<think>[\s\S]*<\/think>\s*$/i.test(output)) {
+    return { kind: 'invalid_tool_calls' };
+  }
   // Only `tool` or `json` fences are part of the protocol. Other language
   // identifiers (e.g. `mermaid`) must not be parsed as tool calls, otherwise
   // a user asking for a diagram causes the planner to error out instead of

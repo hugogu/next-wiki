@@ -25,6 +25,7 @@ import {
 import { getProposalRow } from '@/server/services/ai-tool-proposals';
 import { BUILTIN_PROVIDER, type ToolDefinition } from '@/server/services/ai-tool-registry';
 import { logger } from '@/server/logger';
+import { DomainError } from '@/server/errors';
 
 /**
  * Tool workflow + tool-call persistence primitives and state-transition guards
@@ -707,6 +708,14 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
       plannedCallCount: step.kind === 'tool_calls' ? step.calls.length : 0,
     });
     if (step.kind === 'final') {
+      if (step.text.trim() === '') {
+        // A provider can stream hidden reasoning and then finish without
+        // content or a tool call. Never turn that into a successful empty
+        // action: the caller will mark the action failed with a recoverable
+        // provider error instead of leaving the user with a frozen thinking
+        // panel and no answer.
+        throw new DomainError('INVALID_RESPONSE', 'The AI provider returned no answer or tool call.');
+      }
       answer = step.text;
       logger.info('tool loop completed', {
         actionId: params.actionId,

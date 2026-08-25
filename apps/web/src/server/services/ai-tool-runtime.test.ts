@@ -238,6 +238,30 @@ describe('ai tool runtime — bounded loop', () => {
     expect(calls[0]?.status).toBe('succeeded');
   });
 
+  it('rejects an empty final step instead of completing with no answer', async () => {
+    const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: null, maxCalls: 5 });
+    await transitionWorkflow(workflow.id, 'running');
+
+    await expect(runToolLoop({
+      actionId,
+      workflowId: workflow.id,
+      ctx,
+      actorUserId: null,
+      question: 'find related pages',
+      planner: scriptedPlanner([{ kind: 'final', text: '   ' }]),
+      resolveReview: noReview,
+      isEnabled: allowAll,
+    })).rejects.toMatchObject({
+      code: 'INVALID_RESPONSE',
+      message: 'The AI provider returned no answer or tool call.',
+    });
+
+    const reloaded = await db.query.aiToolWorkflows.findFirst({
+      where: (w, { eq }) => eq(w.id, workflow.id),
+    });
+    expect(reloaded?.status).toBe('running');
+  });
+
   it('records a failed tool call but still completes the turn', async () => {
     const { workflow, result } = await loopWith([
       {

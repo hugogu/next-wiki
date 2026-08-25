@@ -65,6 +65,13 @@ describe('parseToolPlan — provider-agnostic tool protocol', () => {
     expect(step).toEqual({ kind: 'final', text: 'The deployment config lives in docker-compose.yml.' });
   });
 
+  it('does not treat a reasoning-only provider response as an empty final answer', () => {
+    expect(parseToolPlan('')).toEqual({ kind: 'invalid_tool_calls' });
+    expect(parseToolPlan('<think>Let me inspect the current page.</think>')).toEqual({
+      kind: 'invalid_tool_calls',
+    });
+  });
+
   it('marks a malformed tool block for retry instead of exposing it as a final answer', () => {
     const step = parseToolPlan('```tool\n{not valid json}\n```');
     expect(step.kind).toBe('invalid_tool_calls');
