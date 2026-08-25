@@ -218,12 +218,13 @@ describe('buildPlannerUserPrompt', () => {
       researchMode: 'wiki_first_web',
     });
 
-    expect(prompt).toContain('FIRST, call search_wiki with scope: "all"');
-    expect(prompt).toContain('Make this call by itself and wait for its result');
+    expect(prompt).toContain('Before calling web_search or drafting an answer, call search_wiki with scope: "all"');
+    expect(prompt).toContain('You may call get_page first for the current page or another exact known page');
     expect(prompt).toContain('Only if search_wiki returns no suitable candidate');
     expect(prompt).toContain('call web_search, then call web_open');
     expect(prompt).toContain('<research_order>');
-    expect(prompt).toContain('Do not read the current page, use web tools, or answer yet.');
+    expect(prompt).toContain('You may call get_page for the current page or another exact known page');
+    expect(prompt).toContain('before using web tools or writing a final answer you must call search_wiki');
     expect(prompt).not.toContain('answer directly from your own knowledge without searching');
   });
 
@@ -310,7 +311,8 @@ describe('buildWikiToolSystemPrompt', () => {
     const prompt = buildWikiToolSystemPrompt([webSearch!], { researchMode: 'wiki_first_web' });
 
     expect(prompt).toContain('<web_research_policy>');
-    expect(prompt).toContain('FIRST, call search_wiki with scope: "all"');
+    expect(prompt).toContain('Before calling web_search or drafting an answer, call search_wiki with scope: "all"');
+    expect(prompt).toContain('You may call get_page first for the current page or another exact known page');
     expect(prompt).toContain('call web_search, then call web_open');
   });
 });

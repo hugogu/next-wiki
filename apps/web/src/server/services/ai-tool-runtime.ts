@@ -581,7 +581,7 @@ export const DUPLICATE_ONLY_STEP_LIMIT = 3;
 export const WIKI_SEARCH_FINAL_RETRY_LIMIT = 2;
 
 const WIKI_SEARCH_REQUIRED_MESSAGE =
-  'WHOLE_WIKI_SEARCH_REQUIRED: Before using the current page, any other Wiki tool, web_search, or writing an answer, call search_wiki with scope: "all" for the original question. Wait for that result before the next action.';
+  'WHOLE_WIKI_SEARCH_REQUIRED: Before calling web_search or writing an answer, call search_wiki with scope: "all" for the original question. A direct get_page call is permitted, but does not replace this whole-Wiki search.';
 
 const WEB_SEARCH_FALLBACK_REQUIRED_MESSAGE =
   'WEB_SEARCH_FALLBACK_REQUIRED: The whole-Wiki search found no readable candidates. Before answering from general knowledge, call web_search and wait for its result. If the external provider returns no suitable candidates or is unavailable, then write a clearly labelled general-knowledge fallback.';
@@ -807,9 +807,9 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
 
     let repeatedCalls = 0;
     // Tool results are not visible to the planner until the next iteration.
-    // A first planner step that includes search_wiki plus get_page/web_search
-    // has not actually made an evidence-based fallback decision yet, so only
-    // its whole-Wiki search is allowed to run.
+    // A direct read of a known page is still useful at this stage, but a
+    // same-step web search or mutation cannot make an evidence-based decision
+    // before the whole-Wiki search result is available.
     const wikiSearchRequiredAtStepStart = wholeWikiSearchRequired && !wikiSearchAttempted;
     for (const planned of step.calls) {
       const tool = resolveExecutableTool(planned.toolName);
@@ -818,7 +818,10 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         : planned.arguments;
       const providerUnavailable = Boolean(tool && unavailableToolNames.has(tool.name));
       const blockedByResearchOrder = Boolean(
-        tool && wikiSearchRequiredAtStepStart && tool.name !== 'search_wiki',
+        tool &&
+          wikiSearchRequiredAtStepStart &&
+          tool.name !== 'search_wiki' &&
+          tool.name !== 'get_page',
       );
       if (!tool || !params.isEnabled(tool) || providerUnavailable || blockedByResearchOrder) {
         // Record a blocked call so the disabled/unknown tool is visible and the
@@ -829,7 +832,7 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
             ? 'WEB_RESEARCH_QUOTA_EXCEEDED'
             : 'TOOL_NOT_ENABLED';
         const blockedErrorMessage = blockedByResearchOrder
-          ? 'A whole-Wiki search must complete before this tool can run. Call search_wiki with scope "all" first and wait for its result.'
+          ? 'A whole-Wiki search must complete before this tool can run. get_page is allowed for a known page, but call search_wiki with scope "all" before web research or a final answer.'
           : providerUnavailable
             ? 'External web research is unavailable for the remainder of this turn because the provider plan limit was reached.'
             : 'That tool is disabled by policy.';

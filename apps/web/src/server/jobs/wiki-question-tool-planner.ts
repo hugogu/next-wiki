@@ -51,8 +51,8 @@ export const SKILL_CATALOG_PLACEHOLDER = '{{SKILLS}}';
  */
 export const WEB_RESEARCH_RUNTIME_POLICY = [
   '<web_research_policy>',
-  'External web research is enabled for this turn (wiki_first_web). Follow this evidence order exactly: whole-Wiki search, relevant Wiki page reads, external web research, then clearly labelled general knowledge only as the last fallback.',
-  'FIRST, call search_wiki with scope: "all" and a query derived from the original user question. This is a whole-Wiki search, not a lookup of only the current page. Make this call by itself and wait for its result before calling get_page, any other Wiki read, web_search, or drafting an answer.',
+  'External web research is enabled for this turn (wiki_first_web). Follow this evidence order: an optional direct read of a known Wiki page, whole-Wiki search, relevant Wiki page reads, external web research, then clearly labelled general knowledge only as the last fallback.',
+  'Before calling web_search or drafting an answer, call search_wiki with scope: "all" and a query derived from the original user question. This is a whole-Wiki search, not a lookup of only the current page. You may call get_page first for the current page or another exact known page, but that direct read does not replace the required whole-Wiki search.',
   'If search_wiki returns a relevant candidate, call get_page and use the resulting Wiki evidence. Only if search_wiki returns no suitable candidate, or the opened Wiki pages do not answer the question, may you continue to external web research.',
   'For an external factual question with insufficient Wiki evidence, call web_search, then call web_open for at least one relevant source before relying on or citing external information. Cite only sources returned by web_open, never search snippets or your own memory.',
   'If web_search reports that the provider plan limit is exhausted, do not retry web_search or web_open. Continue with available Wiki or general knowledge and clearly disclose that external verification was unavailable.',
@@ -185,7 +185,7 @@ export function buildPlannerUserPrompt(state: ToolPlannerState): string {
     state.researchMode === 'wiki_first_web' && !state.wikiSearchAttempted
       ? [
           '<research_order>',
-          'No whole-Wiki search has completed in this turn. Your next action must be a standalone search_wiki call with scope: "all". Do not read the current page, use web tools, or answer yet.',
+          'No whole-Wiki search has completed in this turn. You may call get_page for the current page or another exact known page, but before using web tools or writing a final answer you must call search_wiki with scope: "all" and wait for its result. A direct page read does not replace that whole-Wiki search.',
           '</research_order>',
           '',
         ]

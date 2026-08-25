@@ -238,7 +238,7 @@ describe('ai tool runtime — bounded loop', () => {
     expect(calls[0]?.status).toBe('succeeded');
   });
 
-  it('requires a standalone whole-Wiki search before current-page or web tools in wiki_first_web mode', async () => {
+  it('allows a direct known-page read while still blocking web tools before the whole-Wiki search', async () => {
     const workflow = await createWorkflow({ aiActionId: actionId, actorUserId: null, maxCalls: 5 });
     await transitionWorkflow(workflow.id, 'running');
 
@@ -251,9 +251,8 @@ describe('ai tool runtime — bounded loop', () => {
       researchMode: 'wiki_first_web',
       planner: scriptedPlanner([
         {
-          // The model cannot inspect a search result until the next planner
-          // turn, so these trailing calls must be blocked even though this
-          // step starts with search_wiki.
+          // The model may read a known page directly, but cannot make a
+          // same-step web fallback decision before it sees the Wiki search.
           kind: 'tool_calls',
           calls: [
             { toolName: 'search_wiki', arguments: { query: '场内基金 场外基金', scope: 'all' }, requestedReview: 'none' },
@@ -276,7 +275,7 @@ describe('ai tool runtime — bounded loop', () => {
     });
     expect(calls.map((call) => [call.toolName, call.status, call.errorCode])).toEqual([
       ['search_wiki', 'succeeded', null],
-      ['get_page', 'blocked', 'WIKI_SEARCH_REQUIRED'],
+      ['get_page', 'failed', 'NOT_FOUND'],
       ['web_search', 'blocked', 'WIKI_SEARCH_REQUIRED'],
     ]);
   });
