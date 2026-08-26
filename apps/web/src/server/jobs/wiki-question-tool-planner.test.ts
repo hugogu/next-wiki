@@ -218,10 +218,6 @@ describe('buildPlannerUserPrompt', () => {
       researchMode: 'wiki_first_web',
     });
 
-    expect(prompt).toContain('Before calling web_search or drafting an answer, call search_wiki with scope: "all"');
-    expect(prompt).toContain('You may call get_page first for the current page or another exact known page');
-    expect(prompt).toContain('Only if search_wiki returns no suitable candidate');
-    expect(prompt).toContain('call web_search, then call web_open');
     expect(prompt).toContain('<research_order>');
     expect(prompt).toContain('You may call get_page for the current page or another exact known page');
     expect(prompt).toContain('before using web tools or writing a final answer you must call search_wiki');
@@ -239,7 +235,7 @@ describe('buildPlannerUserPrompt', () => {
     });
 
     expect(prompt).not.toContain('<research_order>');
-    expect(prompt).toContain('Only if search_wiki returns no suitable candidate');
+    expect(prompt).toContain('<tool_results>');
   });
 
   it('tells the planner when a provider-quota failure disables web tools', () => {
@@ -256,6 +252,23 @@ describe('buildPlannerUserPrompt', () => {
     expect(prompt).toContain('Do not call them again.');
     expect(prompt).toContain('Continue with the remaining tools or write the final answer');
   });
+
+  it('lets an admin customize the planner template while preserving omitted live context', () => {
+    const prompt = buildPlannerUserPrompt(
+      {
+        question: 'What changed?',
+        conversation: [],
+        wikiSources: [],
+        transcript: ['TOOL search_wiki -> {"summary":"1 page matched"}'],
+      },
+      { plannerUserPrompt: 'Start with this exact question:\n{{QUESTION}}' },
+    );
+
+    expect(prompt).toContain('Start with this exact question:');
+    expect(prompt).toContain('What changed?');
+    expect(prompt).toContain('<wiki_sources>');
+    expect(prompt).toContain('<tool_results>');
+  });
 });
 
 describe('buildWikiToolSystemPrompt', () => {
@@ -266,7 +279,7 @@ describe('buildWikiToolSystemPrompt', () => {
 
     expect(prompt).toContain('conversational knowledge agent embedded in this Next Wiki instance');
     expect(prompt).toContain('current Wiki is your working knowledge environment');
-    expect(prompt).toContain('answer helpfully from general model knowledge');
+    expect(prompt).toContain('useful general explanation');
     expect(prompt).toContain('Markdown math syntax');
     expect(prompt).toContain('perform the appropriate tool calls instead of merely explaining');
     expect(prompt).toContain('- create_page (page_draft)');
@@ -306,14 +319,14 @@ describe('buildWikiToolSystemPrompt', () => {
     expect(prompt).toContain('Do not provide a query or URL; the server derives the query.');
   });
 
-  it('appends a non-editable web trigger policy for wiki_first_web turns', () => {
+  it('uses the configurable Web research policy for wiki_first_web turns', () => {
     const webSearch = getToolDefinition('web_search');
-    const prompt = buildWikiToolSystemPrompt([webSearch!], { researchMode: 'wiki_first_web' });
+    const prompt = buildWikiToolSystemPrompt([webSearch!], {
+      researchMode: 'wiki_first_web',
+      webResearchPolicyPrompt: 'CUSTOM_RESEARCH_POLICY',
+    });
 
-    expect(prompt).toContain('<web_research_policy>');
-    expect(prompt).toContain('Before calling web_search or drafting an answer, call search_wiki with scope: "all"');
-    expect(prompt).toContain('You may call get_page first for the current page or another exact known page');
-    expect(prompt).toContain('call web_search, then call web_open');
+    expect(prompt).toContain('CUSTOM_RESEARCH_POLICY');
   });
 });
 

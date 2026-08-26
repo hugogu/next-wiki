@@ -17,6 +17,7 @@ import * as tags from '@/server/services/tags';
 import { auditImmediateToolMutation } from '@/server/services/audit';
 import { createProposal } from '@/server/services/ai-tool-proposals';
 import { getToolDefinition, type ToolDefinition } from '@/server/services/ai-tool-registry';
+import { normalizePageReferenceArguments } from '@/server/services/ai-tool-arguments';
 import { logger } from '@/server/logger';
 import { findSkill, recordSkillUsage } from '@/server/services/skills/registry';
 import {
@@ -206,25 +207,28 @@ const searchArgs = z.object({
     .optional(),
   limit: z.number().int().min(1).max(MAX_LIST).optional(),
 });
-const pageRefArgs = z
-  .object({
-    pageId: z.string().uuid().optional(),
-    // MCP calls this `node` for graph traversal. Keep pageId/path as legacy
-    // execution aliases, but expose the MCP name in the tool catalogue.
-    node: z.string().uuid().optional(),
-    path: z.string().min(1).optional(),
-    // `default` is the persisted slug for the primary wiki space. Older tool
-    // results exposed that internal value, so accept it on input as a
-    // compatibility alias while consistently presenting `wiki` to the model.
-    space: z
-      .enum(['wiki', 'raw', 'generated', 'default'])
-      .optional()
-      .transform((space) => (space === 'default' ? 'wiki' : space)),
-    contentOffset: z.number().int().min(0).optional(),
-    depth: z.number().int().min(1).max(3).optional(),
-    direction: z.enum(['out', 'in', 'both']).optional(),
-  })
-  .refine((v) => v.pageId || v.node || v.path);
+const pageRefArgs = z.preprocess(
+  normalizePageReferenceArguments,
+  z
+    .object({
+      pageId: z.string().uuid().optional(),
+      // MCP calls this `node` for graph traversal. Keep pageId/path as legacy
+      // execution aliases, but expose the MCP name in the tool catalogue.
+      node: z.string().uuid().optional(),
+      path: z.string().min(1).optional(),
+      // `default` is the persisted slug for the primary wiki space. Older tool
+      // results exposed that internal value, so accept it on input as a
+      // compatibility alias while consistently presenting `wiki` to the model.
+      space: z
+        .enum(['wiki', 'raw', 'generated', 'default'])
+        .optional()
+        .transform((space) => (space === 'default' ? 'wiki' : space)),
+      contentOffset: z.number().int().min(0).optional(),
+      depth: z.number().int().min(1).max(3).optional(),
+      direction: z.enum(['out', 'in', 'both']).optional(),
+    })
+    .refine((v) => v.pageId || v.node || v.path),
+);
 const listArgs = z
   .object({
     path: z.string().min(1).optional(),

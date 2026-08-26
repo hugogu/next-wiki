@@ -1,4 +1,5 @@
 import { getToolDefinition, listToolDefinitions } from './ai-tool-registry';
+import { normalizePageReferenceArguments } from './ai-tool-arguments';
 import { executeTool, hasExecutor } from './ai-tool-executors';
 
 /**
@@ -76,5 +77,19 @@ describe('invalid tool arguments', () => {
     const result = await executeTool(ctx, tool, { title: 12345, path: secret }, execCtx);
     expect(result.ok).toBe(false);
     expect(result.errorMessage).not.toContain(secret);
+  });
+});
+
+describe('page reference compatibility', () => {
+  it('unwraps a model XML pageId wrapper that was placed in path', () => {
+    expect(normalizePageReferenceArguments({
+      path: '<parameter name="pageId">\nb0bca48e-af7b-4690-ac7a-676e3bcae3af',
+    })).toEqual({ pageId: 'b0bca48e-af7b-4690-ac7a-676e3bcae3af' });
+  });
+
+  it('leaves ordinary paths unchanged', () => {
+    expect(normalizePageReferenceArguments({ path: 'finance/funds' })).toEqual({
+      path: 'finance/funds',
+    });
   });
 });

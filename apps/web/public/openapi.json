@@ -3891,6 +3891,29 @@
                 "type": "string",
                 "format": "uri"
               },
+              "sourceId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "provider": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "contentHash": {
+                "type": "string",
+                "minLength": 16,
+                "maxLength": 256
+              },
+              "retrievedAt": {
+                "type": "string",
+                "format": "date-time"
+              },
               "sessionId": {
                 "type": "string",
                 "minLength": 1,
@@ -4890,6 +4913,29 @@
               "url": {
                 "type": "string",
                 "format": "uri"
+              },
+              "sourceId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "title": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 500
+              },
+              "provider": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "contentHash": {
+                "type": "string",
+                "minLength": 16,
+                "maxLength": 256
+              },
+              "retrievedAt": {
+                "type": "string",
+                "format": "date-time"
               },
               "sessionId": {
                 "type": "string",
@@ -10263,6 +10309,174 @@
         ],
         "description": "Synchronous web-research connector health result."
       },
+      "WikiAiRuntimeSettingsUpdate": {
+        "type": "object",
+        "properties": {
+          "anonymousWikiAiEnabled": {
+            "type": "boolean"
+          },
+          "answerLanguage": {
+            "type": "string",
+            "enum": [
+              "model_default",
+              "follow_question"
+            ]
+          },
+          "toolMaxCalls": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "toolResultMaxChars": {
+            "type": "integer",
+            "minimum": 3000,
+            "maximum": 200000
+          },
+          "plannerTemperature": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 2
+          },
+          "plannerMaxOutputTokens": {
+            "type": "integer",
+            "minimum": 256,
+            "maximum": 65536
+          },
+          "assistantSystemPrompt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20000
+          },
+          "toolSystemPrompt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20000
+          },
+          "webResearchPolicyPrompt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20000
+          },
+          "plannerUserPrompt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20000
+          }
+        },
+        "description": "Partial update to the Wiki AI runtime configuration."
+      },
+      "WikiAiRuntimeSettingsView": {
+        "type": "object",
+        "properties": {
+          "params": {
+            "type": "object",
+            "properties": {
+              "anonymousWikiAiEnabled": {
+                "type": "boolean"
+              },
+              "answerLanguage": {
+                "type": "string",
+                "enum": [
+                  "model_default",
+                  "follow_question"
+                ]
+              },
+              "toolMaxCalls": {
+                "type": "integer"
+              },
+              "toolResultMaxChars": {
+                "type": "integer"
+              },
+              "plannerTemperature": {
+                "type": "number"
+              },
+              "plannerMaxOutputTokens": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "anonymousWikiAiEnabled",
+              "answerLanguage",
+              "toolMaxCalls",
+              "toolResultMaxChars",
+              "plannerTemperature",
+              "plannerMaxOutputTokens"
+            ]
+          },
+          "prompts": {
+            "type": "object",
+            "properties": {
+              "assistantSystemPrompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "toolSystemPrompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "webResearchPolicyPrompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "plannerUserPrompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "required": [
+              "assistantSystemPrompt",
+              "toolSystemPrompt",
+              "webResearchPolicyPrompt",
+              "plannerUserPrompt"
+            ]
+          },
+          "defaults": {
+            "type": "object",
+            "properties": {
+              "assistantSystemPrompt": {
+                "type": "string"
+              },
+              "toolSystemPrompt": {
+                "type": "string"
+              },
+              "webResearchPolicyPrompt": {
+                "type": "string"
+              },
+              "plannerUserPrompt": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "assistantSystemPrompt",
+              "toolSystemPrompt",
+              "webResearchPolicyPrompt",
+              "plannerUserPrompt"
+            ]
+          }
+        },
+        "required": [
+          "params",
+          "prompts",
+          "defaults"
+        ],
+        "description": "Wiki AI runtime settings, with stored prompt overrides and effective defaults."
+      },
       "WritingModeSettingsView": {
         "type": "object",
         "properties": {
@@ -11553,20 +11767,20 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "rawPath": {
-                      "type": "string"
-                    },
                     "pageId": {
                       "type": "string"
                     },
                     "versionId": {
                       "type": "string"
+                    },
+                    "rawPath": {
+                      "type": "string"
                     }
                   },
                   "required": [
-                    "rawPath",
                     "pageId",
-                    "versionId"
+                    "versionId",
+                    "rawPath"
                   ]
                 }
               }
@@ -12117,8 +12331,8 @@
     "/ai/runtime-settings": {
       "get": {
         "operationId": "get-ai-runtime-settings",
-        "summary": "Get Wiki AI runtime settings @description Available to authenticated users; updates remain administrator-only. @tag AI Admin @auth bearer",
-        "description": "Available to authenticated users; updates remain administrator-only. @tag AI Admin @auth bearer",
+        "summary": "Get Wiki AI runtime settings",
+        "description": "Available to authenticated users; updates remain administrator-only.",
         "tags": [
           "AI Admin"
         ],
@@ -12134,7 +12348,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/WikiAiRuntimeSettingsView"
                 }
               }
             }
@@ -12143,7 +12357,7 @@
       },
       "patch": {
         "operationId": "patch-ai-runtime-settings",
-        "summary": "Update Wiki AI runtime settings @tag AI Admin @auth bearer",
+        "summary": "Update Wiki AI runtime settings",
         "description": "",
         "tags": [
           "AI Admin"
@@ -12154,13 +12368,22 @@
             "BearerAuth": []
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WikiAiRuntimeSettingsUpdate"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "Successful response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "$ref": "#/components/schemas/WikiAiRuntimeSettingsView"
                 }
               }
             }

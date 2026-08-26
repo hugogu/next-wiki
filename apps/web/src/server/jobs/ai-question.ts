@@ -476,6 +476,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     {
       assistantSystemPrompt: runtimeConfig.assistantSystemPrompt,
       toolSystemPrompt: runtimeConfig.toolSystemPrompt,
+      webResearchPolicyPrompt: runtimeConfig.webResearchPolicyPrompt,
       answerLanguage: runtimeConfig.answerLanguage,
       researchMode: webResearch ? 'wiki_first_web' : 'wiki_only',
     },
@@ -511,6 +512,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     actionId,
     modelExternalId: textModel.externalId,
     system,
+    plannerUserPrompt: runtimeConfig.plannerUserPrompt,
     temperature: runtimeConfig.plannerTemperature,
     abortSignal: cancellation.signal,
     maxOutputTokens: (systemPrompt: string, prompt: string) =>

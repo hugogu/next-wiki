@@ -35,6 +35,8 @@ describe('ai runtime settings (026)', () => {
     expect(config.plannerMaxOutputTokens).toBe(32_768);
     expect(config.assistantSystemPrompt).toBeNull();
     expect(config.toolSystemPrompt).toBeNull();
+    expect(config.webResearchPolicyPrompt).toBeNull();
+    expect(config.plannerUserPrompt).toBeNull();
     expect(config.answerLanguage).toBe('model_default');
     expect(config.anonymousWikiAiEnabled).toBe(false);
   });
@@ -70,6 +72,8 @@ describe('ai runtime settings (026)', () => {
     expect(view.prompts.assistantSystemPrompt).toBeNull();
     expect(view.defaults.assistantSystemPrompt.length).toBeGreaterThan(0);
     expect(view.defaults.toolSystemPrompt).toContain('{{TOOLS}}');
+    expect(view.defaults.webResearchPolicyPrompt).toContain('<web_research_policy>');
+    expect(view.defaults.plannerUserPrompt).toContain('{{QUESTION}}');
   });
 
   it('persists params and round-trips the temperature through hundredths storage', async () => {
@@ -89,6 +93,16 @@ describe('ai runtime settings (026)', () => {
     expect((await resolveAiRuntimeConfig()).assistantSystemPrompt).toBe('You are a terse wiki bot.');
     await updateAiRuntimeSettings(adminCtx, { assistantSystemPrompt: '   ' });
     expect((await resolveAiRuntimeConfig()).assistantSystemPrompt).toBeNull();
+  });
+
+  it('stores Web research and planner prompt overrides independently', async () => {
+    await updateAiRuntimeSettings(adminCtx, {
+      webResearchPolicyPrompt: 'Read three sources before answering.',
+      plannerUserPrompt: 'Question first:\n{{QUESTION}}',
+    });
+    const config = await resolveAiRuntimeConfig();
+    expect(config.webResearchPolicyPrompt).toBe('Read three sources before answering.');
+    expect(config.plannerUserPrompt).toBe('Question first:\n{{QUESTION}}');
   });
 });
 

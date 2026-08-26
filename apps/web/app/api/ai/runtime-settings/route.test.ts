@@ -80,11 +80,19 @@ describe('AI runtime settings route', () => {
 
   it('accepts a prompt override update', async () => {
     services.updateAiRuntimeSettings.mockResolvedValue({ params: {}, prompts: {}, defaults: {} });
-    const response = await patch({ toolSystemPrompt: 'Custom.\n{{TOOLS}}' });
+    const response = await patch({
+      toolSystemPrompt: 'Custom.\n{{TOOLS}}',
+      webResearchPolicyPrompt: 'Read several pages first.',
+      plannerUserPrompt: '{{QUESTION}}',
+    });
     expect(response.status).toBe(200);
     expect(services.updateAiRuntimeSettings).toHaveBeenCalledWith(
       expect.anything(),
-      expect.objectContaining({ toolSystemPrompt: 'Custom.\n{{TOOLS}}' }),
+      expect.objectContaining({
+        toolSystemPrompt: 'Custom.\n{{TOOLS}}',
+        webResearchPolicyPrompt: 'Read several pages first.',
+        plannerUserPrompt: '{{QUESTION}}',
+      }),
     );
   });
 });

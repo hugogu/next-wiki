@@ -196,6 +196,12 @@ describe('ai tool runtime — command markdown', () => {
     expect(normalizeToolCallArguments('web_search', { query: 'private Wiki text' })).toEqual({});
     expect(normalizeToolCallArguments('search_wiki', { query: 'keep this' })).toEqual({ query: 'keep this' });
   });
+
+  it('normalizes a foreign XML pageId wrapper before recording and executing a read', () => {
+    expect(normalizeToolCallArguments('get_page', {
+      path: '<parameter name="pageId">\nb0bca48e-af7b-4690-ac7a-676e3bcae3af',
+    })).toEqual({ pageId: 'b0bca48e-af7b-4690-ac7a-676e3bcae3af' });
+  });
 });
 
 describe('ai tool runtime — bounded loop', () => {

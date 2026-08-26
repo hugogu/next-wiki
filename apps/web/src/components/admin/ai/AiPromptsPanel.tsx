@@ -8,19 +8,20 @@ import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { UndoIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 
-type PromptTab = 'assistant' | 'tool';
-const TABS: PromptTab[] = ['assistant', 'tool'];
+type PromptTab = 'assistant' | 'tool' | 'research' | 'planner';
+const TABS: PromptTab[] = ['assistant', 'tool', 'research', 'planner'];
 
 function parseTab(value: string | null): PromptTab {
   return TABS.includes(value as PromptTab) ? (value as PromptTab) : 'assistant';
 }
 
 /**
- * Wiki AI runtime prompts (026), edited from AI > Prompts. Each prompt is shown
- * with its built-in default already filled in and fully editable; the reset
- * icon restores that default. Saving a value equal to the default clears the
- * stored override so the prompt keeps tracking future default changes. The live
- * tool catalog and tool-call protocol are injected by the runtime at {{TOOLS}}.
+ * Wiki AI runtime prompts, edited from AI > Prompts. Each prompt is shown with
+ * its built-in default already filled in and fully editable; the reset icon
+ * restores that default. Saving a value equal to the default clears the stored
+ * override so the prompt keeps tracking future default changes. The runtime
+ * still injects live tool catalogues and action-specific context at their
+ * documented markers so a customization cannot hide live inputs from a turn.
  */
 export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) {
   const { t } = useTranslation();
@@ -33,6 +34,12 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
     initial.prompts.assistantSystemPrompt ?? initial.defaults.assistantSystemPrompt,
   );
   const [tool, setTool] = useState(initial.prompts.toolSystemPrompt ?? initial.defaults.toolSystemPrompt);
+  const [research, setResearch] = useState(
+    initial.prompts.webResearchPolicyPrompt ?? initial.defaults.webResearchPolicyPrompt,
+  );
+  const [planner, setPlanner] = useState(
+    initial.prompts.plannerUserPrompt ?? initial.defaults.plannerUserPrompt,
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
 
@@ -53,6 +60,8 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
           // A value equal to the default clears the override (keeps tracking it).
           assistantSystemPrompt: assistant.trim() === initial.defaults.assistantSystemPrompt.trim() ? null : assistant,
           toolSystemPrompt: tool.trim() === initial.defaults.toolSystemPrompt.trim() ? null : tool,
+          webResearchPolicyPrompt: research.trim() === initial.defaults.webResearchPolicyPrompt.trim() ? null : research,
+          plannerUserPrompt: planner.trim() === initial.defaults.plannerUserPrompt.trim() ? null : planner,
         }),
       });
       if (!response.ok) throw new Error('save failed');
@@ -70,6 +79,8 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
         tabs={[
           { id: 'assistant', label: t('admin.ai.prompts.tabs.assistant') },
           { id: 'tool', label: t('admin.ai.prompts.tabs.tool') },
+          { id: 'research', label: t('admin.ai.prompts.tabs.research') },
+          { id: 'planner', label: t('admin.ai.prompts.tabs.planner') },
         ]}
         selected={tab}
         onSelect={selectTab}
@@ -92,6 +103,26 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
             usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
             resetLabel={t('admin.ai.prompts.reset')}
             onChange={setTool}
+          />
+        )}
+        {tab === 'research' && (
+          <PromptEditor
+            help={t('admin.ai.prompts.research.help')}
+            value={research}
+            defaultValue={initial.defaults.webResearchPolicyPrompt}
+            usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
+            resetLabel={t('admin.ai.prompts.reset')}
+            onChange={setResearch}
+          />
+        )}
+        {tab === 'planner' && (
+          <PromptEditor
+            help={t('admin.ai.prompts.planner.help')}
+            value={planner}
+            defaultValue={initial.defaults.plannerUserPrompt}
+            usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
+            resetLabel={t('admin.ai.prompts.reset')}
+            onChange={setPlanner}
           />
         )}
       </SettingsTabs>

@@ -1397,10 +1397,12 @@
       "prompts": {
         "nav": "Prompts",
         "title": "AI prompts",
-        "description": "Customize the system prompts that drive Wiki AI. Leave a field empty to use the built-in default.",
+        "description": "Review and customize every text prompt used to run Wiki AI. Leave a field empty to use the built-in default; runtime permissions and live context remain server-enforced.",
         "tabs": {
           "assistant": "Assistant",
-          "tool": "Tool"
+          "tool": "Tool",
+          "research": "Web research",
+          "planner": "Planner context"
         },
         "assistant": {
           "label": "Assistant system prompt",
@@ -1409,6 +1411,14 @@
         "tool": {
           "label": "Tool system prompt",
           "help": "Instructions for the governed tool loop. Keep the '{{TOOLS}}' marker and the fenced tool-call protocol so tools keep working; the live tool catalog is injected automatically."
+        },
+        "research": {
+          "label": "Web research policy prompt",
+          "help": "Evidence order and answer-synthesis guidance for Wiki-first web research. This is where you can tune how broadly Wiki pages are read and how clearly general knowledge is distinguished."
+        },
+        "planner": {
+          "label": "Planner user prompt",
+          "help": "The per-turn context template sent with the question and tool results. You may rearrange or add instructions. Keep the '{{RESEARCH_CONTEXT}}', '{{WIKI_SOURCES}}', '{{CURRENT_PAGE}}', '{{CONVERSATION}}', '{{TOOL_CONSTRAINTS}}', '{{QUESTION}}', and '{{TOOL_TRANSCRIPT}}' markers; omitted live context is appended automatically."
         },
         "usingDefault": "Using default",
         "reset": "Reset to default",

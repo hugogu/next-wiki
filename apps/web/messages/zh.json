@@ -1397,10 +1397,12 @@
       "prompts": {
         "nav": "提示词",
         "title": "AI 提示词",
-        "description": "自定义驱动 Wiki AI 的系统提示词。留空则使用内置默认值。",
+        "description": "查看并自定义驱动 Wiki AI 的全部文本提示词。留空则使用内置默认值；运行时权限和实时上下文仍由服务端强制控制。",
         "tabs": {
           "assistant": "助手",
-          "tool": "工具"
+          "tool": "工具",
+          "research": "联网研究",
+          "planner": "规划上下文"
         },
         "assistant": {
           "label": "助手系统提示词",
@@ -1409,6 +1411,14 @@
         "tool": {
           "label": "工具系统提示词",
           "help": "受管工具循环的指令。请保留 '{{TOOLS}}' 占位符和围栏式工具调用协议以确保工具正常工作；实时工具目录会自动注入。"
+        },
+        "research": {
+          "label": "联网研究策略提示词",
+          "help": "适用于 Wiki 优先联网研究的证据顺序与回答综合规则。可在这里调整应当多广泛阅读 Wiki 页面，以及如何明确区分通用知识。"
+        },
+        "planner": {
+          "label": "规划器用户提示词",
+          "help": "每轮随问题和工具结果一起发送的上下文模板。你可以调整顺序或加入指令。请保留 '{{RESEARCH_CONTEXT}}'、'{{WIKI_SOURCES}}'、'{{CURRENT_PAGE}}'、'{{CONVERSATION}}'、'{{TOOL_CONSTRAINTS}}'、'{{QUESTION}}' 和 '{{TOOL_TRANSCRIPT}}' 标记；遗漏的实时上下文会由系统自动追加。"
         },
         "usingDefault": "使用默认值",
         "reset": "恢复默认",

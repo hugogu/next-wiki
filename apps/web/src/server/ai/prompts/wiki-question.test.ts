@@ -38,7 +38,7 @@ describe('Wiki question prompts', () => {
 
   it('allows a useful general-knowledge fallback without inventing citations', () => {
     const prompt = buildWikiQuestionPrompt('Who is Guan Yu?', []);
-    expect(prompt.system).toContain('answer helpfully from general model knowledge');
+    expect(prompt.system).toContain('does not prohibit useful general explanation');
     expect(prompt.system).not.toContain('INSUFFICIENT_WIKI_EVIDENCE');
     expect(normalizeQuestionCitations('Guan Yu was a Han dynasty general.', [])).toEqual([]);
   });

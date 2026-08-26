@@ -7,8 +7,18 @@ import { AiRuntimeParamsPanel } from './AiRuntimeParamsPanel';
 
 const view: AiRuntimeSettingsView = {
   params: { anonymousWikiAiEnabled: false, answerLanguage: 'model_default', toolResultMaxChars: 32768, toolMaxCalls: 42, plannerTemperature: 0.25, plannerMaxOutputTokens: 32_768 },
-  prompts: { assistantSystemPrompt: null, toolSystemPrompt: null },
-  defaults: { assistantSystemPrompt: 'default assistant', toolSystemPrompt: 'default tool {{TOOLS}}' },
+  prompts: {
+    assistantSystemPrompt: null,
+    toolSystemPrompt: null,
+    webResearchPolicyPrompt: null,
+    plannerUserPrompt: null,
+  },
+  defaults: {
+    assistantSystemPrompt: 'default assistant',
+    toolSystemPrompt: 'default tool {{TOOLS}}',
+    webResearchPolicyPrompt: 'default web policy',
+    plannerUserPrompt: 'default planner {{QUESTION}}',
+  },
 };
 
 function render(): string {

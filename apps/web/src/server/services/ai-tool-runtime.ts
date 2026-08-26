@@ -24,6 +24,7 @@ import {
 } from '@/server/services/ai-tool-executors';
 import { getProposalRow } from '@/server/services/ai-tool-proposals';
 import { BUILTIN_PROVIDER, type ToolDefinition } from '@/server/services/ai-tool-registry';
+import { normalizePageReferenceToolArguments } from '@/server/services/ai-tool-arguments';
 import { logger } from '@/server/logger';
 import { DomainError } from '@/server/errors';
 
@@ -389,8 +390,13 @@ export function normalizeToolCallArguments(
   toolName: string,
   args: Record<string, unknown>,
 ): Record<string, unknown> {
-  if (toolName !== 'web_search') return args;
-  return typeof args.freshness === 'string' ? { freshness: args.freshness } : {};
+  if (toolName === 'web_search') {
+    return typeof args.freshness === 'string' ? { freshness: args.freshness } : {};
+  }
+  if (toolName === 'get_page' || toolName === 'get_backlinks' || toolName === 'get_neighborhood') {
+    return normalizePageReferenceToolArguments(args);
+  }
+  return args;
 }
 
 /**

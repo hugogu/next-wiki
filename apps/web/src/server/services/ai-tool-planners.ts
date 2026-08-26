@@ -42,6 +42,8 @@ export type PlannerDeps = {
   actionId: string;
   modelExternalId: string;
   system: string;
+  /** Optional admin override for the action-specific planner user template. */
+  plannerUserPrompt?: string | null;
   temperature?: number;
   abortSignal: AbortSignal;
   /** Per-iteration output budget, computed from the prompt and model window. */
@@ -61,7 +63,9 @@ export type PlannerDeps = {
  */
 export function createTextProtocolPlanner(deps: PlannerDeps): ToolPlanner {
   return async (state: ToolTurnState): Promise<ToolPlanStep> => {
-    const basePrompt = buildPlannerUserPrompt(state);
+    const basePrompt = buildPlannerUserPrompt(state, {
+      plannerUserPrompt: deps.plannerUserPrompt,
+    });
     let previousOutput = '';
     let lastFinishReason: string | undefined;
     for (let attempt = 0; attempt < MAX_TOOL_PROTOCOL_RETRIES; attempt += 1) {
@@ -113,7 +117,9 @@ export function createNativeToolPlanner(
   deps: PlannerDeps & { tools: (state: ToolTurnState) => ToolDefinition[] },
 ): ToolPlanner {
   return async (state: ToolTurnState): Promise<ToolPlanStep> => {
-    const prompt = buildPlannerUserPrompt(state);
+    const prompt = buildPlannerUserPrompt(state, {
+      plannerUserPrompt: deps.plannerUserPrompt,
+    });
     const definitions = deps.tools(state).map(toNeutralDefinition);
     let text = '';
     let finishReason: string | undefined;

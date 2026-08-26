@@ -16,10 +16,18 @@ import { AiPromptsPanel } from './AiPromptsPanel';
 function view(overrides: Partial<AiRuntimeSettingsView['prompts']> = {}): AiRuntimeSettingsView {
   return {
     params: { anonymousWikiAiEnabled: false, answerLanguage: 'model_default', toolResultMaxChars: 32768, toolMaxCalls: 100, plannerTemperature: 0.1, plannerMaxOutputTokens: 32_768 },
-    prompts: { assistantSystemPrompt: null, toolSystemPrompt: null, ...overrides },
+    prompts: {
+      assistantSystemPrompt: null,
+      toolSystemPrompt: null,
+      webResearchPolicyPrompt: null,
+      plannerUserPrompt: null,
+      ...overrides,
+    },
     defaults: {
       assistantSystemPrompt: 'You are Wiki AI.',
       toolSystemPrompt: 'Available tools:\n{{TOOLS}}',
+      webResearchPolicyPrompt: 'Search the Wiki first.',
+      plannerUserPrompt: '{{QUESTION}}',
     },
   };
 }
@@ -38,6 +46,8 @@ describe('AiPromptsPanel', () => {
     const html = render(view());
     expect(html).toContain('Assistant');
     expect(html).toContain('Tool');
+    expect(html).toContain('Web research');
+    expect(html).toContain('Planner context');
   });
 
   it('shows the built-in default as editable content (not a placeholder) with the using-default state', () => {
@@ -56,6 +66,13 @@ describe('AiPromptsPanel', () => {
     // next-intl renders it instead of falling back to the raw message key.
     expect(html).not.toContain('admin.ai.prompts.tool.help');
     expect(html).toContain('Keep the {{TOOLS}} marker');
+  });
+
+  it('renders the editable planner template and its context markers', () => {
+    currentSearch = 'tab=planner';
+    const html = render(view());
+    expect(html).toContain('{{QUESTION}}');
+    expect(html).toContain('per-turn context template');
   });
 
   it('shows a stored override value instead of the default', () => {

@@ -71,6 +71,11 @@ function shapeOf(schema: AnyZod): Record<string, AnyZod> | null {
 }
 
 function deriveRuntimeName(pascalName: string): string {
+  const explicitMappings: Record<string, string> = {
+    WikiAiRuntimeSettingsUpdate: 'aiRuntimeSettingsUpdateSchema',
+    WikiAiRuntimeSettingsView: 'aiRuntimeSettingsViewSchema',
+  };
+  if (pascalName in explicitMappings) return explicitMappings[pascalName]!;
   return `${pascalName[0]!.toLowerCase()}${pascalName.slice(1)}Schema`;
 }
 

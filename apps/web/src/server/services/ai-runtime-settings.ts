@@ -5,7 +5,11 @@ import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
 import { DEFAULT_ASSISTANT_SYSTEM_PROMPT } from '@/server/ai/prompts/wiki-question';
-import { DEFAULT_TOOL_SYSTEM_PROMPT } from '@/server/jobs/wiki-question-tool-planner';
+import {
+  DEFAULT_TOOL_PLANNER_USER_PROMPT,
+  DEFAULT_TOOL_SYSTEM_PROMPT,
+  DEFAULT_WEB_RESEARCH_POLICY_PROMPT,
+} from '@/server/jobs/wiki-question-tool-planner';
 
 import {
   AI_ANSWER_LANGUAGE_DEFAULT,
@@ -15,8 +19,8 @@ import {
 
 /**
  * Wiki AI runtime tuning (026). The planner parameters (max tool calls, sampling
- * temperature, max output tokens) and the two runtime prompts
- * (assistant system prompt, tool system prompt) live on the `ai_settings`
+ * temperature, max output tokens) and the runtime prompts (assistant, tool,
+ * Web research policy, and planner user context) live on the `ai_settings`
  * singleton so operators can tune the tool loop without a redeploy. Parameters
  * are edited from Bots > General; prompts from AI > Prompts. `null` prompts mean
  * "use the built-in default".
@@ -44,6 +48,8 @@ export type AiRuntimeConfig = {
   /** Null means use the built-in default prompt. */
   assistantSystemPrompt: string | null;
   toolSystemPrompt: string | null;
+  webResearchPolicyPrompt: string | null;
+  plannerUserPrompt: string | null;
 };
 
 /** Effective runtime config for the tool loop. No permission gate — internal. */
@@ -58,6 +64,8 @@ export async function resolveAiRuntimeConfig(): Promise<AiRuntimeConfig> {
     plannerMaxOutputTokens: row?.toolPlannerMaxOutputTokens ?? RUNTIME_DEFAULTS.plannerMaxOutputTokens,
     assistantSystemPrompt: row?.assistantSystemPrompt ?? null,
     toolSystemPrompt: row?.toolSystemPrompt ?? null,
+    webResearchPolicyPrompt: row?.webResearchPolicyPrompt ?? null,
+    plannerUserPrompt: row?.plannerUserPrompt ?? null,
   };
 }
 
@@ -88,10 +96,14 @@ export async function getAiRuntimeSettings(ctx: PermCtx): Promise<AiRuntimeSetti
     prompts: {
       assistantSystemPrompt: config.assistantSystemPrompt,
       toolSystemPrompt: config.toolSystemPrompt,
+      webResearchPolicyPrompt: config.webResearchPolicyPrompt,
+      plannerUserPrompt: config.plannerUserPrompt,
     },
     defaults: {
       assistantSystemPrompt: DEFAULT_ASSISTANT_SYSTEM_PROMPT,
       toolSystemPrompt: DEFAULT_TOOL_SYSTEM_PROMPT,
+      webResearchPolicyPrompt: DEFAULT_WEB_RESEARCH_POLICY_PROMPT,
+      plannerUserPrompt: DEFAULT_TOOL_PLANNER_USER_PROMPT,
     },
   };
 }
@@ -124,6 +136,10 @@ export async function updateAiRuntimeSettings(
   if (assistant !== undefined) patch.assistantSystemPrompt = assistant;
   const tool = normalizePrompt(input.toolSystemPrompt);
   if (tool !== undefined) patch.toolSystemPrompt = tool;
+  const webResearchPolicy = normalizePrompt(input.webResearchPolicyPrompt);
+  if (webResearchPolicy !== undefined) patch.webResearchPolicyPrompt = webResearchPolicy;
+  const plannerUser = normalizePrompt(input.plannerUserPrompt);
+  if (plannerUser !== undefined) patch.plannerUserPrompt = plannerUser;
 
   await db
     .insert(schema.aiSettings)

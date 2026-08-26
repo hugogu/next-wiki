@@ -120,6 +120,13 @@
       "when": 1787640349763,
       "tag": "0016_silly_polaris",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1787709566194,
+      "tag": "0017_heavy_omega_flight",
+      "breakpoints": true
     }
   ]
 }

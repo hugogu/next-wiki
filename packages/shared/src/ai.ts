@@ -337,6 +337,8 @@ export const aiRuntimePromptsUpdateSchema = z.object({
   // Null clears the override and restores the built-in default prompt.
   assistantSystemPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
   toolSystemPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
+  webResearchPolicyPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
+  plannerUserPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
 });
 export type AiRuntimePromptsUpdate = z.infer<typeof aiRuntimePromptsUpdateSchema>;
 
@@ -358,10 +360,14 @@ export const aiRuntimeSettingsViewSchema = z.object({
     // Null means the built-in default is in effect (no admin override stored).
     assistantSystemPrompt: z.string().nullable(),
     toolSystemPrompt: z.string().nullable(),
+    webResearchPolicyPrompt: z.string().nullable(),
+    plannerUserPrompt: z.string().nullable(),
   }),
   defaults: z.object({
     assistantSystemPrompt: z.string(),
     toolSystemPrompt: z.string(),
+    webResearchPolicyPrompt: z.string(),
+    plannerUserPrompt: z.string(),
   }),
 });
 export type AiRuntimeSettingsView = z.infer<typeof aiRuntimeSettingsViewSchema>;

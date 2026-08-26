@@ -1377,11 +1377,15 @@ export const aiSettings = pgTable('ai_settings', {
   // Language control for generated answers. The default adds no instruction, so
   // the model answers in whatever language it judges appropriate.
   answerLanguage: aiAnswerLanguageEnum('answer_language').notNull().default('model_default'),
-  // 026: Wiki AI runtime prompt overrides, admin-editable from AI > Prompts.
-  // Null uses the built-in default prompt; the machine-generated tool list and
-  // tool-call protocol are always appended by the runtime, never stored here.
+  // Wiki AI runtime prompt overrides, admin-editable from AI > Prompts.
+  // Null uses the built-in default prompt. Machine-generated catalogues and
+  // planner context are inserted by the runtime even if a custom template
+  // omits their placeholder, so an override cannot make tool calls lose their
+  // live input contract.
   assistantSystemPrompt: text('assistant_system_prompt'),
   toolSystemPrompt: text('tool_system_prompt'),
+  webResearchPolicyPrompt: text('web_research_policy_prompt'),
+  plannerUserPrompt: text('planner_user_prompt'),
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

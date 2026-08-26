@@ -105,6 +105,48 @@ export const LoginOutput = z
   })
   .describe('Login response.');
 
+/**
+ * Wiki AI runtime settings are maintained here as a literal schema because
+ * next-openapi-gen cannot follow the shared-package validator used at runtime.
+ * `openapi-schemas.test.ts` structurally compares this definition with
+ * `aiRuntimeSettingsUpdateSchema` and `aiRuntimeSettingsViewSchema`.
+ */
+export const WikiAiRuntimeSettingsUpdate = z.object({
+  anonymousWikiAiEnabled: z.boolean().optional(),
+  answerLanguage: z.enum(['model_default', 'follow_question']).optional(),
+  toolMaxCalls: z.number().int().min(1).max(1_000).optional(),
+  toolResultMaxChars: z.number().int().min(3_000).max(200_000).optional(),
+  plannerTemperature: z.number().min(0).max(2).optional(),
+  plannerMaxOutputTokens: z.number().int().min(256).max(65_536).optional(),
+  assistantSystemPrompt: z.string().max(20_000).nullable().optional(),
+  toolSystemPrompt: z.string().max(20_000).nullable().optional(),
+  webResearchPolicyPrompt: z.string().max(20_000).nullable().optional(),
+  plannerUserPrompt: z.string().max(20_000).nullable().optional(),
+}).describe('Partial update to the Wiki AI runtime configuration.');
+
+export const WikiAiRuntimeSettingsView = z.object({
+  params: z.object({
+    anonymousWikiAiEnabled: z.boolean(),
+    answerLanguage: z.enum(['model_default', 'follow_question']),
+    toolMaxCalls: z.number().int(),
+    toolResultMaxChars: z.number().int(),
+    plannerTemperature: z.number(),
+    plannerMaxOutputTokens: z.number().int(),
+  }),
+  prompts: z.object({
+    assistantSystemPrompt: z.string().nullable(),
+    toolSystemPrompt: z.string().nullable(),
+    webResearchPolicyPrompt: z.string().nullable(),
+    plannerUserPrompt: z.string().nullable(),
+  }),
+  defaults: z.object({
+    assistantSystemPrompt: z.string(),
+    toolSystemPrompt: z.string(),
+    webResearchPolicyPrompt: z.string(),
+    plannerUserPrompt: z.string(),
+  }),
+}).describe('Wiki AI runtime settings, with stored prompt overrides and effective defaults.');
+
 export const MeOutput = z
   .object({
     id: z.string().describe('Current user identifier.'),
@@ -1136,6 +1178,11 @@ export const PublicPageCreateInput = z
     source: z.object({
       channel: z.string().min(1).max(200).optional(),
       url: z.string().url().optional(),
+      sourceId: z.string().uuid().optional(),
+      title: z.string().min(1).max(500).optional(),
+      provider: z.string().min(1).max(100).optional(),
+      contentHash: z.string().min(16).max(256).optional(),
+      retrievedAt: z.string().datetime().optional(),
       sessionId: z.string().min(1).max(200).optional(),
       command: z.string().min(1).max(10_000).optional(),
       occurredAt: z.string().datetime().optional(),
@@ -1152,6 +1199,11 @@ export const PublicRawAppendInput = z
     source: z.object({
       channel: z.string().min(1).max(200).optional(),
       url: z.string().url().optional(),
+      sourceId: z.string().uuid().optional(),
+      title: z.string().min(1).max(500).optional(),
+      provider: z.string().min(1).max(100).optional(),
+      contentHash: z.string().min(16).max(256).optional(),
+      retrievedAt: z.string().datetime().optional(),
       sessionId: z.string().min(1).max(200).optional(),
       command: z.string().min(1).max(10_000).optional(),
       occurredAt: z.string().datetime().optional(),
