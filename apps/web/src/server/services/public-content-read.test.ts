@@ -268,6 +268,28 @@ describe('public content read facade', () => {
     });
   });
 
+  // Regression: listPageAddresses built canonical.url with a space-agnostic
+  // getPageHref, so a raw/generated-space page's address was reported without
+  // its /raw or /generated route prefix and 404'd for readers.
+  it('includes the space route prefix in listPageAddresses canonical.url for a non-wiki space', async () => {
+    const admin = await createPublicApiUser('public-addresses-generated-admin@example.com', 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    await ensurePrivateSpaces();
+    await setModeInternal('llm-wiki', admin.id);
+
+    const created = await pageService.create(adminCtx, {
+      path: 'concepts/addresses-generated', title: 'Generated addresses', contentSource: '# Generated',
+    }, 'generated');
+
+    const addresses = await publicContent.listPageAddresses(created.pageId);
+    expect(addresses.canonical).toMatchObject({
+      address: 'concepts/addresses-generated',
+      url: '/generated/concepts/addresses-generated',
+    });
+
+    await setModeInternal('copilot', admin.id);
+  });
+
   it('hides draft-only pages from reader API keys', async () => {
     const editor = await createPublicApiUser('public-draft-editor@example.com', 'editor');
     const reader = await createPublicApiUser('public-draft-reader@example.com', 'reader');
