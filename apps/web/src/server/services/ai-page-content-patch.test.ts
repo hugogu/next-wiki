@@ -52,6 +52,16 @@ describe('applyPageContentEdits — anchor-based splicing (037, US1)', () => {
     ).toThrow(/more than once/i);
   });
 
+  it('rejects an anchor whose two occurrences overlap, not just disjoint repeats', () => {
+    // "ana" occurs at index 1 and index 3 in "banana" — overlapping, so a
+    // naive scan that skips past `start + anchor.length` (index 4) would
+    // miss the second occurrence entirely and treat the anchor as unique.
+    const source = 'banana\n';
+    expect(() =>
+      applyPageContentEdits(source, [{ anchor: 'ana', mode: 'replace', text: 'x' }]),
+    ).toThrow(/more than once/i);
+  });
+
   it('handles an anchor at the very start of the document', () => {
     const source = 'First line.\nSecond line.\n';
     const next = applyPageContentEdits(source, [

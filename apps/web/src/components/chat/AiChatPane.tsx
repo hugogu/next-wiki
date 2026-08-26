@@ -416,10 +416,14 @@ export function AiChatPane({
       return;
     }
     setQuestion('');
+    const draftWritesThisTurn = effectiveResearchMode === 'wiki_first_web' && allowDraftWrites;
+    // Per-turn opt-in: reset immediately so it does not silently carry over
+    // to the next question in this same pane mount.
+    setAllowDraftWrites(false);
     void chat.ask(trimmed, 'retrieval', {
       mode: effectiveResearchMode,
       externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
-      allowDraftWrites: effectiveResearchMode === 'wiki_first_web' && allowDraftWrites,
+      allowDraftWrites: draftWritesThisTurn,
     });
   };
 
@@ -430,10 +434,12 @@ export function AiChatPane({
     setWebResearchConsent(true);
     setPendingResearchQuestion(null);
     setQuestion('');
+    const draftWritesThisTurn = effectiveResearchMode === 'wiki_first_web' && allowDraftWrites;
+    setAllowDraftWrites(false);
     void chat.ask(value, 'retrieval', {
       mode: effectiveResearchMode,
       externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
-      allowDraftWrites: effectiveResearchMode === 'wiki_first_web' && allowDraftWrites,
+      allowDraftWrites: draftWritesThisTurn,
     });
   };
 

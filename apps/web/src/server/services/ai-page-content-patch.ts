@@ -51,7 +51,11 @@ function resolveAnchor(source: string, anchor: string): { start: number; end: nu
       `The passage "${truncate(anchor)}" is no longer present in this revision. Refresh and try again.`,
     );
   }
-  if (source.indexOf(anchor, start + anchor.length) >= 0) {
+  // Search from start + 1, not start + anchor.length: the latter skips past
+  // an overlapping second occurrence (e.g. "ana" in "banana" occurs at
+  // indices 1 and 3, but 3 < 1 + "ana".length), which would let a genuinely
+  // ambiguous anchor be treated as unique.
+  if (source.indexOf(anchor, start + 1) >= 0) {
     throw new DomainError(
       'BAD_REQUEST',
       `The passage "${truncate(anchor)}" occurs more than once. Select a more specific passage and try again.`,
