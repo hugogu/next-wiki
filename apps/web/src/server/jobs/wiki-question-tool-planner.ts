@@ -41,15 +41,16 @@ export const TOOL_CATALOG_PLACEHOLDER = '{{TOOLS}}';
 export const SKILL_CATALOG_PLACEHOLDER = '{{SKILLS}}';
 
 /** Marker where the runtime injects page-mutation guidance, composed per-tool
- * from exactly which of `create_page`/`save_draft`/`insert_generated_images`
- * are in the policy-filtered tool list for this turn (see
- * `buildWriteToolGuidance` / `NO_WRITE_TOOL_GUIDANCE_*` below for why this
- * must not be static prose). */
+ * from exactly which of `create_page`/`save_draft`/`insert_page_content`/
+ * `insert_generated_images` are in the policy-filtered tool list for this turn
+ * (see `buildWriteToolGuidance` / `NO_WRITE_TOOL_GUIDANCE_*` below for why
+ * this must not be static prose). */
 export const WRITE_TOOL_GUIDANCE_PLACEHOLDER = '{{WRITE_TOOL_GUIDANCE}}';
 
 /**
- * Detailed create_page/save_draft/insert_generated_images usage rules,
- * composed per-tool from what is actually present in this turn's tool list.
+ * Detailed create_page/save_draft/insert_page_content/insert_generated_images
+ * usage rules, composed per-tool from what is actually present in this turn's
+ * tool list.
  *
  * This must be built from exact tool *names*, not the shared `page_draft`
  * category: `insert_generated_images` shares that category with
@@ -142,7 +143,7 @@ function buildWriteToolGuidance(tools: ToolDefinition[], researchMode?: Research
  * user how to actually get the change saved.
  */
 export const NO_WRITE_TOOL_GUIDANCE_WEB_RESEARCH = [
-  'No page-mutation tool (create_page, save_draft, insert_generated_images) is available in this turn: Web Research turns are read-only by policy, because externally retrieved content must never be able to trigger a direct Wiki write.',
+  'No page-mutation tool (create_page, save_draft, insert_page_content, insert_generated_images) is available in this turn: Web Research turns are read-only by policy, because externally retrieved content must never be able to trigger a direct Wiki write.',
   'If the user asks you to create, save, or update Wiki content, do not attempt a write or describe one as if it happened. Instead, give the requested content directly in your answer, then tell the user to ask the same request again with Web Research turned off so a normal editing turn can save it.',
 ].join('\n');
 
@@ -151,7 +152,7 @@ export const NO_WRITE_TOOL_GUIDANCE_WEB_RESEARCH = [
  * turn's catalog to exclude create_page, save_draft, and
  * insert_generated_images alike). */
 export const NO_WRITE_TOOL_GUIDANCE_GENERIC = [
-  'No page-mutation tool (create_page, save_draft, insert_generated_images) is available for this turn.',
+  'No page-mutation tool (create_page, save_draft, insert_page_content, insert_generated_images) is available for this turn.',
   'If the user asks you to create, save, or update Wiki content, do not attempt a write or describe one as if it happened. Explain plainly that you cannot save changes right now; if you know why (a permission or an admin tool policy), say so briefly.',
 ].join('\n');
 

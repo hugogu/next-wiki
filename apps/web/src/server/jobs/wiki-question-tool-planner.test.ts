@@ -443,7 +443,7 @@ describe('buildWikiToolSystemPrompt', () => {
     const searchTool = getToolDefinition('search_wiki');
     const prompt = buildWikiToolSystemPrompt([searchTool!]);
 
-    expect(prompt).toContain('No page-mutation tool (create_page, save_draft, insert_generated_images) is available for this turn.');
+    expect(prompt).toContain('No page-mutation tool (create_page, save_draft, insert_page_content, insert_generated_images) is available for this turn.');
     expect(prompt).not.toContain('Web Research turns are read-only by policy');
     expect(prompt).not.toContain('For save_draft, use the exact pageId returned by get_page');
   });
