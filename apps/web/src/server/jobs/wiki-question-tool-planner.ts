@@ -92,9 +92,13 @@ function buildWriteToolGuidance(tools: ToolDefinition[], researchMode?: Research
         : 'To change part of an existing page, use insert_page_content: name a short, exact, unique anchor already in the current revision (copied verbatim from get_page) and insert before/after it or replace it — you never need to resupply unrelated Markdown.',
       'insert_page_content edits are all-or-nothing: if any named anchor cannot be found in the current revision, or two edits in the same call target overlapping passages, none of them are applied. Use the exact revisionId from get_page; if it is stale, re-read the page and retry.',
     );
-  } else if (hasSaveDraft || hasCreatePage) {
+  } else if (hasSaveDraft) {
     lines.push(
       'insert_page_content is not available this turn: for any change to an existing page, save_draft is the only option, so retrieve every get_page window and put the entire revised document in contentSource as usual.',
+    );
+  } else if (hasCreatePage) {
+    lines.push(
+      'Neither insert_page_content nor save_draft is available this turn: you can create a brand-new page with create_page, but you cannot edit an existing page\'s content. If the user asks for that, explain it is unavailable right now.',
     );
   }
   if (hasSaveDraft) {
@@ -149,8 +153,8 @@ export const NO_WRITE_TOOL_GUIDANCE_WEB_RESEARCH = [
 
 /** Shown when no page-mutation tool at all is available for a reason other
  * than Web Research (permission scope or admin tool policy narrowed this
- * turn's catalog to exclude create_page, save_draft, and
- * insert_generated_images alike). */
+ * turn's catalog to exclude create_page, save_draft, insert_page_content,
+ * and insert_generated_images alike). */
 export const NO_WRITE_TOOL_GUIDANCE_GENERIC = [
   'No page-mutation tool (create_page, save_draft, insert_page_content, insert_generated_images) is available for this turn.',
   'If the user asks you to create, save, or update Wiki content, do not attempt a write or describe one as if it happened. Explain plainly that you cannot save changes right now; if you know why (a permission or an admin tool policy), say so briefly.',

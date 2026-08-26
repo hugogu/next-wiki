@@ -91,10 +91,12 @@ export function applyPageContentEdits(source: string, edits: PageContentEdit[]):
     (a, b) => a.spliceStart - b.spliceStart || a.spliceEnd - b.spliceEnd,
   );
   for (let index = 1; index < byPosition.length; index += 1) {
-    if (byPosition[index]!.spliceStart < byPosition[index - 1]!.spliceEnd) {
+    const current = byPosition[index]!;
+    const previous = byPosition[index - 1]!;
+    if (current.spliceStart < previous.spliceEnd) {
       throw new DomainError(
         'BAD_REQUEST',
-        'Two or more edits target overlapping passages. Make each anchor refer to a distinct, non-overlapping part of the page.',
+        `Edits at index ${previous.order} and ${current.order} target overlapping passages. Make each anchor refer to a distinct, non-overlapping part of the page.`,
       );
     }
   }

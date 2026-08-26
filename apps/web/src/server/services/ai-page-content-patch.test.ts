@@ -129,7 +129,7 @@ describe('applyPageContentEdits — multi-edit atomicity (037, US2)', () => {
     ).toThrow(/more than once/i);
   });
 
-  it('rejects the whole batch when two edits target overlapping passages', () => {
+  it('rejects the whole batch when two edits target overlapping passages, naming which ones', () => {
     const source = 'The quick brown fox jumps.\n';
     expect(() =>
       applyPageContentEdits(source, [
@@ -137,6 +137,12 @@ describe('applyPageContentEdits — multi-edit atomicity (037, US2)', () => {
         { anchor: 'brown fox jumps', mode: 'replace', text: 'x' },
       ]),
     ).toThrow(/overlap/i);
+    expect(() =>
+      applyPageContentEdits(source, [
+        { anchor: 'quick brown fox', mode: 'replace', text: 'slow red fox' },
+        { anchor: 'brown fox jumps', mode: 'replace', text: 'x' },
+      ]),
+    ).toThrow(/index 0 and 1/);
   });
 
   it('does not flag two zero-width inserts at the exact same anchor as overlapping', () => {
