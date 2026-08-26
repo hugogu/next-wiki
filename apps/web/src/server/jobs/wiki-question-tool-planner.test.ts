@@ -328,6 +328,33 @@ describe('buildWikiToolSystemPrompt', () => {
 
     expect(prompt).toContain('CUSTOM_RESEARCH_POLICY');
   });
+
+  // A Web Research turn's tool list (FR-016, 036-web-research) never contains
+  // create_page/save_draft. Without an explicit swap, the model was shown
+  // detailed save_draft/create_page instructions it had no matching tool for,
+  // which is exactly what sent a real turn into unresolved, unproductive
+  // deliberation about whether it could edit the page at all.
+  it('replaces write-tool instructions with an explicit no-write notice on a Web Research turn', () => {
+    const webSearch = getToolDefinition('web_search');
+    const webOpen = getToolDefinition('web_open');
+    const prompt = buildWikiToolSystemPrompt([webSearch!, webOpen!], {
+      researchMode: 'wiki_first_web',
+    });
+
+    expect(prompt).toContain('Web Research turns are read-only by policy');
+    expect(prompt).toContain('ask the same request again with Web Research turned off');
+    expect(prompt).not.toContain('For save_draft, use the exact pageId returned by get_page');
+    expect(prompt).not.toContain('use create_page or save_draft instead of only answering');
+  });
+
+  it('shows a generic no-write notice when write tools are unavailable outside Web Research', () => {
+    const searchTool = getToolDefinition('search_wiki');
+    const prompt = buildWikiToolSystemPrompt([searchTool!]);
+
+    expect(prompt).toContain('No page-mutation tool (create_page, save_draft, insert_generated_images) is available for this turn.');
+    expect(prompt).not.toContain('Web Research turns are read-only by policy');
+    expect(prompt).not.toContain('For save_draft, use the exact pageId returned by get_page');
+  });
 });
 
 describe('extractTaggedThinking', () => {
