@@ -30,17 +30,19 @@ import {
 import { useTranslation } from '@/i18n/client';
 import type { TranslationKey } from '@/i18n/types';
 
-type ChatCapability = Extract<AiCapability, 'vision' | 'audio' | 'thinking'>;
-const CHAT_CAPABILITIES: ChatCapability[] = ['vision', 'audio', 'thinking'];
+type ChatCapability = Extract<AiCapability, 'vision' | 'audio' | 'thinking' | 'tool_calling'>;
+const CHAT_CAPABILITIES: ChatCapability[] = ['vision', 'audio', 'thinking', 'tool_calling'];
 const capabilityLabels: Record<ChatCapability, TranslationKey> = {
   vision: 'admin.ai.chatCapability.vision',
   audio: 'admin.ai.chatCapability.audio',
   thinking: 'admin.ai.chatCapability.thinking',
+  tool_calling: 'admin.ai.chatCapability.toolCalling',
 };
 const capabilityIcons = {
   vision: EyeIcon,
   audio: AudioIcon,
   thinking: SparklesIcon,
+  tool_calling: SparklesIcon,
 } as const;
 
 const DETECTOR_LABELS: Record<string, TranslationKey> = {

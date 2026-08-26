@@ -173,7 +173,15 @@ export const aiCapabilitySchema = z.enum([
 ]);
 export type AiCapability = z.infer<typeof aiCapabilitySchema>;
 export const aiCapabilitySourceSchema = z.enum(['provider', 'catalog', 'manual']);
-export const aiPurposeSchema = z.enum(['wiki_text', 'wiki_embedding', 'wiki_image']);
+export const aiPurposeSchema = z.enum([
+  'wiki_text',
+  // The tool planner chooses governed Wiki/Web tool calls. It is intentionally
+  // independent from wiki_text so operators can use a reliable long-context
+  // model for planning and a lower-cost or differently styled model to answer.
+  'wiki_tool_planning',
+  'wiki_embedding',
+  'wiki_image',
+]);
 export type AiPurpose = z.infer<typeof aiPurposeSchema>;
 export const aiIndexStatusSchema = z.enum(['building', 'ready', 'failed', 'superseded']);
 export const aiPageIndexStatusSchema = z.enum([
@@ -339,6 +347,7 @@ export const aiRuntimePromptsUpdateSchema = z.object({
   toolSystemPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
   webResearchPolicyPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
   plannerUserPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
+  toolAnswerPrompt: z.string().max(AI_RUNTIME_PROMPT_MAX_LENGTH).nullable().optional(),
 });
 export type AiRuntimePromptsUpdate = z.infer<typeof aiRuntimePromptsUpdateSchema>;
 
@@ -362,12 +371,14 @@ export const aiRuntimeSettingsViewSchema = z.object({
     toolSystemPrompt: z.string().nullable(),
     webResearchPolicyPrompt: z.string().nullable(),
     plannerUserPrompt: z.string().nullable(),
+    toolAnswerPrompt: z.string().nullable(),
   }),
   defaults: z.object({
     assistantSystemPrompt: z.string(),
     toolSystemPrompt: z.string(),
     webResearchPolicyPrompt: z.string(),
     plannerUserPrompt: z.string(),
+    toolAnswerPrompt: z.string(),
   }),
 });
 export type AiRuntimeSettingsView = z.infer<typeof aiRuntimeSettingsViewSchema>;

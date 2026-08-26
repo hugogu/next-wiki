@@ -349,9 +349,15 @@ export type ToolLoopParams = {
 
 export type ToolLoopResult = {
   status: AiToolWorkflowStatus;
+  /** The planner's terminal text. The tool-enabled question worker may hand
+   * this off to a separately configured answer model instead of displaying it
+   * directly. */
   answer: string;
   calls: number;
   citations: AiCitation[];
+  /** Safe, bounded evidence collected during this turn for the final answer
+   * model. It is transient and must not be written into action events. */
+  transcript: string[];
 };
 
 /** Bounded command record retained in Conversation history (tool-contract). */
@@ -761,7 +767,10 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         durationMs: Date.now() - loopStartedAt,
       });
       await transitionWorkflow(params.workflowId, 'cancelled');
-      return { status: 'cancelled', answer, calls, citations: [...citations.values()] };
+      return {
+        status: 'cancelled', answer, calls, citations: [...citations.values()],
+        transcript: boundTranscript(state.transcript, transcriptBudget),
+      };
     }
 
     // Bound immediately before planning rather than on push: the loop keeps
@@ -837,7 +846,10 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
         durationMs: Date.now() - loopStartedAt,
       });
       await transitionWorkflow(params.workflowId, 'completed');
-      return { status: 'completed', answer, calls, citations: [...citations.values()] };
+      return {
+        status: 'completed', answer, calls, citations: [...citations.values()],
+        transcript: boundTranscript(state.transcript, transcriptBudget),
+      };
     }
 
     let repeatedCalls = 0;
@@ -957,7 +969,10 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           toolName: tool.name,
         });
         await transitionWorkflow(params.workflowId, 'limit_reached');
-        return { status: 'limit_reached', answer, calls, citations: [...citations.values()] };
+        return {
+          status: 'limit_reached', answer, calls, citations: [...citations.values()],
+          transcript: boundTranscript(state.transcript, transcriptBudget),
+        };
       }
       calls += 1;
 
@@ -1129,7 +1144,10 @@ export async function runToolLoop(params: ToolLoopParams): Promise<ToolLoopResul
           duplicateOnlySteps,
         });
         await transitionWorkflow(params.workflowId, 'limit_reached');
-        return { status: 'limit_reached', answer, calls, citations: [...citations.values()] };
+        return {
+          status: 'limit_reached', answer, calls, citations: [...citations.values()],
+          transcript: boundTranscript(state.transcript, transcriptBudget),
+        };
       }
       state.transcript.push(repeatedStepDirective(DUPLICATE_ONLY_STEP_LIMIT - duplicateOnlySteps));
     } else {

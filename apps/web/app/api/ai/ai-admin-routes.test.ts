@@ -98,5 +98,20 @@ describe('AI Admin REST routes', () => {
       modelId,
       { confirmCapability: true, embeddingDimensions: undefined },
     );
+    services.assignPurpose.mockClear();
+    services.assignPurpose.mockResolvedValue({ purpose: 'wiki_tool_planning' });
+    const planner = await assignmentRoute.PUT(
+      new NextRequest('http://localhost/api/ai/assignments/wiki_tool_planning', {
+        method: 'PUT', body: JSON.stringify({ modelId, confirmCapability: true }),
+      }),
+      { params: Promise.resolve({ purpose: 'wiki_tool_planning' }) },
+    );
+    expect(planner.status).toBe(200);
+    expect(services.assignPurpose).toHaveBeenCalledWith(
+      expect.anything(),
+      'wiki_tool_planning',
+      modelId,
+      { confirmCapability: true, embeddingDimensions: undefined },
+    );
   });
 });

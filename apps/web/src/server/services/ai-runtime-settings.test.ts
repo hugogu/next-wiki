@@ -37,6 +37,7 @@ describe('ai runtime settings (026)', () => {
     expect(config.toolSystemPrompt).toBeNull();
     expect(config.webResearchPolicyPrompt).toBeNull();
     expect(config.plannerUserPrompt).toBeNull();
+    expect(config.toolAnswerPrompt).toBeNull();
     expect(config.answerLanguage).toBe('model_default');
     expect(config.anonymousWikiAiEnabled).toBe(false);
   });
@@ -74,6 +75,7 @@ describe('ai runtime settings (026)', () => {
     expect(view.defaults.toolSystemPrompt).toContain('{{TOOLS}}');
     expect(view.defaults.webResearchPolicyPrompt).toContain('<web_research_policy>');
     expect(view.defaults.plannerUserPrompt).toContain('{{QUESTION}}');
+    expect(view.defaults.toolAnswerPrompt).toContain('final response');
   });
 
   it('persists params and round-trips the temperature through hundredths storage', async () => {
@@ -95,14 +97,16 @@ describe('ai runtime settings (026)', () => {
     expect((await resolveAiRuntimeConfig()).assistantSystemPrompt).toBeNull();
   });
 
-  it('stores Web research and planner prompt overrides independently', async () => {
+  it('stores Web research, planner, and final-answer prompt overrides independently', async () => {
     await updateAiRuntimeSettings(adminCtx, {
       webResearchPolicyPrompt: 'Read three sources before answering.',
       plannerUserPrompt: 'Question first:\n{{QUESTION}}',
+      toolAnswerPrompt: 'Write a concise final answer.',
     });
     const config = await resolveAiRuntimeConfig();
     expect(config.webResearchPolicyPrompt).toBe('Read three sources before answering.');
     expect(config.plannerUserPrompt).toBe('Question first:\n{{QUESTION}}');
+    expect(config.toolAnswerPrompt).toBe('Write a concise final answer.');
   });
 });
 

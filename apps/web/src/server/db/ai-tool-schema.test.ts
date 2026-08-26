@@ -80,12 +80,13 @@ describe('ai tool runtime schema (026)', () => {
     const rows = await db.execute<{ typname: string; label: string }>(sql`
       select t.typname, e.enumlabel as label
       from pg_type t join pg_enum e on e.enumtypid = t.oid
-      where t.typname in ('ai_action_feature', 'ai_capability', 'ai_event_type')
+      where t.typname in ('ai_action_feature', 'ai_capability', 'ai_event_type', 'ai_purpose')
     `);
     const has = (typname: string, label: string) =>
       rows.some((row) => row.typname === typname && row.label === label);
     expect(has('ai_action_feature', 'wiki_tool_chat')).toBe(true);
     expect(has('ai_capability', 'tool_calling')).toBe(true);
+    expect(has('ai_purpose', 'wiki_tool_planning')).toBe(true);
     expect(has('ai_event_type', 'tool_call')).toBe(true);
     expect(has('ai_event_type', 'tool_proposal')).toBe(true);
     expect(has('ai_event_type', 'tool_evidence')).toBe(true);

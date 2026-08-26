@@ -1,0 +1,1 @@
+ALTER TABLE "ai_settings" ADD COLUMN "tool_answer_prompt" text;

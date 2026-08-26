@@ -12,12 +12,14 @@ const view: AiRuntimeSettingsView = {
     toolSystemPrompt: null,
     webResearchPolicyPrompt: null,
     plannerUserPrompt: null,
+    toolAnswerPrompt: null,
   },
   defaults: {
     assistantSystemPrompt: 'default assistant',
     toolSystemPrompt: 'default tool {{TOOLS}}',
     webResearchPolicyPrompt: 'default web policy',
     plannerUserPrompt: 'default planner {{QUESTION}}',
+    toolAnswerPrompt: 'default final answer',
   },
 };
 

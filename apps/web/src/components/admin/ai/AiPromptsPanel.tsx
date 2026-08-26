@@ -8,8 +8,8 @@ import { SettingsTabs } from '@/components/ui/SettingsTabs';
 import { UndoIcon } from '@/components/icons';
 import { useTranslation } from '@/i18n/client';
 
-type PromptTab = 'assistant' | 'tool' | 'research' | 'planner';
-const TABS: PromptTab[] = ['assistant', 'tool', 'research', 'planner'];
+type PromptTab = 'assistant' | 'tool' | 'research' | 'planner' | 'answer';
+const TABS: PromptTab[] = ['assistant', 'tool', 'research', 'planner', 'answer'];
 
 function parseTab(value: string | null): PromptTab {
   return TABS.includes(value as PromptTab) ? (value as PromptTab) : 'assistant';
@@ -40,6 +40,9 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
   const [planner, setPlanner] = useState(
     initial.prompts.plannerUserPrompt ?? initial.defaults.plannerUserPrompt,
   );
+  const [answer, setAnswer] = useState(
+    initial.prompts.toolAnswerPrompt ?? initial.defaults.toolAnswerPrompt,
+  );
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
 
@@ -62,6 +65,7 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
           toolSystemPrompt: tool.trim() === initial.defaults.toolSystemPrompt.trim() ? null : tool,
           webResearchPolicyPrompt: research.trim() === initial.defaults.webResearchPolicyPrompt.trim() ? null : research,
           plannerUserPrompt: planner.trim() === initial.defaults.plannerUserPrompt.trim() ? null : planner,
+          toolAnswerPrompt: answer.trim() === initial.defaults.toolAnswerPrompt.trim() ? null : answer,
         }),
       });
       if (!response.ok) throw new Error('save failed');
@@ -81,6 +85,7 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
           { id: 'tool', label: t('admin.ai.prompts.tabs.tool') },
           { id: 'research', label: t('admin.ai.prompts.tabs.research') },
           { id: 'planner', label: t('admin.ai.prompts.tabs.planner') },
+          { id: 'answer', label: t('admin.ai.prompts.tabs.answer') },
         ]}
         selected={tab}
         onSelect={selectTab}
@@ -123,6 +128,16 @@ export function AiPromptsPanel({ initial }: { initial: AiRuntimeSettingsView }) 
             usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
             resetLabel={t('admin.ai.prompts.reset')}
             onChange={setPlanner}
+          />
+        )}
+        {tab === 'answer' && (
+          <PromptEditor
+            help={t('admin.ai.prompts.answer.help')}
+            value={answer}
+            defaultValue={initial.defaults.toolAnswerPrompt}
+            usingDefaultLabel={t('admin.ai.prompts.usingDefault')}
+            resetLabel={t('admin.ai.prompts.reset')}
+            onChange={setAnswer}
           />
         )}
       </SettingsTabs>

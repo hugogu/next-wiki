@@ -13,6 +13,7 @@ import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import {
   buildWikiQuestionPrompt,
+  buildWikiToolAnswerPrompt,
   compressQuestionSources,
   computeAnswerMaxOutputTokens,
   estimatePromptTokens,
@@ -45,6 +46,7 @@ import {
 import { hasExecutor } from '@/server/services/ai-tool-executors';
 import {
   DEFAULT_TRANSCRIPT_CHARS,
+  boundTranscript,
   createWorkflow,
   getWorkflowByAction,
   runToolLoop,
@@ -182,6 +184,24 @@ function mergeCitations(...groups: AiCitation[][]): AiCitation[] {
   return [...merged.values()];
 }
 
+type UsageEvent = {
+  inputTokens?: number;
+  outputTokens?: number;
+  cachedInputTokens?: number;
+};
+
+function accumulateUsage(target: Record<string, number>, event: UsageEvent): void {
+  for (const key of ['inputTokens', 'outputTokens', 'cachedInputTokens'] as const) {
+    if (typeof event[key] === 'number') target[key] = (target[key] ?? 0) + event[key];
+  }
+}
+
+function mergeUsage(...groups: Array<Record<string, unknown>>): Record<string, number> {
+  const total: Record<string, number> = {};
+  for (const group of groups) accumulateUsage(total, group);
+  return total;
+}
+
 export function runWikiQuestionAction(actionId: string): Promise<void> {
   return runWithoutDataCache(() => runWikiQuestionActionWithoutDataCache(actionId));
 }
@@ -259,6 +279,7 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
         promptSources,
         conversation,
         runtimeConfig.answerLanguage,
+        runtimeConfig.assistantSystemPrompt,
       );
       const maxOutputTokens = computeAnswerMaxOutputTokens(
         estimatePromptTokens(prompt.system, prompt.user),
@@ -353,6 +374,20 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   if (!user || user.status !== 'active' || !textModel) {
     throw new DomainError('CANCELLED', 'Tool-enabled question action is no longer authorized');
   }
+  const metadata = action.requestMetadata as Record<string, unknown>;
+  // New actions snapshot the configured planner model at queue time. Older
+  // queued actions have no snapshot and deliberately retain their historical
+  // behavior by using the answer model for both stages.
+  const plannerModelId =
+    typeof metadata.plannerModelId === 'string' ? metadata.plannerModelId : textModel.id;
+  const plannerModel =
+    plannerModelId === textModel.id
+      ? textModel
+      : await db.query.aiModels.findFirst({ where: eq(schema.aiModels.id, plannerModelId) });
+  if (!plannerModel || plannerModel.availability !== 'available') {
+    throw new DomainError('AI_NOT_CONFIGURED', 'The configured Wiki AI tool planner model is unavailable');
+  }
+  const plannerUsesDedicatedModel = metadata.plannerUsesDedicatedModel === true;
   const ctx = buildUserCtx(user.id, user.role);
   await assertAiFeature(ctx, 'question');
   const webResearch = input.research?.mode === 'wiki_first_web';
@@ -369,7 +404,6 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     requestMetadata: action.requestMetadata,
     clientConversation: input.conversation,
   });
-  const metadata = action.requestMetadata as Record<string, unknown>;
   const scheduledRunId =
     typeof metadata.scheduledAiJobRunId === 'string' ? metadata.scheduledAiJobRunId : null;
   const scheduledRun = scheduledRunId
@@ -443,7 +477,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     workflow = await transitionWorkflow(workflow.id, 'running');
   }
 
-  const adapter = createAiProviderAdapter(await providerRuntime(action.providerId));
+  const plannerAdapter = createAiProviderAdapter(await providerRuntime(plannerModel.providerId));
   // Only names and descriptions: the model pulls full skill content on demand
   // through load_skill, so 20 installed skills cost 20 lines, not 20 documents.
   const enabledSkills = (await listEnabledSkills()).filter(
@@ -488,29 +522,16 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   // the admin usage panel an accurate per-action total instead of just the
   // last call's usage (or nothing at all if the field was never wired).
   const plannerUsage: Record<string, number> = {};
-  const accumulatePlannerUsage = (event: {
-    inputTokens?: number;
-    outputTokens?: number;
-    cachedInputTokens?: number;
-  }) => {
-    if (typeof event.inputTokens === 'number') plannerUsage.inputTokens = event.inputTokens;
-    if (typeof event.outputTokens === 'number') {
-      plannerUsage.outputTokens = (plannerUsage.outputTokens ?? 0) + event.outputTokens;
-    }
-    if (typeof event.cachedInputTokens === 'number') {
-      plannerUsage.cachedInputTokens =
-        (plannerUsage.cachedInputTokens ?? 0) + event.cachedInputTokens;
-    }
-  };
+  const accumulatePlannerUsage = (event: UsageEvent) => accumulateUsage(plannerUsage, event);
   const plannerReasoning = createBatchedReasoningAppender(
     async (text) => {
       await appendActionEvent(actionId, 'reasoning_delta', { text });
     },
   );
   const plannerDeps = {
-    adapter,
+    adapter: plannerAdapter,
     actionId,
-    modelExternalId: textModel.externalId,
+    modelExternalId: plannerModel.externalId,
     system,
     plannerUserPrompt: runtimeConfig.plannerUserPrompt,
     temperature: runtimeConfig.plannerTemperature,
@@ -518,8 +539,8 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     maxOutputTokens: (systemPrompt: string, prompt: string) =>
       computeAnswerMaxOutputTokens(
         estimatePromptTokens(systemPrompt, prompt),
-        textModel.contextWindow,
-        textModel.maxOutputTokens,
+        plannerModel.contextWindow,
+        plannerModel.maxOutputTokens,
         runtimeConfig.plannerMaxOutputTokens,
     ),
     onReasoning: async (text: string) => {
@@ -531,13 +552,13 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
   // so nothing below here — policy, review, audit, chat events — can tell them
   // apart (028, FR-004).
   const strategy = resolveToolCallStrategy({
-    strategy: textModel.toolCallStrategy,
-    nativeFailedAt: textModel.nativeToolCallFailedAt,
-    adapterSupportsNativeTools: adapter.supportsNativeTools,
+    strategy: plannerModel.toolCallStrategy,
+    nativeFailedAt: plannerModel.nativeToolCallFailedAt,
+    adapterSupportsNativeTools: plannerAdapter.supportsNativeTools,
   });
   logger.info('tool-call strategy resolved', {
     actionId,
-    modelId: textModel.id,
+    modelId: plannerModel.id,
     strategy: strategy.strategy,
     reason: strategy.reason,
   });
@@ -564,7 +585,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       } catch (error) {
         if (!isNativeToolUnsupportedError(error)) throw error;
         useNative = false;
-        await markNativeToolCallFailed(textModel.id);
+        await markNativeToolCallFailed(plannerModel.id);
         return await textPlanner(state);
       }
     } finally {
@@ -572,7 +593,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     }
   };
 
-  let result;
+  let result: Awaited<ReturnType<typeof runToolLoop>>;
   try {
     result = await runToolLoop({
       actionId,
@@ -588,7 +609,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
       resolveReview,
       isEnabled,
       isCancelled: () => isCancellationRequested(actionId),
-      transcriptCharBudget: transcriptCharBudgetFor(textModel.contextWindow),
+      transcriptCharBudget: transcriptCharBudgetFor(plannerModel.contextWindow),
       toolResultMaxChars: runtimeConfig.toolResultMaxChars,
       scheduledScope,
       scheduledSkillNames: scheduledScope?.skillNames,
@@ -603,36 +624,116 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     if (current?.status === 'running')
       await transitionWorkflow(current.id, cancelled ? 'cancelled' : 'failed');
     throw error;
+  }
+
+  try {
+    if (result.status === 'cancelled') {
+      throw new DomainError('CANCELLED', 'Tool-enabled question was cancelled');
+    }
+
+    let answer = '';
+    const answerUsage: Record<string, number> = {};
+    if (plannerUsesDedicatedModel) {
+      // Do not show the planner's prose. It may contain protocol-facing notes
+      // or a terse conclusion intended only to terminate the loop; the answer
+      // model receives the bounded evidence and writes the user-facing result.
+      const finalTranscript = boundTranscript(
+        [
+          ...result.transcript,
+          ...(result.status === 'limit_reached'
+            ? ['TOOL_WORKFLOW_LIMIT_REACHED: State clearly that the research or requested work may be incomplete.']
+            : []),
+        ],
+        transcriptCharBudgetFor(textModel.contextWindow),
+      );
+      const prompt = buildWikiToolAnswerPrompt({
+        question,
+        sources: wikiSources,
+        transcript: finalTranscript,
+        conversation,
+        answerLanguage: runtimeConfig.answerLanguage,
+        assistantSystemPrompt: runtimeConfig.assistantSystemPrompt,
+        toolAnswerPrompt: runtimeConfig.toolAnswerPrompt,
+      });
+      const answerAdapter = createAiProviderAdapter(await providerRuntime(action.providerId));
+      const answerReasoning = createBatchedReasoningAppender(
+        async (text) => {
+          await appendActionEvent(actionId, 'reasoning_delta', { text });
+        },
+      );
+      for await (const event of streamTextWithRetry(
+        () =>
+          answerAdapter.streamText({
+            actionId,
+            modelExternalId: textModel.externalId,
+            system: prompt.system,
+            messages: [{ role: 'user', content: prompt.user }],
+            maxOutputTokens: computeAnswerMaxOutputTokens(
+              estimatePromptTokens(prompt.system, prompt.user),
+              textModel.contextWindow,
+              textModel.maxOutputTokens,
+            ),
+            temperature: 0.1,
+            abortSignal: cancellation.signal,
+            timeoutMs: null,
+          }),
+        { signal: cancellation.signal },
+      )) {
+        if (await isCancellationRequested(actionId)) {
+          throw new DomainError('CANCELLED', 'Tool-enabled question was cancelled');
+        }
+        if (event.type === 'delta') {
+          await answerReasoning.flush();
+          answer += event.text;
+          await appendActionEvent(actionId, 'text_delta', { text: event.text });
+        } else if (event.type === 'reasoning_delta') {
+          await answerReasoning.append(event.text);
+        } else if (event.type === 'usage') {
+          accumulateUsage(answerUsage, event);
+        }
+      }
+      await answerReasoning.flush();
+    } else {
+      // No planner assignment is an explicit backwards-compatible mode: the
+      // answer model performs the tool loop and its terminal text is shown.
+      answer =
+        result.answer ||
+        (result.status === 'limit_reached'
+          ? 'I reached the tool-call limit for this turn before finishing, so this covers only part of what you asked for. Tell me which pages to continue with and I will pick up from there.'
+          : '');
+      if (answer) await appendActionEvent(actionId, 'text_delta', { text: answer });
+    }
+
+    if (!answer.trim()) {
+      answer = 'I could not produce a final answer for this turn. Please try again.';
+      await appendActionEvent(actionId, 'text_delta', { text: answer });
+    }
+    const wikiCitations = normalizeQuestionCitations(answer, wikiSources);
+    const citations = mergeCitations(wikiCitations, result.citations);
+    // The answer text carries no source list of its own: citations travel as
+    // structured data and every surface (chat pane, session view, Feishu card)
+    // renders them once from that. Baking a Markdown "Sources:" block into the
+    // text — which the streaming retrieval path never did — showed each cited
+    // page twice.
+    await appendActionEvent(actionId, 'citations', { citations });
+    await finishAction(actionId, 'completed', {
+      resultMetadata: {
+        toolWorkflowStatus: result.status,
+        plannerModelId: plannerModel.id,
+        plannerProviderId: plannerModel.providerId,
+        dedicatedPlanner: plannerUsesDedicatedModel,
+        insufficientEvidence: false,
+        citationCount: citations.length,
+        ...(retrieval.degradation ? { retrievalDegraded: retrieval.degradation } : {}),
+      },
+      usageMetadata: {
+        ...mergeUsage(retrievalUsage, plannerUsage, answerUsage),
+        planner: plannerUsage,
+        answer: answerUsage,
+      },
+    });
+    await nudgeAnswerDelivery(actionId);
   } finally {
     cancellation.dispose();
   }
-
-  if (result.status === 'cancelled') {
-    throw new DomainError('CANCELLED', 'Tool-enabled question was cancelled');
-  }
-
-  const answer =
-    result.answer ||
-    (result.status === 'limit_reached'
-      ? 'I reached the tool-call limit for this turn before finishing, so this covers only part of what you asked for. Tell me which pages to continue with and I will pick up from there.'
-      : '');
-  const wikiCitations = normalizeQuestionCitations(answer, wikiSources);
-  const citations = mergeCitations(wikiCitations, result.citations);
-  // The answer text carries no source list of its own: citations travel as
-  // structured data and every surface (chat pane, session view, Feishu card)
-  // renders them once from that. Baking a Markdown "Sources:" block into the
-  // text — which the streaming retrieval path never did — showed each cited
-  // page twice.
-  if (answer) await appendActionEvent(actionId, 'text_delta', { text: answer });
-  await appendActionEvent(actionId, 'citations', { citations });
-  await finishAction(actionId, 'completed', {
-    resultMetadata: {
-      toolWorkflowStatus: result.status,
-      insufficientEvidence: false,
-      citationCount: citations.length,
-      ...(retrieval.degradation ? { retrievalDegraded: retrieval.degradation } : {}),
-    },
-    usageMetadata: { ...retrievalUsage, ...plannerUsage },
-  });
-  await nudgeAnswerDelivery(actionId);
 }

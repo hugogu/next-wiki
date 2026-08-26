@@ -1,0 +1,1 @@
+ALTER TYPE "public"."ai_purpose" ADD VALUE 'wiki_tool_planning' BEFORE 'wiki_embedding';

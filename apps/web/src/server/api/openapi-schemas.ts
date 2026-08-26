@@ -122,6 +122,7 @@ export const WikiAiRuntimeSettingsUpdate = z.object({
   toolSystemPrompt: z.string().max(20_000).nullable().optional(),
   webResearchPolicyPrompt: z.string().max(20_000).nullable().optional(),
   plannerUserPrompt: z.string().max(20_000).nullable().optional(),
+  toolAnswerPrompt: z.string().max(20_000).nullable().optional(),
 }).describe('Partial update to the Wiki AI runtime configuration.');
 
 export const WikiAiRuntimeSettingsView = z.object({
@@ -138,12 +139,14 @@ export const WikiAiRuntimeSettingsView = z.object({
     toolSystemPrompt: z.string().nullable(),
     webResearchPolicyPrompt: z.string().nullable(),
     plannerUserPrompt: z.string().nullable(),
+    toolAnswerPrompt: z.string().nullable(),
   }),
   defaults: z.object({
     assistantSystemPrompt: z.string(),
     toolSystemPrompt: z.string(),
     webResearchPolicyPrompt: z.string(),
     plannerUserPrompt: z.string(),
+    toolAnswerPrompt: z.string(),
   }),
 }).describe('Wiki AI runtime settings, with stored prompt overrides and effective defaults.');
 

@@ -159,7 +159,12 @@ export const aiCapabilitySourceEnum = pgEnum('ai_capability_source', [
   'catalog',
   'manual',
 ]);
-export const aiPurposeEnum = pgEnum('ai_purpose', ['wiki_text', 'wiki_embedding', 'wiki_image']);
+export const aiPurposeEnum = pgEnum('ai_purpose', [
+  'wiki_text',
+  'wiki_tool_planning',
+  'wiki_embedding',
+  'wiki_image',
+]);
 export const aiIndexStatusEnum = pgEnum('ai_index_status', [
   'building',
   'ready',

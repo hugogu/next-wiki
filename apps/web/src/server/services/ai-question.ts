@@ -3,6 +3,7 @@ import {
   AI_CONVERSATIONS_SOURCE_KEY,
   type AiActionAccepted,
   type AiQuestionMode,
+  type AiPurpose,
   type ResearchMode,
   type AiToolReviewDecision,
 } from '@next-wiki/shared';
@@ -15,7 +16,9 @@ import { createAction } from './ai-actions';
 import { isDataSourceEnabled } from './content-data-sources';
 import { requireWebResearchConfiguration } from '@/server/web-research/policy';
 
-export async function getAssignedModel(purpose: 'wiki_text' | 'wiki_embedding' | 'wiki_image') {
+type AssignedAiModel = { model: typeof schema.aiModels.$inferSelect; provider: typeof schema.aiProviders.$inferSelect };
+
+async function findAssignedModel(purpose: AiPurpose): Promise<AssignedAiModel | null> {
   const rows = await db
     .select({ model: schema.aiModels, provider: schema.aiProviders })
     .from(schema.aiPurposeAssignments)
@@ -24,12 +27,25 @@ export async function getAssignedModel(purpose: 'wiki_text' | 'wiki_embedding' |
     .where(eq(schema.aiPurposeAssignments.purpose, purpose))
     .limit(1);
   const assigned = rows[0];
-  if (!assigned) throw new DomainError('AI_NOT_CONFIGURED', `No model is assigned for ${purpose}`);
+  if (!assigned) return null;
   if (!assigned.provider.enabled)
     throw new DomainError('PROVIDER_DISABLED', 'The assigned AI provider is disabled');
   if (assigned.model.availability !== 'available')
     throw new DomainError('MODEL_UNAVAILABLE', 'The assigned AI model is unavailable');
   return assigned;
+}
+
+export async function getAssignedModel(purpose: AiPurpose): Promise<AssignedAiModel> {
+  const assigned = await findAssignedModel(purpose);
+  if (!assigned) throw new DomainError('AI_NOT_CONFIGURED', `No model is assigned for ${purpose}`);
+  return assigned;
+}
+
+/** An absent optional assignment keeps existing installations on wiki_text.
+ * Disabled or unavailable explicit assignments still fail loudly rather than
+ * silently falling back to a different model than the administrator chose. */
+export function getOptionalAssignedModel(purpose: AiPurpose): Promise<AssignedAiModel | null> {
+  return findAssignedModel(purpose);
 }
 
 async function validateCurrentPage(
@@ -149,7 +165,9 @@ export async function createToolEnabledWikiQuestion(
   }
   await validateCurrentPage(ctx, input.currentPage);
   const { model, provider } = await getAssignedModel('wiki_text');
-  if (!(await modelSupportsToolCalling(model.id))) {
+  const configuredPlanner = await getOptionalAssignedModel('wiki_tool_planning');
+  const planner = configuredPlanner ?? { model, provider };
+  if (!(await modelSupportsToolCalling(planner.model.id))) {
     return { fallback: true };
   }
   const captureEnabled = ctx.actor.kind !== 'anonymous' && await isDataSourceEnabled(AI_CONVERSATIONS_SOURCE_KEY);
@@ -172,6 +190,14 @@ export async function createToolEnabledWikiQuestion(
       questionBytes: Buffer.byteLength(input.question),
       hasCurrentPage: Boolean(input.currentPage),
       providerName: provider.name,
+      plannerModelId: planner.model.id,
+      plannerProviderId: planner.provider.id,
+      plannerModelName: planner.model.displayName,
+      // An omitted planner assignment preserves the single-model behavior
+      // used by existing installations. A configured assignment — including
+      // one that intentionally points at the same model — enables a separate
+      // final-answer pass.
+      plannerUsesDedicatedModel: Boolean(configuredPlanner),
       toolEnabled: true,
       requestedReview: input.requestedReview,
       researchMode: input.research?.mode ?? 'wiki_only',

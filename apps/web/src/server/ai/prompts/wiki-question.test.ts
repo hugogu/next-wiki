@@ -1,6 +1,7 @@
 import {
   FOLLOW_QUESTION_LANGUAGE_RULE,
   buildWikiQuestionPrompt,
+  buildWikiToolAnswerPrompt,
   compressQuestionSources,
   computeAnswerMaxOutputTokens,
   estimatePromptTokens,
@@ -53,6 +54,21 @@ describe('Wiki question prompts', () => {
     expect(buildWikiQuestionPrompt('What?', sources, [], 'follow_question').system).toContain(
       FOLLOW_QUESTION_LANGUAGE_RULE,
     );
+  });
+
+  it('builds a no-tools final-answer prompt from bounded tool evidence', () => {
+    const prompt = buildWikiToolAnswerPrompt({
+      question: 'What changed?',
+      sources,
+      transcript: ['TOOL get_page -> succeeded: Grounded content'],
+      assistantSystemPrompt: 'Custom answer persona',
+      toolAnswerPrompt: 'Custom final-answer instructions',
+    });
+    expect(prompt.system).toContain('Custom answer persona');
+    expect(prompt.system).toContain('Custom final-answer instructions');
+    expect(prompt.user).toContain('<tool_results>');
+    expect(prompt.user).toContain('TOOL get_page -> succeeded');
+    expect(prompt.user).toContain('<question>\nWhat changed?\n</question>');
   });
 });
 

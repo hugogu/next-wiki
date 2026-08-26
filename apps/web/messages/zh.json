@@ -1402,7 +1402,8 @@
           "assistant": "助手",
           "tool": "工具",
           "research": "联网研究",
-          "planner": "规划上下文"
+          "planner": "规划上下文",
+          "answer": "最终回答"
         },
         "assistant": {
           "label": "助手系统提示词",
@@ -1419,6 +1420,10 @@
         "planner": {
           "label": "规划器用户提示词",
           "help": "每轮随问题和工具结果一起发送的上下文模板。你可以调整顺序或加入指令。请保留 '{{RESEARCH_CONTEXT}}'、'{{WIKI_SOURCES}}'、'{{CURRENT_PAGE}}'、'{{CONVERSATION}}'、'{{TOOL_CONSTRAINTS}}'、'{{QUESTION}}' 和 '{{TOOL_TRANSCRIPT}}' 标记；遗漏的实时上下文会由系统自动追加。"
+        },
+        "answer": {
+          "label": "最终回答提示词",
+          "help": "仅在已配置专用工具规划器并完成工具循环后使用。它指导所选最终回答模型将已完成的证据整理为面向用户的回答。"
         },
         "usingDefault": "使用默认值",
         "reset": "恢复默认",
@@ -1640,8 +1645,16 @@
       },
       "purpose": {
         "wiki_text": "Wiki 文本模型",
+        "wiki_tool_planning": "Wiki 工具规划模型",
         "wiki_embedding": "Wiki 向量模型",
         "wiki_image": "Wiki 生图模型"
+      },
+      "chatRole": {
+        "label": "对话模型角色",
+        "answer": "最终回答模型",
+        "planner": "工具规划模型",
+        "answerDescription": "用于编写面向用户的最终回答，可按成本、文风和回答质量选择。",
+        "plannerDescription": "用于规划受控的 Wiki 与联网工具调用。请选择工具调用可靠、上下文窗口充足的模型。此角色留空时，将沿用最终回答模型进行规划。"
       },
       "capability": {
         "text_generation": "文本",
@@ -1712,7 +1725,8 @@
       "chatCapability": {
         "vision": "视觉理解",
         "audio": "音频理解",
-        "thinking": "Thinking"
+        "thinking": "Thinking",
+        "toolCalling": "工具调用"
       },
       "modelType": {
         "chat": "Chat",

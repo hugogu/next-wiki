@@ -10369,6 +10369,13 @@
               "null"
             ],
             "maxLength": 20000
+          },
+          "toolAnswerPrompt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 20000
           }
         },
         "description": "Partial update to the Wiki AI runtime configuration."
@@ -10437,13 +10444,20 @@
                   "string",
                   "null"
                 ]
+              },
+              "toolAnswerPrompt": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "required": [
               "assistantSystemPrompt",
               "toolSystemPrompt",
               "webResearchPolicyPrompt",
-              "plannerUserPrompt"
+              "plannerUserPrompt",
+              "toolAnswerPrompt"
             ]
           },
           "defaults": {
@@ -10460,13 +10474,17 @@
               },
               "plannerUserPrompt": {
                 "type": "string"
+              },
+              "toolAnswerPrompt": {
+                "type": "string"
               }
             },
             "required": [
               "assistantSystemPrompt",
               "toolSystemPrompt",
               "webResearchPolicyPrompt",
-              "plannerUserPrompt"
+              "plannerUserPrompt",
+              "toolAnswerPrompt"
             ]
           }
         },
@@ -12931,8 +12949,8 @@
     "/ai/assignments/{purpose}": {
       "put": {
         "operationId": "put-ai-assignments-{purpose}",
-        "summary": "Assign AI purpose model @tag AI Admin @auth bearer",
-        "description": "",
+        "summary": "Assign AI purpose model",
+        "description": "Assigns a model to `wiki_text`, optional `wiki_tool_planning`, `wiki_embedding`, or `wiki_image`. The tool planner must be a chat model with the `tool_calling` capability.",
         "tags": [
           "AI Admin"
         ],

@@ -146,11 +146,56 @@ describe('modelSupportsToolCalling', () => {
       expect(row).toMatchObject({
         feature: 'wiki_question',
         questionMode: 'retrieval',
-        requestMetadata: expect.objectContaining({ origin: 'web', toolEnabled: true, requestedReview: 'admin_review' }),
+        requestMetadata: expect.objectContaining({
+          origin: 'web',
+          toolEnabled: true,
+          requestedReview: 'admin_review',
+          plannerModelId: modelId,
+          plannerUsesDedicatedModel: false,
+        }),
       });
       await expect(readActionInput(result.action.id)).resolves.toMatchObject({
         question: 'Write the above into a page',
         mode: 'retrieval',
+      });
+    } finally {
+      await clearAiData();
+      await removeAiTestUser(userId);
+    }
+  });
+
+  it('snapshots a dedicated tool planner while retaining wiki_text as the answer model', async () => {
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
+    const userId = await createAiTestUser('admin');
+    try {
+      const answerModelId = await createModel();
+      const plannerModelId = await createModel();
+      await assignWikiTextModel(answerModelId);
+      await db.insert(schema.aiModelCapabilities).values({
+        modelId: plannerModelId,
+        capability: 'tool_calling',
+        supported: true,
+        source: 'manual',
+      });
+      await db.insert(schema.aiPurposeAssignments).values({
+        purpose: 'wiki_tool_planning',
+        modelId: plannerModelId,
+      });
+
+      const result = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'admin'), {
+        question: 'Research this topic',
+        requestedReview: 'admin_review',
+      });
+
+      expect(result).toMatchObject({ fallback: false });
+      if (result.fallback) throw new Error('expected tool-enabled question action');
+      const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, result.action.id) });
+      expect(row).toMatchObject({
+        modelId: answerModelId,
+        requestMetadata: expect.objectContaining({
+          plannerModelId,
+          plannerUsesDedicatedModel: true,
+        }),
       });
     } finally {
       await clearAiData();

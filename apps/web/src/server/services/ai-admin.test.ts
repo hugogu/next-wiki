@@ -85,6 +85,11 @@ describe('AI administration service', () => {
       expect.objectContaining({ capability: 'text_generation', supported: true, source: 'manual' }),
     );
     await expect(assignPurpose(ctx, 'wiki_text', model.id)).resolves.toMatchObject({ modelId: model.id });
+    await setCapabilityOverride(ctx, model.id, 'tool_calling', true, { confirmed: true });
+    await expect(assignPurpose(ctx, 'wiki_tool_planning', model.id)).resolves.toMatchObject({
+      purpose: 'wiki_tool_planning',
+      modelId: model.id,
+    });
   });
 
   it('guards synchronous connection tests before reaching the network', async () => {

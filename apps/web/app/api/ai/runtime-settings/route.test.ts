@@ -84,6 +84,7 @@ describe('AI runtime settings route', () => {
       toolSystemPrompt: 'Custom.\n{{TOOLS}}',
       webResearchPolicyPrompt: 'Read several pages first.',
       plannerUserPrompt: '{{QUESTION}}',
+      toolAnswerPrompt: 'Write a concise final answer.',
     });
     expect(response.status).toBe(200);
     expect(services.updateAiRuntimeSettings).toHaveBeenCalledWith(
@@ -92,6 +93,7 @@ describe('AI runtime settings route', () => {
         toolSystemPrompt: 'Custom.\n{{TOOLS}}',
         webResearchPolicyPrompt: 'Read several pages first.',
         plannerUserPrompt: '{{QUESTION}}',
+        toolAnswerPrompt: 'Write a concise final answer.',
       }),
     );
   });

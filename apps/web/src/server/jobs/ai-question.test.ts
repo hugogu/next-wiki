@@ -452,6 +452,76 @@ describe('Wiki question worker', () => {
     });
   });
 
+  it('uses a dedicated planner for tools and streams the final answer from wiki_text', async () => {
+    const answerModel = await db.query.aiModels.findFirst({
+      where: eq(schema.aiModels.externalId, 'text'),
+    });
+    if (!answerModel) throw new Error('fixture answer model is missing');
+    const [plannerModel] = await db
+      .insert(schema.aiModels)
+      .values({
+        providerId: answerModel.providerId,
+        externalId: 'tool-planner',
+        displayName: 'Tool planner',
+        availability: 'available',
+        contextWindow: 128_000,
+      })
+      .returning();
+    await db.insert(schema.aiModelCapabilities).values({
+      modelId: plannerModel!.id,
+      capability: 'tool_calling',
+      supported: true,
+      source: 'manual',
+    });
+    await db.insert(schema.aiPurposeAssignments).values({
+      purpose: 'wiki_tool_planning',
+      modelId: plannerModel!.id,
+      updatedBy: userId,
+    });
+    streamText
+      .mockImplementationOnce(async function* () {
+        yield { type: 'reasoning_delta', text: 'The planner has finished the tool workflow.' };
+        yield { type: 'delta', text: 'Planner-only answer that must not be displayed.' };
+        yield { type: 'usage', inputTokens: 7, outputTokens: 3 };
+      })
+      .mockImplementationOnce(async function* () {
+        yield { type: 'reasoning_delta', text: 'Writing the final answer.' };
+        yield { type: 'delta', text: 'Final answer from the selected answer model.' };
+        yield { type: 'usage', inputTokens: 11, outputTokens: 5 };
+      });
+
+    const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
+      question: 'Explain this topic',
+      requestedReview: 'admin_review',
+    });
+    if (created.fallback) throw new Error('Expected a tool-enabled action');
+    await runWikiQuestionAction(created.action.id);
+
+    expect(streamText).toHaveBeenCalledTimes(2);
+    expect(streamText.mock.calls[0]![0]).toMatchObject({ modelExternalId: 'tool-planner' });
+    expect(streamText.mock.calls[1]![0]).toMatchObject({ modelExternalId: 'text' });
+    const events = await db.query.aiActionEvents.findMany({
+      where: eq(schema.aiActionEvents.actionId, created.action.id),
+    });
+    expect(events).toContainEqual(expect.objectContaining({
+      type: 'text_delta',
+      payload: expect.objectContaining({ text: 'Final answer from the selected answer model.' }),
+    }));
+    expect(events).not.toContainEqual(expect.objectContaining({
+      type: 'text_delta',
+      payload: expect.objectContaining({ text: 'Planner-only answer that must not be displayed.' }),
+    }));
+    const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, created.action.id) });
+    expect(action).toMatchObject({
+      status: 'completed',
+      resultMetadata: expect.objectContaining({
+        dedicatedPlanner: true,
+        plannerModelId: plannerModel!.id,
+      }),
+      usageMetadata: expect.objectContaining({ inputTokens: 18, outputTokens: 8 }),
+    });
+  });
+
   it('batches character-sized reasoning deltas without dropping any text', async () => {
     const events: string[] = [];
     const reasoning = createBatchedReasoningAppender(async (text) => {

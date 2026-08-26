@@ -1386,6 +1386,7 @@ export const aiSettings = pgTable('ai_settings', {
   toolSystemPrompt: text('tool_system_prompt'),
   webResearchPolicyPrompt: text('web_research_policy_prompt'),
   plannerUserPrompt: text('planner_user_prompt'),
+  toolAnswerPrompt: text('tool_answer_prompt'),
   updatedBy: uuid('updated_by').references(() => users.id, { onDelete: 'set null' }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 });

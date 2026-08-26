@@ -14,6 +14,7 @@ import { PlusIcon, CheckIcon } from '@/components/icons';
 import { Button } from '@/components/ui/Button';
 import { ModalDialog } from '@/components/ui/ModalDialog';
 import { SettingsTabs } from '@/components/ui/SettingsTabs';
+import { Select } from '@/components/ui/Select';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useTranslation } from '@/i18n/client';
 import { ProviderForm } from './ProviderForm';
@@ -76,9 +77,23 @@ export function AiAdminTabs({
   const [providerType, setProviderType] = useState<AiProviderType>('chat');
   const selectedCapability: AiProviderType | null =
     selected === 'chat' || selected === 'embedding' || selected === 'image' ? selected : null;
+  const selectedChatPurpose: Extract<AiPurpose, 'wiki_text' | 'wiki_tool_planning'> =
+    searchParams.get('chatModelRole') === 'planner' ? 'wiki_tool_planning' : 'wiki_text';
+  const catalogPurpose =
+    selectedCapability === 'chat'
+      ? selectedChatPurpose
+      : selectedCapability
+        ? purposeByCapability[selectedCapability]
+        : null;
   const selectTab = (tab: AiAdminTab) => {
     const params = new URLSearchParams(searchParams.toString());
     params.set('tab', tab);
+    router.push(`${pathname}?${params.toString()}`);
+  };
+  const selectChatRole = (role: 'answer' | 'planner') => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (role === 'answer') params.delete('chatModelRole');
+    else params.set('chatModelRole', role);
     router.push(`${pathname}?${params.toString()}`);
   };
   // Any configured detector marks the tab as set up.
@@ -153,14 +168,37 @@ export function AiAdminTabs({
               providers={providers}
               models={models}
             />
-            <ModelCatalog
-              models={models.filter((model) => model.providerType === selectedCapability)}
-              providers={providers.filter((provider) => provider.type === selectedCapability)}
-              purpose={purposeByCapability[selectedCapability]}
-              activeModelId={
-                assignments.find((item) => item.purpose === purposeByCapability[selectedCapability])?.modelId ?? null
-              }
-            />
+            {selectedCapability === 'chat' && (
+              <div className="max-w-xl rounded-md border border-border bg-surface-raised p-md">
+                <label className="block text-sm font-medium" htmlFor="ai-chat-model-role">
+                  {t('admin.ai.chatRole.label')}
+                </label>
+                <Select
+                  id="ai-chat-model-role"
+                  className="mt-sm"
+                  value={selectedChatPurpose === 'wiki_tool_planning' ? 'planner' : 'answer'}
+                  onChange={(event) => selectChatRole(event.target.value as 'answer' | 'planner')}
+                >
+                  <option value="answer">{t('admin.ai.chatRole.answer')}</option>
+                  <option value="planner">{t('admin.ai.chatRole.planner')}</option>
+                </Select>
+                <p className="mt-xs text-sm text-muted">
+                  {selectedChatPurpose === 'wiki_tool_planning'
+                    ? t('admin.ai.chatRole.plannerDescription')
+                    : t('admin.ai.chatRole.answerDescription')}
+                </p>
+              </div>
+            )}
+            {catalogPurpose && (
+              <ModelCatalog
+                models={models.filter((model) => model.providerType === selectedCapability)}
+                providers={providers.filter((provider) => provider.type === selectedCapability)}
+                purpose={catalogPurpose}
+                activeModelId={
+                  assignments.find((item) => item.purpose === catalogPurpose)?.modelId ?? null
+                }
+              />
+            )}
           </section>
         )}
         {selected === 'detector' && (

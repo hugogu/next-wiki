@@ -4,7 +4,10 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { can, getActorUserId, type PermCtx } from '@/server/permissions';
-import { DEFAULT_ASSISTANT_SYSTEM_PROMPT } from '@/server/ai/prompts/wiki-question';
+import {
+  DEFAULT_ASSISTANT_SYSTEM_PROMPT,
+  DEFAULT_TOOL_ANSWER_PROMPT,
+} from '@/server/ai/prompts/wiki-question';
 import {
   DEFAULT_TOOL_PLANNER_USER_PROMPT,
   DEFAULT_TOOL_SYSTEM_PROMPT,
@@ -20,7 +23,7 @@ import {
 /**
  * Wiki AI runtime tuning (026). The planner parameters (max tool calls, sampling
  * temperature, max output tokens) and the runtime prompts (assistant, tool,
- * Web research policy, and planner user context) live on the `ai_settings`
+ * Web research policy, planner user context, and final-answer instruction) live on the `ai_settings`
  * singleton so operators can tune the tool loop without a redeploy. Parameters
  * are edited from Bots > General; prompts from AI > Prompts. `null` prompts mean
  * "use the built-in default".
@@ -50,6 +53,7 @@ export type AiRuntimeConfig = {
   toolSystemPrompt: string | null;
   webResearchPolicyPrompt: string | null;
   plannerUserPrompt: string | null;
+  toolAnswerPrompt: string | null;
 };
 
 /** Effective runtime config for the tool loop. No permission gate — internal. */
@@ -66,6 +70,7 @@ export async function resolveAiRuntimeConfig(): Promise<AiRuntimeConfig> {
     toolSystemPrompt: row?.toolSystemPrompt ?? null,
     webResearchPolicyPrompt: row?.webResearchPolicyPrompt ?? null,
     plannerUserPrompt: row?.plannerUserPrompt ?? null,
+    toolAnswerPrompt: row?.toolAnswerPrompt ?? null,
   };
 }
 
@@ -98,12 +103,14 @@ export async function getAiRuntimeSettings(ctx: PermCtx): Promise<AiRuntimeSetti
       toolSystemPrompt: config.toolSystemPrompt,
       webResearchPolicyPrompt: config.webResearchPolicyPrompt,
       plannerUserPrompt: config.plannerUserPrompt,
+      toolAnswerPrompt: config.toolAnswerPrompt,
     },
     defaults: {
       assistantSystemPrompt: DEFAULT_ASSISTANT_SYSTEM_PROMPT,
       toolSystemPrompt: DEFAULT_TOOL_SYSTEM_PROMPT,
       webResearchPolicyPrompt: DEFAULT_WEB_RESEARCH_POLICY_PROMPT,
       plannerUserPrompt: DEFAULT_TOOL_PLANNER_USER_PROMPT,
+      toolAnswerPrompt: DEFAULT_TOOL_ANSWER_PROMPT,
     },
   };
 }
@@ -140,6 +147,8 @@ export async function updateAiRuntimeSettings(
   if (webResearchPolicy !== undefined) patch.webResearchPolicyPrompt = webResearchPolicy;
   const plannerUser = normalizePrompt(input.plannerUserPrompt);
   if (plannerUser !== undefined) patch.plannerUserPrompt = plannerUser;
+  const toolAnswer = normalizePrompt(input.toolAnswerPrompt);
+  if (toolAnswer !== undefined) patch.toolAnswerPrompt = toolAnswer;
 
   await db
     .insert(schema.aiSettings)

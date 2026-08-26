@@ -1402,7 +1402,8 @@
           "assistant": "Assistant",
           "tool": "Tool",
           "research": "Web research",
-          "planner": "Planner context"
+          "planner": "Planner context",
+          "answer": "Final answer"
         },
         "assistant": {
           "label": "Assistant system prompt",
@@ -1419,6 +1420,10 @@
         "planner": {
           "label": "Planner user prompt",
           "help": "The per-turn context template sent with the question and tool results. You may rearrange or add instructions. Keep the '{{RESEARCH_CONTEXT}}', '{{WIKI_SOURCES}}', '{{CURRENT_PAGE}}', '{{CONVERSATION}}', '{{TOOL_CONSTRAINTS}}', '{{QUESTION}}', and '{{TOOL_TRANSCRIPT}}' markers; omitted live context is appended automatically."
+        },
+        "answer": {
+          "label": "Final-answer prompt",
+          "help": "Instructions used only after a dedicated tool planner has completed its loop. This prompt guides the selected final-answer model as it turns the completed evidence into a user-facing response."
         },
         "usingDefault": "Using default",
         "reset": "Reset to default",
@@ -1640,8 +1645,16 @@
       },
       "purpose": {
         "wiki_text": "Wiki text model",
+        "wiki_tool_planning": "Wiki tool planner model",
         "wiki_embedding": "Wiki embedding model",
         "wiki_image": "Wiki image model"
+      },
+      "chatRole": {
+        "label": "Chat model role",
+        "answer": "Final answer model",
+        "planner": "Tool planner model",
+        "answerDescription": "Writes the user-facing answer. Choose for cost, tone, and answer quality.",
+        "plannerDescription": "Plans governed Wiki and web tool calls. Choose a model with reliable tool calling and a sufficiently large context window. Leaving this role unassigned keeps the final answer model as the planner."
       },
       "capability": {
         "text_generation": "Text",
@@ -1712,7 +1725,8 @@
       "chatCapability": {
         "vision": "Vision",
         "audio": "Audio",
-        "thinking": "Thinking"
+        "thinking": "Thinking",
+        "toolCalling": "Tool calling"
       },
       "modelType": {
         "chat": "Chat",

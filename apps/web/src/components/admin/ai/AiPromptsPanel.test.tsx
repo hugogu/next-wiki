@@ -21,6 +21,7 @@ function view(overrides: Partial<AiRuntimeSettingsView['prompts']> = {}): AiRunt
       toolSystemPrompt: null,
       webResearchPolicyPrompt: null,
       plannerUserPrompt: null,
+      toolAnswerPrompt: null,
       ...overrides,
     },
     defaults: {
@@ -28,6 +29,7 @@ function view(overrides: Partial<AiRuntimeSettingsView['prompts']> = {}): AiRunt
       toolSystemPrompt: 'Available tools:\n{{TOOLS}}',
       webResearchPolicyPrompt: 'Search the Wiki first.',
       plannerUserPrompt: '{{QUESTION}}',
+      toolAnswerPrompt: 'Write the final answer.',
     },
   };
 }
@@ -48,6 +50,7 @@ describe('AiPromptsPanel', () => {
     expect(html).toContain('Tool');
     expect(html).toContain('Web research');
     expect(html).toContain('Planner context');
+    expect(html).toContain('Final answer');
   });
 
   it('shows the built-in default as editable content (not a placeholder) with the using-default state', () => {
@@ -73,6 +76,13 @@ describe('AiPromptsPanel', () => {
     const html = render(view());
     expect(html).toContain('{{QUESTION}}');
     expect(html).toContain('per-turn context template');
+  });
+
+  it('renders the dedicated final-answer prompt', () => {
+    currentSearch = 'tab=answer';
+    const html = render(view());
+    expect(html).toContain('Write the final answer.');
+    expect(html).toContain('dedicated tool planner has completed');
   });
 
   it('shows a stored override value instead of the default', () => {

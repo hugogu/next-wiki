@@ -533,6 +533,7 @@ export async function removeCapabilityOverride(
 
 const purposeCapability: Record<AiPurpose, AiCapability> = {
   wiki_text: 'text_generation',
+  wiki_tool_planning: 'tool_calling',
   wiki_embedding: 'embedding',
   wiki_image: 'image_generation',
 };
@@ -555,6 +556,7 @@ export async function assignPurpose(
   if (model[0].model.availability !== 'available') throw new DomainError('MODEL_UNAVAILABLE', 'AI model is unavailable');
   const expectedProviderType = {
     wiki_text: 'chat',
+    wiki_tool_planning: 'chat',
     wiki_embedding: 'embedding',
     wiki_image: 'image',
   } as const;
