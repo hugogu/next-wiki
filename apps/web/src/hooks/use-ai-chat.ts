@@ -122,7 +122,7 @@ export function buildToolEnabledQuestionPayload(input: {
   sessionId: string;
   currentPage?: { pageId: string; revisionId: string };
   messages: ChatMessage[];
-  research?: { mode: ResearchMode; externalResearchConsent: boolean };
+  research?: { mode: ResearchMode; externalResearchConsent: boolean; allowDraftWrites?: boolean };
 }) {
   return {
     question: input.question,
@@ -291,7 +291,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
     await action.cancel();
   }, [action, store]);
 
-  async function ask(question: string, mode: AiQuestionMode, research: { mode: ResearchMode; externalResearchConsent: boolean } = { mode: 'wiki_only', externalResearchConsent: false }) {
+  async function ask(question: string, mode: AiQuestionMode, research: { mode: ResearchMode; externalResearchConsent: boolean; allowDraftWrites?: boolean } = { mode: 'wiki_only', externalResearchConsent: false }) {
     const userId = uuid();
     const assistantId = uuid();
     stateRef.current = { markerBuffer: '', tagBuffer: '', insideThink: false, discardLegacyInsufficient: false };

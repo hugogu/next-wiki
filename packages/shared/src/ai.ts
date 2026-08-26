@@ -939,6 +939,11 @@ export const aiQuestionInputSchema = z.object({
     .object({
       mode: researchModeSchema,
       externalResearchConsent: z.boolean(),
+      // 038: explicit, per-request opt-in the user must set themselves (never
+      // inferred from model output or fetched web content) to allow
+      // insert_page_content/save_draft to produce a draft within an otherwise
+      // read-only Web Research turn. Defaults to false/omitted (read-only).
+      allowDraftWrites: z.boolean().optional(),
     })
     .optional(),
 });
