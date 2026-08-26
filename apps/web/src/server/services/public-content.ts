@@ -978,7 +978,7 @@ export async function deleteRevision(ctx: PermCtx, pageId: string, version: numb
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
   const space = await getSpaceById(page.spaceId);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
-  await revisionService.remove(ctx, { path: page.path, version, space: space.slug });
+  await revisionService.remove(ctx, { pageId: page.id, version, space: space.slug });
 }
 
 export async function publishRevision(

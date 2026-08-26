@@ -98,7 +98,7 @@ export async function publish(
 
 export async function remove(
   ctx: PermCtx,
-  input: { path: string; version: number; space?: string },
+  input: { pageId: string; version: number; space?: string },
 ): Promise<void> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -114,10 +114,14 @@ export async function remove(
   await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
 
+    // Looked up by id, not (spaceId, path): pages are only unique on
+    // (spaceId, path, locale), so a path-only lookup could resolve to a
+    // different locale's page (e.g. a translation sharing the same path)
+    // and delete the wrong revision.
     const page = await tx.query.pages.findFirst({
       where: and(
+        eq(schema.pages.id, input.pageId),
         eq(schema.pages.spaceId, space.id),
-        eq(schema.pages.path, input.path),
         isNull(schema.pages.deletedAt),
       ),
     });
