@@ -299,6 +299,27 @@ describe('buildWikiToolSystemPrompt', () => {
     expect(prompt).not.toContain('final_tool_availability_override');
   });
 
+  // 037: insert_page_content is the preferred tool for incremental changes to
+  // an existing page — the model should never reach for save_draft's
+  // full-body rewrite when it only needs to touch one part of a large page.
+  it('shows insert_page_content in the catalog and prefers it for incremental edits over save_draft', () => {
+    const searchTool = getToolDefinition('search_wiki');
+    const getPageTool = getToolDefinition('get_page');
+    const saveDraftTool = getToolDefinition('save_draft');
+    const insertPageContentTool = getToolDefinition('insert_page_content');
+    const prompt = buildWikiToolSystemPrompt([
+      searchTool!,
+      getPageTool!,
+      saveDraftTool!,
+      insertPageContentTool!,
+    ]);
+
+    expect(prompt).toContain('- insert_page_content (page_draft)');
+    expect(prompt).toContain('insert_page_content');
+    expect(prompt).toMatch(/prefer insert_page_content/i);
+    expect(prompt).toMatch(/reserve save_draft for (a )?(genuine )?full rewrite/i);
+  });
+
   // insert_generated_images shares the page_draft category with
   // create_page/save_draft but is independently enabled/disabled — an admin
   // can disable content-editing tools while leaving image insertion on, or

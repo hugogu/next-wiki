@@ -64,8 +64,9 @@ function buildWriteToolGuidance(tools: ToolDefinition[], researchMode?: Research
   const hasCreatePage = names.has('create_page');
   const hasSaveDraft = names.has('save_draft');
   const hasInsertImages = names.has('insert_generated_images');
+  const hasInsertPageContent = names.has('insert_page_content');
 
-  if (!hasCreatePage && !hasSaveDraft && !hasInsertImages) {
+  if (!hasCreatePage && !hasSaveDraft && !hasInsertImages && !hasInsertPageContent) {
     return researchMode === 'wiki_first_web'
       ? NO_WRITE_TOOL_GUIDANCE_WEB_RESEARCH
       : NO_WRITE_TOOL_GUIDANCE_GENERIC;
@@ -83,10 +84,23 @@ function buildWriteToolGuidance(tools: ToolDefinition[], researchMode?: Research
       'After create_page succeeds, always include a Markdown link to the new page in the final answer, using the exact title and href returned by the tool result. Do not replace this page link with a citation marker.',
     );
   }
+  if (hasInsertPageContent) {
+    lines.push(
+      hasSaveDraft
+        ? 'Prefer insert_page_content for incremental changes to an existing page: name a short, exact, unique anchor already in the current revision (copied verbatim from get_page, the same backslash-preservation rule as save_draft\'s contentSource) and insert before/after it or replace it — you never need to resupply unrelated Markdown. Reserve save_draft for a genuine full rewrite (new structure, wholesale reorganization).'
+        : 'To change part of an existing page, use insert_page_content: name a short, exact, unique anchor already in the current revision (copied verbatim from get_page) and insert before/after it or replace it — you never need to resupply unrelated Markdown.',
+      'insert_page_content edits are all-or-nothing: if any named anchor cannot be found in the current revision, or two edits in the same call target overlapping passages, none of them are applied. Use the exact revisionId from get_page; if it is stale, re-read the page and retry.',
+    );
+  } else if (hasSaveDraft || hasCreatePage) {
+    lines.push(
+      'insert_page_content is not available this turn: for any change to an existing page, save_draft is the only option, so retrieve every get_page window and put the entire revised document in contentSource as usual.',
+    );
+  }
   if (hasSaveDraft) {
     lines.push(
       'For save_draft, use the exact pageId returned by get_page. contentSource is the whole final page Markdown: it replaces the current body rather than applying a patch. Before an incremental edit, retrieve every get_page window, preserve every unchanged section verbatim, and put the entire revised document in contentSource. Never pass a plan or instruction (for example, "pageSource full + insert a section"), a diff, a selector, or a placeholder as contentSource. If you cannot retrieve the entire existing page, do not call save_draft; explain that you could not safely prepare the draft. The title is optional and retains the page title by default. Use contentFromConversation=true only when saving the prior assistant answer unchanged.',
       'A get_page result places its Markdown between <page_source> tags verbatim. When copying it into a YAML literal contentSource block, preserve every backslash exactly as shown; do not apply JSON escaping to Markdown.',
+      'save_draft rejects a contentSource that is dramatically shorter than the page\'s current revision, since that usually means content was lost while reproducing the document rather than intentionally removed. Set acknowledgedContentReduction: true only when the user\'s own request explicitly asked to delete or drastically shorten the page — never by default, and never just to make a rejection go away.',
     );
   }
   if (hasInsertImages) {

@@ -61,21 +61,21 @@ full-body `contentSource` was needed.
 
 > Write these first; they must fail (module/executor/tool do not exist yet).
 
-- [ ] T001 [P] [US1] Unit tests for the anchor-splice engine — unique
+- [X] T001 [P] [US1] Unit tests for the anchor-splice engine — unique
   `insertBefore`, unique `insertAfter`, unique `replace` (including
   `replace` with empty text), anchor missing, anchor at the very start/end of
   the document, anchor immediately bordering a fenced code block or table
   without corrupting it, byte-for-byte preservation of everything outside the
   edited span — in
   `apps/web/src/server/services/ai-page-content-patch.test.ts`
-- [ ] T002 [P] [US1] Executor tests for `insert_page_content` single-edit
+- [X] T002 [P] [US1] Executor tests for `insert_page_content` single-edit
   happy path: successful insert/replace creates one new draft revision;
   `revisionId` not matching the page's current latest revision fails with
   `STALE_REVISION` before any change; `edit` permission scope is enforced;
   the tool result never echoes the full page body
   (`resultRetention: 'never_full_result'`) — in
   `apps/web/src/server/services/ai-tool-runtime.permissions.test.ts`
-- [ ] T003 [P] [US1] Planner prompt test: the tool catalog shown to the model
+- [X] T003 [P] [US1] Planner prompt test: the tool catalog shown to the model
   includes `insert_page_content` with its argument contract, and the
   write-tool guidance directs the model to prefer it for incremental changes
   to an existing page, reserving `save_draft` for full rewrites (FR-008) — in
@@ -83,7 +83,7 @@ full-body `contentSource` was needed.
 
 ### Implementation for User Story 1
 
-- [ ] T004 [US1] Implement the anchor-splice engine — exported function(s)
+- [X] T004 [US1] Implement the anchor-splice engine — exported function(s)
   accepting the current source and an ordered list of `{ anchor, mode:
   'insertBefore' | 'insertAfter' | 'replace', text }` operations, returning
   the spliced result; exact-literal anchor matching; throws the existing
@@ -91,26 +91,26 @@ full-body `contentSource` was needed.
   `DomainError('BAD_REQUEST', ...)` for an ambiguous (non-unique) anchor,
   mirroring `insertGeneratedImagesIntoMarkdown`'s existing error shapes — in
   `apps/web/src/server/services/ai-page-content-patch.ts` (make T001 pass)
-- [ ] T005 [US1] Define `insertPageContentArgs` Zod schema (`pageId`,
+- [X] T005 [US1] Define `insertPageContentArgs` Zod schema (`pageId`,
   `revisionId`, `edits`: non-empty array of `{ anchor, mode, text }`, 1–20
   items per data-model.md) in
   `apps/web/src/server/services/ai-tool-executors.ts`
-- [ ] T006 [US1] Implement `execInsertPageContent`: load the page and its
+- [X] T006 [US1] Implement `execInsertPageContent`: load the page and its
   current latest revision via existing `content.getPageById`, verify
   `revisionId` matches (else `STALE_REVISION`), call the splice engine from
   T004, then `content.createDraft(ctx, pageId, { title: page.title,
   contentSource: spliced, baseRevisionId: revisionId })`, and return
   `{ pageId, version, editsApplied: edits.length }` — in
   `apps/web/src/server/services/ai-tool-executors.ts` (depends on T004, T005)
-- [ ] T007 [US1] Register `insert_page_content` in the `TOOL_EXECUTORS` map —
+- [X] T007 [US1] Register `insert_page_content` in the `TOOL_EXECUTORS` map —
   in `apps/web/src/server/services/ai-tool-executors.ts` (depends on T006)
-- [ ] T008 [US1] Register the `insert_page_content` `ToolDefinition`
+- [X] T008 [US1] Register the `insert_page_content` `ToolDefinition`
   (`category: 'page_draft'`, `riskLevel: 'draft_write'`, `requiredScope:
   'edit'`, `resultRetention: 'never_full_result'`, `defaultReviewPolicy:
   'always_review'`, `inputSchema` mirroring T005, description per
   contracts/wiki-ai-tools.md) in
   `apps/web/src/server/services/ai-tool-registry.ts`
-- [ ] T009 [US1] Add `insert_page_content` usage guidance to
+- [X] T009 [US1] Add `insert_page_content` usage guidance to
   `buildWriteToolGuidance` in `wiki-question-tool-planner.ts`, keyed off the
   tool's *name* being present in `tools` (the same per-name pattern that
   function already uses for `create_page`/`save_draft`/
@@ -124,7 +124,7 @@ full-body `contentSource` was needed.
   note (mirroring the existing per-tool "not available this turn" lines) for
   when it is absent but a sibling write tool is present — in
   `apps/web/src/server/jobs/wiki-question-tool-planner.ts` (depends on T008)
-- [ ] T010 [US1] Run T001–T003 and confirm they pass; reconcile any drift
+- [X] T010 [US1] Run T001–T003 and confirm they pass; reconcile any drift
   between the contract and the implementation
 
 **Checkpoint**: A single anchored edit works end to end — tool call, draft
@@ -145,13 +145,13 @@ changes and a clear error naming the failing anchor.
 
 ### Tests for User Story 2 ⚠️
 
-- [ ] T011 [P] [US2] Unit tests for multi-edit atomicity in the splice engine:
+- [X] T011 [P] [US2] Unit tests for multi-edit atomicity in the splice engine:
   all anchors valid → all edits applied in one pass; any one anchor missing
   or ambiguous → no edits applied (result unchanged from input); two
   requested edits whose anchor spans overlap → the whole batch rejected;
   deterministic output when multiple edits resolve to the same or adjacent
   positions — in `apps/web/src/server/services/ai-page-content-patch.test.ts`
-- [ ] T012 [P] [US2] Executor tests for `insert_page_content` multi-edit
+- [X] T012 [P] [US2] Executor tests for `insert_page_content` multi-edit
   requests: several valid edits produce exactly one new draft revision
   containing all of them; one invalid anchor among several leaves the page
   unchanged (no draft created) and the rejection names which anchor failed —
@@ -159,17 +159,17 @@ changes and a clear error naming the failing anchor.
 
 ### Implementation for User Story 2
 
-- [ ] T013 [US2] Add overlap/conflict detection between requested edit spans
+- [X] T013 [US2] Add overlap/conflict detection between requested edit spans
   to the splice engine — resolve every anchor's position against the
   *original* source first, reject the entire batch (not just the conflicting
   pair) if any two resolved spans overlap, and only then apply all splices in
   one pass — in `apps/web/src/server/services/ai-page-content-patch.ts`
   (depends on T004; extends US1's module)
-- [ ] T014 [US2] Ensure `execInsertPageContent` surfaces which specific
+- [X] T014 [US2] Ensure `execInsertPageContent` surfaces which specific
   anchor failed (missing, ambiguous, or overlapping) in the rejection
   message returned to the model, so a retry can target the right edit — in
   `apps/web/src/server/services/ai-tool-executors.ts` (depends on T006, T013)
-- [ ] T015 [US2] Run T011–T012 and confirm they pass
+- [X] T015 [US2] Run T011–T012 and confirm they pass
 
 **Checkpoint**: US1 and US2 both independently functional — single and
 multi-anchor edits, atomic by construction.
@@ -194,7 +194,7 @@ flag set and confirm it succeeds.
 
 ### Tests for User Story 3 ⚠️
 
-- [ ] T016 [P] [US3] Unit/executor tests for the content-loss guard in
+- [X] T016 [P] [US3] Unit/executor tests for the content-loss guard in
   `execSaveDraft`: submission below the configured ratio (50% of the current
   revision's `contentSource.length`) without `acknowledgedContentReduction`
   is rejected and creates no draft; the same submission with
@@ -206,22 +206,22 @@ flag set and confirm it succeeds.
 
 ### Implementation for User Story 3
 
-- [ ] T017 [US3] Add an `acknowledgedContentReduction` optional boolean field
+- [X] T017 [US3] Add an `acknowledgedContentReduction` optional boolean field
   (default `false`) to `saveDraftArgs` — in
   `apps/web/src/server/services/ai-tool-executors.ts`
-- [ ] T018 [US3] Add a named `CONTENT_LOSS_MIN_RATIO` constant (0.5) and a
+- [X] T018 [US3] Add a named `CONTENT_LOSS_MIN_RATIO` constant (0.5) and a
   guard function alongside `assertCompleteDraftSource` that compares the
   resolved submission length against `page.contentSource.length` and throws
   `DomainError('BAD_REQUEST', ...)` naming the size drop when below the ratio
   and `acknowledgedContentReduction` is not `true`; call it from
   `execSaveDraft` before `createDraft` — in
   `apps/web/src/server/services/ai-tool-executors.ts` (depends on T017)
-- [ ] T019 [US3] Add `acknowledgedContentReduction` usage guidance to
+- [X] T019 [US3] Add `acknowledgedContentReduction` usage guidance to
   `WRITE_TOOL_GUIDANCE`: set it to `true` only when the user's own request
   explicitly asked to delete or drastically shorten the page, never as a
   default or to silence a rejection — in
   `apps/web/src/server/jobs/wiki-question-tool-planner.ts`
-- [ ] T020 [US3] Run T016 and confirm it passes
+- [X] T020 [US3] Run T016 and confirm it passes
 
 **Checkpoint**: All three stories independently functional.
 
@@ -229,21 +229,21 @@ flag set and confirm it succeeds.
 
 ## Phase 6: Polish & Cross-Cutting Concerns
 
-- [ ] T021 [P] Regression run of
+- [X] T021 [P] Regression run of
   `apps/web/src/server/services/ai-generated-image-insertion.test.ts` — if
   `insertGeneratedImagesIntoMarkdown` was refactored to call the shared
   engine from T004 (research.md Decision 1), confirm no behavior change
-- [ ] T022 [P] Check `apps/web/src/server/services/ai-tool-registry.test.ts`
+- [X] T022 [P] Check `apps/web/src/server/services/ai-tool-registry.test.ts`
   and `ai-tool-policy.test.ts` for any assertion that enumerates
   `BUILTIN_TOOLS` by count or full list; update to account for
   `insert_page_content`
-- [ ] T023 Run `pnpm lint && pnpm typecheck && pnpm test` at the repository
+- [X] T023 Run `pnpm lint && pnpm typecheck && pnpm test` at the repository
   root; fix any drift
 - [ ] T024 Execute the manual walkthroughs in
   [quickstart.md](quickstart.md) (anchored edit preserves the rest of the
   page, multi-anchor atomicity, content-loss guard reject/acknowledge,
   Admin per-tool enable/disable) and record results
-- [ ] T025 [P] Once implementation lands, add a "Recent Changes" entry for
+- [X] T025 [P] Once implementation lands, add a "Recent Changes" entry for
   `037-ai-partial-page-edit` to `CLAUDE.md`, following the existing entry
   format (project convention, not a Spec Kit template step)
 

@@ -37,6 +37,25 @@ conventions; see `.specify/memory/constitution.md` for binding principles.
 
 ## Recent Changes
 
+- 037-ai-partial-page-edit: Gives Wiki AI a second, narrower way to change an
+  existing page: `insert_page_content` splices one or more anchored edits
+  (insert before/after, or replace an exact passage) into the current
+  revision without ever asking the model to reproduce Markdown outside the
+  edited spans, generalizing the existing `insert_generated_images`
+  `afterText`-anchor pattern (`ai-page-content-patch.ts`, shared by both).
+  Multiple edits in one call are validated against every anchor before any
+  are applied, so a request lands completely or not at all; two edits whose
+  resolved spans overlap reject the whole batch. `save_draft` (full-body
+  rewrite) remains for genuine full rewrites, and gains a defense-in-depth
+  guard: a submission below 50% of the current revision's length is rejected
+  unless the caller sets `acknowledgedContentReduction: true`, closing the
+  gap that let a large page's `save_draft` update silently drop most of its
+  content in production. Tool-usage guidance in
+  `wiki-question-tool-planner.ts` is composed per exact tool name, not the
+  shared `page_draft` category — `insert_generated_images` is independently
+  enabled/disabled from `create_page`/`save_draft`, so gating on category
+  alone previously risked showing detailed write-tool instructions for a turn
+  where none of them were actually callable.
 - 035-page-slug-routing: Decouples a page's public URL from its tree path.
   Every page has a `pages.slug` — the canonical public address — separate
   from `pages.path`, which now only describes where the page lives for

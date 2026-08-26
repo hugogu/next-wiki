@@ -456,6 +456,312 @@ describe('read tool permission projection (026)', () => {
       contentSource: 'Inclination: $2.49^\\circ$.\n\n![Saturn](/api/assets/image)',
     });
   });
+
+  // 037, US3: save_draft replaces the whole body, so a model that fails to
+  // fully reproduce a large page silently drops content with no signal to
+  // anyone. This is the defense-in-depth guard for exactly the incident that
+  // motivated 037: a large page's save_draft update silently dropped most of
+  // the original content.
+  describe('content-loss guard (037, US3)', () => {
+    const largePageId = '77777777-7777-4777-8777-777777777777';
+    const currentSource = 'X'.repeat(1000);
+
+    it('rejects a submission that drops most of the page without acknowledgement', async () => {
+      content.getPageById.mockResolvedValue({
+        id: largePageId,
+        title: 'Large Page',
+        contentSource: currentSource,
+      });
+      content.createDraft.mockClear();
+
+      const result = await executeTool(
+        adminCtx,
+        saveDraftTool,
+        { pageId: largePageId, contentSource: 'Y'.repeat(400) },
+        { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+      );
+
+      expect(result).toMatchObject({ ok: false, errorCode: 'BAD_REQUEST' });
+      expect(result.errorMessage).toMatch(/dramatically shorter|content was lost/i);
+      expect(content.createDraft).not.toHaveBeenCalled();
+    });
+
+    it('accepts the same submission when acknowledgedContentReduction is true', async () => {
+      content.getPageById.mockResolvedValue({
+        id: largePageId,
+        title: 'Large Page',
+        contentSource: currentSource,
+      });
+      content.createDraft.mockClear();
+      content.createDraft.mockResolvedValue({ version: 11 });
+
+      const result = await executeTool(
+        adminCtx,
+        saveDraftTool,
+        {
+          pageId: largePageId,
+          contentSource: 'Y'.repeat(400),
+          acknowledgedContentReduction: true,
+        },
+        { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+      );
+
+      expect(result.ok).toBe(true);
+      expect(content.createDraft).toHaveBeenCalledWith(adminCtx, largePageId, {
+        title: 'Large Page',
+        contentSource: 'Y'.repeat(400),
+      });
+    });
+
+    it('succeeds without acknowledgement when the submission is not dramatically shorter', async () => {
+      content.getPageById.mockResolvedValue({
+        id: largePageId,
+        title: 'Large Page',
+        contentSource: currentSource,
+      });
+      content.createDraft.mockClear();
+      content.createDraft.mockResolvedValue({ version: 12 });
+
+      const result = await executeTool(
+        adminCtx,
+        saveDraftTool,
+        { pageId: largePageId, contentSource: 'Y'.repeat(900) },
+        { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+      );
+
+      expect(result.ok).toBe(true);
+      expect(content.createDraft).toHaveBeenCalledTimes(1);
+    });
+
+    it('composes with the existing short-instruction guard instead of replacing it', async () => {
+      content.getPageById.mockResolvedValue({
+        id: largePageId,
+        title: 'Large Page',
+        contentSource: currentSource,
+      });
+      content.createDraft.mockClear();
+
+      const result = await executeTool(
+        adminCtx,
+        saveDraftTool,
+        {
+          pageId: largePageId,
+          contentSource: 'pagesource full content, insert a new section before the conclusion',
+          acknowledgedContentReduction: true,
+        },
+        { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+      );
+
+      // acknowledgedContentReduction bypasses only the content-loss guard,
+      // never the separate "this looks like an instruction, not a document"
+      // guard.
+      expect(result).toMatchObject({
+        ok: false,
+        errorCode: 'BAD_REQUEST',
+        errorMessage: expect.stringContaining('complete final Markdown document'),
+      });
+      expect(content.createDraft).not.toHaveBeenCalled();
+    });
+  });
+});
+
+describe('insert_page_content (037, US1/US2)', () => {
+  const insertPageContentTool = getToolDefinition('insert_page_content')!;
+  const pageId = '55555555-5555-4555-8555-555555555555';
+  const revisionId = '66666666-6666-4666-8666-666666666666';
+
+  it('applies a single anchored edit and creates one new draft revision', async () => {
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: 'Saturn',
+      contentSource: 'Intro paragraph.\n\nSecond paragraph.\n',
+      latestRevision: { id: revisionId },
+    });
+    content.createDraft.mockResolvedValue({ version: 5 });
+
+    const result = await executeTool(
+      adminCtx,
+      insertPageContentTool,
+      {
+        pageId,
+        revisionId,
+        edits: [
+          { anchor: 'Intro paragraph.', mode: 'insertAfter', text: '\n\nInserted paragraph.' },
+        ],
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
+
+    expect(content.createDraft).toHaveBeenCalledWith(adminCtx, pageId, {
+      title: 'Saturn',
+      contentSource: 'Intro paragraph.\n\nInserted paragraph.\n\nSecond paragraph.\n',
+      baseRevisionId: revisionId,
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      data: { pageId, version: 5, editsApplied: 1 },
+    });
+  });
+
+  it('never echoes the full page body back in the result', async () => {
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: 'Saturn',
+      contentSource: 'Some fairly long page content that must not be echoed back verbatim.',
+      latestRevision: { id: revisionId },
+    });
+    content.createDraft.mockResolvedValue({ version: 2 });
+
+    const result = await executeTool(
+      adminCtx,
+      insertPageContentTool,
+      {
+        pageId,
+        revisionId,
+        edits: [{ anchor: 'long page content', mode: 'replace', text: 'short content' }],
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
+
+    expect(JSON.stringify(result)).not.toContain('must not be echoed back verbatim');
+  });
+
+  it('rejects a stale revisionId before changing anything', async () => {
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: 'Saturn',
+      contentSource: 'Intro paragraph.\n',
+      latestRevision: { id: 'a-different-revision' },
+    });
+    content.createDraft.mockClear();
+
+    const result = await executeTool(
+      adminCtx,
+      insertPageContentTool,
+      {
+        pageId,
+        revisionId,
+        edits: [{ anchor: 'Intro paragraph.', mode: 'insertAfter', text: ' more' }],
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
+
+    expect(result).toMatchObject({ ok: false, errorCode: 'STALE_REVISION' });
+    expect(content.createDraft).not.toHaveBeenCalled();
+  });
+
+  it('forwards the caller ctx to the page lookup and draft creation', async () => {
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: 'Saturn',
+      contentSource: 'Intro paragraph.\n',
+      latestRevision: { id: revisionId },
+    });
+    content.createDraft.mockResolvedValue({ version: 1 });
+
+    await executeTool(
+      readerCtx,
+      insertPageContentTool,
+      {
+        pageId,
+        revisionId,
+        edits: [{ anchor: 'Intro paragraph.', mode: 'insertAfter', text: ' more' }],
+      },
+      { ...execCtx, actorUserId: 'reader-1', effectiveReview: 'none' },
+    );
+
+    expect(content.getPageById).toHaveBeenCalledWith(readerCtx, pageId, ['latestRevision']);
+    expect(content.createDraft).toHaveBeenCalledWith(readerCtx, pageId, expect.anything());
+  });
+
+  it('applies several anchored edits together as exactly one new draft revision', async () => {
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: 'Saturn',
+      contentSource: 'Alpha.\n\nBeta.\n\nGamma.\n',
+      latestRevision: { id: revisionId },
+    });
+    content.createDraft.mockClear();
+    content.createDraft.mockResolvedValue({ version: 9 });
+
+    const result = await executeTool(
+      adminCtx,
+      insertPageContentTool,
+      {
+        pageId,
+        revisionId,
+        edits: [
+          { anchor: 'Alpha.', mode: 'replace', text: 'Alpha updated.' },
+          { anchor: 'Gamma.', mode: 'replace', text: 'Gamma updated.' },
+        ],
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
+
+    expect(content.createDraft).toHaveBeenCalledTimes(1);
+    expect(content.createDraft).toHaveBeenCalledWith(adminCtx, pageId, {
+      title: 'Saturn',
+      contentSource: 'Alpha updated.\n\nBeta.\n\nGamma updated.\n',
+      baseRevisionId: revisionId,
+    });
+    expect(result).toMatchObject({ data: { editsApplied: 2 } });
+  });
+
+  it('applies none of the edits and names the failing anchor when one anchor cannot be found', async () => {
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: 'Saturn',
+      contentSource: 'Alpha.\n\nBeta.\n',
+      latestRevision: { id: revisionId },
+    });
+    content.createDraft.mockClear();
+
+    const result = await executeTool(
+      adminCtx,
+      insertPageContentTool,
+      {
+        pageId,
+        revisionId,
+        edits: [
+          { anchor: 'Alpha.', mode: 'replace', text: 'Alpha updated.' },
+          { anchor: 'This text does not exist.', mode: 'replace', text: 'x' },
+        ],
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errorMessage).toContain('This text does not exist.');
+    expect(content.createDraft).not.toHaveBeenCalled();
+  });
+
+  it('rejects overlapping anchor spans within one batch instead of applying either', async () => {
+    content.getPageById.mockResolvedValue({
+      id: pageId,
+      title: 'Saturn',
+      contentSource: 'The quick brown fox jumps.\n',
+      latestRevision: { id: revisionId },
+    });
+    content.createDraft.mockClear();
+
+    const result = await executeTool(
+      adminCtx,
+      insertPageContentTool,
+      {
+        pageId,
+        revisionId,
+        edits: [
+          { anchor: 'quick brown fox', mode: 'replace', text: 'slow red fox' },
+          { anchor: 'brown fox jumps', mode: 'replace', text: 'x' },
+        ],
+      },
+      { ...execCtx, actorUserId: 'admin-1', effectiveReview: 'none' },
+    );
+
+    expect(result.ok).toBe(false);
+    expect(result.errorMessage).toMatch(/overlap/i);
+    expect(content.createDraft).not.toHaveBeenCalled();
+  });
 });
 
 describe('scheduled Job read/write boundary', () => {
