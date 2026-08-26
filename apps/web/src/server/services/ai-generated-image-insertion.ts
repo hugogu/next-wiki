@@ -5,6 +5,7 @@ import {
   getGeneratedArtifactPlacement,
   promoteGeneratedArtifact,
 } from '@/server/services/ai-artifacts';
+import { applyPageContentEdits, resolveAnchorSpan } from '@/server/services/ai-page-content-patch';
 
 export type GeneratedImageInsertion = {
   artifactId: string;
@@ -25,31 +26,24 @@ function markdownAltText(value: string): string {
 
 /**
  * Inserts Markdown without parsing, formatting, or serializing the source.
- * Applying insertions from the end keeps every byte outside insertion points
- * unchanged — particularly important for LaTex backslashes and hand-authored
- * whitespace.
+ * Delegates the actual splice to `applyPageContentEdits` (037) — the same
+ * engine `insert_page_content` uses — so there is one anchor-resolution and
+ * splice implementation, not two. This function's only remaining job is
+ * translating the image-specific placement shape into that engine's
+ * `insertAfter` edits, including the visual separator a Markdown image needs
+ * (the generic engine never invents whitespace on its own).
  */
 export function insertGeneratedImagesIntoMarkdown(source: string, placements: Placement[]): string {
-  const insertions = placements.map((placement, order) => {
-    if (placement.after === null) return { at: source.length, markdown: placement.markdown, order };
-    const first = source.indexOf(placement.after);
-    if (first < 0) {
-      throw new DomainError('STALE_REVISION', 'The selected image source is no longer present in this revision. Refresh and try again.');
-    }
-    if (source.indexOf(placement.after, first + placement.after.length) >= 0) {
-      throw new DomainError('BAD_REQUEST', 'The selected image source occurs more than once. Select a more specific passage and try again.');
-    }
-    return { at: first + placement.after.length, markdown: placement.markdown, order };
+  const edits = placements.map((placement) => {
+    const at = placement.after === null ? source.length : resolveAnchorSpan(source, placement.after).end;
+    const separator = at > 0 && source[at - 1] === '\n' ? '\n' : '\n\n';
+    return {
+      anchor: placement.after,
+      mode: 'insertAfter' as const,
+      text: `${separator}${placement.markdown}`,
+    };
   });
-
-  return insertions
-    // For equal positions, apply the later requested image first so the final
-    // document keeps the caller's requested image order.
-    .sort((left, right) => right.at - left.at || right.order - left.order)
-    .reduce((result, insertion) => {
-      const separator = insertion.at > 0 && result[insertion.at - 1] === '\n' ? '\n' : '\n\n';
-      return `${result.slice(0, insertion.at)}${separator}${insertion.markdown}${result.slice(insertion.at)}`;
-    }, source);
+  return applyPageContentEdits(source, edits);
 }
 
 /**

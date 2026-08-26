@@ -28,6 +28,7 @@ import { createImageGeneration } from '@/server/services/ai-image-generation';
 import { runInlineImageGenerationAction } from '@/server/services/ai-image-runner';
 import { promoteGeneratedArtifact } from '@/server/services/ai-artifacts';
 import { insertGeneratedImages } from '@/server/services/ai-generated-image-insertion';
+import { applyPageContentEdits } from '@/server/services/ai-page-content-patch';
 import { listSpaces } from '@/server/services/spaces';
 import { openWebSource, searchWebSources } from '@/server/web-research/sources';
 import { searchWikiSources } from '@/server/ai/retrieval/wiki-question-sources';
@@ -279,10 +280,24 @@ const saveDraftArgs = z
     title: z.string().min(1).max(200).optional(),
     contentSource: z.string().min(1).max(500_000).optional(),
     contentFromConversation: z.boolean().optional(),
+    // 037, US3: explicit escape hatch for the content-loss guard below. Only
+    // set by the model when the user's own request asked to delete or
+    // drastically shorten the page — see assertNoUnacknowledgedContentLoss.
+    acknowledgedContentReduction: z.boolean().optional(),
   })
   .refine((args) => args.contentFromConversation || args.contentSource, {
     message: 'Either contentSource or contentFromConversation is required.',
   });
+const pageContentEditArgs = z.object({
+  anchor: z.string().min(1).max(20_000),
+  mode: z.enum(['insertBefore', 'insertAfter', 'replace']),
+  text: z.string().max(500_000),
+});
+const insertPageContentArgs = z.object({
+  pageId: z.string().uuid(),
+  revisionId: z.string().uuid(),
+  edits: z.array(pageContentEditArgs).min(1).max(20),
+});
 const propertiesArgs = z.object({
   pageId: z.string().uuid(),
   title: z.string().min(1).max(200).optional(),
@@ -622,6 +637,34 @@ function assertCompleteDraftSource(contentSource: string) {
   }
 }
 
+/** Below this fraction of the current revision's length, a save_draft
+ * submission is treated as likely unintentional content loss rather than a
+ * genuine large deletion (037, US3, research.md Decision 5). */
+const CONTENT_LOSS_MIN_RATIO = 0.5;
+
+/**
+ * `save_draft` replaces the whole page body, so a model that fails to fully
+ * reproduce a large page silently drops content with no signal to anyone —
+ * the exact failure mode a production incident hit on a ~36,000-character
+ * page. Reject a submission that looks like it dropped most of the current
+ * revision unless the caller explicitly acknowledges the reduction was
+ * intentional. This cannot instead escalate `effectiveReview`: the runtime
+ * resolves and records that before this executor ever runs, and page_draft
+ * executors do not gate execution on it (see research.md Decision 5).
+ */
+function assertNoUnacknowledgedContentLoss(
+  currentSource: string,
+  submittedSource: string,
+  acknowledged: boolean,
+) {
+  if (acknowledged || currentSource.length === 0) return;
+  if (submittedSource.length / currentSource.length >= CONTENT_LOSS_MIN_RATIO) return;
+  throw new DomainError(
+    'BAD_REQUEST',
+    `The submitted contentSource (${submittedSource.length} characters) is dramatically shorter than the current revision (${currentSource.length} characters) — this looks like content was lost rather than intentionally removed. If the user's request genuinely asked to delete or drastically shorten this page, resubmit with acknowledgedContentReduction: true.`,
+  );
+}
+
 /**
  * Recover unchanged lines that a model copied from a JSON-encoded get_page
  * result into a YAML literal block. JSON represents `\foo` as `\\foo`, while
@@ -713,6 +756,11 @@ async function execSaveDraft(
   if (!page) return fail('NOT_FOUND', 'No readable page matched.');
   const requestedSource = resolvePageContent(args, execCtx);
   assertCompleteDraftSource(requestedSource);
+  assertNoUnacknowledgedContentLoss(
+    page.contentSource ?? '',
+    requestedSource,
+    args.acknowledgedContentReduction ?? false,
+  );
   const revision = await content.createDraft(ctx, args.pageId, {
     title: args.title ?? page.title,
     contentSource: restoreJsonEscapedBackslashes(page.contentSource ?? '', requestedSource),
@@ -722,6 +770,41 @@ async function execSaveDraft(
     summary: `Saved draft revision v${revision.version}.`,
     draftPageId: args.pageId,
     data: { pageId: args.pageId, version: revision.version },
+  };
+}
+
+/**
+ * Change an existing page by splicing one or more anchored edits into its
+ * current revision (037, US1/US2). Unlike `save_draft`, this never asks the
+ * model to reproduce Markdown outside the edited spans: every anchor is
+ * resolved and validated against the exact current revision before anything
+ * is applied, so a request either lands completely or leaves the page
+ * untouched.
+ */
+async function execInsertPageContent(
+  ctx: PermCtx,
+  rawArgs: unknown,
+): Promise<ToolExecutionResult> {
+  const args = insertPageContentArgs.parse(rawArgs);
+  const page = await content.getPageById(ctx, args.pageId, ['latestRevision']);
+  if (!page) return fail('NOT_FOUND', 'No readable page matched.');
+  if (!page.latestRevision || page.latestRevision.id !== args.revisionId) {
+    return fail(
+      'STALE_REVISION',
+      'The page has changed since this revision was read. Call get_page again and retry with the current revisionId.',
+    );
+  }
+  const nextSource = applyPageContentEdits(page.contentSource ?? '', args.edits);
+  const revision = await content.createDraft(ctx, args.pageId, {
+    title: page.title,
+    contentSource: nextSource,
+    baseRevisionId: args.revisionId,
+  });
+  return {
+    ok: true,
+    summary: `Applied ${args.edits.length} edit(s) to draft revision v${revision.version}.`,
+    draftPageId: args.pageId,
+    data: { pageId: args.pageId, version: revision.version, editsApplied: args.edits.length },
   };
 }
 
@@ -1314,6 +1397,7 @@ const EXECUTORS: Record<string, Executor> = {
   web_open: execWebOpen,
   create_page: execCreatePage,
   save_draft: execSaveDraft,
+  insert_page_content: (ctx, args) => execInsertPageContent(ctx, args),
   update_page_properties: execUpdatePageProperties,
   update_page_metadata: execUpdatePageMetadata,
   replace_page_tags: execReplacePageTags,

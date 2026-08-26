@@ -152,7 +152,7 @@ export async function createToolEnabledWikiQuestion(
     currentPage?: { pageId: string; revisionId: string };
     conversation?: { question: string; answer: string }[];
     requestMetadata?: Record<string, unknown>;
-    research?: { mode: ResearchMode; externalResearchConsent: boolean };
+    research?: { mode: ResearchMode; externalResearchConsent: boolean; allowDraftWrites?: boolean };
   },
 ): Promise<{ fallback: true } | { fallback: false; action: AiActionAccepted }> {
   await assertAiFeature(ctx, 'question');

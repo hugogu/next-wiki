@@ -345,8 +345,61 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
           type: 'boolean',
           description: 'Save the previous assistant answer verbatim instead of contentSource.',
         },
+        acknowledgedContentReduction: {
+          type: 'boolean',
+          description:
+            'Set true only when the user explicitly asked to delete or drastically shorten this page. A submission dramatically shorter than the current revision is otherwise rejected as likely unintentional content loss.',
+        },
       },
       required: ['pageId'],
+    },
+  },
+  {
+    name: 'insert_page_content',
+    category: 'page_draft',
+    riskLevel: 'draft_write',
+    requiredScope: 'edit',
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'always_review',
+    description:
+      'Change part of an existing page without reproducing the rest of it. Each edit names an anchor — a short, exact, unique excerpt copied verbatim from the current revision — and either inserts new text immediately before or after it, or replaces it outright. Every edit in one call is verified against the anchors before any of them are applied, and applied together as one new draft revision, or not at all. Prefer this over save_draft for incremental changes to an existing page; use save_draft only for a genuine full rewrite.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pageId: { type: 'string', description: 'Id of an existing page.' },
+        revisionId: {
+          type: 'string',
+          description: 'The current revision id every anchor is verified against, from get_page.',
+        },
+        edits: {
+          type: 'array',
+          description:
+            'One or more anchored edits, applied together as one new draft revision, or not at all.',
+          items: {
+            type: 'object',
+            properties: {
+              anchor: {
+                type: 'string',
+                description:
+                  'A short, exact, unique excerpt copied verbatim from the current revision\'s Markdown.',
+              },
+              mode: {
+                type: 'string',
+                enum: ['insertBefore', 'insertAfter', 'replace'],
+                description:
+                  'insertBefore/insertAfter place text next to the anchor; replace substitutes the anchor itself (use empty text to delete it).',
+              },
+              text: {
+                type: 'string',
+                description:
+                  'The text to insert or substitute. Include any surrounding whitespace/newlines you need — it is spliced in exactly as given.',
+              },
+            },
+            required: ['anchor', 'mode', 'text'],
+          },
+        },
+      },
+      required: ['pageId', 'revisionId', 'edits'],
     },
   },
   {

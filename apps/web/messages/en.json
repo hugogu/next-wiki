@@ -2521,7 +2521,8 @@
         "enable": "Use external web research when Wiki evidence is insufficient",
         "consent": "I understand that this question will be sent to a third-party search provider. I will not include personal or confidential information.",
         "notice": "External web research is enabled for this account; questions may be sent to the configured search provider.",
-        "manage": "Manage in User Settings"
+        "manage": "Manage in User Settings",
+        "allowDraftWrites": "Allow this turn to save page changes"
       },
       "empty": "Ask a question grounded in this Wiki.",
       "queued": "Waiting for an available AI worker…",

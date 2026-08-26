@@ -8,6 +8,7 @@ import { useAiChat } from '@/hooks/use-ai-chat';
 import { useResizableWidth } from '@/hooks/use-resizable-width';
 import { Button } from '@/components/ui/Button';
 import { ModalDialog } from '@/components/ui/ModalDialog';
+import { Switch } from '@/components/ui/Switch';
 import { useTranslation } from '@/i18n/client';
 import {
   ChevronRightIcon,
@@ -139,6 +140,10 @@ export function AiChatPane({
   );
   const [question, setQuestion] = useState('');
   const [webResearchConsent, setWebResearchConsent] = useState(false);
+  // 038: explicit, per-turn opt-in only — reset on every mount/turn rather
+  // than persisted, so a user must consciously re-enable it each time rather
+  // than it silently staying on across an entire session.
+  const [allowDraftWrites, setAllowDraftWrites] = useState(false);
   const [pendingResearchQuestion, setPendingResearchQuestion] = useState<string | null>(null);
   const [chatUrlSettled, setChatUrlSettled] = useState(false);
   const [internalMaximized, setInternalMaximized] = useState(false);
@@ -411,9 +416,14 @@ export function AiChatPane({
       return;
     }
     setQuestion('');
+    const draftWritesThisTurn = effectiveResearchMode === 'wiki_first_web' && allowDraftWrites;
+    // Per-turn opt-in: reset immediately so it does not silently carry over
+    // to the next question in this same pane mount.
+    setAllowDraftWrites(false);
     void chat.ask(trimmed, 'retrieval', {
       mode: effectiveResearchMode,
       externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
+      allowDraftWrites: draftWritesThisTurn,
     });
   };
 
@@ -424,9 +434,12 @@ export function AiChatPane({
     setWebResearchConsent(true);
     setPendingResearchQuestion(null);
     setQuestion('');
+    const draftWritesThisTurn = effectiveResearchMode === 'wiki_first_web' && allowDraftWrites;
+    setAllowDraftWrites(false);
     void chat.ask(value, 'retrieval', {
       mode: effectiveResearchMode,
       externalResearchConsent: effectiveResearchMode === 'wiki_first_web',
+      allowDraftWrites: draftWritesThisTurn,
     });
   };
 
@@ -625,6 +638,14 @@ export function AiChatPane({
             <Link className="text-primary hover:underline" href="/user-center/settings">
               {t('ai.chat.research.manage')}
             </Link>
+            <div className="flex items-center gap-sm pt-xs">
+              <Switch
+                checked={allowDraftWrites}
+                onClick={() => setAllowDraftWrites((value) => !value)}
+                aria-label={t('ai.chat.research.allowDraftWrites')}
+              />
+              <span>{t('ai.chat.research.allowDraftWrites')}</span>
+            </div>
           </div>
         )}
         <form

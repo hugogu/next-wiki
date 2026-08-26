@@ -89,7 +89,7 @@ type ToolEnabledQuestionInput = {
   requestedReview?: AiToolReviewDecision;
   currentPage?: { pageId: string; revisionId: string };
   conversation?: { question: string; answer: string }[];
-  research?: { mode: ResearchMode; externalResearchConsent: boolean };
+  research?: { mode: ResearchMode; externalResearchConsent: boolean; allowDraftWrites?: boolean };
 };
 
 // How many times to shrink the attached sources and retry when the provider
@@ -398,6 +398,15 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     await assertAiFeature(ctx, 'web_research');
     await requireWebResearchConfiguration();
   }
+  // 038: explicit, user-set opt-in only — never inferred from the model's
+  // plan or from fetched web content, both of which can be influenced by an
+  // untrusted source. Ungates only insert_page_content/save_draft (draft
+  // creation); create_page, insert_generated_images, and every metadata/
+  // permission/publish/tag tool stay unavailable in a Web Research turn
+  // regardless (038 spec Assumptions). Publishing the resulting draft still
+  // requires the same separate, human-initiated review/publish action every
+  // other draft already requires.
+  const allowWritesDuringResearch = webResearch && input.research?.allowDraftWrites === true;
   const conversation = await loadWebConversationContext({
     actorUserId: user.id,
     queuedAt: action.queuedAt,
@@ -461,6 +470,9 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
     .filter(isEnabled)
     .filter((tool) => {
       if (!webResearch) return tool.category !== 'web';
+      if (allowWritesDuringResearch && (tool.name === 'insert_page_content' || tool.name === 'save_draft')) {
+        return true;
+      }
       return tool.riskLevel === 'read' && ['read', 'tag', 'skill', 'web'].includes(tool.category);
     });
   const providerDefault = policyRows.find((row) => row.toolName == null && row.category == null);
