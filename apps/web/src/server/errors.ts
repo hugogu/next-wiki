@@ -17,7 +17,7 @@ export type DomainErrorCode =
   | 'PAGE_PATH_RESERVED' // 409: page path shadows a built-in app/ route (new/edit/etc.)
   | 'STALE_REVISION'
   | 'REVISION_ALREADY_PUBLISHED'
-  | 'REVISION_NOT_DELETABLE' // 409: the currently published or latest revision cannot be deleted
+  | 'REVISION_NOT_DELETABLE' // 409: the currently published revision, or a page's only remaining revision, cannot be deleted
   // Content storage (003).
   | 'INVALID_IMAGE' // 400: rejected upload (bad type/size)
   | 'STORAGE_MIGRATING' // 423: write blocked by an in-progress backend migration

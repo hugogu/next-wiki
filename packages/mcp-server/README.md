@@ -112,7 +112,7 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `promote_generated_image` | Promote a generated image to a reusable private asset without editing a page |
 | `get_page_tree` | Get the directory tree of pages |
 | `delete_page` | Soft-delete a page |
-| `delete_revision` | Soft-delete a historical revision of a page (not the current published or latest revision) |
+| `delete_revision` | Soft-delete a historical revision of a page (not the current published revision, nor a page's only remaining revision) |
 | `get_backlinks` | Find pages linking to a target page |
 | `get_page_outbound_links` | List outbound links, dangling links, and external links |
 | `get_neighborhood` | Walk the link graph around a page |

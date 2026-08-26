@@ -33,7 +33,7 @@ export const GET = withPublicApi<{ id: string; version: string }>(async (_reques
  *
  * @openapi
  * @summary Delete public wiki page revision
- * @description Soft-deletes a historical revision. The currently published and latest revisions cannot be deleted.
+ * @description Soft-deletes a historical revision. The currently published revision, and a page's only remaining revision, cannot be deleted.
  * @tag Revisions
  * @auth bearer
  * @pathParams PublicPageRevisionPathParams

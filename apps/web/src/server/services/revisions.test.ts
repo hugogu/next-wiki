@@ -165,7 +165,7 @@ describe('revisionService US4', () => {
       ).rejects.toMatchObject({ code: 'REVISION_NOT_DELETABLE' });
     });
 
-    it('rejects deleting the latest (unpublished) revision', async () => {
+    it('rejects deleting the only remaining revision', async () => {
       const editor = await createUser('editor-delete-latest@example.com', 'editor');
       const ctx = buildUserCtx(editor.id, 'editor');
 
@@ -174,6 +174,28 @@ describe('revisionService US4', () => {
       await expect(
         revisionService.remove(ctx, { pageId, version: 1 }),
       ).rejects.toMatchObject({ code: 'REVISION_NOT_DELETABLE' });
+    });
+
+    it('deletes the latest revision when a sibling survives, moving latestVersionId back', async () => {
+      const editor = await createUser('editor-delete-latest-sibling@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const { pageId } = await pageService.create(ctx, { path: 'delete-rev-latest-sibling', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(ctx, { path: 'delete-rev-latest-sibling', version: 1 });
+      await pageService.newDraft(ctx, 'delete-rev-latest-sibling', { title: 'T', contentSource: 'v2' });
+
+      const v1 = await db.query.pageRevisions.findFirst({
+        where: and(eq(schema.pageRevisions.pageId, pageId), eq(schema.pageRevisions.versionNumber, 1)),
+      });
+      if (!v1) throw new Error('Failed to find v1');
+
+      await revisionService.remove(ctx, { pageId, version: 2 });
+
+      const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
+      expect(page?.latestVersionId).toBe(v1.id);
+
+      const history = await pageService.getHistory(ctx, 'delete-rev-latest-sibling');
+      expect(history.map((r) => r.version)).toEqual([1]);
     });
 
     it('denies a non-author, non-admin editor from deleting the revision', async () => {

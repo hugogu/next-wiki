@@ -479,9 +479,10 @@ export const pageRevisions = pgTable(
       onDelete: 'restrict',
     }),
     publishedAt: timestamp('published_at', { withTimezone: true }),
-    // Soft-delete: never the current published or latest revision (enforced in
-    // the service layer, see revisions.ts `remove`), so a deleted revision is
-    // always a superseded, non-live historical entry.
+    // Soft-delete: never the currently published revision, and never a
+    // page's only surviving revision (enforced in the service layer, see
+    // revisions.ts `remove`, which also walks `pages.latestVersionId` back
+    // when the latest revision itself is deleted).
     deletedAt: timestamp('deleted_at', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

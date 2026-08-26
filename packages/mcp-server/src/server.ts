@@ -214,7 +214,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
 
   server.tool(
     'delete_revision',
-    'Soft-delete a historical revision of a page. The currently published and latest revisions cannot be deleted.',
+    "Soft-delete a historical revision of a page. The currently published revision, and a page's only remaining revision, cannot be deleted.",
     deleteRevisionSchema,
     async (args) => ({
       content: [{ type: 'text', text: JSON.stringify(await deleteRevision(client, args)) }],
