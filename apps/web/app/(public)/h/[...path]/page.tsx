@@ -173,6 +173,7 @@ export default async function HistoryPage({
               version: revision.version,
               status: revision.status,
               canPublish: revision.canPublish,
+              canDelete: revision.canDelete,
               meta: t('page.history.revisionMeta', {
                 date: formatter.dateTime(new Date(revision.createdAt), 'short'),
                 name: revision.authorDisplayName ?? t('common.unknownAuthor'),

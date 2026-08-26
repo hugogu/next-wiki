@@ -357,6 +357,13 @@
         "submit": "Compare",
         "ready": "Two revisions selected",
         "selectHint": "Select two revisions"
+      },
+      "delete": {
+        "action": "Delete version {version}",
+        "title": "Delete revision?",
+        "message": "Delete version {version}? This cannot be undone.",
+        "confirm": "Delete revision",
+        "error": "Could not delete revision."
       }
     },
     "revision": {

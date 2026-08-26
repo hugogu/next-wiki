@@ -50,6 +50,7 @@ export async function publish(
       where: and(
         eq(schema.pageRevisions.pageId, page.id),
         eq(schema.pageRevisions.versionNumber, input.version),
+        isNull(schema.pageRevisions.deletedAt),
       ),
     });
     if (!revision) throw new DomainError('NOT_FOUND', 'Revision not found');
@@ -93,4 +94,70 @@ export async function publish(
   // newest published revision). Safe no-op for translated pages.
   await invalidateTranslationsForSource(result.pageId);
   return { versionId: result.versionId };
+}
+
+export async function remove(
+  ctx: PermCtx,
+  input: { pageId: string; version: number; space?: string },
+): Promise<void> {
+  const userId = getUserId(ctx);
+  if (!userId) {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to delete revisions');
+  }
+
+  await assertNotMigrating();
+
+  const space = await resolveSpace(input.space);
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
+
+  await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+
+    // Looked up by id, not (spaceId, path): pages are only unique on
+    // (spaceId, path, locale), so a path-only lookup could resolve to a
+    // different locale's page (e.g. a translation sharing the same path)
+    // and delete the wrong revision.
+    const page = await tx.query.pages.findFirst({
+      where: and(
+        eq(schema.pages.id, input.pageId),
+        eq(schema.pages.spaceId, space.id),
+        isNull(schema.pages.deletedAt),
+      ),
+    });
+    if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+    if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages have no deletable revisions');
+
+    const revision = await tx.query.pageRevisions.findFirst({
+      where: and(
+        eq(schema.pageRevisions.pageId, page.id),
+        eq(schema.pageRevisions.versionNumber, input.version),
+        isNull(schema.pageRevisions.deletedAt),
+      ),
+    });
+    if (!revision) throw new DomainError('NOT_FOUND', 'Revision not found');
+
+    const isAuthor = revision.authorId === userId;
+    if (!can(
+      ctx,
+      'delete',
+      { kind: 'revision', pageId: page.id, version: input.version },
+      pagePermissionOptions(space, page, { isAuthor }),
+    )) {
+      throw new DomainError('FORBIDDEN', 'You do not have permission to delete this revision');
+    }
+
+    if (revision.id === page.currentPublishedVersionId) {
+      throw new DomainError('REVISION_NOT_DELETABLE', 'Cannot delete the currently published revision');
+    }
+    if (revision.id === page.latestVersionId) {
+      throw new DomainError('REVISION_NOT_DELETABLE', 'Cannot delete the latest revision');
+    }
+
+    await tx
+      .update(schema.pageRevisions)
+      .set({ deletedAt: new Date() })
+      .where(eq(schema.pageRevisions.id, revision.id));
+  });
+  invalidatePublicContentCache();
 }

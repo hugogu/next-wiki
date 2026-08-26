@@ -27,3 +27,22 @@ export const GET = withPublicApi<{ id: string; version: string }>(async (_reques
   if (!revision) return publicApiError('NOT_FOUND', 'Revision not found', 404);
   return publicJson(revision);
 });
+
+/**
+ * Soft-delete a page revision.
+ *
+ * @openapi
+ * @summary Delete public wiki page revision
+ * @description Soft-deletes a historical revision. The currently published and latest revisions cannot be deleted.
+ * @tag Revisions
+ * @auth bearer
+ * @pathParams PublicPageRevisionPathParams
+ * @response 204
+ */
+export const DELETE = withPublicApi<{ id: string; version: string }>(async (_request, { params }, ctx) => {
+  const parsedParams = paramsSchema.safeParse(await params);
+  if (!parsedParams.success) return validationError(parsedParams.error);
+
+  await publicContent.deleteRevision(ctx, parsedParams.data.id, parsedParams.data.version);
+  return new Response(null, { status: 204 });
+});

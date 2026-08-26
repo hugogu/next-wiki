@@ -1,5 +1,5 @@
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as pageService from '@/server/services/pages';
@@ -133,6 +133,147 @@ describe('revisionService US4', () => {
       await expect(
         revisionService.publish(buildUserCtx(reader.id, 'reader'), { path: 'deny-publish', version: 1 }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+  });
+
+  describe('remove', () => {
+    it('soft-deletes a superseded revision and hides it from history and reads', async () => {
+      const editor = await createUser('editor-delete-rev@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const { pageId } = await pageService.create(ctx, { path: 'delete-rev-superseded', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(ctx, { path: 'delete-rev-superseded', version: 1 });
+      await pageService.newDraft(ctx, 'delete-rev-superseded', { title: 'T', contentSource: 'v2' });
+      await revisionService.publish(ctx, { path: 'delete-rev-superseded', version: 2 });
+
+      await revisionService.remove(ctx, { pageId, version: 1 });
+
+      const history = await pageService.getHistory(ctx, 'delete-rev-superseded');
+      expect(history.map((r) => r.version)).toEqual([2]);
+      expect(await pageService.getRevision(ctx, 'delete-rev-superseded', 1)).toBeNull();
+    });
+
+    it('rejects deleting the currently published revision', async () => {
+      const editor = await createUser('editor-delete-current@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const { pageId } = await pageService.create(ctx, { path: 'delete-rev-current', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(ctx, { path: 'delete-rev-current', version: 1 });
+
+      await expect(
+        revisionService.remove(ctx, { pageId, version: 1 }),
+      ).rejects.toMatchObject({ code: 'REVISION_NOT_DELETABLE' });
+    });
+
+    it('rejects deleting the latest (unpublished) revision', async () => {
+      const editor = await createUser('editor-delete-latest@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const { pageId } = await pageService.create(ctx, { path: 'delete-rev-latest', title: 'T', contentSource: 'v1' });
+
+      await expect(
+        revisionService.remove(ctx, { pageId, version: 1 }),
+      ).rejects.toMatchObject({ code: 'REVISION_NOT_DELETABLE' });
+    });
+
+    it('denies a non-author, non-admin editor from deleting the revision', async () => {
+      const owner = await createUser('editor-delrev-owner@example.com', 'editor');
+      const other = await createUser('editor-delrev-other@example.com', 'editor');
+      const ownerCtx = buildUserCtx(owner.id, 'editor');
+      const otherCtx = buildUserCtx(other.id, 'editor');
+
+      const { pageId } = await pageService.create(ownerCtx, { path: 'delete-rev-denied', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(ownerCtx, { path: 'delete-rev-denied', version: 1 });
+      await pageService.newDraft(ownerCtx, 'delete-rev-denied', { title: 'T', contentSource: 'v2' });
+      await revisionService.publish(ownerCtx, { path: 'delete-rev-denied', version: 2 });
+
+      await expect(
+        revisionService.remove(otherCtx, { pageId, version: 1 }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('denies anonymous and readers', async () => {
+      const editor = await createUser('editor-delrev-deny@example.com', 'editor');
+      const reader = await createUser('reader-delrev-deny@example.com', 'reader');
+      const editorCtx = buildUserCtx(editor.id, 'editor');
+
+      const { pageId } = await pageService.create(editorCtx, { path: 'delete-rev-deny-anon', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(editorCtx, { path: 'delete-rev-deny-anon', version: 1 });
+      await pageService.newDraft(editorCtx, 'delete-rev-deny-anon', { title: 'T', contentSource: 'v2' });
+      await revisionService.publish(editorCtx, { path: 'delete-rev-deny-anon', version: 2 });
+
+      await expect(
+        revisionService.remove(buildAnonymousCtx(), { pageId, version: 1 }),
+      ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+
+      await expect(
+        revisionService.remove(buildUserCtx(reader.id, 'reader'), { pageId, version: 1 }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('resolves the page by id, not by (space, path) alone, when another page shares the same path', async () => {
+      const editor = await createUser('editor-delrev-locale@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      const { pageId: sourcePageId } = await pageService.create(ctx, {
+        path: 'delete-rev-locale',
+        title: 'T',
+        contentSource: 'v1',
+      });
+      await revisionService.publish(ctx, { path: 'delete-rev-locale', version: 1 });
+      await pageService.newDraft(ctx, 'delete-rev-locale', { title: 'T', contentSource: 'v2' });
+      await revisionService.publish(ctx, { path: 'delete-rev-locale', version: 2 });
+      const sourceRevision1 = await db.query.pageRevisions.findFirst({
+        where: and(eq(schema.pageRevisions.pageId, sourcePageId), eq(schema.pageRevisions.versionNumber, 1)),
+      });
+      if (!sourceRevision1) throw new Error('Failed to find source revision 1');
+
+      // `pages` is unique on (space_id, path, locale), so a different locale
+      // can legitimately share the same path as the page above. A lookup by
+      // (spaceId, path) alone would be ambiguous between the two.
+      const defaultSpace = await ensureDefaultSpace();
+      if (!defaultSpace) throw new Error('Failed to resolve default space');
+      const [otherLocalePage] = await db
+        .insert(schema.pages)
+        .values({
+          spaceId: defaultSpace.id,
+          slug: 'delete-rev-locale-zh',
+          path: 'delete-rev-locale',
+          locale: 'zh',
+          title: 'T',
+          authorId: editor.id,
+        })
+        .returning();
+      if (!otherLocalePage) throw new Error('Failed to create other-locale page');
+      const [otherRevision] = await db
+        .insert(schema.pageRevisions)
+        .values({
+          pageId: otherLocalePage.id,
+          versionNumber: 1,
+          contentSource: 'zh v1',
+          contentHtml: '<p>zh v1</p>',
+          contentHash: 'zh-v1-hash',
+          authorId: editor.id,
+          status: 'published',
+        })
+        .returning();
+      if (!otherRevision) throw new Error('Failed to create other-locale revision');
+      await db
+        .update(schema.pages)
+        .set({ currentPublishedVersionId: otherRevision.id, latestVersionId: otherRevision.id })
+        .where(eq(schema.pages.id, otherLocalePage.id));
+
+      await revisionService.remove(ctx, { pageId: sourcePageId, version: 1 });
+
+      const deletedSourceRevision = await db.query.pageRevisions.findFirst({
+        where: eq(schema.pageRevisions.id, sourceRevision1.id),
+      });
+      expect(deletedSourceRevision?.deletedAt).toBeTruthy();
+
+      const untouchedOtherRevision = await db.query.pageRevisions.findFirst({
+        where: eq(schema.pageRevisions.id, otherRevision.id),
+      });
+      expect(untouchedOtherRevision?.deletedAt).toBeNull();
     });
   });
 });

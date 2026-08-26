@@ -2,6 +2,7 @@
 
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { PublishButton } from '@/components/pages/PublishButton';
+import { DeleteRevisionButton } from '@/components/pages/DeleteRevisionButton';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { useTranslation } from '@/i18n/client';
 import type { ReaderSpace } from '@/lib/path';
@@ -12,6 +13,7 @@ export type HistoryRevision = {
   status: string;
   meta: string;
   canPublish: boolean;
+  canDelete: boolean;
 };
 
 type ComparedRevision = {
@@ -140,6 +142,9 @@ export function HistoryRevisionSelector({
                     iconOnly
                     variant="restore"
                   />
+                ) : null}
+                {revision.canDelete && pageId ? (
+                  <DeleteRevisionButton pageId={pageId} path={path} space={space} version={revision.version} />
                 ) : null}
               </li>
             );

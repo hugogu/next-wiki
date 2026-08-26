@@ -937,7 +937,7 @@ export async function listRevisions(ctx: PermCtx, pageId: string, query: PublicR
   const rows = await db
     .select()
     .from(schema.pageRevisions)
-    .where(eq(schema.pageRevisions.pageId, page.id))
+    .where(and(eq(schema.pageRevisions.pageId, page.id), isNull(schema.pageRevisions.deletedAt)))
     .orderBy(desc(schema.pageRevisions.versionNumber))
     .limit(query.limit + 1)
     .offset(cursor.offset);
@@ -969,10 +969,19 @@ export async function getRevision(ctx: PermCtx, pageId: string, version: number)
     where: and(
       eq(schema.pageRevisions.pageId, page.id),
       eq(schema.pageRevisions.versionNumber, version),
+      isNull(schema.pageRevisions.deletedAt),
     ),
   });
   if (!revision) return null;
   return visibleRevisionResource(ctx, space, page, revision);
+}
+
+export async function deleteRevision(ctx: PermCtx, pageId: string, version: number): Promise<void> {
+  const page = await getPageRowById(pageId);
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  const space = await getSpaceById(page.spaceId);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  await revisionService.remove(ctx, { pageId: page.id, version, space: space.slug });
 }
 
 export async function publishRevision(

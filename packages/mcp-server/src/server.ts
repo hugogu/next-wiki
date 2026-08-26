@@ -3,6 +3,7 @@ import { getWikiMcpToolDescription as description } from '@next-wiki/shared';
 import type { WikiApiClient } from './api-client';
 import { createPage, createPageSchema } from './tools/create-page';
 import { deletePage, deletePageSchema } from './tools/delete-page';
+import { deleteRevision, deleteRevisionSchema } from './tools/delete-revision';
 import { getBacklinks, getBacklinksSchema } from './tools/get-backlinks';
 import { getDiff, getDiffSchema } from './tools/get-diff';
 import { getPage, getPageSchema } from './tools/get-page';
@@ -210,6 +211,15 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
   server.tool('delete_page', 'Soft-delete a wiki page, preserving its revision history.', deletePageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await deletePage(client, args)) }],
   }));
+
+  server.tool(
+    'delete_revision',
+    'Soft-delete a historical revision of a page. The currently published and latest revisions cannot be deleted.',
+    deleteRevisionSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await deleteRevision(client, args)) }],
+    }),
+  );
 
   server.tool('get_backlinks', description('get_backlinks'), getBacklinksSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await getBacklinks(client, args)) }],
