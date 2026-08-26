@@ -19548,7 +19548,7 @@
       "delete": {
         "operationId": "delete-v1-pages-{id}-revisions-{version}",
         "summary": "Delete public wiki page revision",
-        "description": "Soft-deletes a historical revision. The currently published and latest revisions cannot be deleted.",
+        "description": "Soft-deletes a historical revision. The currently published revision, and a page's only remaining revision, cannot be deleted.",
         "tags": [
           "Revisions"
         ],

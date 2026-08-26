@@ -2102,12 +2102,13 @@ export async function getHistory(ctx: PermCtx, path: string, spaceSlug?: string)
         { kind: 'revision', pageId: page.id, version: r.version },
         pagePermissionOptions(space, page, { isAuthor }),
       );
-      // A revision may never be deleted while it is the currently published or
-      // latest version — deleting it would leave `pages.currentPublishedVersionId`
-      // / `latestVersionId` dangling (see revisions.ts `remove`).
+      // A revision may never be deleted while it is the currently published
+      // version, or while it's the page's only surviving revision (deleting
+      // the latest is otherwise fine — `latestVersionId` moves back to the
+      // next one; see revisions.ts `remove`).
       const canDelete =
+        rows.length > 1 &&
         r.id !== page.currentPublishedVersionId &&
-        r.id !== page.latestVersionId &&
         can(
           ctx,
           'delete',

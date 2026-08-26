@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, desc, eq, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, type PermCtx, getActorUserId, pagePermissionOptions } from '@/server/permissions';
@@ -150,14 +150,35 @@ export async function remove(
     if (revision.id === page.currentPublishedVersionId) {
       throw new DomainError('REVISION_NOT_DELETABLE', 'Cannot delete the currently published revision');
     }
-    if (revision.id === page.latestVersionId) {
-      throw new DomainError('REVISION_NOT_DELETABLE', 'Cannot delete the latest revision');
+
+    // Deleting the latest revision is fine — latestVersionId just moves back
+    // to the next survivor, computed below. What must never happen is a page
+    // left with zero revisions, so a lone surviving revision is protected
+    // even if it's an unpublished draft the "current" check above missed.
+    const survivors = await tx.query.pageRevisions.findMany({
+      where: and(
+        eq(schema.pageRevisions.pageId, page.id),
+        isNull(schema.pageRevisions.deletedAt),
+      ),
+      columns: { id: true },
+      orderBy: desc(schema.pageRevisions.versionNumber),
+    });
+    if (survivors.length <= 1) {
+      throw new DomainError('REVISION_NOT_DELETABLE', 'Cannot delete the only remaining revision');
     }
 
     await tx
       .update(schema.pageRevisions)
       .set({ deletedAt: new Date() })
       .where(eq(schema.pageRevisions.id, revision.id));
+
+    if (revision.id === page.latestVersionId) {
+      const newLatestId = survivors.find((r) => r.id !== revision.id)!.id;
+      await tx
+        .update(schema.pages)
+        .set({ latestVersionId: newLatestId, updatedAt: new Date() })
+        .where(eq(schema.pages.id, page.id));
+    }
   });
   invalidatePublicContentCache();
 }
