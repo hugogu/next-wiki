@@ -40,49 +40,142 @@ export const TOOL_CATALOG_PLACEHOLDER = '{{TOOLS}}';
  * scaling with the library (028, FR-018). */
 export const SKILL_CATALOG_PLACEHOLDER = '{{SKILLS}}';
 
-/** Marker where the runtime injects page-mutation guidance, conditioned on
- * whether `create_page`/`save_draft` are actually in the policy-filtered tool
- * list for this turn (see `WRITE_TOOL_GUIDANCE` / `NO_WRITE_TOOL_GUIDANCE_*`
- * below for why this must not be static prose). */
+/** Marker where the runtime injects page-mutation guidance, composed per-tool
+ * from exactly which of `create_page`/`save_draft`/`insert_generated_images`
+ * are in the policy-filtered tool list for this turn (see
+ * `buildWriteToolGuidance` / `NO_WRITE_TOOL_GUIDANCE_*` below for why this
+ * must not be static prose). */
 export const WRITE_TOOL_GUIDANCE_PLACEHOLDER = '{{WRITE_TOOL_GUIDANCE}}';
 
 /**
- * Detailed create_page/save_draft usage rules. Injected only when a page_draft
- * tool is actually present in this turn's tool list.
+ * Detailed create_page/save_draft/insert_generated_images usage rules,
+ * composed per-tool from what is actually present in this turn's tool list.
+ *
+ * This must be built from exact tool *names*, not the shared `page_draft`
+ * category: `insert_generated_images` shares that category with
+ * `create_page`/`save_draft` but is independently enabled/disabled (per-tool
+ * admin policy, or a permission scope difference), so a turn can easily have
+ * one without the others. Gating on category alone reintroduces the exact
+ * failure this prompt exists to prevent — detailed save_draft instructions
+ * shown for a turn where only image insertion is actually callable.
  */
-export const WRITE_TOOL_GUIDANCE = [
-  'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
-  'For create_page, use path, title, and contentSource. To save the latest assistant answer, use contentFromConversation=true instead of repeating the answer in contentSource.',
-  'After create_page succeeds, always include a Markdown link to the new page in the final answer, using the exact title and href returned by the tool result. Do not replace this page link with a citation marker.',
-  'For save_draft, use the exact pageId returned by get_page. contentSource is the whole final page Markdown: it replaces the current body rather than applying a patch. Before an incremental edit, retrieve every get_page window, preserve every unchanged section verbatim, and put the entire revised document in contentSource. Never pass a plan or instruction (for example, "pageSource full + insert a section"), a diff, a selector, or a placeholder as contentSource. If you cannot retrieve the entire existing page, do not call save_draft; explain that you could not safely prepare the draft. The title is optional and retains the page title by default. Use contentFromConversation=true only when saving the prior assistant answer unchanged.',
-  'A get_page result places its Markdown between <page_source> tags verbatim. When copying it into a YAML literal contentSource block, preserve every backslash exactly as shown; do not apply JSON escaping to Markdown.',
-  'When the user asks only to add generated images, do not use save_draft or reproduce the page Markdown. Generate every image from the same current revision, then call insert_generated_images once with the artifact ids and descriptive alt text.',
-  'If the target page for saving content does not exist after using search_wiki, list_pages, or get_page, create it with create_page. Do not repeatedly search for a page that does not exist.',
-  'save_draft only works on existing pages; never call save_draft for a page that has not been created or successfully retrieved.',
-].join('\n');
+function buildWriteToolGuidance(tools: ToolDefinition[], researchMode?: ResearchMode): string {
+  const names = new Set(tools.map((tool) => tool.name));
+  const hasCreatePage = names.has('create_page');
+  const hasSaveDraft = names.has('save_draft');
+  const hasInsertImages = names.has('insert_generated_images');
+
+  if (!hasCreatePage && !hasSaveDraft && !hasInsertImages) {
+    return researchMode === 'wiki_first_web'
+      ? NO_WRITE_TOOL_GUIDANCE_WEB_RESEARCH
+      : NO_WRITE_TOOL_GUIDANCE_GENERIC;
+  }
+
+  const lines: string[] = [];
+  if (hasCreatePage || hasSaveDraft) {
+    lines.push(
+      'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
+    );
+  }
+  if (hasCreatePage) {
+    lines.push(
+      'For create_page, use path, title, and contentSource. To save the latest assistant answer, use contentFromConversation=true instead of repeating the answer in contentSource.',
+      'After create_page succeeds, always include a Markdown link to the new page in the final answer, using the exact title and href returned by the tool result. Do not replace this page link with a citation marker.',
+    );
+  }
+  if (hasSaveDraft) {
+    lines.push(
+      'For save_draft, use the exact pageId returned by get_page. contentSource is the whole final page Markdown: it replaces the current body rather than applying a patch. Before an incremental edit, retrieve every get_page window, preserve every unchanged section verbatim, and put the entire revised document in contentSource. Never pass a plan or instruction (for example, "pageSource full + insert a section"), a diff, a selector, or a placeholder as contentSource. If you cannot retrieve the entire existing page, do not call save_draft; explain that you could not safely prepare the draft. The title is optional and retains the page title by default. Use contentFromConversation=true only when saving the prior assistant answer unchanged.',
+      'A get_page result places its Markdown between <page_source> tags verbatim. When copying it into a YAML literal contentSource block, preserve every backslash exactly as shown; do not apply JSON escaping to Markdown.',
+    );
+  }
+  if (hasInsertImages) {
+    lines.push(
+      hasSaveDraft
+        ? 'When the user asks only to add generated images, do not use save_draft or reproduce the page Markdown. Generate every image from the same current revision, then call insert_generated_images once with the artifact ids and descriptive alt text.'
+        : 'To add generated images, generate every image from the current revision, then call insert_generated_images once with the artifact ids and descriptive alt text.',
+    );
+  } else if (hasCreatePage || hasSaveDraft) {
+    lines.push(
+      'insert_generated_images is not available this turn: do not describe adding a generated image as if it happened. If the user asks for that, explain it is unavailable right now.',
+    );
+  }
+  if (hasCreatePage) {
+    lines.push(
+      'If the target page for saving content does not exist after using search_wiki, list_pages, or get_page, create it with create_page. Do not repeatedly search for a page that does not exist.',
+    );
+  } else if (hasSaveDraft) {
+    lines.push(
+      'create_page is not available this turn: if the target page does not exist, say so plainly instead of guessing a path or calling save_draft on a page that was never created.',
+    );
+  }
+  if (hasSaveDraft) {
+    lines.push(
+      'save_draft only works on existing pages; never call save_draft for a page that has not been created or successfully retrieved.',
+    );
+  }
+  return lines.join('\n');
+}
 
 /**
- * Shown instead of `WRITE_TOOL_GUIDANCE` on a Web Research (`wiki_first_web`)
- * turn, where FR-016 (036-web-research) requires every page-mutation tool to
- * be absent from the tool list regardless of what the rest of this prompt
- * says. Without an explicit, prominent statement here, a model reconciling
- * "no create_page/save_draft in the tool list" against generic instructions
- * that still assumed those tools exist would spend the entire turn second-
- * guessing whether it can write, instead of answering and telling the user
- * how to actually get the change saved.
+ * Shown when no page-mutation tool at all is available on a Web Research
+ * (`wiki_first_web`) turn, where FR-016 (036-web-research) requires every
+ * page-mutation tool to be absent from the tool list regardless of what the
+ * rest of this prompt says. Without an explicit, prominent statement here, a
+ * model reconciling "no write tool in the tool list" against generic
+ * instructions that still assumed one exists would spend the entire turn
+ * second-guessing whether it can write, instead of answering and telling the
+ * user how to actually get the change saved.
  */
 export const NO_WRITE_TOOL_GUIDANCE_WEB_RESEARCH = [
   'No page-mutation tool (create_page, save_draft, insert_generated_images) is available in this turn: Web Research turns are read-only by policy, because externally retrieved content must never be able to trigger a direct Wiki write.',
   'If the user asks you to create, save, or update Wiki content, do not attempt a write or describe one as if it happened. Instead, give the requested content directly in your answer, then tell the user to ask the same request again with Web Research turned off so a normal editing turn can save it.',
 ].join('\n');
 
-/** Shown instead of `WRITE_TOOL_GUIDANCE` when create_page/save_draft are
- * unavailable for a reason other than Web Research (permission scope or admin
- * tool policy narrowed this turn's catalog). */
+/** Shown when no page-mutation tool at all is available for a reason other
+ * than Web Research (permission scope or admin tool policy narrowed this
+ * turn's catalog to exclude create_page, save_draft, and
+ * insert_generated_images alike). */
 export const NO_WRITE_TOOL_GUIDANCE_GENERIC = [
   'No page-mutation tool (create_page, save_draft, insert_generated_images) is available for this turn.',
   'If the user asks you to create, save, or update Wiki content, do not attempt a write or describe one as if it happened. Explain plainly that you cannot save changes right now; if you know why (a permission or an admin tool policy), say so briefly.',
 ].join('\n');
+
+/**
+ * Appended once, after everything else in the composed system prompt,
+ * whenever create_page and save_draft are not both available this turn.
+ *
+ * An admin-customized `toolSystemPrompt` saved before this fix (or any custom
+ * prompt that happens to describe create_page/save_draft unconditionally)
+ * cannot be edited by this function — its content is opaque admin-authored
+ * text. Rather than trying to detect and strip that stale prose, this
+ * explicit, unambiguous override is placed last, where models weight
+ * instructions most heavily, and states in plain terms that it supersedes
+ * anything said earlier in the prompt about these tools. This is what
+ * actually closes the contradiction for a legacy stored prompt: not editing
+ * text this function does not control, but making sure the model is told,
+ * authoritatively and last, which instruction wins.
+ */
+function buildFinalWriteToolOverride(
+  hasCreatePage: boolean,
+  hasSaveDraft: boolean,
+  researchMode?: ResearchMode,
+): string {
+  const unavailable = [
+    !hasCreatePage ? 'create_page' : null,
+    !hasSaveDraft ? 'save_draft' : null,
+  ].filter((name): name is string => name !== null);
+  const reason =
+    researchMode === 'wiki_first_web'
+      ? 'this is a Web Research turn, which is read-only by policy'
+      : 'a permission or an admin tool policy narrowed this turn\'s tool catalog';
+  return [
+    '<final_tool_availability_override>',
+    `This note overrides any earlier statement in this prompt — including any admin-customized instructions above — about ${unavailable.join(' or ')}: ${unavailable.length > 1 ? 'neither is' : 'it is not'} callable this turn, because ${reason}.`,
+    `If the user asks for something that needs ${unavailable.join(' or ')}, do not attempt it or describe it as if it happened; say plainly that it is unavailable this turn${researchMode === 'wiki_first_web' ? ' and suggest retrying with Web Research turned off' : ''}.`,
+    '</final_tool_availability_override>',
+  ].join('\n');
+}
 
 /** Built-in default for the admin-editable Web research policy prompt. */
 export const DEFAULT_WEB_RESEARCH_POLICY_PROMPT = [
@@ -189,13 +282,11 @@ export function buildWikiToolSystemPrompt(
   // The generic prose in this template assumes create_page/save_draft exist;
   // swap in guidance that matches what is actually in `tools` this turn so
   // the model never has to reconcile detailed write-tool instructions against
-  // a tool list it can see does not contain them (see WRITE_TOOL_GUIDANCE_*).
-  const hasWriteTools = tools.some((tool) => tool.category === 'page_draft');
-  const writeGuidance = hasWriteTools
-    ? WRITE_TOOL_GUIDANCE
-    : overrides.researchMode === 'wiki_first_web'
-      ? NO_WRITE_TOOL_GUIDANCE_WEB_RESEARCH
-      : NO_WRITE_TOOL_GUIDANCE_GENERIC;
+  // a tool list it can see does not contain them (see buildWriteToolGuidance).
+  const toolNames = new Set(tools.map((tool) => tool.name));
+  const hasCreatePage = toolNames.has('create_page');
+  const hasSaveDraft = toolNames.has('save_draft');
+  const writeGuidance = buildWriteToolGuidance(tools, overrides.researchMode);
   const withWriteGuidance = toolSection.includes(WRITE_TOOL_GUIDANCE_PLACEHOLDER)
     ? toolSection.replaceAll(WRITE_TOOL_GUIDANCE_PLACEHOLDER, writeGuidance)
     : `${toolSection}\n\n${writeGuidance}`;
@@ -210,10 +301,21 @@ export function buildWikiToolSystemPrompt(
   const withResearchPolicy = overrides.researchMode === 'wiki_first_web'
     ? `${withSkills}\n\n${webResearchPolicy}`
     : withSkills;
+  // An admin-customized toolSystemPrompt (`overrides.toolSystemPrompt`) is
+  // opaque text this function cannot edit — it may still contain
+  // unconditional create_page/save_draft prose written before this guard
+  // existed, or before an admin/permission change narrowed this turn's tool
+  // list. Rather than trying to detect and rewrite that stale text, place an
+  // explicit, unambiguous override last, where models weight instructions
+  // most heavily, stating plainly that it supersedes anything said earlier.
+  const withFinalOverride =
+    !hasCreatePage || !hasSaveDraft
+      ? `${withResearchPolicy}\n\n${buildFinalWriteToolOverride(hasCreatePage, hasSaveDraft, overrides.researchMode)}`
+      : withResearchPolicy;
   return buildWikiAssistantSystemPrompt(
     [
       ...answerLanguageRules(overrides.answerLanguage ?? AI_ANSWER_LANGUAGE_DEFAULT),
-      withResearchPolicy,
+      withFinalOverride,
     ],
     overrides.assistantSystemPrompt,
   );

@@ -111,13 +111,19 @@ full-body `contentSource` was needed.
   contracts/wiki-ai-tools.md) in
   `apps/web/src/server/services/ai-tool-registry.ts`
 - [ ] T009 [US1] Add `insert_page_content` usage guidance to
-  `WRITE_TOOL_GUIDANCE` in `wiki-question-tool-planner.ts`: prefer it for
-  incremental changes to an existing page; use the exact `pageId`/`revisionId`
-  from `get_page`; each `anchor` must be copied verbatim (same
-  backslash-preservation rule that already applies to `save_draft`'s
-  `contentSource`); reserve `save_draft` for genuine full rewrites (FR-008) —
-  in `apps/web/src/server/jobs/wiki-question-tool-planner.ts` (depends on
-  T008)
+  `buildWriteToolGuidance` in `wiki-question-tool-planner.ts`, keyed off the
+  tool's *name* being present in `tools` (the same per-name pattern that
+  function already uses for `create_page`/`save_draft`/
+  `insert_generated_images` — do not gate on `category === 'page_draft'`,
+  which conflates independently-enabled sibling tools and was the exact bug
+  fixed in this file before this feature): prefer it for incremental changes
+  to an existing page; use the exact `pageId`/`revisionId` from `get_page`;
+  each `anchor` must be copied verbatim (same backslash-preservation rule
+  that already applies to `save_draft`'s `contentSource`); reserve
+  `save_draft` for genuine full rewrites (FR-008); add a no-`insert_page_content`
+  note (mirroring the existing per-tool "not available this turn" lines) for
+  when it is absent but a sibling write tool is present — in
+  `apps/web/src/server/jobs/wiki-question-tool-planner.ts` (depends on T008)
 - [ ] T010 [US1] Run T001–T003 and confirm they pass; reconcile any drift
   between the contract and the implementation
 

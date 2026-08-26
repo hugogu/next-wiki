@@ -10,9 +10,15 @@ No public REST or MCP surface is added for this tool (spec Assumptions): it is
 a Wiki AI built-in only, following the existing `insert_generated_images`
 precedent, which is likewise builtin-only.
 
-`save_draft` (existing) is unchanged in its input/output contract; it gains
-one additional internal guard (see "Content-Loss Guard" below) that can change
-its `effectiveReview` outcome but never its accepted argument shape.
+`save_draft` (existing) gains one new optional argument,
+`acknowledgedContentReduction` (boolean, default `false`), and one additional
+internal guard (see "Content-Loss Guard" below): a submission that looks like
+it dropped most of the current revision is rejected outright — not routed to
+a different review disposition — unless that flag is set. `effectiveReview` is
+not the mechanism here: it is resolved and recorded by the runtime before the
+executor ever runs, and `page_draft`-category executors do not gate execution
+on it, so the guard could not retroactively change it even if it wanted to
+(see research.md Decision 5 for the trace that ruled this out).
 
 ## Execution Model
 

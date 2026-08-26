@@ -275,7 +275,8 @@ describe('buildWikiToolSystemPrompt', () => {
   it('extends the shared Wiki AI identity and environment rules with the tool protocol', () => {
     const searchTool = getToolDefinition('search_wiki');
     const createTool = getToolDefinition('create_page');
-    const prompt = buildWikiToolSystemPrompt([searchTool!, createTool!]);
+    const saveDraftTool = getToolDefinition('save_draft');
+    const prompt = buildWikiToolSystemPrompt([searchTool!, createTool!, saveDraftTool!]);
 
     expect(prompt).toContain('conversational knowledge agent embedded in this Next Wiki instance');
     expect(prompt).toContain('current Wiki is your working knowledge environment');
@@ -294,6 +295,76 @@ describe('buildWikiToolSystemPrompt', () => {
     );
     expect(prompt).toContain('call search_wiki with scope: "all"');
     expect(prompt).toContain('YAML is preferred');
+    // Both create_page and save_draft are available, so no final override note.
+    expect(prompt).not.toContain('final_tool_availability_override');
+  });
+
+  // insert_generated_images shares the page_draft category with
+  // create_page/save_draft but is independently enabled/disabled — an admin
+  // can disable content-editing tools while leaving image insertion on, or
+  // vice versa. Gating write guidance on category alone would show detailed
+  // save_draft/create_page instructions for a turn where neither is actually
+  // callable, reintroducing the exact contradiction this prompt exists to
+  // avoid.
+  it('shows an images-only variant when only insert_generated_images is available', () => {
+    const searchTool = getToolDefinition('search_wiki');
+    const insertImagesTool = getToolDefinition('insert_generated_images');
+    const prompt = buildWikiToolSystemPrompt([searchTool!, insertImagesTool!]);
+
+    expect(prompt).toContain('call insert_generated_images once with the artifact ids');
+    expect(prompt).not.toContain('For save_draft, use the exact pageId returned by get_page');
+    expect(prompt).not.toContain(
+      'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft',
+    );
+    // create_page and save_draft are both genuinely absent this turn.
+    expect(prompt).toContain('final_tool_availability_override');
+    expect(prompt).toContain('create_page or save_draft');
+  });
+
+  it('shows save_draft instructions without create_page-specific instructions when only save_draft is available', () => {
+    const searchTool = getToolDefinition('search_wiki');
+    const saveDraftTool = getToolDefinition('save_draft');
+    const prompt = buildWikiToolSystemPrompt([searchTool!, saveDraftTool!]);
+
+    expect(prompt).toContain('For save_draft, use the exact pageId returned by get_page');
+    expect(prompt).not.toContain(
+      'After create_page succeeds, always include a Markdown link to the new page',
+    );
+    expect(prompt).toContain(
+      'create_page is not available this turn: if the target page does not exist',
+    );
+    expect(prompt).toContain('final_tool_availability_override');
+  });
+
+  // Regression for a `toolSystemPrompt` an admin saved before this guard
+  // existed (or any custom prompt that happens to describe create_page/
+  // save_draft unconditionally): the injected placeholder guidance can only
+  // be appended after that stale text, not edit it, so the model must be
+  // told — explicitly, last — which instruction to follow instead.
+  it('overrides a legacy custom prompt that unconditionally describes save_draft/create_page', () => {
+    const searchTool = getToolDefinition('search_wiki');
+    const legacyPrompt = [
+      'You can inspect and prepare governed changes to this Wiki with the tools listed below.',
+      'Available tools:',
+      '{{TOOLS}}',
+      'If the user asks to save, write, or turn previous conversation content into a Wiki page, use create_page or save_draft instead of only answering conversationally.',
+      'For save_draft, use the exact pageId returned by get_page.',
+    ].join('\n');
+    const prompt = buildWikiToolSystemPrompt([searchTool!], {
+      toolSystemPrompt: legacyPrompt,
+      researchMode: 'wiki_first_web',
+    });
+
+    // The stale text is still present (this function cannot edit admin
+    // content it does not own)...
+    expect(prompt).toContain('use create_page or save_draft instead of only answering');
+    // ...but the last thing the model reads unambiguously overrides it.
+    const overrideIndex = prompt.indexOf('final_tool_availability_override');
+    const staleIndex = prompt.indexOf('use create_page or save_draft instead of only answering');
+    expect(overrideIndex).toBeGreaterThan(-1);
+    expect(overrideIndex).toBeGreaterThan(staleIndex);
+    expect(prompt).toContain('overrides any earlier statement in this prompt');
+    expect(prompt).toContain('retrying with Web Research turned off');
   });
 
   it('treats opened external pages as untrusted evidence-only material', () => {
