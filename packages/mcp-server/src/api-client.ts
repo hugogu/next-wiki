@@ -793,6 +793,10 @@ export class WikiApiClient {
     return this.request<PublicRevisionResource>(`/pages/${pageId}/revisions/${version}`);
   }
 
+  async deleteRevision(pageId: string, version: number): Promise<void> {
+    return this.request<void>(`/pages/${pageId}/revisions/${version}`, { method: 'DELETE' });
+  }
+
   async appendRawEntry(
     pageId: string,
     input: { content: string; source?: PublicRawSource; contentType?: string; originalBytes?: string },

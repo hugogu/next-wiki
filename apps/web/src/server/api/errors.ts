@@ -32,6 +32,8 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 409);
     case 'REVISION_ALREADY_PUBLISHED':
       return apiError(code, message, 409);
+    case 'REVISION_NOT_DELETABLE':
+      return apiError(code, message, 409);
     case 'INVALID_IMAGE':
       return apiError(code, message, 400);
     case 'STORAGE_MIGRATING':

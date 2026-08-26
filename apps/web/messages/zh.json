@@ -357,6 +357,13 @@
         "submit": "比较",
         "ready": "已选择两个版本",
         "selectHint": "请选择两个版本"
+      },
+      "delete": {
+        "action": "删除版本 {version}",
+        "title": "删除此版本？",
+        "message": "确定要删除版本 {version} 吗？此操作无法撤销。",
+        "confirm": "删除版本",
+        "error": "无法删除该版本。"
       }
     },
     "revision": {

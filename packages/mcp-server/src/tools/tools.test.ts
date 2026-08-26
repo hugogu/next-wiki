@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { WikiApiClient } from '../api-client';
 import { batchCreatePages } from './batch-create-pages';
 import { deletePage } from './delete-page';
+import { deleteRevision } from './delete-revision';
 import { findSimilar } from './find-similar';
 import { getBacklinks } from './get-backlinks';
 import { getDiff } from './get-diff';
@@ -35,6 +36,7 @@ describe('tools', () => {
       getPage: vi.fn(),
       listAddresses: vi.fn().mockResolvedValue({ canonical: { address: '', url: '' }, aliases: [] }),
       deletePage: vi.fn(),
+      deleteRevision: vi.fn(),
       getBacklinks: vi.fn(),
       getDiff: vi.fn(),
       batchCreatePages: vi.fn(),
@@ -314,6 +316,15 @@ describe('tools', () => {
     const result = await deletePage(client, { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11' });
     expect(result.deleted).toBe(true);
     expect(result.id).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+  });
+
+  it('delete_revision returns deleted confirmation', async () => {
+    const client = createClient({ deleteRevision: vi.fn().mockResolvedValue(undefined) });
+    const result = await deleteRevision(client, { pageId: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', version: 2 });
+    expect(result.deleted).toBe(true);
+    expect(result.pageId).toBe('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
+    expect(result.version).toBe(2);
+    expect(client.deleteRevision).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 2);
   });
 
   it('get_backlinks flattens response', async () => {

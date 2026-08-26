@@ -114,6 +114,7 @@ export const revisionSummarySchema = z.object({
   createdAt: z.string(),
   contentHash: z.string(),
   canPublish: z.boolean(),
+  canDelete: z.boolean(),
 });
 export type RevisionSummary = z.infer<typeof revisionSummarySchema>;
 

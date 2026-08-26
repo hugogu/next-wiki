@@ -19544,6 +19544,51 @@
             }
           }
         }
+      },
+      "delete": {
+        "operationId": "delete-v1-pages-{id}-revisions-{version}",
+        "summary": "Delete public wiki page revision",
+        "description": "Soft-deletes a historical revision. The currently published and latest revisions cannot be deleted.",
+        "tags": [
+          "Revisions"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Revision version number."
+            },
+            "description": "Revision version number.",
+            "example": 1
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
       }
     },
     "/v1/pages/{id}/revisions/{version}/diff": {

@@ -112,6 +112,7 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `promote_generated_image` | Promote a generated image to a reusable private asset without editing a page |
 | `get_page_tree` | Get the directory tree of pages |
 | `delete_page` | Soft-delete a page |
+| `delete_revision` | Soft-delete a historical revision of a page (not the current published or latest revision) |
 | `get_backlinks` | Find pages linking to a target page |
 | `get_page_outbound_links` | List outbound links, dangling links, and external links |
 | `get_neighborhood` | Walk the link graph around a page |
@@ -140,7 +141,7 @@ because auth, parameter validation, and permission checks are handled internally
 - **Knowledge retrieval**: `search_wiki`, `submit_semantic_search`, `get_semantic_search_results`, `list_pages`, `get_page`, `get_page_tree`, `find_similar`
 - **Content creation**: `create_page`, `append_raw_entry`, `save_draft`, `publish_page`, `batch_create_pages`, `batch_update_pages`, `batch_soft_delete_pages`
 - **Raw taxonomy**: `list_raw_categories`, `create_raw_category`
-- **Maintenance**: `update_page_properties`, `list_revisions`, `get_revision`, `delete_page`, `get_backlinks`, `get_page_outbound_links`, `get_neighborhood`, `get_diff`, `get_stats`
+- **Maintenance**: `update_page_properties`, `list_revisions`, `get_revision`, `delete_page`, `delete_revision`, `get_backlinks`, `get_page_outbound_links`, `get_neighborhood`, `get_diff`, `get_stats`
 - **Media**: `upload_image` for caller-provided bytes; `generate_image`, `get_image_generation`, and `promote_generated_image` for configured AI image generation
 
 `generate_image` requires an Editor/Admin API key with both `ai.image` and

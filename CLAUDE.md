@@ -144,6 +144,7 @@ server is named `next-wiki`, the tools are:
 | `next-wiki_upload_image` | Upload image, get Markdown reference |
 | `next-wiki_get_page_tree` | Get directory tree of pages |
 | `next-wiki_delete_page` | Soft-delete a page |
+| `next-wiki_delete_revision` | Soft-delete a historical revision of a page |
 | `next-wiki_get_backlinks` | Find pages linking to a target page |
 | `next-wiki_get_diff` | Diff two revisions of a page |
 | `next-wiki_batch_create_pages` | Create up to 50 pages atomically |

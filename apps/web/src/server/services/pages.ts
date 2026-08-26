@@ -2079,6 +2079,7 @@ export async function getHistory(ctx: PermCtx, path: string, spaceSlug?: string)
 
   const rows = await db
     .select({
+      id: schema.pageRevisions.id,
       version: schema.pageRevisions.versionNumber,
       status: schema.pageRevisions.status,
       authorId: schema.pageRevisions.authorId,
@@ -2088,7 +2089,7 @@ export async function getHistory(ctx: PermCtx, path: string, spaceSlug?: string)
     })
     .from(schema.pageRevisions)
     .innerJoin(schema.users, eq(schema.pageRevisions.authorId, schema.users.id))
-    .where(eq(schema.pageRevisions.pageId, page.id))
+    .where(and(eq(schema.pageRevisions.pageId, page.id), isNull(schema.pageRevisions.deletedAt)))
     .orderBy(desc(schema.pageRevisions.versionNumber));
 
   return rows
@@ -2101,6 +2102,18 @@ export async function getHistory(ctx: PermCtx, path: string, spaceSlug?: string)
         { kind: 'revision', pageId: page.id, version: r.version },
         pagePermissionOptions(space, page, { isAuthor }),
       );
+      // A revision may never be deleted while it is the currently published or
+      // latest version — deleting it would leave `pages.currentPublishedVersionId`
+      // / `latestVersionId` dangling (see revisions.ts `remove`).
+      const canDelete =
+        r.id !== page.currentPublishedVersionId &&
+        r.id !== page.latestVersionId &&
+        can(
+          ctx,
+          'delete',
+          { kind: 'revision', pageId: page.id, version: r.version },
+          pagePermissionOptions(space, page, { isAuthor }),
+        );
 
       return {
         version: r.version,
@@ -2109,6 +2122,7 @@ export async function getHistory(ctx: PermCtx, path: string, spaceSlug?: string)
         createdAt: r.createdAt.toISOString(),
         contentHash: r.contentHash,
         canPublish,
+        canDelete,
       };
     });
 }
@@ -2145,6 +2159,7 @@ export async function getRevision(
     where: and(
       eq(schema.pageRevisions.pageId, page.id),
       eq(schema.pageRevisions.versionNumber, version),
+      isNull(schema.pageRevisions.deletedAt),
     ),
   });
 

@@ -1,0 +1,1 @@
+ALTER TABLE "page_revisions" ADD COLUMN "deleted_at" timestamp with time zone;

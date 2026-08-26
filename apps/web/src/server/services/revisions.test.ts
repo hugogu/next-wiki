@@ -135,4 +135,80 @@ describe('revisionService US4', () => {
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
     });
   });
+
+  describe('remove', () => {
+    it('soft-deletes a superseded revision and hides it from history and reads', async () => {
+      const editor = await createUser('editor-delete-rev@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      await pageService.create(ctx, { path: 'delete-rev-superseded', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(ctx, { path: 'delete-rev-superseded', version: 1 });
+      await pageService.newDraft(ctx, 'delete-rev-superseded', { title: 'T', contentSource: 'v2' });
+      await revisionService.publish(ctx, { path: 'delete-rev-superseded', version: 2 });
+
+      await revisionService.remove(ctx, { path: 'delete-rev-superseded', version: 1 });
+
+      const history = await pageService.getHistory(ctx, 'delete-rev-superseded');
+      expect(history.map((r) => r.version)).toEqual([2]);
+      expect(await pageService.getRevision(ctx, 'delete-rev-superseded', 1)).toBeNull();
+    });
+
+    it('rejects deleting the currently published revision', async () => {
+      const editor = await createUser('editor-delete-current@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      await pageService.create(ctx, { path: 'delete-rev-current', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(ctx, { path: 'delete-rev-current', version: 1 });
+
+      await expect(
+        revisionService.remove(ctx, { path: 'delete-rev-current', version: 1 }),
+      ).rejects.toMatchObject({ code: 'REVISION_NOT_DELETABLE' });
+    });
+
+    it('rejects deleting the latest (unpublished) revision', async () => {
+      const editor = await createUser('editor-delete-latest@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+
+      await pageService.create(ctx, { path: 'delete-rev-latest', title: 'T', contentSource: 'v1' });
+
+      await expect(
+        revisionService.remove(ctx, { path: 'delete-rev-latest', version: 1 }),
+      ).rejects.toMatchObject({ code: 'REVISION_NOT_DELETABLE' });
+    });
+
+    it('denies a non-author, non-admin editor from deleting the revision', async () => {
+      const owner = await createUser('editor-delrev-owner@example.com', 'editor');
+      const other = await createUser('editor-delrev-other@example.com', 'editor');
+      const ownerCtx = buildUserCtx(owner.id, 'editor');
+      const otherCtx = buildUserCtx(other.id, 'editor');
+
+      await pageService.create(ownerCtx, { path: 'delete-rev-denied', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(ownerCtx, { path: 'delete-rev-denied', version: 1 });
+      await pageService.newDraft(ownerCtx, 'delete-rev-denied', { title: 'T', contentSource: 'v2' });
+      await revisionService.publish(ownerCtx, { path: 'delete-rev-denied', version: 2 });
+
+      await expect(
+        revisionService.remove(otherCtx, { path: 'delete-rev-denied', version: 1 }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    it('denies anonymous and readers', async () => {
+      const editor = await createUser('editor-delrev-deny@example.com', 'editor');
+      const reader = await createUser('reader-delrev-deny@example.com', 'reader');
+      const editorCtx = buildUserCtx(editor.id, 'editor');
+
+      await pageService.create(editorCtx, { path: 'delete-rev-deny-anon', title: 'T', contentSource: 'v1' });
+      await revisionService.publish(editorCtx, { path: 'delete-rev-deny-anon', version: 1 });
+      await pageService.newDraft(editorCtx, 'delete-rev-deny-anon', { title: 'T', contentSource: 'v2' });
+      await revisionService.publish(editorCtx, { path: 'delete-rev-deny-anon', version: 2 });
+
+      await expect(
+        revisionService.remove(buildAnonymousCtx(), { path: 'delete-rev-deny-anon', version: 1 }),
+      ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+
+      await expect(
+        revisionService.remove(buildUserCtx(reader.id, 'reader'), { path: 'delete-rev-deny-anon', version: 1 }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+  });
 });

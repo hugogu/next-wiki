@@ -15,6 +15,7 @@ export type PublicApiErrorCode =
   | 'PAGE_PATH_CONFLICT'
   | 'PAGE_PATH_RESERVED'
   | 'REVISION_ALREADY_PUBLISHED'
+  | 'REVISION_NOT_DELETABLE'
   | 'UNSUPPORTED_ASSET_TYPE'
   | 'ASSET_TOO_LARGE'
   | 'RATE_LIMITED'
@@ -94,6 +95,8 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'STALE_REVISION', status: 409 };
     case 'REVISION_ALREADY_PUBLISHED':
       return { code: 'REVISION_ALREADY_PUBLISHED', status: 409 };
+    case 'REVISION_NOT_DELETABLE':
+      return { code: 'REVISION_NOT_DELETABLE', status: 409 };
     case 'INVALID_IMAGE':
     case 'UNSUPPORTED_ATTACHMENT_TYPE':
       return { code: 'UNSUPPORTED_ASSET_TYPE', status: 415 };
