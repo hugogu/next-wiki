@@ -1,5 +1,9 @@
+import { z } from 'zod';
 import { assertSupportedProvider, publicJson, withPublicApi } from '../../_shared';
+import { validationError } from '@/server/api/public-errors';
 import { getEvidenceCapture } from '@/server/services/hermes-memory';
+
+const paramsSchema = z.object({ captureId: z.string().uuid() });
 
 /**
  * @openapi
@@ -10,5 +14,7 @@ import { getEvidenceCapture } from '@/server/services/hermes-memory';
  */
 export const GET = withPublicApi<{ captureId: string }>(async (request, { params }, ctx) => {
   assertSupportedProvider(request);
-  return publicJson(await getEvidenceCapture(ctx, (await params).captureId));
+  const parsedParams = paramsSchema.safeParse(await params);
+  if (!parsedParams.success) return validationError(parsedParams.error);
+  return publicJson(await getEvidenceCapture(ctx, parsedParams.data.captureId));
 });

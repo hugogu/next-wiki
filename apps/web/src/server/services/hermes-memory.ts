@@ -351,51 +351,78 @@ export async function submitEvidenceCapture(
   input: HermesMemoryEvidenceInput,
 ): Promise<HermesMemoryCaptureSubmission> {
   const access = await requireHermesMemoryAccess(ctx, 'memory.write');
-  const existing = await db.query.hermesMemoryCaptures.findFirst({
-    where: and(
-      eq(schema.hermesMemoryCaptures.namespaceId, access.namespaceId),
-      eq(schema.hermesMemoryCaptures.idempotencyKey, input.idempotencyKey),
-    ),
-  });
-  if (existing) {
-    return { captureId: existing.id, status: existing.status, durable: existing.status === 'durable', idempotent: true };
-  }
-
-  const captureId = randomUUID();
-  try {
-    await db.insert(schema.hermesMemoryCaptures).values({
-      id: captureId,
-      namespaceId: access.namespaceId,
-      apiKeyId: access.keyId,
-      idempotencyKey: input.idempotencyKey,
-      sessionDigest: input.sessionDigest,
-      checkpoint: input.checkpoint,
-    });
-  } catch (error) {
-    const winner = await db.query.hermesMemoryCaptures.findFirst({
-      where: and(
+  return db.transaction(async (tx) => {
+    let [capture] = await tx
+      .select()
+      .from(schema.hermesMemoryCaptures)
+      .where(and(
         eq(schema.hermesMemoryCaptures.namespaceId, access.namespaceId),
         eq(schema.hermesMemoryCaptures.idempotencyKey, input.idempotencyKey),
-      ),
-    });
-    if (winner) return { captureId: winner.id, status: winner.status, durable: winner.status === 'durable', idempotent: true };
-    throw error;
-  }
+      ))
+      .for('update')
+      .limit(1);
+    let idempotent = Boolean(capture);
 
-  const jobId = await enqueue(QUEUES.hermesMemoryCapture, {
-    captureId,
-    messages: input.messages,
-  }, { singletonKey: captureId, singletonSeconds: 60 });
-  if (!jobId) {
-    await db.update(schema.hermesMemoryCaptures)
-      .set({ status: 'failed', failureCode: 'JOB_QUEUE_UNAVAILABLE', updatedAt: new Date() })
-      .where(eq(schema.hermesMemoryCaptures.id, captureId));
-    return { captureId, status: 'failed', durable: false, idempotent: false };
-  }
-  await db.update(schema.hermesMemoryCaptures)
-    .set({ jobId, updatedAt: new Date() })
-    .where(eq(schema.hermesMemoryCaptures.id, captureId));
-  return { captureId, status: 'queued', durable: false, idempotent: false };
+    if (!capture) {
+      const captureId = randomUUID();
+      [capture] = await tx
+        .insert(schema.hermesMemoryCaptures)
+        .values({
+          id: captureId,
+          namespaceId: access.namespaceId,
+          apiKeyId: access.keyId,
+          idempotencyKey: input.idempotencyKey,
+          sessionDigest: input.sessionDigest,
+          checkpoint: input.checkpoint,
+        })
+        .onConflictDoNothing({ target: [schema.hermesMemoryCaptures.namespaceId, schema.hermesMemoryCaptures.idempotencyKey] })
+        .returning();
+      if (!capture) {
+        [capture] = await tx
+          .select()
+          .from(schema.hermesMemoryCaptures)
+          .where(and(
+            eq(schema.hermesMemoryCaptures.namespaceId, access.namespaceId),
+            eq(schema.hermesMemoryCaptures.idempotencyKey, input.idempotencyKey),
+          ))
+          .for('update')
+          .limit(1);
+        if (!capture) throw new Error('HERMES_MEMORY_CAPTURE_RESERVATION_FAILED');
+        idempotent = true;
+      }
+    }
+
+    if (capture.status === 'durable' || capture.status === 'running' || (capture.status === 'queued' && capture.jobId)) {
+      return { captureId: capture.id, status: capture.status, durable: capture.status === 'durable', idempotent };
+    }
+
+    // Failed/cancelled captures, and legacy queued rows without a job id, may
+    // be retried with the same idempotency key. The row lock above ensures only
+    // one concurrent caller can transition and enqueue the retry.
+    await tx.update(schema.hermesMemoryCaptures)
+      .set({ status: 'queued', jobId: null, failureCode: null, updatedAt: new Date() })
+      .where(eq(schema.hermesMemoryCaptures.id, capture.id));
+
+    let jobId: string | null = null;
+    try {
+      jobId = await enqueue(QUEUES.hermesMemoryCapture, {
+        captureId: capture.id,
+        messages: input.messages,
+      }, { singletonKey: capture.id, singletonSeconds: 60 });
+    } catch {
+      jobId = null;
+    }
+    if (!jobId) {
+      await tx.update(schema.hermesMemoryCaptures)
+        .set({ status: 'failed', failureCode: 'JOB_QUEUE_UNAVAILABLE', updatedAt: new Date() })
+        .where(eq(schema.hermesMemoryCaptures.id, capture.id));
+      return { captureId: capture.id, status: 'failed', durable: false, idempotent };
+    }
+    await tx.update(schema.hermesMemoryCaptures)
+      .set({ status: 'queued', jobId, failureCode: null, updatedAt: new Date() })
+      .where(eq(schema.hermesMemoryCaptures.id, capture.id));
+    return { captureId: capture.id, status: 'queued', durable: false, idempotent };
+  });
 }
 
 export async function getEvidenceCapture(ctx: PermCtx, captureId: string): Promise<{
@@ -430,7 +457,12 @@ export async function runEvidenceCapture(
   data: { captureId: string; messages: HermesMemoryEvidenceInput['messages'] },
 ): Promise<void> {
   const capture = await db.query.hermesMemoryCaptures.findFirst({ where: eq(schema.hermesMemoryCaptures.id, data.captureId) });
-  if (!capture || capture.status === 'durable' || capture.status === 'cancelled') return;
+  // submitEvidenceCapture publishes the pg-boss job while its reservation
+  // transaction is still committing. A worker can therefore observe the job
+  // before the capture row is visible; throw so pg-boss retries instead of
+  // acknowledging a job that would otherwise be lost.
+  if (!capture) throw new Error('HERMES_MEMORY_CAPTURE_NOT_VISIBLE');
+  if (capture.status === 'durable' || capture.status === 'cancelled') return;
   await db.update(schema.hermesMemoryCaptures).set({ status: 'running', updatedAt: new Date() }).where(eq(schema.hermesMemoryCaptures.id, capture.id));
 
   try {

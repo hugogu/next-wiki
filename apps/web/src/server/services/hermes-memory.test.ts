@@ -1,10 +1,11 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as apiKeyService from '@/server/services/api-keys';
 import * as hermesMemory from '@/server/services/hermes-memory';
+import { setBoss } from '@/server/jobs/runtime';
 import { resetSetupOnboardingState, createAdminUser } from '../../../test/setup-onboarding-fixtures';
 
 async function createMemoryActor(name: string) {
@@ -30,6 +31,10 @@ describe('Hermes memory service', () => {
   afterAll(async () => {
     await resetSetupOnboardingState();
     await closeDb();
+  });
+
+  afterEach(() => {
+    setBoss(null);
   });
 
   it('writes private revision-backed memory, recalls it with a citation, and softly forgets it', async () => {
@@ -80,5 +85,28 @@ describe('Hermes memory service', () => {
 
     await expect(hermesMemory.recall(second.ctx, 'private decision', 5)).resolves.toEqual([]);
     await expect(hermesMemory.forget(second.ctx, saved.record.memoryId)).rejects.toMatchObject({ code: 'HERMES_MEMORY_RECORD_NOT_FOUND' });
+  });
+
+  it('re-enqueues a failed capture with the same idempotency key', async () => {
+    const { ctx } = await createMemoryActor('capture-retry');
+    const input = {
+      idempotencyKey: `capture-${crypto.randomUUID()}`,
+      sessionDigest: 'a'.repeat(64),
+      checkpoint: false,
+      messages: [{ role: 'user' as const, content: 'Retry this evidence.' }],
+    };
+
+    const first = await hermesMemory.submitEvidenceCapture(ctx, input);
+    expect(first).toMatchObject({ status: 'failed', idempotent: false });
+
+    const send = vi.fn().mockResolvedValue('job-retry-1');
+    setBoss({ send } as never);
+    const retry = await hermesMemory.submitEvidenceCapture(ctx, input);
+    expect(retry).toMatchObject({ captureId: first.captureId, status: 'queued', idempotent: true });
+    expect(send).toHaveBeenCalledWith(
+      'hermes-memory-capture',
+      { captureId: first.captureId, messages: input.messages },
+      { singletonKey: first.captureId, singletonSeconds: 60 },
+    );
   });
 });

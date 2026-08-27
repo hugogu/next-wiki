@@ -222,7 +222,11 @@ class NextWikiMemoryProvider:
         future = self._executor.submit(operation)
         with self._pending_lock:
             self._pending.add(future)
-        future.add_done_callback(lambda done: self._pending.discard(done))
+        future.add_done_callback(self._discard_pending)
+
+    def _discard_pending(self, future: object) -> None:
+        with self._pending_lock:
+            self._pending.discard(future)
 
     def _normalize_messages(self, messages: list[Any]) -> list[dict[str, str]]:
         normalized: list[dict[str, str]] = []
