@@ -284,6 +284,8 @@ test.describe('US2/US3: skip AI and skip examples', () => {
     // Declined help pages do not exist.
     const helpResponse = await page.request.get('/help/markdown-syntax');
     expect(helpResponse.status()).toBe(404);
+    const hermesHelpResponse = await page.request.get('/help/hermes-memory');
+    expect(hermesHelpResponse.status()).toBe(404);
 
     // Wiki home is reachable through the summary.
     await page.getByRole('button', { name: /go to wiki home/i }).click();
@@ -312,6 +314,7 @@ test.describe('US3: generate examples', () => {
     await expect(page.getByText(/help\/markdown-syntax/).first()).toBeVisible();
     await expect(page.getByText(/skipped \(already exists\)/i)).toBeVisible();
     await expect(page.getByRole('link', { name: 'help/main-features' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'help/hermes-memory' })).toBeVisible();
 
     // Generated pages render through normal wiki navigation, anonymously too.
     const anon = await browser.newContext();
@@ -323,6 +326,13 @@ test.describe('US3: generate examples', () => {
 
       await reader.goto('/help/main-features');
       await expect(reader.getByRole('heading', { name: /main features guide/i })).toBeVisible();
+      await expect(
+        reader.getByTestId('page-reader-article').getByRole('link', { name: /hermes memory guide/i }),
+      ).toBeVisible();
+
+      await reader.goto('/help/hermes-memory');
+      await expect(reader.getByRole('heading', { name: /hermes memory guide/i })).toBeVisible();
+      await expect(reader.getByTestId('page-reader-article')).toContainText('shared Raw space');
 
       // The colliding page keeps its user-authored content.
       await reader.goto('/help/markdown-syntax');
@@ -343,7 +353,7 @@ test.describe('US3: generate examples', () => {
     // paths and the public ISR cache legitimately serves them until the next
     // publish invalidates it.
     const rows = await withDb((sql) =>
-      sql<{ path: string }[]>`SELECT path FROM pages WHERE path IN ('help/main-features', 'help/markdown-syntax')`,
+      sql<{ path: string }[]>`SELECT path FROM pages WHERE path IN ('help/main-features', 'help/markdown-syntax', 'help/hermes-memory')`,
     );
     expect(rows).toEqual([]);
   });

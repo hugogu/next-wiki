@@ -157,7 +157,7 @@ overwrite.
 ### Tests for User Story 4
 
 - [X] T052 [P] [US4] Extend managed-sample-page tests for the fourth published guide, welcome/main-feature links, rerun idempotency, four cache invalidations, collision protection, and default-space-only collision lookup in `apps/web/src/server/services/setup-sample-pages.test.ts`.
-- [ ] T053 [P] [US4] Extend setup route and onboarding Playwright coverage for four outcomes, visible Hermes help content, and collision reporting in `apps/web/app/api/setup/sample-pages/setup-sample-pages-route.test.ts` and `apps/web/e2e/setup-onboarding.spec.ts`.
+- [X] T053 [P] [US4] Extend setup route and onboarding Playwright coverage for four outcomes, visible Hermes help content, and collision reporting in `apps/web/app/api/setup/sample-pages/setup-sample-pages-route.test.ts` and `apps/web/e2e/setup-onboarding.spec.ts`.
 - [X] T054 [US4] Add the marker-owned published `help/hermes-memory` source, welcome link, and Main Features link in `apps/web/src/server/services/setup-sample-page-definitions.ts`.
 - [X] T055 [US4] Resolve the default wiki space before generated-page collision lookup and include the Hermes guide in generated results in `apps/web/src/server/services/setup-sample-pages.ts`.
 - [X] T056 [US4] Update setup-step/API descriptive copy and localized four-page results in `apps/web/src/components/setup/SamplePagesStep.tsx`, `apps/web/app/api/setup/sample-pages/route.ts`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
