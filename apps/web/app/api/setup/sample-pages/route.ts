@@ -13,7 +13,7 @@ export const dynamic = 'force-dynamic';
  *
  * @openapi
  * @summary Generate or skip sample pages
- * @description Generates the optional welcome, Markdown syntax, and main features pages as normal published wiki pages (idempotent, collision-safe), or records the skip choice. Requires the signed-in initial Admin.
+ * @description Generates the optional welcome, Markdown syntax, main features, and Hermes memory guide pages as normal published wiki pages (idempotent, collision-safe), or records the skip choice. Requires the signed-in initial Admin.
  * @tag Setup
  * @auth bearer
  * @body SetupSamplePagesInput

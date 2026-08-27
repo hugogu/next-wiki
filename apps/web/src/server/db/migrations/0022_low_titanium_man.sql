@@ -1,0 +1,3 @@
+ALTER TABLE "hermes_memory_captures" ADD COLUMN "api_key_id" uuid NOT NULL;--> statement-breakpoint
+ALTER TABLE "hermes_memory_captures" ADD CONSTRAINT "hermes_memory_captures_api_key_id_api_keys_id_fk" FOREIGN KEY ("api_key_id") REFERENCES "public"."api_keys"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
+CREATE INDEX "hermes_memory_captures_api_key_idx" ON "hermes_memory_captures" USING btree ("api_key_id");

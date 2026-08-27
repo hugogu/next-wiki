@@ -51,6 +51,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
     const hasBearerToken = auth?.startsWith('Bearer ') ?? false;
     const method = request.method;
     const path = new URL(request.url).pathname;
+    const origin = path.startsWith('/api/v1/hermes/memory/') ? 'hermes' as const : undefined;
     const ip = audit.clientIp(headersList);
     const resolved = await resolveActor();
 
@@ -73,6 +74,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
           durationMs: duration,
           authStatus,
           errorMessage: formatAuthError(resolved.authError ?? 'invalid_key'),
+          origin,
           ip,
         });
       } catch {
@@ -112,6 +114,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
           errorMessage,
           metadata: apiContext.auditMetadata ?? null,
           ip,
+          origin,
         });
       } catch {
         // Best-effort audit logging; don't fail the request.

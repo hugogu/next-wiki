@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n/client';
 import {
   API_KEY_SCOPES,
@@ -9,7 +9,7 @@ import {
   type ApiKeyCreated,
   type SpaceKind,
 } from '@next-wiki/shared';
-import { apiPost } from '@/lib/api/client';
+import { apiGet, apiPost } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { XIcon } from '@/components/icons';
@@ -21,11 +21,19 @@ interface ApiKeyCreateDialogProps {
   currentUserIsAdmin: boolean;
 }
 
+type HermesMemoryDestination = {
+  id: string;
+  displayName: string;
+  state: 'active' | 'disabled';
+};
+
 export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: ApiKeyCreateDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<ApiKeyScope[]>([]);
   const [spaceAccess, setSpaceAccess] = useState<SpaceKind[]>(['wiki']);
+  const [hermesDestinations, setHermesDestinations] = useState<HermesMemoryDestination[]>([]);
+  const [sharedNamespaceId, setSharedNamespaceId] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,12 +43,35 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
     );
   };
 
+  const hermesScopes: ApiKeyScope[] = ['memory.read', 'memory.write', 'memory.delete'];
+  const isHermesMemoryKey = hermesScopes.some((scope) => scopes.includes(scope));
+
+  const toggleHermesMemory = () => {
+    setScopes(() => (isHermesMemoryKey ? [] : hermesScopes));
+    setSpaceAccess(['wiki']);
+  };
+
   const toggleSpace = (space: SpaceKind) => {
     if (space === 'wiki') return; // always included, not user-toggleable
     setSpaceAccess((prev) =>
       prev.includes(space) ? prev.filter((s) => s !== space) : [...prev, space],
     );
   };
+
+  useEffect(() => {
+    if (!isHermesMemoryKey) return;
+    let cancelled = false;
+    void apiGet<HermesMemoryDestination[]>('/api/api-keys/hermes-memory-destinations')
+      .then((destinations) => {
+        if (!cancelled) setHermesDestinations(destinations.filter((destination) => destination.state === 'active'));
+      })
+      .catch(() => {
+        if (!cancelled) setHermesDestinations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isHermesMemoryKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,12 +83,22 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
     setError('');
     try {
       const result = await apiPost<
-        { name: string; scopes: ApiKeyScope[]; spaceAccess: SpaceKind[] },
+        {
+          name: string;
+          scopes: ApiKeyScope[];
+          spaceAccess: SpaceKind[];
+          hermesMemory?: { displayName?: string; sharedNamespaceId?: string };
+        },
         ApiKeyCreated
       >('/api/api-keys', {
         name,
         scopes,
         spaceAccess,
+        ...(isHermesMemoryKey ? {
+          hermesMemory: sharedNamespaceId
+            ? { sharedNamespaceId }
+            : { displayName: name.trim() },
+        } : {}),
       });
       onCreated(result);
       onClose();
@@ -105,6 +146,20 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
           <div>
             <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.scopesLabel')}</span>
             <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.scopesHint')}</p>
+            <label className={`mb-sm flex items-start gap-sm rounded-md border border-primary/40 bg-primary/5 p-sm ${currentUserIsAdmin ? 'cursor-pointer' : 'opacity-50'}`}>
+              <input
+                type="checkbox"
+                checked={isHermesMemoryKey}
+                onChange={toggleHermesMemory}
+                disabled={!currentUserIsAdmin}
+                className="mt-1"
+              />
+              <div className="text-sm">
+                <div className="font-medium">{t('userCenter.apiKeys.hermesMemoryPreset')}</div>
+                <div className="text-muted text-xs">{t('userCenter.apiKeys.hermesMemoryPresetHint')}</div>
+                {!currentUserIsAdmin && <div className="text-warning text-xs">{t('userCenter.apiKeys.spaceAccessAdminOnly')}</div>}
+              </div>
+            </label>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-2">
               {API_KEY_SCOPES.map((scope) => (
                 <label key={scope} className="flex items-start gap-sm rounded-md border border-border p-sm cursor-pointer hover:bg-surface-elevated">
@@ -112,6 +167,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                     type="checkbox"
                     checked={scopes.includes(scope)}
                     onChange={() => toggleScope(scope)}
+                    disabled={isHermesMemoryKey && !hermesScopes.includes(scope)}
                     className="mt-1"
                   />
                   <div className="text-sm">
@@ -123,7 +179,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
             </div>
           </div>
 
-          <div>
+          {!isHermesMemoryKey && <div>
             <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.spaceAccessLabel')}</span>
             <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.spaceAccessHint')}</p>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-3">
@@ -153,7 +209,33 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                 );
               })}
             </div>
-          </div>
+          </div>}
+
+          {isHermesMemoryKey && (
+            <div className="space-y-sm rounded-md border border-border bg-surface-elevated p-sm text-xs text-muted">
+              <p>{t('userCenter.apiKeys.hermesMemoryDestinationHint')}</p>
+              <label className="flex items-center gap-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="hermes-memory-destination"
+                  checked={!sharedNamespaceId}
+                  onChange={() => setSharedNamespaceId('')}
+                />
+                {t('userCenter.apiKeys.hermesMemoryNewDestination')}
+              </label>
+              {hermesDestinations.map((destination) => (
+                <label key={destination.id} className="flex items-center gap-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="hermes-memory-destination"
+                    checked={sharedNamespaceId === destination.id}
+                    onChange={() => setSharedNamespaceId(destination.id)}
+                  />
+                  {t('userCenter.apiKeys.hermesMemorySharedDestination', { name: destination.displayName })}
+                </label>
+              ))}
+            </div>
+          )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
 

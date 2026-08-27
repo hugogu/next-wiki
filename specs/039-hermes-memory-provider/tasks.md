@@ -20,10 +20,10 @@ a client-supplied page path or Hermes profile for authorization.
 release/compatibility scaffolding without adding a Python runtime to the Wiki
 deployment.
 
-- [ ] T001 [P] Create the Python distribution scaffold, `src/` package layout, package-data declarations, test configuration, and development dependencies in `packages/hermes-memory-provider/pyproject.toml`.
-- [ ] T002 [P] Add the package-level public surface and empty discovery modules in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`, `packages/hermes-memory-provider/src/next_wiki_memory/cli.py`, and `packages/hermes-memory-provider/src/next_wiki_memory/config_schema.py`.
-- [ ] T003 [P] Add a reusable mock-Wiki HTTP fixture and a Hermes contract fixture in `packages/hermes-memory-provider/tests/conftest.py` and `packages/hermes-memory-provider/tests/fixtures/hermes_memory_provider.py`.
-- [ ] T004 [P] Create the tag-triggered wheel publishing and minimum/current Hermes compatibility workflow in `.github/workflows/publish-hermes-memory-provider.yml` using `hermes-memory-provider-v*` tags.
+- [X] T001 [P] Create the Python distribution scaffold, `src/` package layout, package-data declarations, test configuration, and development dependencies in `packages/hermes-memory-provider/pyproject.toml`.
+- [X] T002 [P] Add the package-level public surface and empty discovery modules in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`, `packages/hermes-memory-provider/src/next_wiki_memory/cli.py`, and `packages/hermes-memory-provider/src/next_wiki_memory/config_schema.py`.
+- [X] T003 [P] Add a reusable mock-Wiki HTTP fixture and a Hermes contract fixture in `packages/hermes-memory-provider/tests/conftest.py` and `packages/hermes-memory-provider/tests/fixtures/hermes_memory_provider.py`.
+- [X] T004 [P] Create the tag-triggered wheel publishing and minimum/current Hermes compatibility workflow in `.github/workflows/publish-hermes-memory-provider.yml` using `hermes-memory-provider-v*` tags.
 
 ---
 
@@ -36,17 +36,17 @@ every user story.
 **⚠️ CRITICAL**: No user-story route or provider work begins until the
 destination binding, scopes, migration, and error/audit foundation is complete.
 
-- [ ] T005 [P] Add failing scope and memory-contract serialization tests in `packages/shared/src/api-keys.test.ts` and `packages/shared/src/hermes-memory.test.ts`.
-- [ ] T006 [P] Add failing schema/index coverage for the memory namespace, key binding, record, and evidence-link tables in `apps/web/src/server/db/hermes-memory-schema.test.ts`.
-- [ ] T007 [P] Add failing permission-resolution tests for missing scopes, unbound keys, disabled destinations, and cross-destination IDs in `apps/web/src/server/permissions/hermes-memory.test.ts`.
+- [X] T005 [P] Add failing scope and memory-contract serialization tests in `packages/shared/src/api-keys.test.ts` and `packages/shared/src/hermes-memory.test.ts`.
+- [X] T006 [P] Add failing schema/index coverage for the memory namespace, key binding, record, and evidence-link tables in `apps/web/src/server/db/hermes-memory-schema.test.ts`.
+- [X] T007 [P] Add failing permission-resolution tests for missing scopes, unbound keys, disabled destinations, and cross-destination IDs in `apps/web/src/server/permissions/hermes-memory.test.ts`.
 - [ ] T008 [P] Add failing public-error, audit-origin, and OpenAPI registration tests in `apps/web/src/server/api/public-errors.test.ts`, `apps/web/src/server/api/audit-wrapper.test.ts`, and `apps/web/src/server/api/openapi-schemas.test.ts`.
-- [ ] T009 Define `memory.read`, `memory.write`, and `memory.delete`, shared request/response/error schemas, bounded validation constants, and public exports in `packages/shared/src/api-keys.ts`, `packages/shared/src/hermes-memory.ts`, and `packages/shared/src/index.ts`.
-- [ ] T010 Define the Hermes memory enums, namespace/binding/record/evidence-link tables, ownership/state checks, unique idempotency constraint, and recall indexes in `apps/web/src/server/db/schema/enums.ts`, `apps/web/src/server/db/schema/hermes-memory.ts`, and `apps/web/src/server/db/schema/index.ts`.
-- [ ] T011 Generate the database migration with `pnpm db:generate` from `apps/web/src/server/db/schema/hermes-memory.ts`, commit only the generated `apps/web/src/server/db/migrations/*.sql`, `apps/web/src/server/db/migrations/meta/*.json`, and `apps/web/src/server/db/migrations/meta/_journal.json` changes, then rerun the command and confirm it reports no schema changes.
-- [ ] T012 Implement the destination-binding resolver and dedicated-memory scope guards, deriving the namespace only from the authenticated key, in `apps/web/src/server/permissions/hermes-memory.ts` and `apps/web/src/server/permissions/index.ts`.
-- [ ] T013 Register safe Hermes public error codes, non-cacheable OpenAPI schemas, and `hermes` audit origin with content-free audit metadata in `apps/web/src/server/api/public-errors.ts`, `apps/web/src/server/api/openapi-schemas.ts`, `apps/web/src/server/api/audit-wrapper.ts`, `packages/shared/src/audit.ts`, and `apps/web/src/server/services/audit.ts`.
-- [ ] T014 Create the shared service types, safe connection/diagnostic result builders, normal-page/revision adapter boundary, and transaction helpers in `apps/web/src/server/services/hermes-memory.ts`.
-- [ ] T015 Add the authenticated Hermes-memory route wrapper that composes `withPublicApi`, destination binding, scope checks, audit attribution, Zod validation, and `Cache-Control: no-store` in `apps/web/app/api/v1/hermes/memory/_shared.ts`.
+- [X] T009 Define `memory.read`, `memory.write`, and `memory.delete`, shared request/response/error schemas, bounded validation constants, and public exports in `packages/shared/src/api-keys.ts`, `packages/shared/src/hermes-memory.ts`, and `packages/shared/src/index.ts`.
+- [X] T010 Define the Hermes memory enums, namespace/binding/record/evidence-link tables, ownership/state checks, unique idempotency constraint, and recall indexes in `apps/web/src/server/db/schema/enums.ts`, `apps/web/src/server/db/schema/hermes-memory.ts`, and `apps/web/src/server/db/schema/index.ts`.
+- [X] T011 Generate the database migration with `pnpm db:generate` from `apps/web/src/server/db/schema/hermes-memory.ts`, commit only the generated `apps/web/src/server/db/migrations/*.sql`, `apps/web/src/server/db/migrations/meta/*.json`, and `apps/web/src/server/db/migrations/meta/_journal.json` changes, then rerun the command and confirm it reports no schema changes.
+- [X] T012 Implement the destination-binding resolver and dedicated-memory scope guards, deriving the namespace only from the authenticated key, in `apps/web/src/server/permissions/hermes-memory.ts` and `apps/web/src/server/permissions/index.ts`.
+- [X] T013 Register safe Hermes public error codes, non-cacheable OpenAPI schemas, and `hermes` audit origin with content-free audit metadata in `apps/web/src/server/api/public-errors.ts`, `apps/web/src/server/api/openapi-schemas.ts`, `apps/web/src/server/api/audit-wrapper.ts`, `packages/shared/src/audit.ts`, and `apps/web/src/server/services/audit.ts`.
+- [X] T014 Create the shared service types, safe connection/diagnostic result builders, normal-page/revision adapter boundary, and transaction helpers in `apps/web/src/server/services/hermes-memory.ts`.
+- [X] T015 Add the authenticated Hermes-memory route wrapper that composes `withPublicApi`, destination binding, scope checks, audit attribution, Zod validation, and `Cache-Control: no-store` in `apps/web/app/api/v1/hermes/memory/_shared.ts`.
 
 **Checkpoint**: The server has a migrated, tested, server-enforced destination
 boundary; API routes can be added without trusting client profile/path data.
@@ -65,21 +65,21 @@ identity is shown while the key and response bodies are never printed.
 
 ### Tests for User Story 1
 
-- [ ] T016 [P] [US1] Add API-key provisioning/reuse/rotation tests for owner-only destination selection and immutable memory scopes in `apps/web/src/server/services/api-keys.test.ts`.
+- [X] T016 [P] [US1] Add API-key provisioning/reuse/rotation tests for owner-only destination selection and immutable memory scopes in `apps/web/src/server/services/api-keys.test.ts`.
 - [ ] T017 [P] [US1] Add connection and diagnostics route contract tests for valid, revoked, unbound, disabled, forbidden, incompatible, redirect, and timeout cases in `apps/web/app/api/v1/hermes/memory/connection/route.test.ts` and `apps/web/app/api/v1/hermes/memory/diagnostics/route.test.ts`.
 - [ ] T018 [P] [US1] Add UI tests for the Hermes-memory key preset, new-versus-shared destination choice, and scope explanations in `apps/web/src/components/user-center/ApiKeyCreateDialog.test.tsx`.
-- [ ] T019 [P] [US1] Add provider discovery and no-network availability tests in `packages/hermes-memory-provider/tests/test_provider_registration.py` and `packages/hermes-memory-provider/tests/test_availability.py`.
-- [ ] T020 [P] [US1] Add provider config-schema parity, config migration, secret redaction, no-positional-secret, and dry-run-no-write tests in `packages/hermes-memory-provider/tests/test_config.py`, `packages/hermes-memory-provider/tests/test_config_schema.py`, and `packages/hermes-memory-provider/tests/test_redaction.py`.
-- [ ] T021 [P] [US1] Add bounded HTTP client and CLI diagnostic tests for Bearer authentication, HTTPS/loopback checks, 401/403/404/426/timeout/redirect repair guidance, and never echoing bodies/secrets in `packages/hermes-memory-provider/tests/test_api_client.py` and `packages/hermes-memory-provider/tests/test_cli.py`.
-- [ ] T022 [US1] Extend dedicated API-key creation to transactionally create a private namespace or explicitly bind an owner-selected shared namespace in `apps/web/src/server/services/api-keys.ts`.
-- [ ] T023 [US1] Add the Hermes-memory key preset and destination selection/reveal/revocation guidance to `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`, `apps/web/src/components/user-center/ApiKeyList.tsx`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
-- [ ] T024 [US1] Implement the content-free `GET /api/v1/hermes/memory/connection` contract in `apps/web/app/api/v1/hermes/memory/connection/route.ts` using `apps/web/src/server/services/hermes-memory.ts`.
-- [ ] T025 [US1] Implement the safe `GET /api/v1/hermes/memory/diagnostics` contract and safe operational outcome lookup in `apps/web/app/api/v1/hermes/memory/diagnostics/route.ts` and `apps/web/src/server/services/hermes-memory.ts`.
-- [ ] T026 [US1] Implement versioned non-secret configuration, one-source CLI/Desktop field declarations, secret-presence handling, and centralized redaction in `packages/hermes-memory-provider/src/next_wiki_memory/config.py`, `packages/hermes-memory-provider/src/next_wiki_memory/config_schema.py`, and `packages/hermes-memory-provider/src/next_wiki_memory/redaction.py`.
-- [ ] T027 [US1] Implement the bounded Bearer client and safe diagnostic classification in `packages/hermes-memory-provider/src/next_wiki_memory/api_client.py`.
-- [ ] T028 [US1] Implement `MemoryProvider` registration, local-only `is_available`, initialization with supplied `hermes_home`, `register(ctx)`, and unavailable repair messages in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`.
-- [ ] T029 [US1] Implement active-provider `hermes next-wiki status|check` commands and standalone pre-activation `next-wiki-hermes-memory init [--dry-run]` with prompt/stdin/environment secret handling in `packages/hermes-memory-provider/src/next_wiki_memory/cli.py`.
-- [ ] T030 [US1] Build the wheel and run the entry-point discovery smoke test against the pinned Hermes fixture in `packages/hermes-memory-provider/tests/test_provider_registration.py` and `packages/hermes-memory-provider/pyproject.toml`.
+- [X] T019 [P] [US1] Add provider discovery and no-network availability tests in `packages/hermes-memory-provider/tests/test_provider_registration.py` and `packages/hermes-memory-provider/tests/test_availability.py`.
+- [X] T020 [P] [US1] Add provider config-schema parity, config migration, secret redaction, no-positional-secret, and dry-run-no-write tests in `packages/hermes-memory-provider/tests/test_config.py`, `packages/hermes-memory-provider/tests/test_config_schema.py`, and `packages/hermes-memory-provider/tests/test_redaction.py`.
+- [X] T021 [P] [US1] Add bounded HTTP client and CLI diagnostic tests for Bearer authentication, HTTPS/loopback checks, 401/403/404/426/timeout/redirect repair guidance, and never echoing bodies/secrets in `packages/hermes-memory-provider/tests/test_api_client.py` and `packages/hermes-memory-provider/tests/test_cli.py`.
+- [X] T022 [US1] Extend dedicated API-key creation to transactionally create a private namespace or explicitly bind an owner-selected shared namespace in `apps/web/src/server/services/api-keys.ts`.
+- [X] T023 [US1] Add the Hermes-memory key preset and destination selection/reveal/revocation guidance to `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`, `apps/web/src/components/user-center/ApiKeyList.tsx`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
+- [X] T024 [US1] Implement the content-free `GET /api/v1/hermes/memory/connection` contract in `apps/web/app/api/v1/hermes/memory/connection/route.ts` using `apps/web/src/server/services/hermes-memory.ts`.
+- [X] T025 [US1] Implement the safe `GET /api/v1/hermes/memory/diagnostics` contract and safe operational outcome lookup in `apps/web/app/api/v1/hermes/memory/diagnostics/route.ts` and `apps/web/src/server/services/hermes-memory.ts`.
+- [X] T026 [US1] Implement versioned non-secret configuration, one-source CLI/Desktop field declarations, secret-presence handling, and centralized redaction in `packages/hermes-memory-provider/src/next_wiki_memory/config.py`, `packages/hermes-memory-provider/src/next_wiki_memory/config_schema.py`, and `packages/hermes-memory-provider/src/next_wiki_memory/redaction.py`.
+- [X] T027 [US1] Implement the bounded Bearer client and safe diagnostic classification in `packages/hermes-memory-provider/src/next_wiki_memory/api_client.py`.
+- [X] T028 [US1] Implement `MemoryProvider` registration, local-only `is_available`, initialization with supplied `hermes_home`, `register(ctx)`, and unavailable repair messages in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`.
+- [X] T029 [US1] Implement active-provider `hermes next-wiki status|check` commands and standalone pre-activation `next-wiki-hermes-memory init [--dry-run]` with prompt/stdin/environment secret handling in `packages/hermes-memory-provider/src/next_wiki_memory/cli.py`.
+- [X] T030 [US1] Build the wheel and run the entry-point discovery smoke test against the pinned Hermes fixture in `packages/hermes-memory-provider/tests/test_provider_registration.py` and `packages/hermes-memory-provider/pyproject.toml`.
 
 **Checkpoint**: A user can securely select and diagnose the provider without
 modifying Hermes or exposing a credential; no recall/save behavior is required
@@ -98,16 +98,16 @@ read or forget it.
 
 ### Tests for User Story 2
 
-- [ ] T031 [P] [US2] Add service tests for private page/revision creation, payload/idempotency conflict handling, same-destination evidence-link validation, soft-delete forget, and record-state transitions in `apps/web/src/server/services/hermes-memory.test.ts`.
+- [X] T031 [P] [US2] Add service tests for private page/revision creation, payload/idempotency conflict handling, same-destination evidence-link validation, soft-delete forget, and record-state transitions in `apps/web/src/server/services/hermes-memory.test.ts`.
 - [ ] T032 [P] [US2] Add lexical-recall tests proving result bounds, canonical citations, no-result versus unavailable distinction, hidden/deleted revision behavior, and cross-destination isolation in `apps/web/src/server/services/hermes-memory-recall.test.ts`.
 - [ ] T033 [P] [US2] Add REST contract tests for recall, create/idempotent update, and forget authorization/error behavior in `apps/web/app/api/v1/hermes/memory/recall/route.test.ts`, `apps/web/app/api/v1/hermes/memory/records/route.test.ts`, and `apps/web/app/api/v1/hermes/memory/records/[memoryId]/route.test.ts`.
-- [ ] T034 [P] [US2] Add provider tool-schema/dispatch/prefetch tests covering caps, safe JSON failures, toolset/core-name behavior, and durable citations in `packages/hermes-memory-provider/tests/test_tools.py` and `packages/hermes-memory-provider/tests/test_prefetch.py`.
-- [ ] T035 [US2] Implement normal restricted page/revision create-or-idempotently-return, memory locator updates, evidence-link validation, and normal soft-deletion in `apps/web/src/server/services/hermes-memory.ts`.
-- [ ] T036 [US2] Implement destination-filtered bounded lexical candidate retrieval and post-retrieval backing-page/revision access rechecks in `apps/web/src/server/services/hermes-memory-recall.ts`.
-- [ ] T037 [US2] Implement `POST /api/v1/hermes/memory/recall` with query/limit validation, bounded excerpts, and citation responses in `apps/web/app/api/v1/hermes/memory/recall/route.ts`.
-- [ ] T038 [US2] Implement `POST /api/v1/hermes/memory/records` with atomically validated evidence links and idempotent response semantics in `apps/web/app/api/v1/hermes/memory/records/route.ts`.
-- [ ] T039 [US2] Implement `DELETE /api/v1/hermes/memory/records/[memoryId]` as an idempotent normal soft-delete operation in `apps/web/app/api/v1/hermes/memory/records/[memoryId]/route.ts`.
-- [ ] T040 [US2] Implement the uniquely prefixed `next_wiki_memory_search`, `next_wiki_memory_save`, and `next_wiki_memory_forget` schemas/dispatch plus bounded prefetch in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`.
+- [X] T034 [P] [US2] Add provider tool-schema/dispatch/prefetch tests covering caps, safe JSON failures, toolset/core-name behavior, and durable citations in `packages/hermes-memory-provider/tests/test_tools.py` and `packages/hermes-memory-provider/tests/test_prefetch.py`.
+- [X] T035 [US2] Implement normal restricted page/revision create-or-idempotently-return, memory locator updates, evidence-link validation, and normal soft-deletion in `apps/web/src/server/services/hermes-memory.ts`.
+- [X] T036 [US2] Implement destination-filtered bounded lexical candidate retrieval and post-retrieval backing-page/revision access rechecks in `apps/web/src/server/services/hermes-memory-recall.ts`.
+- [X] T037 [US2] Implement `POST /api/v1/hermes/memory/recall` with query/limit validation, bounded excerpts, and citation responses in `apps/web/app/api/v1/hermes/memory/recall/route.ts`.
+- [X] T038 [US2] Implement `POST /api/v1/hermes/memory/records` with atomically validated evidence links and idempotent response semantics in `apps/web/app/api/v1/hermes/memory/records/route.ts`.
+- [X] T039 [US2] Implement `DELETE /api/v1/hermes/memory/records/[memoryId]` as an idempotent normal soft-delete operation in `apps/web/app/api/v1/hermes/memory/records/[memoryId]/route.ts`.
+- [X] T040 [US2] Implement the uniquely prefixed `next_wiki_memory_search`, `next_wiki_memory_save`, and `next_wiki_memory_forget` schemas/dispatch plus bounded prefetch in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`.
 - [ ] T041 [US2] Add an HTTP-fixture integration test for provider save → new-session recall → citation → forget and cross-destination denial in `packages/hermes-memory-provider/tests/test_wiki_api_integration.py`.
 
 **Checkpoint**: Explicit Wiki-backed memory delivers recall and reversible
@@ -128,12 +128,12 @@ no tool-output persistence by default.
 
 - [ ] T042 [P] [US3] Add evidence submission/poll route tests for validation, idempotent queued/durable/failed transitions, authorization, and checkpoint-not-durable errors in `apps/web/app/api/v1/hermes/memory/evidence/route.test.ts` and `apps/web/app/api/v1/hermes/memory/evidence/[captureId]/route.test.ts`.
 - [ ] T043 [P] [US3] Add job tests for `runWithoutDataCache`, bounded retry/overlap handling, private normal-page evidence writes, and durable state transitions in `apps/web/src/server/jobs/hermes-memory-capture.test.ts`.
-- [ ] T044 [P] [US3] Add lifecycle tests for opt-in-only capture, primary-context filtering, session switch/end flush, tool-result exclusion, daemon non-blocking sync, and secret-safe failures in `packages/hermes-memory-provider/tests/test_capture_lifecycle.py`.
-- [ ] T045 [P] [US3] Add capability-gated v2 checkpoint tests for digest idempotency, poll-until-durable success, timeout/failure raise, and incompatible host fallback in `packages/hermes-memory-provider/tests/test_checkpoints.py`.
-- [ ] T046 [US3] Implement bounded normalized-evidence validation, idempotent capture submission/status service methods, and durable Evidence Record creation in `apps/web/src/server/services/hermes-memory.ts`.
-- [ ] T047 [US3] Implement the registered pg-boss capture handler, durable job state mapping, and cache-context escape in `apps/web/src/server/jobs/hermes-memory-capture.ts`, `apps/web/src/server/jobs/register.ts`, and `apps/web/src/server/jobs/runtime.ts`.
-- [ ] T048 [US3] Implement asynchronous evidence submission and status polling routes in `apps/web/app/api/v1/hermes/memory/evidence/route.ts` and `apps/web/app/api/v1/hermes/memory/evidence/[captureId]/route.ts`.
-- [ ] T049 [US3] Implement capture policy persistence, bounded daemon queue, session switch/end/shutdown flushing, and safe non-primary-context behavior in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py` and `packages/hermes-memory-provider/src/next_wiki_memory/config.py`.
+- [X] T044 [P] [US3] Add lifecycle tests for opt-in-only capture, primary-context filtering, session switch/end flush, tool-result exclusion, daemon non-blocking sync, and secret-safe failures in `packages/hermes-memory-provider/tests/test_capture_lifecycle.py`.
+- [X] T045 [P] [US3] Add capability-gated v2 checkpoint tests for digest idempotency, poll-until-durable success, timeout/failure raise, and incompatible host fallback in `packages/hermes-memory-provider/tests/test_checkpoints.py`.
+- [X] T046 [US3] Implement bounded normalized-evidence validation, idempotent capture submission/status service methods, and durable Evidence Record creation in `apps/web/src/server/services/hermes-memory.ts`.
+- [X] T047 [US3] Implement the registered pg-boss capture handler, durable job state mapping, and cache-context escape in `apps/web/src/server/jobs/hermes-memory-capture.ts`, `apps/web/src/server/jobs/register.ts`, and `apps/web/src/server/jobs/runtime.ts`.
+- [X] T048 [US3] Implement asynchronous evidence submission and status polling routes in `apps/web/app/api/v1/hermes/memory/evidence/route.ts` and `apps/web/app/api/v1/hermes/memory/evidence/[captureId]/route.ts`.
+- [X] T049 [US3] Implement capture policy persistence, bounded daemon queue, session switch/end/shutdown flushing, and safe non-primary-context behavior in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py` and `packages/hermes-memory-provider/src/next_wiki_memory/config.py`.
 - [ ] T050 [US3] Implement runtime feature detection and the v2 `on_pre_compress` durable checkpoint workflow without advertising strict mode to unsupported Hermes hosts in `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`.
 - [ ] T051 [US3] Add a Docker Compose integration scenario for capture retry, durable evidence page/revision, and strict-checkpoint failure behavior in `packages/hermes-memory-provider/tests/test_docker_integration.py` and `docker-compose.yml`.
 
@@ -155,14 +155,14 @@ overwrite.
 
 ### Tests for User Story 4
 
-- [ ] T052 [P] [US4] Extend managed-sample-page tests for the fourth published guide, welcome/main-feature links, rerun idempotency, four cache invalidations, collision protection, and default-space-only collision lookup in `apps/web/src/server/services/setup-sample-pages.test.ts`.
+- [X] T052 [P] [US4] Extend managed-sample-page tests for the fourth published guide, welcome/main-feature links, rerun idempotency, four cache invalidations, collision protection, and default-space-only collision lookup in `apps/web/src/server/services/setup-sample-pages.test.ts`.
 - [ ] T053 [P] [US4] Extend setup route and onboarding Playwright coverage for four outcomes, visible Hermes help content, and collision reporting in `apps/web/app/api/setup/sample-pages/setup-sample-pages-route.test.ts` and `apps/web/e2e/setup-onboarding.spec.ts`.
-- [ ] T054 [US4] Add the marker-owned published `help/hermes-memory` source, welcome link, and Main Features link in `apps/web/src/server/services/setup-sample-page-definitions.ts`.
-- [ ] T055 [US4] Resolve the default wiki space before generated-page collision lookup and include the Hermes guide in generated results in `apps/web/src/server/services/setup-sample-pages.ts`.
-- [ ] T056 [US4] Update setup-step/API descriptive copy and localized four-page results in `apps/web/src/components/setup/SamplePagesStep.tsx`, `apps/web/app/api/setup/sample-pages/route.ts`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
-- [ ] T057 [US4] Write the npm/PyPI-shipped installation, setup, activation, local/remote/container address, capture/checkpoint, rotation/revoke, backup, and safe-diagnostics guide in `packages/hermes-memory-provider/README.md`.
-- [ ] T058 [US4] Write deployment/operator guidance and link it from public documentation in `docs/hermes-memory-provider.md`, `docs/deployment.md`, `README.md`, and `packages/mcp-server/README.md`.
-- [ ] T059 [US4] Validate the documented shell flows, `--dry-run` no-change guarantee, and public guide wording against `specs/039-hermes-memory-provider/quickstart.md` and `packages/hermes-memory-provider/tests/test_cli.py`.
+- [X] T054 [US4] Add the marker-owned published `help/hermes-memory` source, welcome link, and Main Features link in `apps/web/src/server/services/setup-sample-page-definitions.ts`.
+- [X] T055 [US4] Resolve the default wiki space before generated-page collision lookup and include the Hermes guide in generated results in `apps/web/src/server/services/setup-sample-pages.ts`.
+- [X] T056 [US4] Update setup-step/API descriptive copy and localized four-page results in `apps/web/src/components/setup/SamplePagesStep.tsx`, `apps/web/app/api/setup/sample-pages/route.ts`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
+- [X] T057 [US4] Write the npm/PyPI-shipped installation, setup, activation, local/remote/container address, capture/checkpoint, rotation/revoke, backup, and safe-diagnostics guide in `packages/hermes-memory-provider/README.md`.
+- [X] T058 [US4] Write deployment/operator guidance and link it from public documentation in `docs/hermes-memory-provider.md`, `docs/deployment.md`, `README.md`, and `packages/mcp-server/README.md`.
+- [X] T059 [US4] Validate the documented shell flows, `--dry-run` no-change guarantee, and public guide wording against `specs/039-hermes-memory-provider/quickstart.md` and `packages/hermes-memory-provider/tests/test_cli.py`.
 
 **Checkpoint**: A fresh Wiki exposes an idempotent public guide while all
 credentials and operational state remain private.
@@ -184,10 +184,10 @@ remain normally recoverable to the owner.
 - [ ] T060 [P] [US5] Add audit tests proving Hermes origin, endpoint/result/correlation metadata, and key identity are recorded while secrets, queries, profiles, transcript bodies, and upstream response bodies are absent in `apps/web/src/server/services/audit.test.ts` and `apps/web/src/server/services/hermes-memory.test.ts`.
 - [ ] T061 [P] [US5] Add public-route tests for revoked/disabled/missing-scope behavior, post-revocation non-access, and key-bound record indistinguishability in `apps/web/app/api/v1/hermes/memory/connection/route.test.ts`, `apps/web/app/api/v1/hermes/memory/recall/route.test.ts`, and `apps/web/app/api/v1/hermes/memory/records/[memoryId]/route.test.ts`.
 - [ ] T062 [P] [US5] Add user-center end-to-end coverage for provision, safe audit visibility, key revocation, and failed provider recheck in `apps/web/e2e/api-keys.spec.ts`.
-- [ ] T063 [US5] Refine API-key authentication state resolution and the memory service so revoked/disabled/unbound/scope failures are safely classified, audited, and never reveal a destination record in `apps/web/src/server/services/api-keys.ts`, `apps/web/src/server/services/hermes-memory.ts`, and `apps/web/app/api/v1/hermes/memory/_shared.ts`.
+- [X] T063 [US5] Refine API-key authentication state resolution and the memory service so revoked/disabled/unbound/scope failures are safely classified, audited, and never reveal a destination record in `apps/web/src/server/services/api-keys.ts`, `apps/web/src/server/services/hermes-memory.ts`, and `apps/web/app/api/v1/hermes/memory/_shared.ts`.
 - [ ] T064 [US5] Add safe Hermes audit operation/correlation mapping and query/content redaction enforcement in `apps/web/src/server/services/audit.ts`, `apps/web/src/server/api/audit-wrapper.ts`, and `packages/shared/src/audit.ts`.
-- [ ] T065 [US5] Ensure API-key revocation and namespace disablement immediately disable all bound memory operations while preserving normal page/revision recovery paths in `apps/web/src/server/services/api-keys.ts`, `apps/web/src/server/services/hermes-memory.ts`, and `apps/web/src/components/user-center/ApiKeyList.tsx`.
-- [ ] T066 [US5] Add provider-side recovery messaging for revoked, forbidden, unbound, disabled, unavailable, and ambiguous not-found responses in `packages/hermes-memory-provider/src/next_wiki_memory/api_client.py` and `packages/hermes-memory-provider/src/next_wiki_memory/cli.py`.
+- [X] T065 [US5] Ensure API-key revocation and namespace disablement immediately disable all bound memory operations while preserving normal page/revision recovery paths in `apps/web/src/server/services/api-keys.ts`, `apps/web/src/server/services/hermes-memory.ts`, and `apps/web/src/components/user-center/ApiKeyList.tsx`.
+- [X] T066 [US5] Add provider-side recovery messaging for revoked, forbidden, unbound, disabled, unavailable, and ambiguous not-found responses in `packages/hermes-memory-provider/src/next_wiki_memory/api_client.py` and `packages/hermes-memory-provider/src/next_wiki_memory/cli.py`.
 
 **Checkpoint**: Owners can audit and revoke an integration safely; the provider
 does not turn a failed operation into a false persistence or recall claim.
@@ -199,11 +199,11 @@ does not turn a failed operation into a false persistence or recall claim.
 **Purpose**: Validate the complete external contract, migration discipline,
 security properties, release build, and deployment behavior.
 
-- [ ] T067 [P] Verify every new Hermes-memory route appears with correct security, schemas, errors, and no-cache response behavior in `apps/web/src/server/api/openapi-schemas.test.ts` and `apps/web/app/api/v1/public-route-architecture.test.ts`.
+- [X] T067 [P] Verify every new Hermes-memory route appears with correct security, schemas, errors, and no-cache response behavior in `apps/web/src/server/api/openapi-schemas.test.ts` and `apps/web/app/api/v1/public-route-architecture.test.ts`.
 - [ ] T068 [P] Add regression coverage that generic page scopes and Raw/Generated space access cannot authorize the dedicated memory surface in `apps/web/src/server/permissions/hermes-memory.test.ts` and `apps/web/app/api/v1/hermes/memory/recall/route.test.ts`.
 - [ ] T069 [P] Build/install the wheel against the documented minimum and current Hermes versions, proving entry-point, `cli.py`, Desktop schema, lifecycle hook, toolset gate, and provider-name collision compatibility in `packages/hermes-memory-provider/tests/test_hermes_compatibility.py` and `.github/workflows/publish-hermes-memory-provider.yml`.
 - [ ] T070 [P] Review all emitted provider/server messages and documentation for credential, content, profile, session-ID, and raw-error leakage in `packages/hermes-memory-provider/src/next_wiki_memory/redaction.py`, `apps/web/src/server/services/hermes-memory.ts`, and `docs/hermes-memory-provider.md`.
-- [ ] T071 Run `pnpm db:generate` after all schema work and confirm no pending changes from `apps/web/src/server/db/schema/hermes-memory.ts`; do not hand-author migration files under `apps/web/src/server/db/migrations/`.
+- [X] T071 Run `pnpm db:generate` after all schema work and confirm no pending changes from `apps/web/src/server/db/schema/hermes-memory.ts`; do not hand-author migration files under `apps/web/src/server/db/migrations/`.
 - [ ] T072 Run focused Vitest, pytest, Playwright, and OpenAPI suites for `apps/web/src/server/services/hermes-memory.test.ts`, `apps/web/app/api/v1/hermes/memory/recall/route.test.ts`, `apps/web/e2e/setup-onboarding.spec.ts`, and `packages/hermes-memory-provider/tests/`.
 - [ ] T073 Run workspace typecheck, lint, package wheel build, and Docker Compose end-to-end validation using `package.json`, `packages/hermes-memory-provider/pyproject.toml`, and `docker-compose.yml`; fix only feature-related failures.
 - [ ] T074 Re-run every command and manual scenario in `specs/039-hermes-memory-provider/quickstart.md`, recording supported Hermes version/commit evidence and any compatibility limits in `docs/hermes-memory-provider.md`.

@@ -12,6 +12,8 @@ import * as revisionsService from '@/server/services/revisions';
 import { DomainError } from '@/server/errors';
 import { assertSetupAdmin, recordSamplePagesOutcome, recordSamplePagesSkip } from '@/server/services/setup';
 import {
+  HERMES_MEMORY_PAGE_SOURCE,
+  HERMES_MEMORY_PAGE_TITLE,
   MAIN_FEATURES_PAGE_SOURCE,
   MAIN_FEATURES_PAGE_TITLE,
   MARKDOWN_SYNTAX_PAGE_SOURCE,
@@ -23,6 +25,7 @@ import {
   SAMPLE_PAGE_PATHS,
   WELCOME_PAGE_TITLE,
 } from '@/server/services/setup-sample-page-definitions';
+import { resolveSpace } from '@/server/services/spaces';
 
 function asCtx(actor: Actor): PermCtx {
   return { actor };
@@ -39,8 +42,11 @@ export async function skipSamplePages(actor: Actor): Promise<SetupSamplePagesRes
 }
 
 async function findPage(path: string) {
+  const defaultSpace = await resolveSpace();
+  if (!defaultSpace) return null;
   return db.query.pages.findFirst({
     where: and(
+      eq(schema.pages.spaceId, defaultSpace.id),
       eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
       isNull(schema.pages.translationGroupId),
@@ -106,7 +112,7 @@ async function writeSamplePage(
 }
 
 /**
- * Generate the optional welcome/markdown-syntax/main-features pages through
+ * Generate the optional welcome/markdown-syntax/main-features/Hermes pages through
  * the canonical page services (published revisions, normal permissions, and
  * public content cache invalidation via publish). Idempotent per page: reruns
  * skip setup-owned pages and report collisions for user-authored ones.
@@ -146,6 +152,7 @@ export async function generateSamplePages(actor: Actor): Promise<SetupSamplePage
   for (const definition of [
     { path: SAMPLE_PAGE_PATHS.markdownSyntax, title: MARKDOWN_SYNTAX_PAGE_TITLE, contentSource: MARKDOWN_SYNTAX_PAGE_SOURCE },
     { path: SAMPLE_PAGE_PATHS.mainFeatures, title: MAIN_FEATURES_PAGE_TITLE, contentSource: MAIN_FEATURES_PAGE_SOURCE },
+    { path: SAMPLE_PAGE_PATHS.hermesMemory, title: HERMES_MEMORY_PAGE_TITLE, contentSource: HERMES_MEMORY_PAGE_SOURCE },
   ]) {
     try {
       results.push(await writeSamplePage(ctx, definition));

@@ -138,7 +138,14 @@ export type DomainErrorCode =
   | 'PAGE_ADDRESS_TAKEN' // 409: address is an existing alias of another page
   | 'PAGE_ADDRESS_SELF' // 400: alias equals the page's own canonical slug
   | 'ADDRESS_ALIAS_RETAINED' // 409: retained-alias removal attempted without confirmation
-  | 'PAGE_NOT_DELETED'; // 409: address release attempted on a live (non-deleted) page
+  | 'PAGE_NOT_DELETED' // 409: address release attempted on a live (non-deleted) page
+  | 'HERMES_MEMORY_SCOPE_REQUIRED'
+  | 'HERMES_MEMORY_KEY_UNBOUND'
+  | 'HERMES_MEMORY_NAMESPACE_UNAVAILABLE'
+  | 'HERMES_MEMORY_RECORD_NOT_FOUND'
+  | 'HERMES_MEMORY_EVIDENCE_INVALID'
+  | 'HERMES_MEMORY_CHECKPOINT_NOT_DURABLE'
+  | 'HERMES_MEMORY_INCOMPATIBLE_CLIENT';
 
 export class DomainError extends Error {
   constructor(

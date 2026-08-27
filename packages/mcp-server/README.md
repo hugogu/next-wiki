@@ -205,6 +205,11 @@ raw-source metadata. While a writing-mode switch is pending, mutations return
 
 ### Memory conventions
 
+For Hermes Agent's native `MemoryProvider` lifecycle, use the separate
+[`next-wiki-hermes-memory`](../hermes-memory-provider/README.md) Python
+package. It provisions a key-bound, server-enforced destination; the MCP
+conventions below are for general AI clients and do not provide that boundary.
+
 When using next-wiki as AI long-term memory, prefer these path prefixes and
 frontmatter metadata:
 

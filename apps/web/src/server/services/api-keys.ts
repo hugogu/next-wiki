@@ -1,11 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { encryptKey, decryptKey, constantTimeCompare } from '@/server/crypto/key-encryption';
 import type { PermCtx } from '@/server/permissions';
-import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, SpaceKind } from '@next-wiki/shared';
+import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, SpaceKind } from '@next-wiki/shared';
 
 const ADMIN_ONLY_SPACE_KINDS: readonly SpaceKind[] = ['raw', 'generated'];
 
@@ -14,6 +14,9 @@ const KEY_RANDOM_BYTES = 32;
 const KEY_PREFIX_LENGTH = 12;
 const MAX_KEYS_PER_USER = 10;
 const PREFIX_COLLISION_RETRIES = 3;
+
+type HermesMemoryKeyOptions = NonNullable<CreateApiKeyInput['hermesMemory']>;
+type HermesMemoryDestination = NonNullable<ApiKeyView['hermesMemoryDestination']>;
 
 function generateKey(): string {
   const bytes = randomBytes(KEY_RANDOM_BYTES);
@@ -42,8 +45,19 @@ export async function create(
   name: string,
   scopes: ApiKeyScope[],
   requestedSpaceAccess?: SpaceKind[],
+  hermesMemory?: HermesMemoryKeyOptions,
 ): Promise<ApiKeyCreated> {
   const userId = requireUserId(ctx);
+  const memoryScopes = scopes.filter((scope) => scope.startsWith('memory.'));
+  if (memoryScopes.length > 0 && !hermesMemory) {
+    throw new DomainError('BAD_REQUEST', 'Hermes memory scopes require a bound Hermes memory destination');
+  }
+  if (hermesMemory && (memoryScopes.length === 0 || memoryScopes.length !== scopes.length)) {
+    throw new DomainError('BAD_REQUEST', 'A Hermes memory key may contain only dedicated memory scopes');
+  }
+  if (hermesMemory && (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin')) {
+    throw new DomainError('FORBIDDEN', 'Only administrators may create a Hermes memory API key');
+  }
 
   // 'wiki' is always implicitly allowed (see spaceAllowedForKey), but the
   // stored/returned list should reflect that canonically rather than only
@@ -52,6 +66,9 @@ export async function create(
   const grantsAdminOnlySpace = spaceAccess.some((kind) => ADMIN_ONLY_SPACE_KINDS.includes(kind));
   if (grantsAdminOnlySpace && !(ctx.actor.kind === 'user' && ctx.actor.role === 'admin')) {
     throw new DomainError('FORBIDDEN', 'Only admins may grant raw/generated space access to an API key');
+  }
+  if (hermesMemory && spaceAccess.some((kind) => kind !== 'wiki')) {
+    throw new DomainError('BAD_REQUEST', 'Hermes memory API keys cannot access Raw or Generated spaces');
   }
 
   const activeCount = await db.$count(
@@ -93,21 +110,50 @@ export async function create(
     throw new DomainError('CONFLICT', 'Could not generate a unique API key prefix. Please try again.');
   }
 
-  const [row] = await db
-    .insert(schema.apiKeys)
-    .values({
-      userId,
-      name: name.trim(),
-      scopes,
-      spaceAccess,
-      keyPrefix: prefix,
-      keySecretEncrypted: encrypted,
-    })
-    .returning();
+  const created = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(schema.apiKeys)
+      .values({
+        userId,
+        name: name.trim(),
+        scopes,
+        spaceAccess,
+        keyPrefix: prefix,
+        keySecretEncrypted: encrypted,
+      })
+      .returning();
 
-  if (!row) {
-    throw new Error('API_KEY_INSERT_FAILED');
-  }
+    if (!row) throw new Error('API_KEY_INSERT_FAILED');
+
+    let destination: HermesMemoryDestination | null = null;
+    if (hermesMemory) {
+      const namespace = hermesMemory.sharedNamespaceId
+        ? await tx.query.hermesMemoryNamespaces.findFirst({
+            where: and(
+              eq(schema.hermesMemoryNamespaces.id, hermesMemory.sharedNamespaceId),
+              eq(schema.hermesMemoryNamespaces.ownerUserId, userId),
+              eq(schema.hermesMemoryNamespaces.state, 'active'),
+            ),
+          })
+        : (await tx
+            .insert(schema.hermesMemoryNamespaces)
+            .values({ ownerUserId: userId, displayName: hermesMemory.displayName?.trim() || 'Hermes memory' })
+            .returning())[0];
+      if (!namespace) {
+        throw new DomainError('NOT_FOUND', 'The selected Hermes memory destination is unavailable');
+      }
+      await tx.insert(schema.hermesMemoryKeyBindings).values({
+        apiKeyId: row.id,
+        namespaceId: namespace.id,
+        sharedByOwner: Boolean(hermesMemory.sharedNamespaceId),
+      });
+      destination = { id: namespace.id, displayName: namespace.displayName, state: namespace.state };
+    }
+
+    return { row, destination };
+  });
+
+  const { row, destination } = created;
 
   return {
     id: row.id,
@@ -119,6 +165,7 @@ export async function create(
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
+    hermesMemoryDestination: destination,
   };
 }
 
@@ -130,6 +177,18 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     orderBy: sql`${schema.apiKeys.createdAt} desc`,
   });
 
+  const bindings = rows.length > 0
+    ? await db.query.hermesMemoryKeyBindings.findMany({
+        where: inArray(schema.hermesMemoryKeyBindings.apiKeyId, rows.map((row) => row.id)),
+        with: { namespace: true },
+      })
+    : [];
+  const destinations = new Map(bindings.map((binding) => [binding.apiKeyId, {
+    id: binding.namespace.id,
+    displayName: binding.namespace.displayName,
+    state: binding.namespace.state,
+  }]));
+
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -139,7 +198,17 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
+    hermesMemoryDestination: destinations.get(row.id) ?? null,
   }));
+}
+
+export async function listHermesMemoryDestinations(ctx: PermCtx): Promise<HermesMemoryDestination[]> {
+  const userId = requireUserId(ctx);
+  const rows = await db.query.hermesMemoryNamespaces.findMany({
+    where: eq(schema.hermesMemoryNamespaces.ownerUserId, userId),
+    orderBy: sql`${schema.hermesMemoryNamespaces.createdAt} desc`,
+  });
+  return rows.map((row) => ({ id: row.id, displayName: row.displayName, state: row.state }));
 }
 
 export async function reveal(ctx: PermCtx, keyId: string): Promise<ApiKeyReveal> {

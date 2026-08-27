@@ -6,6 +6,7 @@ export * from './analytics';
 export * from './auth';
 export * from './pages';
 export * from './api-keys';
+export * from './hermes-memory';
 export * from './user-center';
 export * from './audit';
 export * from './request-log';

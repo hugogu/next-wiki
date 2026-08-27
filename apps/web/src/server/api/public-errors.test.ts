@@ -23,6 +23,12 @@ describe('mapPublicDomainErrorCode', () => {
     expect(mapPublicDomainErrorCode('FORBIDDEN')).toEqual({ code: 'FORBIDDEN', status: 403 });
     expect(mapPublicDomainErrorCode('STALE_REVISION')).toEqual({ code: 'STALE_REVISION', status: 409 });
   });
+
+  it('maps Hermes memory errors without downgrading their safe status', () => {
+    expect(mapPublicDomainErrorCode('HERMES_MEMORY_SCOPE_REQUIRED')).toEqual({ code: 'HERMES_MEMORY_SCOPE_REQUIRED', status: 403 });
+    expect(mapPublicDomainErrorCode('HERMES_MEMORY_RECORD_NOT_FOUND')).toEqual({ code: 'HERMES_MEMORY_RECORD_NOT_FOUND', status: 404 });
+    expect(mapPublicDomainErrorCode('HERMES_MEMORY_INCOMPATIBLE_CLIENT')).toEqual({ code: 'HERMES_MEMORY_INCOMPATIBLE_CLIENT', status: 426 });
+  });
 });
 
 describe('mapPublicDomainError', () => {
