@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import os
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -93,6 +93,9 @@ def load_config(hermes_home: str | Path) -> ProviderConfig | None:
 
 
 def save_config(hermes_home: str | Path, config: ProviderConfig, *, dry_run: bool = False) -> Path:
+    normalized_url = validate_wiki_api_base_url(config.wiki_api_base_url)
+    if normalized_url != config.wiki_api_base_url:
+        config = replace(config, wiki_api_base_url=normalized_url)
     path = config_path(hermes_home)
     if dry_run:
         return path

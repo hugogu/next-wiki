@@ -222,14 +222,17 @@ async function createRecord(
   }
 }
 
-export async function getConnection(ctx: PermCtx): Promise<{
+export async function getConnection(ctx: PermCtx, options: { allowAnyMemoryScope?: boolean } = {}): Promise<{
   apiVersion: 'v1';
   provider: 'next-wiki';
   namespace: { id: string; displayName: string; state: 'active' };
   capabilities: { recall: boolean; save: boolean; forget: boolean; asynchronousEvidenceCapture: boolean; strictCheckpoint: boolean; semanticRecall: false };
   limits: { maxRecallResults: number; maxSaveCharacters: number; maxEvidenceCharacters: number; maxEvidenceMessages: number };
 }> {
-  const access = await requireHermesMemoryAccess(ctx, ctx.actor.kind === 'api_key' && ctx.actor.scopes.includes('memory.read') ? 'memory.read' : 'memory.write');
+  const requiredScope = options.allowAnyMemoryScope
+    ? 'any' as const
+    : (ctx.actor.kind === 'api_key' && ctx.actor.scopes.includes('memory.read') ? 'memory.read' : 'memory.write');
+  const access = await requireHermesMemoryAccess(ctx, requiredScope);
   const scopes = ctx.actor.kind === 'api_key' ? ctx.actor.scopes : [];
   return {
     apiVersion: 'v1',
@@ -253,7 +256,7 @@ export async function getDiagnostics(ctx: PermCtx): Promise<{
   namespaceState: 'active';
   grantedScopes: ApiKeyScope[];
 }> {
-  await getConnection(ctx);
+  await getConnection(ctx, { allowAnyMemoryScope: true });
   return {
     status: 'healthy',
     apiVersion: 'v1',

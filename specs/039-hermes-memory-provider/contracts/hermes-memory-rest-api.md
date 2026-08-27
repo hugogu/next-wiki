@@ -305,12 +305,16 @@ capture. It never accepts tool result content by default.
 {
   "captureId": "5ce11a61-4a23-48aa-a62c-cb2f4a38fd6b",
   "status": "queued",
-  "pollUrl": "/api/v1/hermes/memory/evidence/5ce11a61-4a23-48aa-a62c-cb2f4a38fd6b",
+  "pollUrl": "hermes/memory/evidence/5ce11a61-4a23-48aa-a62c-cb2f4a38fd6b",
   "idempotent": false
 }
 ```
 
-Repeated requests return the same `captureId` and latest state. The route queues
+`pollUrl` is a base-relative path without a leading slash, relative to the
+configured `{NEXT_WIKI_API_URL}` base (which already ends in `/api/v1`); clients
+must resolve it against that base without prepending another `/api/v1` segment.
+Repeated requests return the same
+`captureId` and latest state. The route queues
 work but does not claim durable preservation.
 
 ## `GET /hermes/memory/evidence/{captureId}`

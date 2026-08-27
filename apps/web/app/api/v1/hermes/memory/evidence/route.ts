@@ -19,7 +19,7 @@ export const POST = withPublicApi(async (request, _context, ctx) => {
   return publicJson({
     captureId: result.captureId,
     status: result.status,
-    pollUrl: `/api/v1/hermes/memory/evidence/${result.captureId}`,
+    pollUrl: `hermes/memory/evidence/${result.captureId}`,
     idempotent: result.idempotent,
   }, { status: result.idempotent ? 200 : 202 });
 });

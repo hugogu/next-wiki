@@ -1,6 +1,6 @@
 import { hermesMemoryForgetInputSchema } from '@next-wiki/shared';
 import { assertSupportedProvider, publicJson, withPublicApi } from '../../_shared';
-import { parsePublicJson } from '../../../../_shared/route';
+import { parseOptionalPublicJson } from '../../../../_shared/route';
 import { forget } from '@/server/services/hermes-memory';
 
 /**
@@ -13,7 +13,7 @@ import { forget } from '@/server/services/hermes-memory';
  */
 export const DELETE = withPublicApi<{ memoryId: string }>(async (request, { params }, ctx) => {
   assertSupportedProvider(request);
-  const parsed = await parsePublicJson(request, hermesMemoryForgetInputSchema);
+  const parsed = await parseOptionalPublicJson(request, hermesMemoryForgetInputSchema);
   if (!parsed.ok) return parsed.response;
   return publicJson(await forget(ctx, (await params).memoryId));
 });

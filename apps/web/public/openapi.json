@@ -2274,7 +2274,8 @@
             ]
           },
           "pollUrl": {
-            "type": "string"
+            "type": "string",
+            "description": "Path relative to the configured /api/v1 base URL for polling capture status."
           },
           "idempotent": {
             "type": "boolean"

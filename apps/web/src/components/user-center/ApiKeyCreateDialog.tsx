@@ -167,7 +167,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                     type="checkbox"
                     checked={scopes.includes(scope)}
                     onChange={() => toggleScope(scope)}
-                    disabled={isHermesMemoryKey && !hermesScopes.includes(scope)}
+                    disabled={(!currentUserIsAdmin && hermesScopes.includes(scope)) || (isHermesMemoryKey && !hermesScopes.includes(scope))}
                     className="mt-1"
                   />
                   <div className="text-sm">

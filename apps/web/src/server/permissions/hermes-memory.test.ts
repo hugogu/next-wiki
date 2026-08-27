@@ -36,6 +36,12 @@ describe('Hermes memory permissions', () => {
       'memory.write',
     );
     expect(access.namespaceId).toBe(created.hermesMemoryDestination?.id);
+
+    const diagnosticsAccess = await requireHermesMemoryAccess(
+      buildApiKeyCtx(userId, 'admin', ['memory.delete'], created.id),
+      'any',
+    );
+    expect(diagnosticsAccess.namespaceId).toBe(created.hermesMemoryDestination?.id);
   });
 
   it('rejects generic page scopes, unbound keys, and disabled destinations', async () => {

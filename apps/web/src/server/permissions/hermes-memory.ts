@@ -18,11 +18,14 @@ export type HermesMemoryAccess = {
  * The client never supplies a namespace or profile. This resolver obtains the
  * single destination from the authenticated key on every operation.
  */
-export async function requireHermesMemoryAccess(ctx: PermCtx, requiredScope: HermesMemoryScope): Promise<HermesMemoryAccess> {
+export async function requireHermesMemoryAccess(ctx: PermCtx, requiredScope: HermesMemoryScope | 'any'): Promise<HermesMemoryAccess> {
   if (ctx.actor.kind !== 'api_key') {
     throw new DomainError('UNAUTHORIZED', 'A dedicated Hermes memory API key is required');
   }
-  if (!ctx.actor.scopes.includes(requiredScope) || ctx.actor.role !== 'admin') {
+  const hasRequiredScope = requiredScope === 'any'
+    ? ctx.actor.scopes.some((scope) => scope.startsWith('memory.'))
+    : ctx.actor.scopes.includes(requiredScope);
+  if (!hasRequiredScope || ctx.actor.role !== 'admin') {
     throw new DomainError('HERMES_MEMORY_SCOPE_REQUIRED', 'This key does not have the required Hermes memory permission');
   }
 

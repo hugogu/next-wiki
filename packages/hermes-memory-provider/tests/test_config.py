@@ -32,6 +32,14 @@ def test_dry_run_never_writes_and_config_never_contains_a_secret(tmp_path) -> No
     assert load_config(tmp_path) == config
 
 
+def test_save_config_revalidates_urls_from_desktop_or_other_callers(tmp_path) -> None:
+    with pytest.raises(ValueError, match="HTTPS"):
+        save_config(tmp_path, ProviderConfig("http://wiki.example.com/api/v1"))
+
+    with pytest.raises(ValueError, match="credentials"):
+        save_config(tmp_path, ProviderConfig("https://secret@wiki.example.com/api/v1"))
+
+
 def test_safe_rendering_removes_secrets_and_url_queries() -> None:
     secret = "nwk_very_secret_value"
     assert secret not in redact(f"Bearer {secret}")
