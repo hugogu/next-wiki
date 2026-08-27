@@ -19,7 +19,10 @@ export const POST = withPublicApi(async (request, _context, ctx) => {
   return publicJson({
     captureId: result.captureId,
     status: result.status,
-    pollUrl: `hermes/memory/evidence/${result.captureId}`,
+    // Return a complete origin-relative API path. Clients must resolve this
+    // against the configured API origin, rather than append it to the
+    // already-versioned `/api/v1` base URL.
+    pollUrl: `/api/v1/hermes/memory/evidence/${result.captureId}`,
     idempotent: result.idempotent,
   }, { status: result.idempotent ? 200 : 202 });
 });

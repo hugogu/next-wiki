@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 
+import pytest
+
 from next_wiki_memory import NextWikiMemoryProvider, register
 from next_wiki_memory.config import ProviderConfig, save_config
 
@@ -51,3 +53,15 @@ def test_provider_returns_redacted_safe_tool_failures(monkeypatch, tmp_path) -> 
     response = provider.handle_tool_call("next_wiki_memory_save", {"content": ""})
     assert json.loads(response)["ok"] is False
     assert "nwk_test_secret" not in response
+
+
+def test_provider_save_config_validates_and_normalizes_desktop_values(tmp_path) -> None:
+    provider = NextWikiMemoryProvider()
+
+    with pytest.raises(ValueError, match="HTTPS"):
+        provider.save_config({"wiki_api_base_url": "http://wiki.example.com/api/v1"}, str(tmp_path))
+    assert not (tmp_path / "next-wiki-memory.json").exists()
+
+    provider.save_config({"wiki_api_base_url": "https://wiki.example.com/api/v1/"}, str(tmp_path))
+    assert provider._config is not None
+    assert provider._config.wiki_api_base_url == "https://wiki.example.com/api/v1"

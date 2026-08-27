@@ -382,7 +382,7 @@ export const HermesMemoryEvidenceInput = z.object({
 
 export const HermesMemoryEvidenceQueued = z.object({
   captureId: z.string().uuid(), status: z.enum(['queued', 'running', 'durable', 'failed', 'cancelled']),
-  pollUrl: z.string().describe('Base-relative path (without a leading slash) under the configured /api/v1 URL for polling capture status.'), idempotent: z.boolean(),
+  pollUrl: z.string().describe('Origin-relative API path beginning with /api/v1; resolve it against the configured API URL origin for polling capture status.'), idempotent: z.boolean(),
 });
 
 export const HermesMemoryEvidenceStatus = z.object({

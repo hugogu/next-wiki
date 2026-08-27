@@ -10,12 +10,12 @@ import { resetSetupOnboardingState, createAdminUser } from '../../../test/setup-
 import { ensureRawSpaceForConversations } from '../../../test/ai-fixtures';
 import { setModeInternal } from '@/server/services/writing-mode';
 
-async function createMemoryActor(name: string) {
+async function createMemoryActor(name: string, scopes: ('memory.read' | 'memory.write' | 'memory.delete')[] = ['memory.read', 'memory.write', 'memory.delete']) {
   const { userId } = await createAdminUser({ email: `${name}-${crypto.randomUUID()}@example.com` });
   const created = await apiKeyService.create(
     buildUserCtx(userId, 'admin'),
     name,
-    ['memory.read', 'memory.write', 'memory.delete'],
+    scopes,
     ['wiki'],
     { displayName: name },
   );
@@ -94,6 +94,15 @@ describe('Hermes memory service', () => {
 
     await expect(hermesMemory.recall(second.ctx, 'private decision', 5)).resolves.toEqual([]);
     await expect(hermesMemory.forget(second.ctx, saved.record.memoryId)).rejects.toMatchObject({ code: 'HERMES_MEMORY_RECORD_NOT_FOUND' });
+  });
+
+  it('allows diagnostics with any dedicated memory scope', async () => {
+    const { ctx } = await createMemoryActor('diagnostics-delete-only', ['memory.delete']);
+
+    await expect(hermesMemory.getDiagnostics(ctx)).resolves.toMatchObject({
+      status: 'healthy',
+      grantedScopes: ['memory.delete'],
+    });
   });
 
   it('re-enqueues a failed capture with the same idempotency key', async () => {

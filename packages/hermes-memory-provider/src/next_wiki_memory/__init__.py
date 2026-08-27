@@ -12,7 +12,7 @@ from typing import Any
 from uuid import uuid4
 
 from .api_client import ApiClientError, WikiApiClient
-from .config import ProviderConfig, configured_api_key, load_config, save_config
+from .config import ProviderConfig, configured_api_key, load_config, save_config, validate_wiki_api_base_url
 from .config_schema import get_config_schema
 from .redaction import redact
 
@@ -77,8 +77,13 @@ class NextWikiMemoryProvider:
         url = values.get("wiki_api_base_url")
         if not isinstance(url, str):
             raise ValueError("Wiki API URL is required")
+        # Hermes Desktop can call this hook directly, bypassing the CLI. Keep
+        # the in-memory provider state subject to the same URL policy as the
+        # persisted configuration and avoid using an unnormalized URL until a
+        # later reload.
+        normalized_url = validate_wiki_api_base_url(url)
         config = ProviderConfig(
-            wiki_api_base_url=url,
+            wiki_api_base_url=normalized_url,
             capture_enabled=bool(values.get("capture_enabled", False)),
         )
         save_config(hermes_home, config)
