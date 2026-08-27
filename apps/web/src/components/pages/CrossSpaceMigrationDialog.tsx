@@ -11,6 +11,7 @@ import { useTranslation } from '@/i18n/client';
 
 type Space = { id: string; kind: 'wiki' | 'raw' | 'generated'; routePrefix: string; isActive: boolean };
 type Selection = { kind: 'page'; pageId: string } | { kind: 'folder'; sourceSpaceId: string; pathPrefix: string };
+type Visibility = 'public' | 'registered' | 'restricted';
 
 export function CrossSpaceMigrationDialog({
   selection,
@@ -29,6 +30,7 @@ export function CrossSpaceMigrationDialog({
   const [spaces, setSpaces] = useState<Space[]>([]);
   const [destinationId, setDestinationId] = useState('');
   const [destinationPathPrefix, setDestinationPathPrefix] = useState('');
+  const [visibility, setVisibility] = useState<Visibility | ''>('');
   const [preview, setPreview] = useState<SpaceMigrationPreview | null>(null);
   const [operation, setOperation] = useState<SpaceMigrationOperation | null>(null);
   const [pending, setPending] = useState(false);
@@ -62,7 +64,7 @@ export function CrossSpaceMigrationDialog({
       const actualSelection = selection.kind === 'folder' && !selection.sourceSpaceId
         ? { ...selection, sourceSpaceId: spaces.find((space) => space.kind === sourceSpaceKind)?.id ?? '' }
         : selection;
-      setPreview(await apiPost<{ selection: Selection; destinationSpaceId: string; destinationPathPrefix?: string }, SpaceMigrationPreview>('/api/v1/space-migrations/previews', { selection: actualSelection, destinationSpaceId: destinationId, ...(destinationPathPrefix.trim() ? { destinationPathPrefix: destinationPathPrefix.trim() } : {}) }));
+      setPreview(await apiPost<{ selection: Selection; destinationSpaceId: string; destinationPathPrefix?: string; visibility?: Visibility }, SpaceMigrationPreview>('/api/v1/space-migrations/previews', { selection: actualSelection, destinationSpaceId: destinationId, ...(destinationPathPrefix.trim() ? { destinationPathPrefix: destinationPathPrefix.trim() } : {}), ...(visibility ? { visibility } : {}) }));
     } catch (err) { setError((err as ApiError).message); } finally { setPending(false); }
   };
 
@@ -93,6 +95,15 @@ export function CrossSpaceMigrationDialog({
         <label className="block min-w-0 space-y-xs text-sm font-medium">
           <span>{t('admin.pages.move.destinationPathLabel')}</span>
           <input value={destinationPathPrefix} onChange={(event) => setDestinationPathPrefix(event.target.value)} placeholder={t('admin.pages.move.destinationPathPlaceholder')} className="w-full rounded-md border border-border bg-surface px-md py-sm text-sm" />
+        </label>
+        <label className="block min-w-0 space-y-xs text-sm font-medium">
+          <span>{t('admin.pages.move.visibilityLabel')}</span>
+          <Select value={visibility} onChange={(event) => { setVisibility(event.target.value as Visibility | ''); setPreview(null); }} disabled={pending}>
+            <option value="">{t('admin.pages.move.visibility.keepCurrent')}</option>
+            <option value="public">{t('admin.pages.move.visibility.public')}</option>
+            <option value="registered">{t('admin.pages.move.visibility.registered')}</option>
+            <option value="restricted">{t('admin.pages.move.visibility.restricted')}</option>
+          </Select>
         </label>
       </div>}
       {preview && !operation && <div className="rounded-md border border-border p-sm text-sm">

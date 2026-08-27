@@ -575,6 +575,7 @@ export const translationKeys = [
   "admin.pages.move.operationStatus",
   "admin.pages.move.cancelMigration",
   "admin.pages.move.visibilityLabel",
+  "admin.pages.move.visibility.keepCurrent",
   "admin.pages.move.visibility.public",
   "admin.pages.move.visibility.registered",
   "admin.pages.move.visibility.restricted",

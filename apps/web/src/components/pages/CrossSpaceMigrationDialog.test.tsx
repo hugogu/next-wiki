@@ -25,6 +25,14 @@ function previewButton() {
   return Array.from(container.querySelectorAll('button')).find((button) => button.textContent === 'admin.pages.move.preview')!;
 }
 
+function destinationSelect() {
+  return container.querySelectorAll('select')[0]!;
+}
+
+function visibilitySelect() {
+  return container.querySelectorAll('select')[1]!;
+}
+
 afterEach(() => {
   act(() => root.unmount());
   container.remove();
@@ -51,7 +59,7 @@ describe('CrossSpaceMigrationDialog', () => {
     });
 
     expect(container.innerHTML).toContain('sm:grid-cols-2');
-    expect(Array.from(container.querySelectorAll('option')).map((option) => option.value)).toEqual(['22222222-2222-4222-8222-222222222222']);
+    expect(Array.from(destinationSelect().querySelectorAll('option')).map((option) => option.value)).toEqual(['22222222-2222-4222-8222-222222222222']);
     expect(container.querySelector('input')?.className).toContain('px-md py-sm');
     expect(previewButton().parentElement?.className).toContain('justify-end');
 
@@ -63,6 +71,44 @@ describe('CrossSpaceMigrationDialog', () => {
     expect(apiPost).toHaveBeenCalledWith('/api/v1/space-migrations/previews', {
       selection: { kind: 'folder', sourceSpaceId: '11111111-1111-4111-8111-111111111111', pathPrefix: 'imported' },
       destinationSpaceId: '22222222-2222-4222-8222-222222222222',
+    });
+  });
+
+  it('defaults visibility to keep-current and includes it in the preview request once chosen', async () => {
+    apiGet.mockResolvedValue({
+      spaces: [
+        { id: '11111111-1111-4111-8111-111111111111', kind: 'wiki', routePrefix: 'wiki', isActive: true },
+        { id: '22222222-2222-4222-8222-222222222222', kind: 'generated', routePrefix: 'ai', isActive: true },
+      ],
+    });
+    apiPost.mockResolvedValue({ id: 'preview-1', items: [], fingerprint: 'fingerprint' });
+    container = document.createElement('div');
+    document.body.appendChild(container);
+    root = createRoot(container);
+
+    await act(async () => {
+      root.render(<CrossSpaceMigrationDialog selection={{ kind: 'page', pageId: 'page-1' }} sourceSpaceKind="generated" title="Migrated" onClose={() => {}} />);
+      await Promise.resolve();
+    });
+
+    expect(Array.from(visibilitySelect().querySelectorAll('option')).map((option) => option.value)).toEqual(['', 'public', 'registered', 'restricted']);
+    expect(visibilitySelect().value).toBe('');
+
+    await act(async () => {
+      visibilitySelect().value = 'public';
+      visibilitySelect().dispatchEvent(new Event('change', { bubbles: true }));
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      previewButton().click();
+      await Promise.resolve();
+    });
+
+    expect(apiPost).toHaveBeenCalledWith('/api/v1/space-migrations/previews', {
+      selection: { kind: 'page', pageId: 'page-1' },
+      destinationSpaceId: '11111111-1111-4111-8111-111111111111',
+      visibility: 'public',
     });
   });
 });

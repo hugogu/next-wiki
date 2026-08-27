@@ -838,6 +838,7 @@
         "cancelMigration": "Cancel migration",
         "visibilityLabel": "Visibility after moving",
         "visibility": {
+          "keepCurrent": "Keep current visibility",
           "public": "Public",
           "registered": "Registered users",
           "restricted": "Admin-only"
