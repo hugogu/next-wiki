@@ -10,9 +10,9 @@
 - An authenticated Hermes key determines its Memory Destination on the server.
   The client-provided Hermes profile is diagnostic context only and cannot change
   authorization.
-- A Memory Record has one current backing page/revision and may link to one or
-  more Evidence Records. Every backing page uses normal history and reversible
-  deletion semantics.
+- A Memory Record has one immutable backing Raw page/revision and may link to
+  one or more Evidence Records. Raw content is appended once and never edited
+  or deleted by Hermes; the logical record can be forgotten independently.
 - Idempotency is durable and scoped to a destination. Retried, overlapping, or
   resumed lifecycle hooks therefore cannot create duplicate evidence.
 - All new database schema is defined in Drizzle and migrated solely via
@@ -32,11 +32,13 @@ constrained by its owner role plus its memory scope.
 
 ### Page and Page Revision
 
-Each Memory Record and Evidence Record is backed by a normal restricted page and
-its current revision. The page/revision retains canonical source Markdown/text,
-rendered representation, content hash, author/actor attribution, created time,
-and normal soft-delete behavior. The memory service always writes through the
-existing page/revision service; it never writes page tables directly.
+Each Memory Record and Evidence Record is backed by a restricted entry in the
+shared Raw space and its published revision. The Raw page/revision retains
+canonical source Markdown/text verbatim, the Hermes system category and source
+metadata, rendered representation, content hash, author/actor attribution,
+created time, and common index/reconciliation state. The memory service always
+writes through the existing Raw-entry writer; it never writes page tables
+directly and never updates an existing Hermes body.
 
 ### API Audit Entry
 
@@ -89,11 +91,11 @@ page revision.
 | `id` | Logical memory ID | Stable UUID returned to Hermes; never a page path. |
 | `namespace_id` | Owning destination | Required; all reads/writes scope to this field. |
 | `record_type` | `memory` or `evidence` | `memory` is explicit durable recall; `evidence` preserves original input. |
-| `page_id` | Backing restricted Wiki page | Required; ordinary page lifecycle is canonical. |
+| `page_id` | Backing restricted Raw-space page | Required; shared Raw/page lifecycle is canonical. |
 | `current_revision_id` | Current backing revision | Updated only after successful normal revision save. |
 | `idempotency_key` | Caller digest/key | Required for save/evidence submission; unique with `namespace_id`. |
 | `source_session_digest` | One-way bounded session correlation | Optional; never stores raw Hermes session ID or profile text. |
-| `state` | `active` or `forgotten` | `forgotten` follows successful soft deletion of its backing page. |
+| `state` | `active` or `forgotten` | `forgotten` changes only Hermes recall eligibility; the Raw page remains unchanged. |
 | `created_at`, `updated_at`, `forgotten_at` | Lifecycle timestamps | `forgotten_at` required for forgotten state. |
 
 Constraints and indexes:
@@ -104,9 +106,10 @@ Constraints and indexes:
 - A record's page/revision references must belong to the same owner and remain
   restricted. A missing, deleted, or inaccessible backing revision is treated as
   unavailable, never as a chance to read another page.
-- Content updates create a new ordinary page revision then atomically update
-  `current_revision_id`; metadata-only mapping changes do not create duplicate
-  page snapshots.
+- A record's source body is immutable after its first published Raw revision.
+  Retries return the existing locator; they never create a second revision for
+  the same idempotency key. Any future enrichment must create a separate record
+  or an explicit owner-controlled Raw append, not mutate the original body.
 
 ### Hermes Memory Evidence Link
 
@@ -121,21 +124,23 @@ A provenance relationship from a `memory` record to one or more supporting
 | `created_at` | Link creation time | Immutable provenance fact. |
 
 The composite primary/unique key prevents duplicate evidence links. Forgetting a
-memory retains the evidence link and evidence page for audit/normal recovery;
-the record is excluded from recall. A later privacy-deletion workflow can use
-the existing reversible page lifecycle explicitly rather than silently erasing
-evidence.
+memory retains the evidence link and immutable evidence page for audit/recovery;
+the record is excluded from Hermes recall. A later owner-controlled Raw
+retention/privacy workflow may remove source content explicitly; Hermes forget
+never performs that mutation.
 
 ## Derived Retrieval State
 
 The namespace-aware lexical recall adapter uses active `hermes_memory_records`
-as its allowed candidate set and indexes their current restricted page revisions
-through the existing registered full-text capability. It emits bounded excerpts
-and citations only after checking the key binding and record state.
+as its allowed candidate set and reads their current restricted Raw revisions.
+Each Raw write also enters the existing page/index reconciliation path, so the
+same common search/index infrastructure can discover the content for authorized
+Wiki users. Hermes emits bounded excerpts and citations only after checking the
+key binding and record state.
 
 It is derived state, not a new canonical content table:
 
-- a page revision save schedules the normal indexing/reconciliation path;
+- a Raw page revision schedules the normal indexing/reconciliation path;
 - a forgotten record removes its candidate eligibility;
 - a repair/reindex operation can rebuild eligible candidates from active records
   and their current page revisions;
@@ -152,7 +157,7 @@ The User Center API-key flow gains a Hermes Memory option.
 | Create shared Hermes key | Validate owner selects an existing owned namespace; create a separate API key and binding to that namespace transactionally. |
 | Revoke key | Existing `revoked_at` takes effect on the next request; its binding cannot authenticate or reveal destination content. |
 | Disable namespace | Existing bindings stay auditable but all provider routes reject it safely. |
-| Delete/forget record | Service soft-deletes backing page, marks record forgotten, and excludes it from recall. |
+| Delete/forget record | Service marks the Hermes record forgotten and excludes it from recall; the immutable Raw page/revision is retained. |
 
 No key can edit its scopes or binding in place. Rotation uses a newly provisioned
 key and binding, then revokes the old key after the provider is reconfigured.
@@ -192,9 +197,8 @@ binding after authentication.
 ### Memory Record
 
 ```text
-new idempotency key -> active
-active --save/upsert--> active (new backing page revision)
-active --forget--> forgotten (backing page soft-deleted)
+new idempotency key -> active (one immutable Raw revision)
+active --forget--> forgotten (Raw page/revision unchanged)
 forgotten --repeat forget--> forgotten (idempotent result)
 ```
 

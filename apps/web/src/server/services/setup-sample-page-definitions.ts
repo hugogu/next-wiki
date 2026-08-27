@@ -221,7 +221,7 @@ Administrators manage users, AI providers and models, storage backends, site ide
 
 ## Hermes memory (optional)
 
-- Use the [Hermes Memory Guide](/help/hermes-memory) to connect a Hermes profile to a private, revisioned Wiki memory destination.
+- Use the [Hermes Memory Guide](/help/hermes-memory) to connect a Hermes profile to the shared Raw-space memory destination. Hermes entries are immutable and indexed through the same Wiki content pipeline.
 - The integration uses a dedicated API key with only memory scopes; it does not need a Wiki AI provider.
 
 > **Tip:** You can edit or delete this page at any time — it is a normal wiki page created during first-run setup.
@@ -231,7 +231,7 @@ export const HERMES_MEMORY_PAGE_SOURCE = `# Hermes Memory Guide
 
 ${SAMPLE_PAGE_MARKER}
 
-Use this optional integration to make this Wiki the durable, inspectable memory for one Hermes profile. Memory records and opted-in conversation evidence are private by default, revisioned, and can be revoked through the same API-key controls as other integrations.
+Use this optional integration to make this Wiki the durable, inspectable memory for one Hermes profile. Enable **LLM Wiki** writing mode so the shared **Raw** space is available. Memory records and opted-in conversation evidence are restricted, immutable Raw entries with published revisions and common Wiki indexing/provenance; Hermes forget only hides a logical record from provider recall and does not change the Raw source.
 
 ## 1. Create a dedicated key
 
@@ -272,7 +272,7 @@ hermes next-wiki check
 
 Hermes can use the **next_wiki_memory_search**, **next_wiki_memory_save**, and **next_wiki_memory_forget** tools. Every recalled item includes a Wiki revision citation. Automatic conversation capture is opt-in and excludes tool results by default. Only enable strict pre-compression checkpoints on a Hermes version that reports support for them.
 
-Rotate a key by creating a new dedicated key and re-running setup, then revoke the old key here in User Center. Revocation stops future access immediately; existing private Wiki records keep their normal history and recovery lifecycle.
+Rotate a key by creating a new dedicated key and re-running setup, then revoke the old key here in User Center. Revocation stops future access immediately; immutable Raw entries retain their original revisions under the Wiki's Raw retention policy, while Hermes forget only changes provider recall state.
 
 See the packaged provider README and the deployment documentation for upgrades, backups, reverse proxies, and detailed troubleshooting.
 `;

@@ -16,10 +16,12 @@ The Wiki will add an enforceable Memory Destination boundary: every dedicated
 Hermes API key is bound to exactly one owner-managed destination, and all recall,
 save, evidence-capture, and forget operations derive that destination from the
 authenticated key. This prevents client configuration or page paths from becoming
-the authorization boundary. Durable text remains ordinary restricted Wiki pages
-and revisions; supporting tables only bind keys, identify records, connect
-evidence, and make retries idempotent. The first-run optional help suite gains a
-managed, collision-safe Hermes guide.
+the authorization boundary. Durable text is written as immutable, restricted Raw
+entries through the shared Raw writer and page/revision content backend;
+published entries participate in the common reconciliation/indexing and audit
+pipelines. Supporting tables only bind keys, identify records, connect evidence,
+and make retries idempotent. The first-run optional help suite gains a managed,
+collision-safe Hermes guide.
 
 ## Technical Context
 
@@ -31,10 +33,12 @@ covered by compatibility tests.
 PostgreSQL 16, pg-boss, existing public-API audit/OpenAPI infrastructure; Python
 standard packaging plus a bounded HTTP client and pytest for the provider.
 
-**Storage**: PostgreSQL 16. Page and page-revision source content remains
-canonical; new relational metadata holds Memory Destinations, API-key bindings,
-logical records, evidence links, and idempotency state. No transcript or memory
-body is duplicated in an integration-specific table.
+**Storage**: PostgreSQL 16. Raw-space page and page-revision source content
+remains canonical and is written through the shared Raw/content-store path;
+published records are handed to common index reconciliation. New relational
+metadata holds Memory Destinations, API-key bindings, logical records, evidence
+links, and idempotency state. No transcript or memory body is duplicated in an
+integration-specific table.
 
 **Testing**: Vitest unit/integration and route tests, Playwright onboarding/API
 key tests, pytest provider tests against HTTP fixtures and Hermes contract
@@ -60,10 +64,11 @@ Memory Destination is server-enforced; automatic capture is opt-in; required
 pre-compression checkpoints are durable and idempotent; no Wiki AI provider or
 additional stateful service is required.
 
-**Scale/Scope**: One external Hermes provider slug (`next-wiki`), one destination
-per dedicated API key, bounded recall and capture payloads, lexical recall as the
-AI-independent baseline, optional Raw-space evidence enrichment when LLM Wiki
-mode is available, and one public setup-help page. Historical imports, memory
+**Scale/Scope**: One external Hermes provider slug (`next-wiki`), one logical
+destination per dedicated API key, bounded recall and capture payloads, lexical
+recall as the AI-independent baseline over the namespace projection, immutable
+Raw-space storage and common index reconciliation (Raw/LLM Wiki mode is a
+prerequisite), and one public setup-help page. Historical imports, memory
 federation, arbitrary multi-provider UI, and generic third-party provider
 management remain out of scope.
 
@@ -75,20 +80,22 @@ management remain out of scope.
 |---|---|---|
 | P1 — simple deployment | The provider is an optional, external Python package. The Wiki adds only PostgreSQL tables, routes, and existing pg-boss work; it introduces no container, cache, queue, model provider, or required service. | Pass |
 | P2 — AI-native, vendor-neutral | Hermes is an external reasoning client, not a required Wiki model provider. The integration uses a provider-specific adapter and standard REST rather than a proprietary Wiki-wide dependency. Wiki remains usable without Hermes and Hermes memory works without Wiki AI configuration. | Pass |
-| P3 — portable, grounded memory | Restricted normal pages/revisions hold canonical memory and original evidence. Memory metadata carries source revision links; the recall index is derived and rebuildable. No generated memory is public by default. | Pass |
+| P3 — portable, grounded memory | Restricted immutable Raw entries/revisions hold canonical memory and original evidence. Memory metadata carries source revision links; the common recall/index projection is derived and rebuildable. No generated memory is public by default. | Pass |
 | P5 — permissions first | A dedicated API key has explicit memory scopes and a server-side single destination binding. The REST service derives namespace from authentication, re-checks ownership/state/scopes on every request, and never trusts a provider-supplied profile or path. | Pass |
 | P7 — asynchronous heavy work | Normal post-turn capture creates a pg-boss job and returns immediately. The Python provider queues it in a daemon worker. A required compression checkpoint submits then polls the durable job state; it fails closed if it cannot finish. Workers call `runWithoutDataCache`. | Pass |
-| P8 — source content and reversible changes | Memory/evidence content is created or updated through normal page/revision lifecycle. Forget performs soft deletion and retains auditable metadata; capture retries are idempotent by destination and digest. | Pass |
+| P8 — source content and reversible changes | Memory/evidence content is appended through the shared Raw/page-revision lifecycle and remains immutable. Forget changes only the Hermes projection state while retaining the Raw source and audit metadata; capture retries are idempotent by destination and digest. | Pass |
 | P9 — open standards | Hermes calls documented REST + JSON endpoints protected by Bearer API keys; routes use shared Zod schemas and appear in OpenAPI. MCP remains the general AI-client adapter, not this lifecycle-specific transport. | Pass |
 | P10 — explicit registration | API routes, permission scopes, job handler, audit origin, provider entry point, setup-page definitions, and publish workflow are explicit registries/files. No Wiki-side filesystem plugin discovery is added. | Pass |
 | P12 — public content delivery | Only the managed Help page and generated welcome/help links change public content. They use normal published-page cache representation and targeted invalidation; credentials, status, destinations, evidence, and controls stay authenticated. | Pass |
 
 ### Source of Truth, Provenance, and Publication Boundary
 
-- A Memory Record's content is a normal restricted page revision. An Evidence
-  Record's original conversation text is likewise a normal restricted page
-  revision in the baseline mode; LLM Wiki mode may additionally use a Raw entry
-  but must not make Raw availability a prerequisite.
+- A Memory Record's content is an immutable restricted Raw page revision. An
+  Evidence Record's original conversation text is likewise an immutable Raw
+  entry. The shared Raw writer stores the body verbatim, assigns the Hermes
+  system category/source metadata, publishes once, and invokes common index
+  reconciliation. Raw-space availability (currently LLM Wiki writing mode) is
+  an explicit prerequisite and is surfaced by diagnostics.
 - `hermes_memory_records` is a locator/provenance projection only. It never
   stores a second copy of content. `hermes_memory_evidence_links` records which
   evidence revisions support an explicit memory, while page/revision history
@@ -97,10 +104,11 @@ management remain out of scope.
   page/write rules. Captured evidence is machine-attributed with safe provider,
   session-digest, and idempotency metadata; raw prompt/tool-result bodies never
   enter audit metadata.
-- Explicit save is an intentional private mutation. Automatic capture is an
-  explicit setup choice. Neither flow publishes content. Any later public page
-  use follows the existing draft/review/publish flow and is out of the provider's
-  authority.
+- Explicit save is an intentional restricted append. Automatic capture is an
+  explicit setup choice. Both flows publish an immutable Raw revision, never
+  alter an existing body, and never make it anonymously readable. Forget only
+  hides the logical record from Hermes recall; Raw retention remains governed by
+  the Raw space and ordinary owner/admin controls.
 - Namespace-filtered lexical recall is a derived, rebuildable projection over
   eligible current revisions. It does not require embeddings or an LLM. If a
   future semantic adapter is used, it must receive the same allowed-record set
@@ -194,10 +202,11 @@ image or broadening the existing Node MCP server.
      with `pnpm db:generate`, then rerun it to confirm no pending schema change.
 
 3. **Implement memory service and narrow REST surface**
-   - Resolve the destination solely from the authenticated key. Reuse normal
-     restricted-page/revision create, update, citation, and soft-delete services
-     behind a `hermes-memory` service; do not expose generic page CRUD to the
-     provider.
+   - Resolve the destination solely from the authenticated key. Reuse the
+     shared Raw-entry writer, page/revision content store, category/provenance,
+     and index-reconciliation services behind a `hermes-memory` adapter; do not
+     expose generic page CRUD to the provider. The adapter appends immutable Raw
+     records and changes only the Hermes projection on forget.
    - Add AI-independent bounded lexical recall over only bound record IDs,
      explicit save/upsert, source-evidence links, reversible forget, and safe
      connection/diagnostic results. Extend audit origin and error mapping without

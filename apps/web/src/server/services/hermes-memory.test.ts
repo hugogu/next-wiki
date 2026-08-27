@@ -7,6 +7,8 @@ import * as apiKeyService from '@/server/services/api-keys';
 import * as hermesMemory from '@/server/services/hermes-memory';
 import { setBoss } from '@/server/jobs/runtime';
 import { resetSetupOnboardingState, createAdminUser } from '../../../test/setup-onboarding-fixtures';
+import { ensureRawSpaceForConversations } from '../../../test/ai-fixtures';
+import { setModeInternal } from '@/server/services/writing-mode';
 
 async function createMemoryActor(name: string) {
   const { userId } = await createAdminUser({ email: `${name}-${crypto.randomUUID()}@example.com` });
@@ -26,6 +28,10 @@ async function createMemoryActor(name: string) {
 describe('Hermes memory service', () => {
   beforeEach(async () => {
     await resetSetupOnboardingState();
+    // Raw entries are governed by the shared Raw-space writer, which is only
+    // available while the instance is in LLM Wiki mode.
+    await ensureRawSpaceForConversations();
+    await setModeInternal('llm-wiki', null);
   });
 
   afterAll(async () => {
@@ -37,7 +43,7 @@ describe('Hermes memory service', () => {
     setBoss(null);
   });
 
-  it('writes private revision-backed memory, recalls it with a citation, and softly forgets it', async () => {
+  it('writes immutable Raw memory, recalls it with a citation, and hides it on forget', async () => {
     const { ctx } = await createMemoryActor('personal');
     const saved = await hermesMemory.save(ctx, {
       idempotencyKey: 'decision-1',
@@ -62,9 +68,12 @@ describe('Hermes memory service', () => {
 
     const record = await db.query.hermesMemoryRecords.findFirst({ where: eq(schema.hermesMemoryRecords.id, saved.record.memoryId) });
     const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, record!.pageId) });
-    expect(page).toMatchObject({ visibility: 'restricted', nature: 'original' });
+    const rawSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'raw') });
+    expect(page).toMatchObject({ spaceId: rawSpace!.id, visibility: 'restricted', nature: 'original' });
+    expect(page?.rawCategoryId).toBeTruthy();
     const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, record!.currentRevisionId) });
-    expect(revision?.contentSource).toContain('tags:\n  - architecture\n  - memory');
+    expect(revision?.contentSource).toBe('Use a dedicated next-wiki Hermes memory destination.');
+    expect(revision?.sourceMetadata).toMatchObject({ inputKind: 'manual-note', provider: 'hermes-memory', tags: ['architecture', 'memory'] });
 
     await expect(hermesMemory.recall(ctx, 'dedicated Wiki destination', 5)).resolves.toEqual([
       expect.objectContaining({ memoryId: saved.record.memoryId, citation: expect.objectContaining({ revisionId: expect.any(String) }) }),
@@ -75,7 +84,7 @@ describe('Hermes memory service', () => {
     const stored = await db.query.hermesMemoryRecords.findFirst({ where: eq(schema.hermesMemoryRecords.id, saved.record.memoryId) });
     expect(stored?.state).toBe('forgotten');
     const deleted = await db.query.pages.findFirst({ where: and(eq(schema.pages.id, record!.pageId), isNull(schema.pages.deletedAt)) });
-    expect(deleted).toBeUndefined();
+    expect(deleted).toBeDefined();
   });
 
   it('does not expose a record across dedicated destinations', async () => {

@@ -66,12 +66,13 @@ and confirm the first profile's memory is absent.
    **Then** the turn proceeds normally without invented memories or misleading
    citations.
 3. **Given** Hermes explicitly saves a memory, **When** the operation succeeds,
-   **Then** the result is stored through the Wiki's normal permission,
-   provenance, history, and reversible-deletion rules rather than in an
-   untracked side store.
+   **Then** the result is appended to the shared Raw space through the normal
+   Raw writer, published once with its original source intact, and participates
+   in the Wiki's common content, provenance, history, audit, and indexing
+   pipelines rather than an untracked side store.
 4. **Given** a user asks Hermes to forget a memory, **When** the matching record
    is identified and the user is authorized, **Then** it is excluded from future
-   recall through the existing reversible Wiki lifecycle and remains auditable.
+   Hermes recall while the immutable Raw source remains unchanged and auditable.
 5. **Given** separate Hermes profiles or configured memory namespaces, **When**
    either profile retrieves or writes memory, **Then** it cannot read, cite,
    modify, or discover the other profile's private memory unless an explicit
@@ -199,8 +200,9 @@ operations fail safely while previously stored Wiki records remain intact.
   two sessions concurrently while automatic capture is pending.
 - The Wiki becomes unavailable, slow, or returns an authorization, rate, or
   validation error during recall, save, capture, or a required checkpoint.
-- A memory record is moved, soft-deleted, unpublished, or becomes unreadable
-  after it has been referenced by a prior Hermes session.
+- A memory record's Raw page is moved, externally retained/deleted, unpublished,
+  or becomes unreadable after it has been referenced by a prior Hermes session;
+  Hermes must treat the citation as unavailable without mutating the source.
 - Setup help-page generation is rerun after a previous success, after a partial
   failure, or after a user has replaced the managed guide.
 - The instance has no external AI provider configured; Hermes memory support
@@ -236,8 +238,11 @@ operations fail safely while previously stored Wiki records remain intact.
   database credentials, or a privileged internal interface.
 - **FR-007**: The provider MUST expose Hermes memory capabilities for relevant
   recall, explicit memory save, and reversible forgetting. Each capability MUST
-  use the Wiki's normal authorization, provenance, revision/history, soft
-  deletion, and audit behavior.
+  use the Wiki's normal authorization, provenance, revision/history, common
+  content/index pipelines, and audit behavior. Save and evidence capture MUST
+  append immutable records through the shared Raw-space writer; forget MUST
+  change only the Hermes record's recall state and MUST NOT mutate or delete the
+  Raw source.
 - **FR-008**: Recalled context MUST be bounded, clearly identified as stored
   memory rather than new user input, and include a durable Wiki address and
   revision/source reference for every recalled record. A no-result response
@@ -247,10 +252,18 @@ operations fail safely while previously stored Wiki records remain intact.
   explicit, owner-authorized configuration and remain constrained by the API
   key's permission scope.
 - **FR-010**: Explicitly saved memories and automatically captured conversation
-  evidence MUST be stored as ordinary, inspectable Wiki records with source,
-  profile/session, creation-time, and provider provenance. They MUST be private
-  by default and MUST NOT publish or alter anonymously readable Wiki content
-  without the normal governed action.
+  evidence MUST be stored as immutable, inspectable entries in the shared Raw
+  space, using the common page/revision/content-storage and indexing paths, with
+  source, profile/session, creation-time, category, and provider provenance.
+  They MUST be restricted by default and MUST NOT publish or alter anonymously
+  readable Wiki content without the normal governed action. Hermes metadata
+  tables MAY hold only locators, namespace/state, idempotency, and evidence
+  relationships; they MUST NOT duplicate the source body.
+
+- **FR-019**: The provider MUST report an actionable unavailable result when the
+  instance has no usable Raw space (including an instance still in Copilot mode)
+  and setup documentation MUST identify enabling the Raw/LLM Wiki capability as
+  a prerequisite for Wiki-backed Hermes memory.
 - **FR-011**: Automatic conversation capture MUST be opt-in during setup. When
   enabled, it MUST preserve selected original conversation evidence at completed
   turns and relevant session lifecycle boundaries; if the operator enables a
@@ -307,12 +320,15 @@ operations fail safely while previously stored Wiki records remain intact.
 - **Provider Connection Configuration**: Secret-safe connection settings,
   selected Wiki destination, profile isolation rules, capture preferences, and
   compatibility information for one Hermes profile.
-- **Memory Destination**: The owner-authorized private Wiki location to which a
-  Hermes profile can recall, save, and optionally capture memory.
-- **Memory Record**: An inspectable Wiki record used for explicit long-term
-  memory, carrying provenance and references to supporting source evidence.
-- **Conversation Evidence Record**: An optional private, immutable Wiki record
-  preserving selected original Hermes conversation material before it is
+- **Memory Destination**: The owner-authorized namespace mapped to immutable
+  entries in the shared Raw space, to which a Hermes profile can recall, save,
+  and optionally capture memory. It is a logical security boundary, not a
+  second content store.
+- **Memory Record**: An immutable Raw-space page/revision used for explicit
+  long-term memory, carrying common Wiki provenance/index metadata and
+  references to supporting source evidence.
+- **Conversation Evidence Record**: An optional restricted, immutable Raw-space
+  entry preserving selected original Hermes conversation material before it is
   summarized or compressed.
 - **Capture Checkpoint**: The durable confirmation that selected conversation
   evidence has been preserved before an operator-required lossy compression
@@ -365,9 +381,10 @@ operations fail safely while previously stored Wiki records remain intact.
 - The configured Wiki endpoint is reachable from the machine or container
   running Hermes. Remote deployments use an operator-managed secure transport;
   same-machine development may use the documented local endpoint.
-- Existing API-key, audit, page/revision, private-content, and first-run
-  help-page behavior are reused. The feature does not require the Wiki itself to
-  have an LLM provider configured.
+- Existing API-key, audit, Raw page/revision, private-content, indexing, and
+  first-run help-page behavior are reused. The instance must expose the Raw
+  space (currently enabled by LLM Wiki writing mode), but the feature does not
+  require a separately configured model provider for the Hermes API path.
 
 ## Scope Boundaries
 

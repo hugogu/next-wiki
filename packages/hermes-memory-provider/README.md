@@ -2,13 +2,14 @@
 
 Use a [next-wiki](https://github.com/hugogu/next-wiki) instance as the durable,
 inspectable memory destination for one Hermes profile. Records are stored as
-private revision-backed Wiki pages. Each Hermes API key is bound server-side to
-one memory destination, so a profile cannot select another profile's namespace
-through a tool argument or URL.
+immutable, append-only Raw entries with published revisions. Each Hermes API
+key is bound server-side to one memory destination, so a profile cannot select
+another profile's namespace through a tool argument or URL.
 
 ## Install and activate
 
-1. In next-wiki, open **User Center → API Keys** and select **Hermes Memory
+1. Enable **LLM Wiki** writing mode so the shared Raw space is available. Then
+   open **User Center → API Keys** and select **Hermes Memory
    provider**. The preset grants only `memory.read`, `memory.write`, and
    `memory.delete`; it does not grant generic page access. Copy the secret once.
 2. Install the provider:
@@ -64,10 +65,10 @@ the host's `127.0.0.1`.
 Hermes receives three namespaced tools:
 
 - `next_wiki_memory_search(query, limit)` recalls only the key's destination;
-- `next_wiki_memory_save(content, title?, tags?)` writes a revision-backed
+- `next_wiki_memory_save(content, title?, tags?)` writes an immutable Raw
   memory record; and
-- `next_wiki_memory_forget(memory_id, reason?)` soft-deletes a record in that
-  same destination.
+- `next_wiki_memory_forget(memory_id, reason?)` hides a record from future
+  recall in that same destination. The original Raw entry is never changed.
 
 Recall results contain a canonical Wiki revision citation. Automatic turn
 capture is disabled by default. If it is enabled, the provider preserves only
@@ -84,9 +85,9 @@ versions, and verify it after every Hermes upgrade.
 
 Create a new dedicated key, re-run setup, confirm `hermes next-wiki check`,
 then revoke the old key in **User Center → API Keys**. Revocation stops future
-access immediately. Forget uses next-wiki's normal soft-delete lifecycle, so
-records retain normal auditability and recoverability according to your Wiki
-retention policy.
+access immediately. Forget changes only the Hermes record's recall state, so
+the immutable Raw entry retains its original content and revisions for
+administrators according to the Wiki's Raw-space retention policy.
 
 Back up the Wiki database and content store with the normal deployment backup
 procedure; memory pages and their revision citations are included. For full

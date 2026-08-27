@@ -25,9 +25,10 @@ trackers, screenshots, or configuration committed to source control.
 docker compose up -d --build
 ```
 
-Open the service URL, complete `/setup`, and sign in as the initial Admin. Do
-not enable a Wiki AI model provider for this validation; baseline Hermes recall
-must still work without one.
+Open the service URL, complete `/setup`, and sign in as the initial Admin.
+Enable the **LLM Wiki** writing mode so the shared Raw space is available for
+immutable memory entries. A separate Wiki AI model provider is not required for
+the Hermes API path or its bounded lexical recall.
 
 Confirm health from the environment that will run Hermes:
 
@@ -109,17 +110,18 @@ Expected results:
 
 1. In Hermes, ask it to save a concise decision through
    `next_wiki_memory_save`.
-2. Inspect the Wiki as the owner: a restricted normal page/revision and a
-   corresponding active Memory Record exist. The record is machine-attributed,
-   revisioned, and not public.
+2. Inspect the Wiki as the owner: a restricted, published Raw entry under the
+   **Hermes Memory** system category and a corresponding active Memory Record
+   exist. The entry is machine-attributed, immutable, not public, and is handed
+   to the common page/index reconciliation pipeline.
 3. Start a fresh Hermes session under the same profile and ask a related
    question. `prefetch` or `next_wiki_memory_search` returns only bounded
    destination records with page/revision citations.
 4. Start a Hermes session configured with a different private key/destination.
    The first profile's record must not be returned, enumerable, or mutable.
 5. Ask Hermes to forget the saved memory. Confirm it disappears from future
-   recall, the backing page follows the normal soft-delete lifecycle, and
-   audit/history remains available to the owner.
+   Hermes recall while the original Raw page/revision and source text remain
+   unchanged; audit/history remains available to the owner.
 
 ## 6. Validate Opt-In Capture and Checkpoints
 
@@ -127,9 +129,9 @@ Enable `capture_enabled` through the documented non-secret config path and
 restart/reload Hermes. Hold a conversation containing only disposable text.
 
 1. Complete a turn and verify the turn finishes without waiting for the Wiki.
-2. Poll the provider/job status until a restricted Evidence Record and backing
-   revision become durable. Inspect only through the owner-authorized Wiki
-   surface.
+2. Poll the provider/job status until a restricted Evidence Record and
+   immutable Raw backing revision become durable. Verify the Hermes Memory
+   category and common indexing path through the owner-authorized Wiki surface.
 3. Repeat the same request or simulate a retry. The same destination and
    idempotency digest must return one capture/result, not duplicate evidence.
 4. Confirm system messages, assistant tool calls, tool result payloads, API

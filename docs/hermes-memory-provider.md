@@ -5,9 +5,17 @@ Wiki without giving it the generic page API. A dedicated Hermes API key is
 bound to one server-side memory destination. The provider cannot override that
 destination with a request parameter, profile name, or path prefix.
 
+Memory and opted-in evidence are written as restricted, immutable entries in the
+shared **Raw** space. The existing Raw/page-revision/content-store writer
+publishes the original body once and invokes the common Wiki indexing,
+provenance, and audit paths, so authorized Wiki search and inspection can use
+the same storage as other Raw content. The Hermes tables retain only the
+namespace-scoped locator/state and idempotency projection.
+
 ## Before connecting Hermes
 
-1. Deploy next-wiki normally and expose its versioned API through the same
+1. Deploy next-wiki normally, enable **LLM Wiki** writing mode so the shared
+   Raw space is available, and expose its versioned API through the same
    TLS/reverse proxy used by the Web UI. Remote provider URLs must end in
    `/api/v1` and use HTTPS.
 2. Sign in as an administrator, open **User Center → API Keys**, and select
@@ -91,8 +99,9 @@ checkpoint. Test resume/compaction behavior whenever you update Hermes.
 ## Operations
 
 To rotate a key, create a new Hermes preset key, run setup and `check`, then
-revoke the previous key. Revoking it immediately rejects new requests, while
-the private memory pages keep normal revision history and soft-delete recovery.
+revoke the previous key. Revoking it immediately rejects new requests. Hermes
+forget only marks the logical record forgotten; the immutable Raw entry and its
+published revision remain unchanged under the Wiki's Raw retention policy.
 
 Include the normal next-wiki database and content-store backups in your
 operational runbook. Memory records, evidence links, and audit entries are

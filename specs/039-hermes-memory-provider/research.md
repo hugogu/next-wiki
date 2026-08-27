@@ -108,25 +108,32 @@ access.
 
 ## 5. Canonical Memory, Evidence, and Recall
 
-**Decision**: Store memory and captured evidence as normal restricted Wiki pages
-and revisions in every writing mode. Use lightweight metadata tables only for
-namespace binding, logical memory IDs, evidence links, state, and idempotency.
-Implement bounded lexical recall over the destination's eligible current
-revisions as the baseline; semantic recall is an optional later adapter, never a
-requirement for Hermes memory.
+**Decision**: Store memory and captured evidence as immutable, restricted Raw
+entries through the existing Raw writer. Raw entries use the shared page/revision
+content backend, Hermes system category, source metadata, publication path, and
+index reconciliation. Lightweight Hermes tables remain a namespace-scoped
+projection for authorization, locators, evidence links, state, and idempotency;
+they never duplicate source text. Forget only marks that projection forgotten;
+the Raw entry and revision remain unchanged. Implement bounded lexical recall
+over the destination's eligible current revisions as the baseline; semantic
+recall is an optional later adapter, never a requirement for Hermes memory.
 
-**Rationale**: Normal pages and revisions already provide content history,
-machine attribution, soft deletion, auditing, and portability. Existing Raw and
-Generated spaces are Admin-only LLM Wiki features, so making them the baseline
-would break Copilot mode and require Wiki AI setup. The existing semantic search
-also depends on enabled embeddings and lacks a namespace filter.
+**Rationale**: Raw is the Wiki's source layer for unmodified external evidence,
+and the shared writer already preserves verbatim content, provenance, revision
+history, audit, content storage, and index hooks. This keeps Hermes memory
+searchable by the same page/index infrastructure as other Wiki content while
+the namespace projection still enforces per-key isolation. Raw-space availability
+(currently enabled by LLM Wiki writing mode) is an explicit prerequisite and
+must be diagnosed rather than silently falling back to a second store.
 
 **Alternatives considered**:
 
 - A separate transcript/blob table: rejected because it creates a second-class,
   unversioned knowledge source.
-- Raw-only conversation capture: rejected because Raw is not available in every
-  writing mode and cannot provide destination isolation alone.
+- Dedicated restricted Wiki pages: rejected because they misclassify original
+  external evidence and create a parallel content path that is not shared with
+  Raw indexing. The implementation accepts the Raw/LLM Wiki availability
+  prerequisite and reports it explicitly during setup/diagnostics.
 - Require embeddings for recall: rejected because the provider must work when
   Wiki AI is disabled or unavailable.
 

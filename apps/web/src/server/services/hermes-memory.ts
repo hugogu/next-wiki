@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -6,38 +6,58 @@ import { readMarkdownWithFallback } from '@/server/content-store/read-router';
 import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
 import { requireHermesMemoryAccess, type HermesMemoryAccess } from '@/server/permissions/hermes-memory';
-import * as pageService from '@/server/services/pages';
+import * as rawEntries from '@/server/services/raw-entries';
+import { ensureSystemCategory } from '@/server/services/raw-categories';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { resolveSpace } from '@/server/services/spaces';
-import { mergeSupportedMetadata } from '@/server/metadata/frontmatter';
+import { isLlmWikiMode } from '@/server/services/writing-mode';
 import { env } from '@/server/config';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import type { ApiKeyScope, HermesMemoryEvidenceInput, HermesMemoryRecord, HermesMemorySaveInput } from '@next-wiki/shared';
 
 const MEMORY_PAGE_PREFIX = 'hermes-memory';
+const HERMES_MEMORY_CATEGORY_SYSTEM_KEY = 'hermes-memory';
 const MAX_EXCERPT_LENGTH = 1_200;
 
 type MemoryRecordRow = typeof schema.hermesMemoryRecords.$inferSelect;
 type EvidenceRelation = 'explicit_save' | 'automatic_capture' | 'checkpoint';
 
-function memoryPageContext(ctx: PermCtx): PermCtx {
+function memoryRawContext(ctx: PermCtx): PermCtx {
   if (ctx.actor.kind !== 'api_key') {
     throw new DomainError('UNAUTHORIZED', 'A dedicated Hermes memory API key is required');
   }
-  // The public key never has generic page scopes. This private adapter reaches
-  // the ordinary page/revision lifecycle only after destination scope checks.
+  // The dedicated key never exposes generic page scopes. This internal adapter
+  // adds only the append-only Raw create capability after destination checks.
   const scopes = Array.from(new Set<ApiKeyScope>([
     ...ctx.actor.scopes,
     'view',
     'create',
-    'edit',
-    'delete',
   ]));
   return { actor: { ...ctx.actor, scopes } };
 }
 
-function memoryPath(namespaceId: string, recordId: string): string {
-  return `${MEMORY_PAGE_PREFIX}/${namespaceId}/${recordId}`;
+function memoryPath(namespaceId: string, type: 'memory' | 'evidence', idempotencyKey: string): string {
+  const keyDigest = createHash('sha256').update(`${type}:${idempotencyKey}`).digest('hex');
+  return `${MEMORY_PAGE_PREFIX}/${namespaceId}/${type}/${keyDigest}`;
+}
+
+async function ensureHermesMemoryCategory(): Promise<string> {
+  const category = await ensureSystemCategory(HERMES_MEMORY_CATEGORY_SYSTEM_KEY, {
+    name: 'Hermes Memory',
+    slug: 'hermes-memory',
+    description: 'Immutable memory records captured by the Hermes provider.',
+  });
+  return category.id;
+}
+
+async function assertRawMemoryReady(): Promise<void> {
+  const rawSpace = await resolveSpace('raw');
+  if (!rawSpace || rawSpace.kind !== 'raw' || !(await isLlmWikiMode())) {
+    throw new DomainError(
+      'HERMES_MEMORY_NAMESPACE_UNAVAILABLE',
+      'The shared Raw space is unavailable. Enable LLM Wiki writing mode before connecting Hermes memory.',
+    );
+  }
 }
 
 function excerpt(content: string): string {
@@ -56,9 +76,9 @@ async function recordToView(record: MemoryRecordRow): Promise<HermesMemoryRecord
   const [page, revision, space] = await Promise.all([
     db.query.pages.findFirst({ where: and(eq(schema.pages.id, record.pageId), isNull(schema.pages.deletedAt)) }),
     db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, record.currentRevisionId) }),
-    resolveSpace(),
+    resolveSpace('raw'),
   ]);
-  if (!page || !revision || !space || page.visibility !== 'restricted') return null;
+  if (!page || !revision || !space || space.kind !== 'raw' || page.spaceId !== space.id || page.visibility !== 'restricted') return null;
   const source = await readMarkdownWithFallback(revision);
   const evidenceLinks = record.recordType === 'memory'
     ? await db.query.hermesMemoryEvidenceLinks.findMany({
@@ -74,7 +94,7 @@ async function recordToView(record: MemoryRecordRow): Promise<HermesMemoryRecord
       db.query.pages.findFirst({ where: and(eq(schema.pages.id, evidenceRecord.pageId), isNull(schema.pages.deletedAt)) }),
       db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, evidenceRecord.currentRevisionId) }),
     ]);
-    if (!evidencePage || !evidenceRevision || evidencePage.visibility !== 'restricted') continue;
+    if (!evidencePage || !evidenceRevision || evidencePage.spaceId !== space.id || evidencePage.visibility !== 'restricted') continue;
     evidence.push({
       evidenceId: evidenceRecord.id,
       relation: link.relation,
@@ -159,6 +179,7 @@ async function createRecord(
     idempotencyKey: string;
     title: string;
     content: string;
+    tags?: string[];
     sourceSessionDigest?: string;
     evidenceIds?: string[];
     relation?: EvidenceRelation;
@@ -172,17 +193,24 @@ async function createRecord(
     return { record: view, idempotent: true };
   }
   await assertEvidenceIds(access.namespaceId, input.evidenceIds);
+  await assertRawMemoryReady();
 
   const recordId = randomUUID();
-  const page = await pageService.create(memoryPageContext(ctx), {
-    path: memoryPath(access.namespaceId, recordId),
-    title: input.title,
-    contentSource: input.content,
-    nature: 'original',
-    visibility: 'restricted',
-  });
-
   try {
+    const categoryId = await ensureHermesMemoryCategory();
+    const page = await rawEntries.createEntry(memoryRawContext(ctx), {
+      path: memoryPath(access.namespaceId, input.type, input.idempotencyKey),
+      title: input.title,
+      inputKind: input.type === 'evidence' ? 'chat-transcript' : 'manual-note',
+      source: {
+        provider: 'hermes-memory',
+        ...(input.sourceSessionDigest ? { sessionId: input.sourceSessionDigest } : {}),
+      },
+      additionalSourceMetadata: input.tags?.length ? { tags: input.tags } : undefined,
+      content: input.content,
+      visibility: 'restricted',
+      categoryId,
+    });
     const [record] = await db
       .insert(schema.hermesMemoryRecords)
       .values({
@@ -210,8 +238,9 @@ async function createRecord(
     return { record: view, idempotent: false };
   } catch (error) {
     // A simultaneous retry may win the destination/idempotency unique index.
-    // Clean up this otherwise-unreferenced private page through normal delete.
-    await pageService.remove(memoryPageContext(ctx), memoryPath(access.namespaceId, recordId)).catch(() => undefined);
+    // The Raw path is deterministic for the idempotency key, so a retry cannot
+    // create a second indexed source entry. The winner remains the only Hermes
+    // projection for this key.
     const winner = await existingByIdempotency(access.namespaceId, input.idempotencyKey);
     if (winner) {
       await assertMatchingIdempotentRecord(winner, input);
@@ -233,6 +262,7 @@ export async function getConnection(ctx: PermCtx, options: { allowAnyMemoryScope
     ? 'any' as const
     : (ctx.actor.kind === 'api_key' && ctx.actor.scopes.includes('memory.read') ? 'memory.read' : 'memory.write');
   const access = await requireHermesMemoryAccess(ctx, requiredScope);
+  await assertRawMemoryReady();
   const scopes = ctx.actor.kind === 'api_key' ? ctx.actor.scopes : [];
   return {
     apiVersion: 'v1',
@@ -268,14 +298,12 @@ export async function getDiagnostics(ctx: PermCtx): Promise<{
 export async function save(ctx: PermCtx, input: HermesMemorySaveInput): Promise<{ record: HermesMemoryRecord; idempotent: boolean }> {
   const access = await requireHermesMemoryAccess(ctx, 'memory.write');
   const title = input.title ?? 'Hermes memory';
-  const content = input.tags?.length
-    ? mergeSupportedMetadata(input.content, { title, tags: input.tags }, title).source
-    : input.content;
   return createRecord(ctx, access, {
     type: 'memory',
     idempotencyKey: input.idempotencyKey,
     title,
-    content,
+    content: input.content,
+    tags: input.tags,
     evidenceIds: input.evidenceIds,
     relation: 'explicit_save',
   });
@@ -316,9 +344,6 @@ export async function forget(ctx: PermCtx, memoryId: string): Promise<{ memoryId
   if (record.state === 'forgotten') {
     return { memoryId: record.id, state: 'forgotten', forgottenAt: record.forgottenAt?.toISOString() ?? record.updatedAt.toISOString() };
   }
-  const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, record.pageId), columns: { path: true } });
-  if (!page) throw new DomainError('HERMES_MEMORY_RECORD_NOT_FOUND', 'Memory record not found');
-  await pageService.remove(memoryPageContext(ctx), page.path);
   const now = new Date();
   await db.update(schema.hermesMemoryRecords).set({ state: 'forgotten', forgottenAt: now, updatedAt: now }).where(eq(schema.hermesMemoryRecords.id, record.id));
   return { memoryId: record.id, state: 'forgotten', forgottenAt: now.toISOString() };

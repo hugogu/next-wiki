@@ -17,6 +17,9 @@
   A memory ID owned by another destination is indistinguishable from not found.
 - Routes use the existing public API wrapper, shared Zod schemas, audit wrapper,
   and generated OpenAPI document. Responses are never cached.
+- Memory writes require the shared Raw space to be available (currently the
+  instance's LLM Wiki writing mode). Raw availability failures use the safe
+  namespace-unavailable response with an actionable setup message.
 - All timestamps are ISO 8601 UTC strings. All identifiers are UUIDs unless a
   field is explicitly called a digest or an idempotency key.
 
@@ -30,7 +33,7 @@
   "revisionId": "0bfa9d6f-6b2e-4072-a5e8-13d2b8317d0c",
   "revisionHash": "sha256-hex",
   "title": "Payment routing decision",
-  "canonicalUrl": "https://wiki.example.com/wiki/memory/payment-routing",
+  "canonicalUrl": "https://wiki.example.com/raw/9b4d5b2e5b9e4f5c8a5e1b2c3d4e5f6a",
   "createdAt": "2026-08-27T08:30:00.000Z"
 }
 ```
@@ -205,9 +208,12 @@ explicit evidence-read contract changes that rule.
 
 ## `POST /hermes/memory/records`
 
-Creates or idempotently updates an explicit durable memory in the bound
-destination. The service creates a normal restricted page/revision and records
-any declared evidence links.
+Creates an explicit durable memory in the bound destination. The service
+appends one restricted, published Raw entry through the shared Raw writer,
+preserves the submitted source verbatim, invokes the common content/index
+reconciliation path, and records any declared evidence links. A retry with the
+same idempotency key returns the existing entry; it never edits or creates a
+second revision for that key.
 
 **Authorization**: `memory.write`.
 
@@ -245,7 +251,8 @@ An existing idempotency key with semantically different normalized payload is a
 
 ## `DELETE /hermes/memory/records/{memoryId}`
 
-Forgets one active memory using the normal soft-delete lifecycle.
+Marks one active memory forgotten in the Hermes projection. The immutable Raw
+page/revision is retained unchanged; only Hermes recall eligibility changes.
 
 **Authorization**: `memory.delete`.
 

@@ -87,8 +87,8 @@ BACKUP_DIR=/opt/next-wiki/backups DATA_DIR=/opt/next-wiki/data ./scripts/backup.
 It produces `wiki-YYYYMMDD-HHMMSS.sql.gz` and `content-YYYYMMDD-HHMMSS.tar.gz`.
 Backups older than `BACKUP_RETENTION_DAYS` (default 14) are pruned.
 
-Hermes Memory Provider records are ordinary private, revision-backed Wiki
-content and are included in both backups. See
+Hermes Memory Provider records are restricted, immutable Raw entries backed by
+the shared page/revision content store and are included in both backups. See
 [Hermes memory provider](hermes-memory-provider.md) before connecting a remote
 Hermes process, especially for TLS and container-network requirements.
 
