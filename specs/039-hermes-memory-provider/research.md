@@ -1,6 +1,17 @@
-# Research: Hermes Memory Provider
+# Research: Agent Memory Provider
 
-**Feature**: [Hermes Memory Provider](./spec.md)
+## Review outcome: generic server contract
+
+The design review requires a generic `/api/v1/memory/*` surface and
+`agent_memory_*` storage. Hermes is only the first adapter discovered through
+its memory-provider entry point. API-key metadata binds both the destination
+and a required `agent_identity`; clients cannot select either by path or tool
+arguments. A generated rename migration preserves existing rows and backfills
+the historical Hermes identity. Primary after-compaction capture and automatic
+session-start recall remain deferred until a second client validates the common
+lifecycle contract.
+
+**Feature**: [Agent Memory Provider](./spec.md)
 **Date**: 2026-08-27
 
 ## 1. Provider Distribution and Discovery
@@ -20,7 +31,7 @@ and `cli.py` must be adjacent to the package entry point for Hermes discovery.
 
 **Alternatives considered**:
 
-- Add a provider under Hermes's `plugins/memory/`: rejected because Hermes
+- Add a provider under Hermes's `plugins`: rejected because Hermes
   intentionally closes that tree to new third-party providers.
 - Ship only a copyable directory: rejected because it complicates upgrades,
   dependency management, and collision diagnosis.
@@ -60,7 +71,7 @@ first public MemoryProvider release.
 
 ## 3. Direct REST Is the Correct Transport
 
-**Decision**: The provider calls a new, narrow `/api/v1/hermes/memory/*` REST
+**Decision**: The provider calls a new, narrow `/api/v1/memory/*` REST
 surface directly. It does not spawn, embed, or call `@next-wiki/mcp-server`.
 
 **Rationale**: The existing MCP package is a broad Node stdio adapter for
@@ -110,8 +121,8 @@ access.
 
 **Decision**: Store memory and captured evidence as immutable, restricted Raw
 entries through the existing Raw writer. Raw entries use the shared page/revision
-content backend, Hermes system category, source metadata, publication path, and
-index reconciliation. Lightweight Hermes tables remain a namespace-scoped
+content backend, Agent Memory system category, source metadata, publication path, and
+index reconciliation. Lightweight Agent Memory tables remain a namespace-scoped
 projection for authorization, locators, evidence links, state, and idempotency;
 they never duplicate source text. Forget only marks that projection forgotten;
 the Raw entry and revision remain unchanged. Implement bounded lexical recall
@@ -196,7 +207,7 @@ tool shadowing and toolset gating is handled honestly.
 ## 8. In-Product Guidance and Public Delivery
 
 **Decision**: Extend the existing optional sample-page writer with a managed
-`help/hermes-memory` page, linked from marker-owned welcome and main-features
+`help/agent-memory` page, linked from marker-owned welcome and main-features
 content. Add package and deployment documentation alongside a README cross-link.
 
 **Rationale**: The current onboarding writer already creates published,
@@ -208,7 +219,7 @@ secure setup path without a new configuration screen or Docker dependency.
 
 - Documentation only in the repository: rejected because it is hard to discover
   from a newly initialized instance.
-- Always overwrite `help/hermes-memory`: rejected because current setup protects
+- Always overwrite `help/agent-memory`: rejected because current setup protects
   user-authored help content.
 - Add a dynamic public configuration dashboard: rejected because secrets and
   integration state must remain authenticated.

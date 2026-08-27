@@ -87,10 +87,10 @@ BACKUP_DIR=/opt/next-wiki/backups DATA_DIR=/opt/next-wiki/data ./scripts/backup.
 It produces `wiki-YYYYMMDD-HHMMSS.sql.gz` and `content-YYYYMMDD-HHMMSS.tar.gz`.
 Backups older than `BACKUP_RETENTION_DAYS` (default 14) are pruned.
 
-Hermes Memory Provider records are restricted, immutable Raw entries backed by
-the shared page/revision content store and are included in both backups. See
-[Hermes memory provider](hermes-memory-provider.md) before connecting a remote
-Hermes process, especially for TLS and container-network requirements.
+Agent Memory records are restricted, immutable Raw entries backed by the shared
+page/revision content store and are included in both backups. See the
+[Hermes memory provider](hermes-memory-provider.md) guide before connecting a
+remote client, especially for TLS and container-network requirements.
 
 ### Restore
 

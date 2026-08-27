@@ -12,6 +12,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 from .config import ProviderConfig, configured_api_key
 
 PROVIDER_VERSION = "0.1.0"
+MAX_RESPONSE_BYTES = 1_000_000
 
 
 @dataclass(frozen=True)
@@ -47,12 +48,15 @@ class WikiApiClient:
                 "Authorization": f"Bearer {self._api_key}",
                 "Content-Type": "application/json",
                 "Accept": "application/json",
-                "X-Next-Wiki-Hermes-Provider-Version": PROVIDER_VERSION,
+                "X-Next-Wiki-Memory-Provider-Version": PROVIDER_VERSION,
             },
         )
         try:
             with self._opener.open(request, timeout=self._config.request_timeout_seconds) as response:
-                parsed = json.loads(response.read().decode("utf-8"))
+                body = response.read(MAX_RESPONSE_BYTES + 1)
+                if len(body) > MAX_RESPONSE_BYTES:
+                    raise ApiClientError("invalid_response", "The Wiki returned an oversized response; check the API URL and reverse proxy")
+                parsed = json.loads(body.decode("utf-8"))
                 return parsed if isinstance(parsed, dict) else {}
         except HTTPError as error:
             actions = {
@@ -70,22 +74,22 @@ class WikiApiClient:
             raise ApiClientError("invalid_response", "The Wiki returned an invalid response. Check the API URL and reverse proxy") from None
 
     def connection(self) -> dict[str, Any]:
-        return self._request("GET", "/hermes/memory/connection")
+        return self._request("GET", "/memory/connection")
 
     def diagnostics(self) -> dict[str, Any]:
-        return self._request("GET", "/hermes/memory/diagnostics")
+        return self._request("GET", "/memory/diagnostics")
 
     def recall(self, query: str, limit: int) -> dict[str, Any]:
-        return self._request("POST", "/hermes/memory/recall", {"query": query, "limit": limit})
+        return self._request("POST", "/memory/recall", {"query": query, "limit": limit})
 
     def save(self, payload: dict[str, object]) -> dict[str, Any]:
-        return self._request("POST", "/hermes/memory/records", payload)
+        return self._request("POST", "/memory/records", payload)
 
     def forget(self, memory_id: str, reason: str | None = None) -> dict[str, Any]:
-        return self._request("DELETE", f"/hermes/memory/records/{memory_id}", {"reason": reason} if reason else {})
+        return self._request("DELETE", f"/memory/records/{memory_id}", {"reason": reason} if reason else {})
 
     def submit_evidence(self, payload: dict[str, object]) -> dict[str, Any]:
-        return self._request("POST", "/hermes/memory/evidence", payload)
+        return self._request("POST", "/memory/evidence", payload)
 
     def capture_status(self, capture_id: str) -> dict[str, Any]:
-        return self._request("GET", f"/hermes/memory/evidence/{capture_id}")
+        return self._request("GET", f"/memory/evidence/{capture_id}")

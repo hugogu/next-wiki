@@ -21,7 +21,7 @@ interface ApiKeyCreateDialogProps {
   currentUserIsAdmin: boolean;
 }
 
-type HermesMemoryDestination = {
+type MemoryDestination = {
   id: string;
   displayName: string;
   state: 'active' | 'disabled';
@@ -32,8 +32,9 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<ApiKeyScope[]>([]);
   const [spaceAccess, setSpaceAccess] = useState<SpaceKind[]>(['wiki']);
-  const [hermesDestinations, setHermesDestinations] = useState<HermesMemoryDestination[]>([]);
+  const [memoryDestinations, setMemoryDestinations] = useState<MemoryDestination[]>([]);
   const [sharedNamespaceId, setSharedNamespaceId] = useState('');
+  const [agentIdentity, setAgentIdentity] = useState('hermes');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -43,11 +44,11 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
     );
   };
 
-  const hermesScopes: ApiKeyScope[] = ['memory.read', 'memory.write', 'memory.delete'];
-  const isHermesMemoryKey = hermesScopes.some((scope) => scopes.includes(scope));
+  const memoryProviderScopes: ApiKeyScope[] = ['memory.read', 'memory.write', 'memory.delete'];
+  const isMemoryProviderKey = memoryProviderScopes.some((scope) => scopes.includes(scope));
 
-  const toggleHermesMemory = () => {
-    setScopes(() => (isHermesMemoryKey ? [] : hermesScopes));
+  const toggleMemoryProvider = () => {
+    setScopes(() => (isMemoryProviderKey ? [] : memoryProviderScopes));
     setSpaceAccess(['wiki']);
   };
 
@@ -59,19 +60,19 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
   };
 
   useEffect(() => {
-    if (!isHermesMemoryKey) return;
+    if (!isMemoryProviderKey) return;
     let cancelled = false;
-    void apiGet<HermesMemoryDestination[]>('/api/api-keys/hermes-memory-destinations')
+    void apiGet<MemoryDestination[]>('/api/api-keys/memory-destinations')
       .then((destinations) => {
-        if (!cancelled) setHermesDestinations(destinations.filter((destination) => destination.state === 'active'));
+        if (!cancelled) setMemoryDestinations(destinations.filter((destination) => destination.state === 'active'));
       })
       .catch(() => {
-        if (!cancelled) setHermesDestinations([]);
+        if (!cancelled) setMemoryDestinations([]);
       });
     return () => {
       cancelled = true;
     };
-  }, [isHermesMemoryKey]);
+  }, [isMemoryProviderKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,17 +88,17 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
           name: string;
           scopes: ApiKeyScope[];
           spaceAccess: SpaceKind[];
-          hermesMemory?: { displayName?: string; sharedNamespaceId?: string };
+          memoryProvider?: { displayName?: string; sharedNamespaceId?: string; agentIdentity: string };
         },
         ApiKeyCreated
       >('/api/api-keys', {
         name,
         scopes,
         spaceAccess,
-        ...(isHermesMemoryKey ? {
-          hermesMemory: sharedNamespaceId
-            ? { sharedNamespaceId }
-            : { displayName: name.trim() },
+        ...(isMemoryProviderKey ? {
+          memoryProvider: sharedNamespaceId
+            ? { sharedNamespaceId, agentIdentity: agentIdentity.trim() }
+            : { displayName: name.trim(), agentIdentity: agentIdentity.trim() },
         } : {}),
       });
       onCreated(result);
@@ -149,14 +150,14 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
             <label className={`mb-sm flex items-start gap-sm rounded-md border border-primary/40 bg-primary/5 p-sm ${currentUserIsAdmin ? 'cursor-pointer' : 'opacity-50'}`}>
               <input
                 type="checkbox"
-                checked={isHermesMemoryKey}
-                onChange={toggleHermesMemory}
+                checked={isMemoryProviderKey}
+                onChange={toggleMemoryProvider}
                 disabled={!currentUserIsAdmin}
                 className="mt-1"
               />
               <div className="text-sm">
-                <div className="font-medium">{t('userCenter.apiKeys.hermesMemoryPreset')}</div>
-                <div className="text-muted text-xs">{t('userCenter.apiKeys.hermesMemoryPresetHint')}</div>
+                <div className="font-medium">{t('userCenter.apiKeys.memoryProviderPreset')}</div>
+                <div className="text-muted text-xs">{t('userCenter.apiKeys.memoryProviderPresetHint')}</div>
                 {!currentUserIsAdmin && <div className="text-warning text-xs">{t('userCenter.apiKeys.spaceAccessAdminOnly')}</div>}
               </div>
             </label>
@@ -167,7 +168,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                     type="checkbox"
                     checked={scopes.includes(scope)}
                     onChange={() => toggleScope(scope)}
-                    disabled={(!currentUserIsAdmin && hermesScopes.includes(scope)) || (isHermesMemoryKey && !hermesScopes.includes(scope))}
+                    disabled={(!currentUserIsAdmin && memoryProviderScopes.includes(scope)) || (isMemoryProviderKey && !memoryProviderScopes.includes(scope))}
                     className="mt-1"
                   />
                   <div className="text-sm">
@@ -179,7 +180,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
             </div>
           </div>
 
-          {!isHermesMemoryKey && <div>
+          {!isMemoryProviderKey && <div>
             <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.spaceAccessLabel')}</span>
             <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.spaceAccessHint')}</p>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-3">
@@ -211,27 +212,31 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
             </div>
           </div>}
 
-          {isHermesMemoryKey && (
+          {isMemoryProviderKey && (
             <div className="space-y-sm rounded-md border border-border bg-surface-elevated p-sm text-xs text-muted">
-              <p>{t('userCenter.apiKeys.hermesMemoryDestinationHint')}</p>
+              <label className="block">
+                <span className="mb-xs block font-medium">{t('userCenter.apiKeys.agentIdentityLabel')}</span>
+                <Input value={agentIdentity} onChange={(event) => setAgentIdentity(event.target.value)} required minLength={1} maxLength={100} />
+              </label>
+              <p>{t('userCenter.apiKeys.memoryDestinationHint')}</p>
               <label className="flex items-center gap-sm cursor-pointer">
                 <input
                   type="radio"
-                  name="hermes-memory-destination"
+                  name="agent-memory-destination"
                   checked={!sharedNamespaceId}
                   onChange={() => setSharedNamespaceId('')}
                 />
-                {t('userCenter.apiKeys.hermesMemoryNewDestination')}
+                {t('userCenter.apiKeys.memoryProviderNewDestination')}
               </label>
-              {hermesDestinations.map((destination) => (
+              {memoryDestinations.map((destination) => (
                 <label key={destination.id} className="flex items-center gap-sm cursor-pointer">
                   <input
                     type="radio"
-                    name="hermes-memory-destination"
+                    name="agent-memory-destination"
                     checked={sharedNamespaceId === destination.id}
                     onChange={() => setSharedNamespaceId(destination.id)}
                   />
-                  {t('userCenter.apiKeys.hermesMemorySharedDestination', { name: destination.displayName })}
+                  {t('userCenter.apiKeys.memoryProviderSharedDestination', { name: destination.displayName })}
                 </label>
               ))}
             </div>

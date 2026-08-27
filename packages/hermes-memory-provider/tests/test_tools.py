@@ -30,5 +30,7 @@ def test_tool_dispatch_rejects_unbounded_or_unknown_arguments(monkeypatch, tmp_p
 
     rejected = json.loads(provider.handle_tool_call("next_wiki_memory_search", {"query": "x" * 4_001}))
     assert rejected["ok"] is False
+    extra = json.loads(provider.handle_tool_call("next_wiki_memory_search", {"query": "decision", "agent_identity": "other"}))
+    assert extra["ok"] is False
     unknown = json.loads(provider.handle_tool_call("memory_search", {"query": "decision"}))
     assert unknown["code"] == "unknown_tool"

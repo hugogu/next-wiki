@@ -30,6 +30,14 @@ FIELD_DEFINITIONS: tuple[dict[str, object], ...] = (
         "help": "Create a dedicated key in next-wiki User Center → API Keys.",
     },
     {
+        "name": "agent_identity",
+        "label": "Agent identity",
+        "type": "string",
+        "required": True,
+        "default": "hermes",
+        "help": "Stable client namespace used to isolate memory when a destination is shared.",
+    },
+    {
         "name": "capture_enabled",
         "label": "Capture conversations",
         "type": "boolean",
@@ -42,6 +50,7 @@ FIELD_DEFINITIONS: tuple[dict[str, object], ...] = (
 @dataclass(frozen=True)
 class ProviderConfig:
     wiki_api_base_url: str
+    agent_identity: str = "hermes"
     capture_enabled: bool = False
     strict_checkpoint_enabled: bool = False
     request_timeout_seconds: float = 5.0
@@ -69,6 +78,15 @@ def validate_wiki_api_base_url(value: str) -> str:
     return f"{parsed.scheme}://{parsed.netloc}{path}"
 
 
+def validate_agent_identity(value: str) -> str:
+    identity = value.strip()
+    if not identity or len(identity) > 100:
+        raise ValueError("Agent identity must be a non-empty value no longer than 100 characters")
+    if any(ord(char) < 32 or ord(char) == 127 for char in identity):
+        raise ValueError("Agent identity must not contain control characters")
+    return identity
+
+
 def load_config(hermes_home: str | Path) -> ProviderConfig | None:
     path = config_path(hermes_home)
     try:
@@ -82,10 +100,20 @@ def load_config(hermes_home: str | Path) -> ProviderConfig | None:
     url = payload.get("wiki_api_base_url")
     if not isinstance(url, str):
         raise ValueError("The next-wiki memory configuration has no Wiki API URL")
+    agent_identity = payload.get("agent_identity", "hermes")
+    if not isinstance(agent_identity, str):
+        raise ValueError("The next-wiki memory configuration has no valid agent identity")
+    capture_enabled = payload.get("capture_enabled", False)
+    if not isinstance(capture_enabled, bool):
+        raise ValueError("The next-wiki memory capture_enabled setting must be boolean")
+    strict_checkpoint_enabled = payload.get("strict_checkpoint_enabled", False)
+    if not isinstance(strict_checkpoint_enabled, bool):
+        raise ValueError("The next-wiki memory strict_checkpoint_enabled setting must be boolean")
     return ProviderConfig(
         wiki_api_base_url=validate_wiki_api_base_url(url),
-        capture_enabled=bool(payload.get("capture_enabled", False)),
-        strict_checkpoint_enabled=bool(payload.get("strict_checkpoint_enabled", False)),
+        agent_identity=validate_agent_identity(agent_identity),
+        capture_enabled=capture_enabled,
+        strict_checkpoint_enabled=strict_checkpoint_enabled,
         request_timeout_seconds=min(max(float(payload.get("request_timeout_seconds", 5.0)), 1.0), 30.0),
         recall_limit=min(max(int(payload.get("recall_limit", 5)), 1), 10),
         version=CONFIG_VERSION,
@@ -94,8 +122,9 @@ def load_config(hermes_home: str | Path) -> ProviderConfig | None:
 
 def save_config(hermes_home: str | Path, config: ProviderConfig, *, dry_run: bool = False) -> Path:
     normalized_url = validate_wiki_api_base_url(config.wiki_api_base_url)
-    if normalized_url != config.wiki_api_base_url:
-        config = replace(config, wiki_api_base_url=normalized_url)
+    normalized_identity = validate_agent_identity(config.agent_identity)
+    if normalized_url != config.wiki_api_base_url or normalized_identity != config.agent_identity:
+        config = replace(config, wiki_api_base_url=normalized_url, agent_identity=normalized_identity)
     path = config_path(hermes_home)
     if dry_run:
         return path

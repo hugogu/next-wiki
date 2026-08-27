@@ -6,7 +6,7 @@ describe('API-key scopes', () => {
     expect(apiKeyScopeSchema.options).toContain('ai.image');
   });
 
-  it('includes dedicated Hermes memory scopes', () => {
+  it('includes dedicated Agent memory scopes', () => {
     expect(apiKeyScopeSchema.options).toEqual(expect.arrayContaining(['memory.read', 'memory.write', 'memory.delete']));
   });
 });

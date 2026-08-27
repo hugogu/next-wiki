@@ -64,8 +64,8 @@ describe('api-keys service', () => {
       expect(row!.scopes).toEqual(['storage', 'preferences']);
     });
 
-    it('creates an isolated destination for a dedicated Hermes memory key', async () => {
-      const user = await createTestUser('apikey-hermes-memory@example.com');
+    it('creates an isolated destination for a dedicated Agent memory key', async () => {
+      const user = await createTestUser('apikey-agent-memory@example.com');
       await db.update(schema.users).set({ role: 'admin' }).where(eq(schema.users.id, user.id));
       const ctx = buildUserCtx(user.id, 'admin');
 
@@ -74,14 +74,14 @@ describe('api-keys service', () => {
         'hermes',
         ['memory.read', 'memory.write', 'memory.delete'],
         ['wiki'],
-        { displayName: 'Hermes personal memory' },
+        { agentIdentity: "hermes", displayName: 'Hermes personal memory' },
       );
 
-      expect(created.hermesMemoryDestination).toMatchObject({ displayName: 'Hermes personal memory', state: 'active' });
-      const binding = await db.query.hermesMemoryKeyBindings.findFirst({
-        where: eq(schema.hermesMemoryKeyBindings.apiKeyId, created.id),
+      expect(created.memoryDestination).toMatchObject({ agentIdentity: "hermes", displayName: 'Hermes personal memory', state: 'active' });
+      const binding = await db.query.agentMemoryKeyBindings.findFirst({
+        where: eq(schema.agentMemoryKeyBindings.apiKeyId, created.id),
       });
-      expect(binding?.namespaceId).toBe(created.hermesMemoryDestination?.id);
+      expect(binding?.namespaceId).toBe(created.memoryDestination?.id);
     });
 
     it('requires an admin-owned dedicated destination for memory scopes', async () => {
@@ -90,23 +90,23 @@ describe('api-keys service', () => {
       const ctx = buildUserCtx(user.id, 'editor');
 
       await expect(apiKeyService.create(ctx, 'missing-destination', ['memory.read'])).rejects.toThrow(DomainError);
-      await expect(apiKeyService.create(ctx, 'not-admin', ['memory.read'], ['wiki'], { displayName: 'memory' })).rejects.toThrow(DomainError);
+      await expect(apiKeyService.create(ctx, 'not-admin', ['memory.read'], ['wiki'], { agentIdentity: "hermes", displayName: 'memory' })).rejects.toThrow(DomainError);
     });
 
     it('only lets the owner explicitly reuse an active Hermes destination', async () => {
       const user = await createTestUser('apikey-hermes-share@example.com');
       await db.update(schema.users).set({ role: 'admin' }).where(eq(schema.users.id, user.id));
       const ctx = buildUserCtx(user.id, 'admin');
-      const first = await apiKeyService.create(ctx, 'first', ['memory.read'], ['wiki'], { displayName: 'shared' });
-      const destinationId = first.hermesMemoryDestination!.id;
+      const first = await apiKeyService.create(ctx, 'first', ['memory.read'], ['wiki'], { agentIdentity: "hermes", displayName: 'shared' });
+      const destinationId = first.memoryDestination!.id;
 
-      const second = await apiKeyService.create(ctx, 'second', ['memory.read'], ['wiki'], { sharedNamespaceId: destinationId });
-      expect(second.hermesMemoryDestination?.id).toBe(destinationId);
+      const second = await apiKeyService.create(ctx, 'second', ['memory.read'], ['wiki'], { agentIdentity: "hermes", sharedNamespaceId: destinationId });
+      expect(second.memoryDestination?.id).toBe(destinationId);
 
       const other = await createTestUser('apikey-hermes-other@example.com');
       await db.update(schema.users).set({ role: 'admin' }).where(eq(schema.users.id, other.id));
       await expect(
-        apiKeyService.create(buildUserCtx(other.id, 'admin'), 'other', ['memory.read'], ['wiki'], { sharedNamespaceId: destinationId }),
+        apiKeyService.create(buildUserCtx(other.id, 'admin'), 'other', ['memory.read'], ['wiki'], { agentIdentity: "hermes", sharedNamespaceId: destinationId }),
       ).rejects.toThrow(DomainError);
     });
 

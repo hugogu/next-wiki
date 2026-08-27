@@ -51,7 +51,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
     const hasBearerToken = auth?.startsWith('Bearer ') ?? false;
     const method = request.method;
     const path = new URL(request.url).pathname;
-    const origin = path.startsWith('/api/v1/hermes/memory/') ? 'hermes' as const : undefined;
+    const origin = path.startsWith('/api/v1/memory/') ? 'agent_memory' as const : undefined;
     const ip = audit.clientIp(headersList);
     const resolved = await resolveActor();
 

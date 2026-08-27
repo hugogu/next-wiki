@@ -17,13 +17,13 @@ export const SAMPLE_PAGE_PATHS = {
   welcome: 'welcome',
   markdownSyntax: 'help/markdown-syntax',
   mainFeatures: 'help/main-features',
-  hermesMemory: 'help/hermes-memory',
+  agentMemory: 'help/agent-memory',
 } as const;
 
 export const WELCOME_PAGE_TITLE = 'Welcome to next-wiki';
 export const MARKDOWN_SYNTAX_PAGE_TITLE = 'Markdown Syntax Guide';
 export const MAIN_FEATURES_PAGE_TITLE = 'Main Features Guide';
-export const HERMES_MEMORY_PAGE_TITLE = 'Hermes Memory Guide';
+export const AGENT_MEMORY_PAGE_TITLE = 'Agent Memory Guide';
 
 export const WELCOME_PAGE_SOURCE = `# Welcome to next-wiki
 
@@ -87,7 +87,7 @@ ${ONBOARDING_LINKS_MARKER}
 
 - Learn the syntax in the [Markdown Syntax Guide](/help/markdown-syntax).
 - Tour the product in the [Main Features Guide](/help/main-features).
-- Connect Hermes securely in the [Hermes Memory Guide](/help/hermes-memory).
+- Connect Hermes securely in the [Agent Memory Guide](/help/agent-memory).
 `;
 
 /** Welcome content used when onboarding creates the welcome page itself. */
@@ -219,23 +219,23 @@ AI is optional: the wiki is fully usable without it, and every AI feature is per
 
 Administrators manage users, AI providers and models, storage backends, site identity, and translations from the **Admin** area.
 
-## Hermes memory (optional)
+## Agent memory (optional)
 
-- Use the [Hermes Memory Guide](/help/hermes-memory) to connect a Hermes profile to the shared Raw-space memory destination. Hermes entries are immutable and indexed through the same Wiki content pipeline.
+- Use the [Agent Memory Guide](/help/agent-memory) to connect an agent identity to the shared Raw-space memory destination. Memory entries are immutable and indexed through the same Wiki content pipeline.
 - The integration uses a dedicated API key with only memory scopes; it does not need a Wiki AI provider.
 
 > **Tip:** You can edit or delete this page at any time — it is a normal wiki page created during first-run setup.
 `;
 
-export const HERMES_MEMORY_PAGE_SOURCE = `# Hermes Memory Guide
+export const AGENT_MEMORY_PAGE_SOURCE = `# Agent Memory Guide
 
 ${SAMPLE_PAGE_MARKER}
 
-Use this optional integration to make this Wiki the durable, inspectable memory for one Hermes profile. Enable **LLM Wiki** writing mode so the shared **Raw** space is available. Memory records and opted-in conversation evidence are restricted, immutable Raw entries with published revisions and common Wiki indexing/provenance; Hermes forget only hides a logical record from provider recall and does not change the Raw source.
+Use this optional integration to make this Wiki the durable, inspectable memory for one configured agent identity. Hermes is the first supported client. Enable **LLM Wiki** writing mode so the shared **Raw** space is available. Memory records and opted-in conversation evidence are restricted, immutable Raw entries with published revisions and common Wiki indexing/provenance; forgetting only hides a logical record from provider recall and does not change the Raw source.
 
 ## 1. Create a dedicated key
 
-Open **User Center → API Keys** and choose the **Hermes Memory** option. Create a new private destination unless you deliberately want to share a destination with another Hermes profile. Grant only the memory scopes you need:
+Open **User Center → API Keys** and choose the **Memory provider** option. Set a stable **Agent identity** (use hermes for Hermes). Create a new private destination unless you deliberately want to share a destination with another client identity. Grant only the memory scopes you need:
 
 - **memory.read** for recall
 - **memory.write** for explicit saves and optional evidence capture

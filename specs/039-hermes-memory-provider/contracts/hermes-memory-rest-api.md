@@ -1,7 +1,7 @@
-# Hermes Memory REST Contract
+# Agent Memory REST Contract
 
 **Status**: Planned public v1 contract
-**Feature**: [Hermes Memory Provider](../spec.md)
+**Feature**: [Agent Memory Provider](../spec.md)
 **Base URL**: `{NEXT_WIKI_API_URL}` (for example `https://wiki.example.com/api/v1`)
 
 ## Contract Principles
@@ -40,7 +40,7 @@
 
 `canonicalUrl` is a durable Wiki reader address. The service must not return
 unpublished/public URLs for an inaccessible record; a restricted page's address
-is returned only to the bound Hermes key in the memory response.
+is returned only to the bound memory key in the memory response.
 
 ### Memory Record View
 
@@ -71,7 +71,7 @@ specified.
 ```json
 {
   "error": {
-    "code": "HERMES_MEMORY_NAMESPACE_UNAVAILABLE",
+    "code": "AGENT_MEMORY_NAMESPACE_UNAVAILABLE",
     "message": "The memory destination is unavailable. Check the key binding or ask the Wiki owner to enable it."
   }
 }
@@ -84,16 +84,16 @@ database errors, or raw stack traces.
 | Code | HTTP | Meaning |
 |---|---:|---|
 | `UNAUTHORIZED` | 401 | Missing, malformed, invalid, revoked, or disabled API key. Provider diagnostics may distinguish safe configured states where auth resolution can do so without revealing a key. |
-| `HERMES_MEMORY_SCOPE_REQUIRED` | 403 | Key lacks the endpoint's dedicated memory scope. |
-| `HERMES_MEMORY_KEY_UNBOUND` | 403 | Authenticated key has no active Memory Destination binding. |
-| `HERMES_MEMORY_NAMESPACE_UNAVAILABLE` | 403 | Bound destination is disabled or no longer valid. |
-| `HERMES_MEMORY_RECORD_NOT_FOUND` | 404 | Memory is absent, forgotten, or belongs to another destination. |
-| `HERMES_MEMORY_EVIDENCE_INVALID` | 422 | Evidence roles, length, digest, or content policy fail validation. |
-| `HERMES_MEMORY_CHECKPOINT_NOT_DURABLE` | 409 | A strict checkpoint is not yet durable, failed, or was cancelled. |
-| `HERMES_MEMORY_INCOMPATIBLE_CLIENT` | 426 | Provider/client contract version is unsupported; response identifies supported versions only. |
+| `AGENT_MEMORY_SCOPE_REQUIRED` | 403 | Key lacks the endpoint's dedicated memory scope. |
+| `AGENT_MEMORY_KEY_UNBOUND` | 403 | Authenticated key has no active Memory Destination binding. |
+| `AGENT_MEMORY_NAMESPACE_UNAVAILABLE` | 403 | Bound destination is disabled or no longer valid. |
+| `AGENT_MEMORY_RECORD_NOT_FOUND` | 404 | Memory is absent, forgotten, or belongs to another destination. |
+| `AGENT_MEMORY_EVIDENCE_INVALID` | 422 | Evidence roles, length, digest, or content policy fail validation. |
+| `AGENT_MEMORY_CHECKPOINT_NOT_DURABLE` | 409 | A strict checkpoint is not yet durable, failed, or was cancelled. |
+| `AGENT_MEMORY_INCOMPATIBLE_CLIENT` | 426 | Provider/client contract version is unsupported; response identifies supported versions only. |
 | `RATE_LIMITED` | 429 | Existing rate/abuse policy declined the request. |
 
-## `GET /hermes/memory/connection`
+## `GET /memory/connection`
 
 Returns a non-secret, content-free connection profile for setup/status checks.
 
@@ -104,8 +104,8 @@ is the documented default.
 
 | Header | Required | Purpose |
 |---|---|---|
-| `Authorization` | Yes | Dedicated Hermes Bearer API key. |
-| `X-Next-Wiki-Hermes-Provider-Version` | Yes | Bounded provider release version for compatibility diagnostics. |
+| `Authorization` | Yes | Dedicated memory-provider Bearer API key. |
+| `X-Next-Wiki-Memory-Provider-Version` | Yes | Bounded provider release version for compatibility diagnostics. |
 
 **200 response**:
 
@@ -116,7 +116,8 @@ is the documented default.
   "namespace": {
     "id": "d0f90a69-997b-4dee-9e91-c61c68dfc604",
     "displayName": "Hermes — default profile",
-    "state": "active"
+    "state": "active",
+    "agentIdentity": "hermes"
   },
   "capabilities": {
     "recall": true,
@@ -139,7 +140,7 @@ The server derives each Boolean from the bound key scope, destination state, and
 server version. It must not use the presence of a Wiki model provider as a
 connection prerequisite.
 
-## `GET /hermes/memory/diagnostics`
+## `GET /memory/diagnostics`
 
 Returns a credential-safe diagnostic outcome. It is for `hermes next-wiki check`
 and the standalone setup helper; it does not return memory content.
@@ -166,7 +167,7 @@ and the standalone setup helper; it does not return memory content.
 `incompatible`. Only a safe outcome category is retained; no content or
 provider-supplied profile value is echoed.
 
-## `POST /hermes/memory/recall`
+## `POST /memory/recall`
 
 Performs bounded, namespace-filtered lexical recall. It is synchronous only
 within the defined immediate database budget; an unavailable derived index is a
@@ -206,7 +207,7 @@ memory. It must not be confused with authentication, destination, or index
 failure. Current evidence records are excluded from recall unless a later
 explicit evidence-read contract changes that rule.
 
-## `POST /hermes/memory/records`
+## `POST /memory/records`
 
 Creates an explicit durable memory in the bound destination. The service
 appends one restricted, published Raw entry through the shared Raw writer,
@@ -249,9 +250,9 @@ second revision for that key.
 An existing idempotency key with semantically different normalized payload is a
 `409` safe conflict. The service must not silently overwrite an earlier memory.
 
-## `DELETE /hermes/memory/records/{memoryId}`
+## `DELETE /memory/records/{memoryId}`
 
-Marks one active memory forgotten in the Hermes projection. The immutable Raw
+Marks one active memory forgotten in the Agent Memory projection. The immutable Raw
 page/revision is retained unchanged; only Hermes recall eligibility changes.
 
 **Authorization**: `memory.delete`.
@@ -276,9 +277,9 @@ metadata. It is never written into a source transcript or public page.
 ```
 
 Repeating a successful forget returns the same forgotten state. A memory from a
-different destination returns `HERMES_MEMORY_RECORD_NOT_FOUND`.
+different destination returns `AGENT_MEMORY_RECORD_NOT_FOUND`.
 
-## `POST /hermes/memory/evidence`
+## `POST /memory/evidence`
 
 Submits opted-in, normalized conversation evidence for asynchronous durable
 capture. It never accepts tool result content by default.
@@ -312,7 +313,7 @@ capture. It never accepts tool result content by default.
 {
   "captureId": "5ce11a61-4a23-48aa-a62c-cb2f4a38fd6b",
   "status": "queued",
-  "pollUrl": "/api/v1/hermes/memory/evidence/5ce11a61-4a23-48aa-a62c-cb2f4a38fd6b",
+  "pollUrl": "/api/v1/memory/evidence/5ce11a61-4a23-48aa-a62c-cb2f4a38fd6b",
   "idempotent": false
 }
 ```
@@ -323,7 +324,7 @@ the already-versioned base URL. Repeated requests return the same
 `captureId` and latest state. The route queues
 work but does not claim durable preservation.
 
-## `GET /hermes/memory/evidence/{captureId}`
+## `GET /memory/evidence/{captureId}`
 
 Returns a bounded capture status used by the provider's retry worker and strict
 checkpoint wait loop.
@@ -358,16 +359,16 @@ checkpoint wait loop.
 strict checkpoint succeeds only for `durable=true`; it raises on every other
 terminal state or timeout.
 
-## Hermes Provider Contract
+## Client Provider Contract (Hermes first)
 
 The Python distribution exposes the provider name `next-wiki` and these unique
 OpenAI-function schemas:
 
 | Tool | Server call | Input boundary |
 |---|---|---|
-| `next_wiki_memory_search` | `POST /hermes/memory/recall` | `query`, optional bounded `limit`; no profile/destination/API URL fields. |
-| `next_wiki_memory_save` | `POST /hermes/memory/records` | bounded `content`, optional `title`/`tags`; provider supplies idempotency key. |
-| `next_wiki_memory_forget` | `DELETE /hermes/memory/records/{memoryId}` | only bound-destination memory ID and optional bounded reason. |
+| `next_wiki_memory_search` | `POST /memory/recall` | `query`, optional bounded `limit`; no profile/destination/API URL fields. |
+| `next_wiki_memory_save` | `POST /memory/records` | bounded `content`, optional `title`/`tags`; provider supplies idempotency key. |
+| `next_wiki_memory_forget` | `DELETE /memory/records/{memoryId}` | only bound-destination memory ID and optional bounded reason. |
 
 The provider must validate tool input before transport, return a safe JSON string
 for every outcome, and distinguish empty recall, unavailable service,
@@ -383,6 +384,7 @@ must explain that condition rather than claiming tools are usable.
 |---|---:|---|---|
 | `wiki_api_base_url` | No | none | `$HERMES_HOME/next-wiki-memory.json` |
 | `api_key` / `NEXT_WIKI_MEMORY_API_KEY` | Yes | none | Hermes profile `.env` |
+| `agent_identity` | No | `hermes` | `$HERMES_HOME/next-wiki-memory.json` |
 | `capture_enabled` | No | `false` | `$HERMES_HOME/next-wiki-memory.json` |
 
 Destination identity is returned by `GET /connection` after a dedicated API key
@@ -395,7 +397,7 @@ prompted in the default wizard.
 
 | Command | Availability | Effect |
 |---|---|---|
-| `next-wiki-hermes-memory init [--wiki-url URL] [--dry-run]` | After package install, before activation | Validates non-secret address, safely prompts/reads secret through non-argument input, prepares Hermes-compatible config only after confirmation, and may call diagnostics. |
+| `hermes-memory-provider init [--wiki-url URL] [--dry-run]` | After package install, before activation | Validates non-secret address, safely prompts/reads secret through non-argument input, prepares Hermes-compatible config only after confirmation, and may call diagnostics. |
 | `hermes memory setup` | Hermes normal flow | Selects `next-wiki`, stores secret through Hermes, and activates the provider. |
 | `hermes next-wiki status` | Active provider only | Prints URL, destination label, configuration version, capture preference, and whether a secret is set; performs no network call. |
 | `hermes next-wiki check` | Active provider only | Performs bounded connection/scope/compatibility probe and prints only safe repair guidance. |

@@ -1,15 +1,15 @@
-# Hermes Memory Provider
+# Agent Memory Backend — Hermes Provider
 
 The `next-wiki-hermes-memory` package lets Hermes store durable memory in this
-Wiki without giving it the generic page API. A dedicated Hermes API key is
-bound to one server-side memory destination. The provider cannot override that
+Wiki without giving it the generic page API. A dedicated memory-provider API
+key is bound to one server-side memory destination and `agent_identity`. The provider cannot override that
 destination with a request parameter, profile name, or path prefix.
 
 Memory and opted-in evidence are written as restricted, immutable entries in the
 shared **Raw** space. The existing Raw/page-revision/content-store writer
 publishes the original body once and invokes the common Wiki indexing,
 provenance, and audit paths, so authorized Wiki search and inspection can use
-the same storage as other Raw content. The Hermes tables retain only the
+the same storage as other Raw content. The Agent Memory tables retain only the
 namespace-scoped locator/state and idempotency projection.
 
 ## Before connecting Hermes
@@ -19,7 +19,8 @@ namespace-scoped locator/state and idempotency projection.
    TLS/reverse proxy used by the Web UI. Remote provider URLs must end in
    `/api/v1` and use HTTPS.
 2. Sign in as an administrator, open **User Center → API Keys**, and select
-   **Hermes Memory provider**. The preset grants only the memory scopes:
+   **Memory provider**. Set a stable non-secret **Agent identity** (normally
+   `hermes` for this client). The preset grants only the memory scopes:
    `memory.read`, `memory.write`, and `memory.delete`.
 3. Copy the secret once. It is encrypted by next-wiki, can be revealed to its
    owner while active, and can be revoked from the same page.
@@ -36,8 +37,8 @@ hermes memory setup
 
 Choose `next-wiki`, enter `https://wiki.example.com/api/v1`, and enter the
 secret at the Hermes prompt. Hermes stores the secret as
-`NEXT_WIKI_MEMORY_API_KEY`; the provider writes just the non-secret URL and
-capture policy to `$HERMES_HOME/next-wiki-memory.json`.
+`NEXT_WIKI_MEMORY_API_KEY`; the provider writes just the non-secret URL,
+identity, and capture policy to `$HERMES_HOME/next-wiki-memory.json`.
 
 ```bash
 hermes memory status
@@ -63,8 +64,8 @@ environment secret mechanism instead.
 
 The package is published as a `hermes_agent.memory_providers` entry point. Its
 release workflow tests Hermes `0.7.0` (the first pluggable `MemoryProvider`
-release) and the latest available Hermes package. The Wiki API is versioned at
-`/api/v1`; an incompatible provider or server fails with an actionable 426
+release) and the latest available Hermes package. The generic Agent Memory API
+is versioned at `/api/v1/memory/*`; an incompatible provider or server fails with an actionable 426
 response instead of falling back to generic page endpoints.
 
 Checkpoint API v2 support is runtime-dependent rather than assumed from this
@@ -107,6 +108,6 @@ Include the normal next-wiki database and content-store backups in your
 operational runbook. Memory records, evidence links, and audit entries are
 stored there; no separate Hermes service or Docker container is required.
 
-The first-run optional sample pages include a **Hermes Memory Guide** at
-`/help/hermes-memory`, which links users to this workflow without storing any
+The first-run optional sample pages include an **Agent Memory Guide** at
+`/help/agent-memory`, which links users to this workflow without storing any
 credentials in the Wiki.

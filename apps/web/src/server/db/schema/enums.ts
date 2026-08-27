@@ -405,17 +405,17 @@ export const translationUsageSourceEnum = pgEnum('translation_usage_source', [
 // ---- Feishu integration (019) ---------------------------------------------
 
 /** Source channel of an audit entry. Existing rows default to `web`. */
-export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu', 'hermes']);
+export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu', 'agent_memory', 'hermes']);
 
-export const hermesMemoryNamespaceStateEnum = pgEnum('hermes_memory_namespace_state', ['active', 'disabled']);
-export const hermesMemoryRecordTypeEnum = pgEnum('hermes_memory_record_type', ['memory', 'evidence']);
-export const hermesMemoryRecordStateEnum = pgEnum('hermes_memory_record_state', ['active', 'forgotten']);
-export const hermesMemoryEvidenceRelationEnum = pgEnum('hermes_memory_evidence_relation', [
+export const agentMemoryNamespaceStateEnum = pgEnum('agent_memory_namespace_state', ['active', 'disabled']);
+export const agentMemoryRecordTypeEnum = pgEnum('agent_memory_record_type', ['memory', 'evidence']);
+export const agentMemoryRecordStateEnum = pgEnum('agent_memory_record_state', ['active', 'forgotten']);
+export const agentMemoryEvidenceRelationEnum = pgEnum('agent_memory_evidence_relation', [
   'explicit_save',
   'automatic_capture',
   'checkpoint',
 ]);
-export const hermesMemoryCaptureStatusEnum = pgEnum('hermes_memory_capture_status', [
+export const agentMemoryCaptureStatusEnum = pgEnum('agent_memory_capture_status', [
   'queued',
   'running',
   'durable',

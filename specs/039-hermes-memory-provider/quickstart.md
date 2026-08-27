@@ -1,6 +1,11 @@
-# Quickstart: Validate Hermes Memory Provider
+# Quickstart: Validate Agent Memory Provider
 
-**Feature**: [Hermes Memory Provider](./spec.md)
+> The Wiki API is client-neutral: use `/api/v1/memory/*`. Hermes is the first
+> client; configure its required `agent_identity` (default `hermes`) when
+> creating the Memory provider key. The identity is enforced server-side and is
+> never accepted as a route or tool argument.
+
+**Feature**: [Agent Memory Provider](./spec.md)
 **Related contracts**: [REST API](./contracts/hermes-memory-rest-api.md) and [data model](./data-model.md)
 
 This guide is the end-to-end validation path for the implementation. It uses
@@ -33,7 +38,7 @@ the Hermes API path or its bounded lexical recall.
 Confirm health from the environment that will run Hermes:
 
 ```bash
-curl -i https://wiki.example.test/api/v1/hermes/memory/connection
+curl -i https://wiki.example.test/api/v1/memory/connection
 ```
 
 An unauthenticated response is expected at this point. A DNS, transport, or
@@ -43,7 +48,7 @@ reverse-proxy failure must be corrected before configuration continues.
 
 During initial setup choose **Generate help pages**. Verify that:
 
-1. `help/hermes-memory` is published with placeholder-only installation and
+1. `help/agent-memory` is published with placeholder-only installation and
    security guidance.
 2. The generated Welcome next-steps block and Main Features page link to it.
 3. Rerunning generation does not create an additional revision.
@@ -56,7 +61,7 @@ destination name, API key, capture state, or diagnostic output.
 
 ## 3. Provision a Dedicated Hermes Key
 
-In **User Center → API Keys**, choose the Hermes Memory integration option:
+In **User Center → API Keys**, choose the Agent Memory integration option:
 
 1. Create a new private Memory Destination for the Hermes profile. For a shared
    test, deliberately choose an existing owner-managed destination and create a
@@ -67,7 +72,7 @@ In **User Center → API Keys**, choose the Hermes Memory integration option:
    Hermes setup prompt. Record the non-secret destination label for comparison
    with `status` output.
 
-Verify the public API documentation describes the new scopes and Hermes Memory
+Verify the public API documentation describes the new scopes and Agent Memory
 resources. The key must not need generic page, Raw, Generated, or AI scopes for
 the baseline provider flow.
 
@@ -111,7 +116,7 @@ Expected results:
 1. In Hermes, ask it to save a concise decision through
    `next_wiki_memory_save`.
 2. Inspect the Wiki as the owner: a restricted, published Raw entry under the
-   **Hermes Memory** system category and a corresponding active Memory Record
+   **Agent Memory** system category and a corresponding active Memory Record
    exist. The entry is machine-attributed, immutable, not public, and is handed
    to the common page/index reconciliation pipeline.
 3. Start a fresh Hermes session under the same profile and ask a related
@@ -130,7 +135,7 @@ restart/reload Hermes. Hold a conversation containing only disposable text.
 
 1. Complete a turn and verify the turn finishes without waiting for the Wiki.
 2. Poll the provider/job status until a restricted Evidence Record and
-   immutable Raw backing revision become durable. Verify the Hermes Memory
+   immutable Raw backing revision become durable. Verify the Agent Memory
    category and common indexing path through the owner-authorized Wiki surface.
 3. Repeat the same request or simulate a retry. The same destination and
    idempotency digest must return one capture/result, not duplicate evidence.
@@ -150,10 +155,10 @@ the detected contract.
 | Scenario | Expected outcome |
 |---|---|
 | Revoke the active Hermes key | The next call returns a safe unauthorized diagnostic; no further recall/write occurs. Existing pages remain intact. |
-| Use a key without `memory.write` | Save/evidence endpoints return `HERMES_MEMORY_SCOPE_REQUIRED`; no page/revision is created. |
-| Use a memory ID from another destination | Forget returns `HERMES_MEMORY_RECORD_NOT_FOUND`; no existence information leaks. |
-| Disable the bound destination | Connection and operations return `HERMES_MEMORY_NAMESPACE_UNAVAILABLE`. |
-| Use incompatible provider version | Connection/diagnostics return `HERMES_MEMORY_INCOMPATIBLE_CLIENT` with upgrade guidance only. |
+| Use a key without `memory.write` | Save/evidence endpoints return `AGENT_MEMORY_SCOPE_REQUIRED`; no page/revision is created. |
+| Use a memory ID from another destination | Forget returns `AGENT_MEMORY_RECORD_NOT_FOUND`; no existence information leaks. |
+| Disable the bound destination | Connection and operations return `AGENT_MEMORY_NAMESPACE_UNAVAILABLE`. |
+| Use incompatible provider version | Connection/diagnostics return `AGENT_MEMORY_INCOMPATIBLE_CLIENT` with upgrade guidance only. |
 | Redirect, timeout, invalid URL, or container-loopback address | Bootstrap/doctor report a specific repair action and do not print secret or response bodies. |
 
 Inspect API Audit entries for each scenario. Entries must show origin `hermes`,
@@ -165,7 +170,7 @@ profile labels, or secrets.
 Run focused checks while developing, then the full workspace suite before merge:
 
 ```bash
-pnpm --filter @next-wiki/web test -- hermes-memory
+pnpm --filter @next-wiki/web test -- agent-memory
 pnpm --filter @next-wiki/web typecheck
 pnpm --filter @next-wiki/web lint
 python -m pytest packages/hermes-memory-provider/tests

@@ -105,9 +105,9 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
                   <DataTableRow key={key.id} className={revoked ? 'opacity-60' : ''}>
                     <DataTableCell className="font-medium">
                       <div>{key.name}</div>
-                      {key.hermesMemoryDestination && (
+                      {key.memoryDestination && (
                         <div className="mt-1 text-xs text-muted">
-                          {t('userCenter.apiKeys.hermesMemoryDestination')}: {key.hermesMemoryDestination.displayName}
+                          {t('userCenter.apiKeys.memoryDestination')}: {key.memoryDestination.displayName}
                         </div>
                       )}
                     </DataTableCell>

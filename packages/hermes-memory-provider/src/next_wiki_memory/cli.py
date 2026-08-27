@@ -6,7 +6,7 @@ import argparse
 import getpass
 import os
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 from .api_client import ApiClientError, WikiApiClient
 from .config import API_KEY_ENV_VAR, ProviderConfig, configured_api_key, load_config, save_config, validate_wiki_api_base_url
@@ -27,6 +27,7 @@ def _print_status(home: Path) -> int:
         print("next-wiki memory is not configured; run hermes memory setup or next-wiki-hermes-memory init")
         return 2
     print(f"Wiki API: {safe_url(config.wiki_api_base_url)}")
+    print(f"Agent identity: {config.agent_identity}")
     print(f"Capture enabled: {'yes' if config.capture_enabled else 'no'}")
     print(f"Strict checkpoint: {'yes' if config.strict_checkpoint_enabled else 'no'}")
     print(f"API key configured: {'yes' if configured_api_key() else 'no'}")
@@ -55,7 +56,7 @@ def _init(args: argparse.Namespace) -> int:
         print(redact(error))
         return 2
     home = _hermes_home(args.hermes_home)
-    config = ProviderConfig(wiki_api_base_url=url, capture_enabled=args.capture_enabled)
+    config = ProviderConfig(wiki_api_base_url=url, agent_identity=args.agent_identity, capture_enabled=args.capture_enabled)
     key = configured_api_key()
     if not key and not args.skip_check and os.isatty(0):
         key = getpass.getpass(f"{API_KEY_ENV_VAR} (not saved here; leave blank to skip check): ").strip() or None
@@ -82,6 +83,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--wiki-url", help="versioned next-wiki API URL; no credential arguments are accepted")
     init.add_argument("--hermes-home", help="Hermes home supplied by the active profile")
     init.add_argument("--capture-enabled", action="store_true", help="opt in to user/assistant evidence capture")
+    init.add_argument("--agent-identity", default="hermes", help="stable agent namespace label (not a credential)")
     init.add_argument("--dry-run", action="store_true", help="show the target configuration without writing it")
     init.add_argument("--skip-check", action="store_true", help="do not prompt for or use a key for connectivity validation")
     for command in ("status", "check"):

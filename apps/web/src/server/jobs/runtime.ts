@@ -35,8 +35,8 @@ export const QUEUES = {
   // idempotent Raw Conversation capture pass. Kept off the interactive
   // ai-action queue so capture work never delays chat streaming.
   rawConversationCapture: 'raw-conversation-capture',
-  /** Opt-in external Hermes evidence capture; never shares the interactive queue. */
-  hermesMemoryCapture: 'hermes-memory-capture',
+  /** Opt-in external Agent Memory evidence capture; never shares the interactive queue. */
+  agentMemoryCapture: 'agent-memory-capture',
   /** Discovers due definitions only; model work is isolated in scheduledAiRun. */
   scheduledAiTick: 'scheduled-ai-tick',
   scheduledAiRun: 'scheduled-ai-run',

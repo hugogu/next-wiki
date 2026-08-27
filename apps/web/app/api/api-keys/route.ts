@@ -27,7 +27,7 @@ async function handlePOST(request: Request) {
   }
 
   try {
-    const result = await apiKeyService.create(ctx, parsed.data.name, parsed.data.scopes, parsed.data.spaceAccess, parsed.data.hermesMemory);
+    const result = await apiKeyService.create(ctx, parsed.data.name, parsed.data.scopes, parsed.data.spaceAccess, parsed.data.memoryProvider);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);

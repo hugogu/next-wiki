@@ -36,7 +36,7 @@ describe('PUT /api/setup/sample-pages', () => {
         { path: 'welcome', status: 'updated', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a001' },
         { path: 'help/markdown-syntax', status: 'created', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a002' },
         { path: 'help/main-features', status: 'created', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a003' },
-        { path: 'help/hermes-memory', status: 'created', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a004' },
+        { path: 'help/agent-memory', status: 'created', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a004' },
       ],
       nextStep: 'summary',
     });
@@ -56,7 +56,7 @@ describe('PUT /api/setup/sample-pages', () => {
         { path: 'welcome', status: 'updated', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a001' },
         { path: 'help/markdown-syntax', status: 'collision' },
         { path: 'help/main-features', status: 'created', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a003' },
-        { path: 'help/hermes-memory', status: 'created', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a004' },
+        { path: 'help/agent-memory', status: 'created', pageId: '6f1c2b9e-3f58-4a3c-bf3e-4d3f0d35a004' },
       ],
       nextStep: 'summary',
     });

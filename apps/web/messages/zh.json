@@ -2402,12 +2402,13 @@
       "namePlaceholder": "例如：CI 机器人",
       "scopesLabel": "权限范围",
       "scopesHint": "至少选择一个权限范围。创建后无法修改。",
-      "hermesMemoryPreset": "Hermes Memory Provider",
-      "hermesMemoryPresetHint": "为此 API 密钥创建专属、隔离的记忆目标。",
-      "hermesMemoryDestinationHint": "此密钥只能访问专属 Hermes 记忆目标，不能访问普通 Wiki 页面。",
-      "hermesMemoryNewDestination": "为此密钥创建新的隔离记忆目标",
-      "hermesMemorySharedDestination": "使用已有记忆目标：{name}",
-      "hermesMemoryDestination": "Hermes 记忆目标",
+      "memoryProviderPreset": "记忆提供方",
+      "memoryProviderPresetHint": "为此 API 密钥创建专属、隔离的记忆目标。目前首个支持的客户端集成为 Hermes。",
+      "agentIdentityLabel": "Agent 身份",
+      "memoryDestinationHint": "此密钥只能访问专属记忆目标，不能访问普通 Wiki 页面。",
+      "memoryProviderNewDestination": "为此密钥创建新的隔离记忆目标",
+      "memoryProviderSharedDestination": "使用已有记忆目标：{name}",
+      "memoryDestination": "记忆目标",
       "spaceAccessLabel": "空间访问范围",
       "spaceAccessHint": "该密钥可以读取哪些内容空间。Wiki 空间始终包含,创建后无法修改。",
       "spaceAccessAdminOnly": "需要管理员账号",
@@ -2475,9 +2476,9 @@
         "manage_tags": "维护共享标签词汇表",
         "attachments": "为页面附加文件——独立于创建/编辑权限；同时需要对目标页面具有读取权限",
         "memory": {
-          "read": "检索此 API 密钥专属 Hermes 记忆目标中的记录",
-          "write": "向此 API 密钥专属 Hermes 记忆目标保存记录和证据",
-          "delete": "从此 API 密钥专属 Hermes 记忆目标软删除记录"
+          "read": "检索此 API 密钥专属 Agent Memory 目标中的记录",
+          "write": "向此 API 密钥专属 Agent Memory 目标保存记录和证据",
+          "delete": "从此 API 密钥专属 Agent Memory 目标软删除记录"
         },
         "ai": {
           "read": "使用 AI 搜索与语义检索",

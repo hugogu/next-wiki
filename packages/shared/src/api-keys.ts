@@ -51,10 +51,11 @@ export const createApiKeyInputSchema = z.object({
       message: 'Space access entries must be unique',
     })
     .optional(),
-  hermesMemory: z
+  memoryProvider: z
     .object({
       displayName: z.string().min(1).max(100).optional(),
       sharedNamespaceId: z.string().uuid().optional(),
+      agentIdentity: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
     })
     .optional(),
 });
@@ -69,11 +70,12 @@ export const apiKeyViewSchema = z.object({
   createdAt: z.string(),
   revokedAt: z.string().nullable(),
   lastUsedAt: z.string().nullable(),
-  hermesMemoryDestination: z
+  memoryDestination: z
     .object({
       id: z.string().uuid(),
       displayName: z.string(),
       state: z.enum(['active', 'disabled']),
+      agentIdentity: z.string(),
     })
     .nullable()
     .optional(),

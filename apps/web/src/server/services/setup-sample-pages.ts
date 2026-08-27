@@ -12,8 +12,8 @@ import * as revisionsService from '@/server/services/revisions';
 import { DomainError } from '@/server/errors';
 import { assertSetupAdmin, recordSamplePagesOutcome, recordSamplePagesSkip } from '@/server/services/setup';
 import {
-  HERMES_MEMORY_PAGE_SOURCE,
-  HERMES_MEMORY_PAGE_TITLE,
+  AGENT_MEMORY_PAGE_SOURCE,
+  AGENT_MEMORY_PAGE_TITLE,
   MAIN_FEATURES_PAGE_SOURCE,
   MAIN_FEATURES_PAGE_TITLE,
   MARKDOWN_SYNTAX_PAGE_SOURCE,
@@ -112,7 +112,7 @@ async function writeSamplePage(
 }
 
 /**
- * Generate the optional welcome/markdown-syntax/main-features/Hermes pages through
+ * Generate the optional welcome/markdown-syntax/main-features/Agent Memory pages through
  * the canonical page services (published revisions, normal permissions, and
  * public content cache invalidation via publish). Idempotent per page: reruns
  * skip setup-owned pages and report collisions for user-authored ones.
@@ -152,7 +152,7 @@ export async function generateSamplePages(actor: Actor): Promise<SetupSamplePage
   for (const definition of [
     { path: SAMPLE_PAGE_PATHS.markdownSyntax, title: MARKDOWN_SYNTAX_PAGE_TITLE, contentSource: MARKDOWN_SYNTAX_PAGE_SOURCE },
     { path: SAMPLE_PAGE_PATHS.mainFeatures, title: MAIN_FEATURES_PAGE_TITLE, contentSource: MAIN_FEATURES_PAGE_SOURCE },
-    { path: SAMPLE_PAGE_PATHS.hermesMemory, title: HERMES_MEMORY_PAGE_TITLE, contentSource: HERMES_MEMORY_PAGE_SOURCE },
+    { path: SAMPLE_PAGE_PATHS.agentMemory, title: AGENT_MEMORY_PAGE_TITLE, contentSource: AGENT_MEMORY_PAGE_SOURCE },
   ]) {
     try {
       results.push(await writeSamplePage(ctx, definition));

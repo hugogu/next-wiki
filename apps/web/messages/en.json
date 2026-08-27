@@ -2402,12 +2402,13 @@
       "namePlaceholder": "e.g. CI bot",
       "scopesLabel": "Scopes",
       "scopesHint": "Select at least one scope. Scopes cannot be changed later.",
-      "hermesMemoryPreset": "Hermes Memory provider",
-      "hermesMemoryPresetHint": "Creates a dedicated, isolated memory destination for this API key.",
-      "hermesMemoryDestinationHint": "This key is limited to its dedicated Hermes memory destination. It cannot access regular Wiki pages.",
-      "hermesMemoryNewDestination": "Create a new isolated destination for this key",
-      "hermesMemorySharedDestination": "Use existing destination: {name}",
-      "hermesMemoryDestination": "Hermes destination",
+      "memoryProviderPreset": "Memory provider",
+      "memoryProviderPresetHint": "Creates a dedicated, isolated memory destination for this API key. Hermes is the first supported client integration.",
+      "agentIdentityLabel": "Agent identity",
+      "memoryDestinationHint": "This key is limited to its dedicated memory destination. It cannot access regular Wiki pages.",
+      "memoryProviderNewDestination": "Create a new isolated destination for this key",
+      "memoryProviderSharedDestination": "Use existing destination: {name}",
+      "memoryDestination": "Memory destination",
       "spaceAccessLabel": "Space access",
       "spaceAccessHint": "Which content spaces this key may read. Wiki is always included and cannot be changed later.",
       "spaceAccessAdminOnly": "Requires an admin account",
@@ -2475,9 +2476,9 @@
         "manage_tags": "Curate the shared tag vocabulary",
         "attachments": "Attach files to pages — independent of create/edit; also requires read access to the target page",
         "memory": {
-          "read": "Recall records from this key's dedicated Hermes memory destination",
-          "write": "Save records and evidence to this key's dedicated Hermes memory destination",
-          "delete": "Soft-delete records from this key's dedicated Hermes memory destination"
+          "read": "Recall records from this key's dedicated Agent memory destination",
+          "write": "Save records and evidence to this key's dedicated Agent memory destination",
+          "delete": "Soft-delete records from this key's dedicated Agent memory destination"
         },
         "ai": {
           "read": "Use AI-powered search and semantic retrieval",

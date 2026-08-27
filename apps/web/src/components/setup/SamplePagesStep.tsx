@@ -43,7 +43,7 @@ export function SamplePageResultList({ pages }: { pages: SetupSamplePageResult[]
 
 /**
  * Optional sample/help page step: generate welcome plus Markdown, main
- * features, and Hermes-memory guides, or decline. Generation is idempotent; collisions with
+ * features, and Agent-memory guides, or decline. Generation is idempotent; collisions with
  * user-authored pages are reported, never overwritten.
  */
 export function SamplePagesStep({ state }: { state: SetupStateView }) {

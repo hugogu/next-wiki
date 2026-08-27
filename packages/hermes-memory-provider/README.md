@@ -1,16 +1,17 @@
 # next-wiki Hermes Memory Provider
 
 Use a [next-wiki](https://github.com/hugogu/next-wiki) instance as the durable,
-inspectable memory destination for one Hermes profile. Records are stored as
-immutable, append-only Raw entries with published revisions. Each Hermes API
-key is bound server-side to one memory destination, so a profile cannot select
+inspectable memory destination for one configured agent identity. Hermes is the
+first client integration. Records are stored as immutable, append-only Raw
+entries with published revisions. Each memory-provider API key is bound
+server-side to one memory destination and identity, so a client cannot select
 another profile's namespace through a tool argument or URL.
 
 ## Install and activate
 
 1. Enable **LLM Wiki** writing mode so the shared Raw space is available. Then
-   open **User Center → API Keys** and select **Hermes Memory
-   provider**. The preset grants only `memory.read`, `memory.write`, and
+   open **User Center → API Keys** and select **Memory provider**. Set the
+   non-secret **Agent identity** (normally `hermes`). The preset grants only `memory.read`, `memory.write`, and
    `memory.delete`; it does not grant generic page access. Copy the secret once.
 2. Install the provider:
 
@@ -33,7 +34,7 @@ first matching provider.
 
 ## Safe configuration and checks
 
-The provider writes only non-secret settings to
+The provider writes only non-secret settings (including `agent_identity`) to
 `$HERMES_HOME/next-wiki-memory.json`; the secret belongs in Hermes's profile
 secret store. It never accepts a key as a command-line argument.
 

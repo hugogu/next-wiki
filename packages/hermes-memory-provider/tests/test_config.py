@@ -4,7 +4,7 @@ import json
 
 import pytest
 
-from next_wiki_memory.config import ProviderConfig, config_path, load_config, save_config, validate_wiki_api_base_url
+from next_wiki_memory.config import ProviderConfig, config_path, load_config, save_config, validate_agent_identity, validate_wiki_api_base_url
 from next_wiki_memory.redaction import redact, safe_url
 
 
@@ -18,6 +18,10 @@ def test_url_validation_requires_versioned_https_or_loopback() -> None:
         validate_wiki_api_base_url("https://wiki.example.com")
     with pytest.raises(ValueError, match="credentials"):
         validate_wiki_api_base_url("https://key@wiki.example.com/api/v1")
+
+    assert validate_agent_identity("hermes") == "hermes"
+    with pytest.raises(ValueError):
+        validate_agent_identity(" ")
 
 
 def test_dry_run_never_writes_and_config_never_contains_a_secret(tmp_path) -> None:
@@ -38,6 +42,11 @@ def test_save_config_revalidates_urls_from_desktop_or_other_callers(tmp_path) ->
 
     with pytest.raises(ValueError, match="credentials"):
         save_config(tmp_path, ProviderConfig("https://secret@wiki.example.com/api/v1"))
+
+    payload = {"version": 1, "wiki_api_base_url": "https://wiki.example.com/api/v1", "capture_enabled": "yes"}
+    config_path(tmp_path).write_text(json.dumps(payload))
+    with pytest.raises(ValueError, match="capture_enabled"):
+        load_config(tmp_path)
 
 
 def test_safe_rendering_removes_secrets_and_url_queries() -> None:

@@ -61,14 +61,14 @@ describe('sample page definitions (US3)', () => {
       welcome: 'welcome',
       markdownSyntax: 'help/markdown-syntax',
       mainFeatures: 'help/main-features',
-      hermesMemory: 'help/hermes-memory',
+      agentMemory: 'help/agent-memory',
     });
   });
 
   it('onboarding welcome links to every help page', () => {
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/markdown-syntax)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/main-features)');
-    expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/hermes-memory)');
+    expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/agent-memory)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.ONBOARDING_LINKS_MARKER);
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
@@ -102,7 +102,7 @@ describe('sample page definitions (US3)', () => {
       expect(source).toContain(topic);
     }
     expect(source).toContain('](/help/markdown-syntax)');
-    expect(source).toContain('](/help/hermes-memory)');
+    expect(source).toContain('](/help/agent-memory)');
     expect(source).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
 });
@@ -120,7 +120,7 @@ describe('sample page writer (US3)', () => {
       expect(page.pageId).toBeDefined();
     }
 
-    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features', 'help/hermes-memory']) {
+    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features', 'help/agent-memory']) {
       const page = await findPageByPath(path);
       expect(page).toBeDefined();
       expect(page?.authorId).toBe(userId);
@@ -193,7 +193,7 @@ describe('sample page writer (US3)', () => {
     expect(result.status).toBe('partial');
     expect(result.pages.find((page) => page.path === 'help/markdown-syntax')?.status).toBe('collision');
     expect(result.pages.find((page) => page.path === 'help/main-features')?.status).toBe('created');
-    expect(result.pages.find((page) => page.path === 'help/hermes-memory')?.status).toBe('created');
+    expect(result.pages.find((page) => page.path === 'help/agent-memory')?.status).toBe('created');
 
     const page = await findPageByPath('help/markdown-syntax');
     const [current] = await publishedRevisions('help/markdown-syntax');
@@ -212,15 +212,15 @@ describe('sample page writer (US3)', () => {
       .returning();
     await db.insert(schema.pages).values({
       spaceId: otherSpace!.id,
-      slug: 'help/hermes-memory',
-      path: 'help/hermes-memory',
+      slug: 'help/agent-memory',
+      path: 'help/agent-memory',
       title: 'Foreign Hermes page',
       authorId: userId,
     });
 
     const result = await samplePages.generateSamplePages(actor);
 
-    expect(result.pages.find((page) => page.path === 'help/hermes-memory')).toMatchObject({ status: 'created' });
+    expect(result.pages.find((page) => page.path === 'help/agent-memory')).toMatchObject({ status: 'created' });
   });
 
   it('skip records the choice without creating pages', async () => {

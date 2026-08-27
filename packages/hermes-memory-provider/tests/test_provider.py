@@ -28,7 +28,7 @@ class _Client:
 
 def test_register_and_provider_tools_are_namespaced(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("NEXT_WIKI_MEMORY_API_KEY", "nwk_test_secret")
-    save_config(tmp_path, ProviderConfig("https://wiki.example.com/api/v1"))
+    save_config(tmp_path, ProviderConfig("https://wiki.example.com/api/v1", agent_identity="agent"))
     provider = NextWikiMemoryProvider()
     provider.initialize("session-1", hermes_home=tmp_path, agent_identity="agent", user_id_alt="user")
     monkeypatch.setattr(provider, "_client", lambda: _Client())
@@ -65,3 +65,11 @@ def test_provider_save_config_validates_and_normalizes_desktop_values(tmp_path) 
     provider.save_config({"wiki_api_base_url": "https://wiki.example.com/api/v1/"}, str(tmp_path))
     assert provider._config is not None
     assert provider._config.wiki_api_base_url == "https://wiki.example.com/api/v1"
+
+
+def test_provider_rejects_a_host_identity_that_does_not_match_key_configuration(tmp_path) -> None:
+    save_config(tmp_path, ProviderConfig("https://wiki.example.com/api/v1", agent_identity="hermes"))
+    provider = NextWikiMemoryProvider()
+
+    with pytest.raises(ValueError, match="does not match"):
+        provider.initialize("session-1", hermes_home=tmp_path, agent_identity="mino")

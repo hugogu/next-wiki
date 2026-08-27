@@ -1,4 +1,8 @@
-# Feature Specification: Hermes Memory Provider
+# Feature Specification: Agent Memory Provider
+
+> **Design revision (2026-08-27 review):** this feature delivers a generic
+> Agent Memory backend. Hermes remains the first client integration, not the
+> server resource name or authorization boundary.
 
 **Feature Branch**: `039-hermes-memory-provider`
 **Created**: 2026-08-27
@@ -141,7 +145,7 @@ provider on a supported Hermes installation.
    choose to generate help pages, **Then** the published help collection
    includes a Hermes memory guide and the existing welcome/help links make it
    discoverable.
-2. **Given** a user-authored page already occupies the Hermes help address,
+2. **Given** a user-authored page already occupies the Agent Memory help address,
    **When** initial setup generates help pages, **Then** it reports the
    collision and never overwrites that page.
 3. **Given** a user follows the in-product guide or packaged README, **When**
@@ -161,7 +165,7 @@ provider on a supported Hermes installation.
 
 ### User Story 5 - Control and Audit an Integration (Priority: P3)
 
-As a Wiki owner, I want Hermes-memory access to be bounded by ordinary API-key
+As a Wiki owner, I want Agent Memory access to be bounded by ordinary API-key
 permissions and visible in the existing audit surfaces, so that I can diagnose
 or stop the integration just as I would any other external client.
 
@@ -314,7 +318,7 @@ operations fail safely while previously stored Wiki records remain intact.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Hermes Memory Provider**: The independently distributed integration that
+- **Agent Memory Provider**: The independently distributed integration that
   connects a selected Hermes profile to the Wiki through the standard Hermes
   memory-provider lifecycle.
 - **Provider Connection Configuration**: Secret-safe connection settings,
@@ -336,7 +340,7 @@ operations fail safely while previously stored Wiki records remain intact.
 - **Provider Diagnostic Report**: A credential-safe local result describing
   installation, configuration completeness, compatibility, reachability,
   permission outcome, and recommended repair actions.
-- **Hermes Memory Help Page**: Managed onboarding documentation explaining how
+- **Agent Memory Help Page**: Managed onboarding documentation explaining how
   to connect and operate Hermes with the owner's Wiki.
 
 ## Success Criteria *(mandatory)*
@@ -397,3 +401,26 @@ operations fail safely while previously stored Wiki records remain intact.
 - Importing historical memory from other Hermes providers, cross-instance memory
   federation, and a general UI for arbitrary third-party provider management are
   out of scope for this release.
+
+## Review-driven generic backend contract
+
+- The stable REST surface is `/api/v1/memory/*`; no client name appears in the
+  URL. The authenticated API key is the only source of destination and client
+  metadata.
+- Memory namespaces, key bindings, records, evidence links, and captures use
+  `agent_memory_*` storage names. Every binding, record, and capture has a
+  non-null `agent_identity`. Recall, idempotency, citation, forget, and worker
+  lookups include that identity, so two clients may share a destination without
+  crossing namespaces accidentally.
+- API-key creation exposes a feature-level **Memory provider** preset. Hermes is
+  listed as the first client integration; the preset itself is not Hermes-named.
+  The non-secret `agent_identity` is required in both server validation and the
+  Hermes provider configuration and is persisted in the key binding.
+- Canonical memory bodies remain immutable pages/revisions in the shared Raw
+  space and are indexed by the same Wiki pipeline as other pages. Agent Memory
+  tables are locators, authorization, and retry state only; they never duplicate
+  body content. Forget changes only the projection state.
+- `after_compaction` as a primary checkpoint and automatic session-start recall
+  are explicitly deferred until the generic lifecycle contract is adopted by a
+  second client. The first release keeps opt-in capture and capability-gated
+  checkpoints for Hermes.

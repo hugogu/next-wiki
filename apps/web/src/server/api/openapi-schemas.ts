@@ -252,10 +252,11 @@ export const CreateApiKeyInput = z
       .array(z.enum(['wiki', 'raw', 'generated']))
       .optional()
       .describe('Content spaces the key may read, independent of scopes. Defaults to wiki-only; raw/generated require an admin owner.'),
-    hermesMemory: z.object({
+    memoryProvider: z.object({
       displayName: z.string().min(1).max(100).optional(),
       sharedNamespaceId: z.string().uuid().optional(),
-    }).optional().describe('Creates or binds the key to an isolated Hermes memory destination. It can only be used with memory scopes.'),
+      agentIdentity: z.string().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
+    }).optional().describe('Creates or binds the key to an isolated memory destination and agent identity. It can only be used with memory scopes.'),
   })
   .describe('Create an API key.');
 
@@ -274,11 +275,12 @@ export const ApiKeyViewList = z
       createdAt: z.string().describe('Timestamp when the key was created.'),
       revokedAt: z.string().nullable().describe('Timestamp when the key was revoked, or null if still active.'),
       lastUsedAt: z.string().nullable().describe('Timestamp when the key was last used, or null if never used.'),
-      hermesMemoryDestination: z.object({
+      memoryDestination: z.object({
         id: z.string().uuid(),
         displayName: z.string(),
         state: z.enum(['active', 'disabled']),
-      }).nullable().optional().describe('Dedicated Hermes memory destination, or null for a normal API key.'),
+        agentIdentity: z.string(),
+      }).nullable().optional().describe('Dedicated Agent memory destination, or null for a normal API key.'),
     }),
   )
   .describe('List of API keys.');
@@ -298,11 +300,12 @@ export const ApiKeyCreated = z
     revokedAt: z.string().nullable().describe('Timestamp when the key was revoked, or null if still active.'),
     lastUsedAt: z.string().nullable().describe('Timestamp when the key was last used, or null if never used.'),
     keySecret: z.string().describe('Full secret key value. Shown only once, at creation time.'),
-    hermesMemoryDestination: z.object({
+    memoryDestination: z.object({
       id: z.string().uuid(),
       displayName: z.string(),
       state: z.enum(['active', 'disabled']),
-    }).nullable().optional().describe('Dedicated Hermes memory destination, or null for a normal API key.'),
+      agentIdentity: z.string(),
+    }).nullable().optional().describe('Dedicated Agent memory destination, or null for a normal API key.'),
   })
   .describe('API key creation response, including the one-time secret value.');
 
@@ -313,10 +316,10 @@ export const ApiKeyReveal = z
   })
   .describe('API key secret reveal response.');
 
-export const HermesMemoryConnection = z.object({
+export const AgentMemoryConnection = z.object({
   apiVersion: z.literal('v1'),
   provider: z.literal('next-wiki'),
-  namespace: z.object({ id: z.string().uuid(), displayName: z.string(), state: z.literal('active') }),
+  namespace: z.object({ id: z.string().uuid(), displayName: z.string(), state: z.literal('active'), agentIdentity: z.string() }),
   capabilities: z.object({
     recall: z.boolean(),
     save: z.boolean(),
@@ -331,64 +334,64 @@ export const HermesMemoryConnection = z.object({
     maxEvidenceCharacters: z.number().int(),
     maxEvidenceMessages: z.number().int(),
   }),
-}).describe('Authenticated Hermes memory provider connection and its dedicated destination.');
+}).describe('Authenticated Agent memory provider connection and its dedicated destination.');
 
-export const HermesMemoryDiagnostics = z.object({
+export const AgentMemoryDiagnostics = z.object({
   status: z.literal('healthy'),
   apiVersion: z.literal('v1'),
   namespaceState: z.literal('active'),
   grantedScopes: z.array(z.enum(['memory.read', 'memory.write', 'memory.delete'])),
-}).describe('Safe non-secret Hermes memory diagnostics.');
+}).describe('Safe non-secret Agent memory diagnostics.');
 
-export const HermesMemoryRecallInput = z.object({
+export const AgentMemoryRecallInput = z.object({
   query: z.string().min(1).max(4_000),
   limit: z.number().int().min(1).max(10).optional(),
-}).describe('Recall query for the caller\'s bound Hermes memory destination.');
+}).describe('Recall query for the caller\'s bound Agent memory destination.');
 
-export const HermesMemoryCitation = z.object({
+export const AgentMemoryCitation = z.object({
   pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), title: z.string(),
   canonicalUrl: z.string().url(), createdAt: z.string().datetime(),
 });
 
-export const HermesMemoryRecord = z.object({
+export const AgentMemoryRecord = z.object({
   memoryId: z.string().uuid(), type: z.enum(['memory', 'evidence']), state: z.enum(['active', 'forgotten']),
-  title: z.string(), excerpt: z.string(), citation: HermesMemoryCitation,
-  evidence: z.array(z.object({ evidenceId: z.string().uuid(), relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint']), citation: HermesMemoryCitation })).default([]),
+  title: z.string(), excerpt: z.string(), citation: AgentMemoryCitation,
+  evidence: z.array(z.object({ evidenceId: z.string().uuid(), relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint']), citation: AgentMemoryCitation })).default([]),
 });
 
-export const HermesMemoryRecallResponse = z.object({
-  results: z.array(HermesMemoryRecord),
+export const AgentMemoryRecallResponse = z.object({
+  results: z.array(AgentMemoryRecord),
   retrieval: z.object({ mode: z.literal('lexical'), complete: z.boolean(), returned: z.number().int().nonnegative() }),
 });
 
-export const HermesMemorySaveInput = z.object({
+export const AgentMemorySaveInput = z.object({
   idempotencyKey: z.string().min(1).max(128), content: z.string().min(1).max(16_000),
   title: z.string().min(1).max(160).optional(), tags: z.array(z.string().min(1).max(64)).max(10).optional(),
   evidenceIds: z.array(z.string().uuid()).max(20).optional(),
 }).describe('Write a memory record to the caller\'s bound destination.');
 
-export const HermesMemorySaveResponse = z.object({ record: HermesMemoryRecord, idempotent: z.boolean() });
-export const HermesMemoryForgetInput = z.object({ reason: z.string().min(1).max(500).optional() });
-export const HermesMemoryForgetResponse = z.object({
+export const AgentMemorySaveResponse = z.object({ record: AgentMemoryRecord, idempotent: z.boolean() });
+export const AgentMemoryForgetInput = z.object({ reason: z.string().min(1).max(500).optional() });
+export const AgentMemoryForgetResponse = z.object({
   memoryId: z.string().uuid(),
   state: z.literal('forgotten'),
   forgottenAt: z.string().datetime(),
 });
 
-export const HermesMemoryEvidenceInput = z.object({
+export const AgentMemoryEvidenceInput = z.object({
   idempotencyKey: z.string().min(1).max(128), sessionDigest: z.string().regex(/^[a-f0-9]{32,128}$/), checkpoint: z.boolean(),
   messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(64_000) })).min(1).max(100),
 }).describe('Queue a durable, idempotent evidence capture for the caller\'s bound destination.');
 
-export const HermesMemoryEvidenceQueued = z.object({
+export const AgentMemoryEvidenceQueued = z.object({
   captureId: z.string().uuid(), status: z.enum(['queued', 'running', 'durable', 'failed', 'cancelled']),
   pollUrl: z.string().describe('Origin-relative API path beginning with /api/v1; resolve it against the configured API URL origin for polling capture status.'), idempotent: z.boolean(),
 });
 
-export const HermesMemoryEvidenceStatus = z.object({
+export const AgentMemoryEvidenceStatus = z.object({
   captureId: z.string().uuid(), status: z.enum(['queued', 'running', 'durable', 'failed', 'cancelled']),
   durable: z.boolean(),
-  evidence: z.object({ evidenceId: z.string().uuid(), citation: HermesMemoryCitation }).optional(),
+  evidence: z.object({ evidenceId: z.string().uuid(), citation: AgentMemoryCitation }).optional(),
   failureCode: z.string().optional(),
 });
 

@@ -1,18 +1,29 @@
-# Data Model: Hermes Memory Provider
+# Data Model: Agent Memory Provider
 
-**Feature**: [Hermes Memory Provider](./spec.md)
+## Generic backend revision
+
+The relational model is client-neutral. Physical tables are `agent_memory_*`;
+the initial Hermes migration renames the pre-release `hermes_memory_*` objects
+in place. `agent_identity` is non-null on key bindings, records, and captures,
+and is part of every namespace-scoped lookup and idempotency key. A shared
+destination therefore supports multiple clients safely without putting a client
+name in the URL. Raw pages/revisions remain the canonical immutable body and
+are indexed by the existing Wiki pipeline; relational rows are only
+authorization, provenance, and retry projections.
+
+**Feature**: [Agent Memory Provider](./spec.md)
 **Date**: 2026-08-27
 
 ## Design Principles
 
-- Wiki page and revision content is canonical. Hermes metadata must never become
+- Wiki page and revision content is canonical. Agent Memory metadata must never become
   a second source of transcript or memory text.
-- An authenticated Hermes key determines its Memory Destination on the server.
-  The client-provided Hermes profile is diagnostic context only and cannot change
+- An authenticated Memory provider key determines its Memory Destination on the server.
+  The client-provided agent identity is diagnostic context only and cannot change
   authorization.
 - A Memory Record has one immutable backing Raw page/revision and may link to
   one or more Evidence Records. Raw content is appended once and never edited
-  or deleted by Hermes; the logical record can be forgotten independently.
+  or deleted by an agent; the logical record can be forgotten independently.
 - Idempotency is durable and scoped to a destination. Retried, overlapping, or
   resumed lifecycle hooks therefore cannot create duplicate evidence.
 - All new database schema is defined in Drizzle and migrated solely via
@@ -34,25 +45,25 @@ constrained by its owner role plus its memory scope.
 
 Each Memory Record and Evidence Record is backed by a restricted entry in the
 shared Raw space and its published revision. The Raw page/revision retains
-canonical source Markdown/text verbatim, the Hermes system category and source
+canonical source Markdown/text verbatim, the Agent Memory system category and source
 metadata, rendered representation, content hash, author/actor attribution,
 created time, and common index/reconciliation state. The memory service always
 writes through the existing Raw-entry writer; it never writes page tables
-directly and never updates an existing Hermes body.
+directly and never updates an existing Agent Memory body.
 
 ### API Audit Entry
 
 Existing API audit rows record credential identity, endpoint, result, duration,
-and safe error information. The audit origin adds `hermes`, with bounded
+and safe error information. The audit origin uses `agent_memory`, with bounded
 operation/correlation metadata only. It must never contain a secret, query,
 profile label, transcript, memory body, or raw HTTP error body.
 
 ## New Persistent Entities
 
-### Hermes Memory Namespace
+### Agent Memory Namespace
 
 An owner-managed, durable Memory Destination that defines the private record
-collection used by a Hermes API key.
+collection used by one or more explicitly bound Agent Memory keys.
 
 | Field | Description | Rules |
 |---|---|---|
@@ -63,9 +74,9 @@ collection used by a Hermes API key.
 | `created_at`, `updated_at`, `disabled_at` | Lifecycle timestamps | `disabled_at` required when disabled. |
 
 The namespace does not contain memory text, prompt text, session identifiers, or
-a hard-coded Hermes-home path.
+a hard-coded client-home path.
 
-### Hermes Memory Key Binding
+### Agent Memory Key Binding
 
 The authorization binding from one dedicated API key to exactly one active
 Memory Namespace.
@@ -74,14 +85,15 @@ Memory Namespace.
 |---|---|---|
 | `api_key_id` | Dedicated API key | Unique; a key cannot select several destinations. |
 | `namespace_id` | Bound Memory Namespace | Required; route services derive the namespace from this field. |
+| `agent_identity` | Client namespace label | Required, non-secret, immutable per binding; included in every record/capture lookup. |
 | `created_at` | Binding time | Auditable through the API-key creation event. |
 | `shared_by_owner` | Whether owner deliberately reused a namespace | Safe boolean for UI/audit; does not grant access by itself. |
 
-The User Center creates a fresh namespace by default for a Hermes key. Reusing an
+The User Center creates a fresh namespace by default for a Memory provider key. Reusing an
 existing namespace is an explicit owner action that creates another dedicated
 key, not a client-side `shared=true` option.
 
-### Hermes Memory Record
+### Agent Memory Record
 
 A logical, destination-scoped record whose canonical content lives in a backing
 page revision.
@@ -90,17 +102,18 @@ page revision.
 |---|---|---|
 | `id` | Logical memory ID | Stable UUID returned to Hermes; never a page path. |
 | `namespace_id` | Owning destination | Required; all reads/writes scope to this field. |
+| `agent_identity` | Client namespace label | Required; all reads/writes and idempotency checks scope to this value. |
 | `record_type` | `memory` or `evidence` | `memory` is explicit durable recall; `evidence` preserves original input. |
 | `page_id` | Backing restricted Raw-space page | Required; shared Raw/page lifecycle is canonical. |
 | `current_revision_id` | Current backing revision | Updated only after successful normal revision save. |
-| `idempotency_key` | Caller digest/key | Required for save/evidence submission; unique with `namespace_id`. |
+| `idempotency_key` | Caller digest/key | Required for save/evidence submission; unique with `namespace_id` and `agent_identity`. |
 | `source_session_digest` | One-way bounded session correlation | Optional; never stores raw Hermes session ID or profile text. |
-| `state` | `active` or `forgotten` | `forgotten` changes only Hermes recall eligibility; the Raw page remains unchanged. |
+| `state` | `active` or `forgotten` | `forgotten` changes only Agent Memory recall eligibility; the Raw page remains unchanged. |
 | `created_at`, `updated_at`, `forgotten_at` | Lifecycle timestamps | `forgotten_at` required for forgotten state. |
 
 Constraints and indexes:
 
-- Unique `(namespace_id, idempotency_key)` makes retries and overlap safe.
+- Unique `(namespace_id, agent_identity, idempotency_key)` makes retries and overlap safe.
 - Index `(namespace_id, state, updated_at)` serves destination-scoped listing
   and retrieval candidate lookup.
 - A record's page/revision references must belong to the same owner and remain
@@ -111,7 +124,7 @@ Constraints and indexes:
   the same idempotency key. Any future enrichment must create a separate record
   or an explicit owner-controlled Raw append, not mutate the original body.
 
-### Hermes Memory Evidence Link
+### Agent Memory Evidence Link
 
 A provenance relationship from a `memory` record to one or more supporting
 `evidence` records.
@@ -125,17 +138,25 @@ A provenance relationship from a `memory` record to one or more supporting
 
 The composite primary/unique key prevents duplicate evidence links. Forgetting a
 memory retains the evidence link and immutable evidence page for audit/recovery;
-the record is excluded from Hermes recall. A later owner-controlled Raw
+the record is excluded from Agent Memory recall. A later owner-controlled Raw
 retention/privacy workflow may remove source content explicitly; Hermes forget
 never performs that mutation.
 
+### Agent Memory Capture
+
+| Field | Description | Rules |
+|---|---|---|
+| `agent_identity` | Client namespace label | Required and matches the bound key. |
+| `payload_digest` | Digest of normalized capture input | Required for idempotency conflict detection; never stores evidence text. |
+| `status`, `job_id`, `failure_code` | Queue/retry projection | Row-locked claims and conditional terminal updates prevent overlapping workers from regressing a durable capture. |
+
 ## Derived Retrieval State
 
-The namespace-aware lexical recall adapter uses active `hermes_memory_records`
+The namespace-aware lexical recall adapter uses active `agent_memory_records`
 as its allowed candidate set and reads their current restricted Raw revisions.
 Each Raw write also enters the existing page/index reconciliation path, so the
 same common search/index infrastructure can discover the content for authorized
-Wiki users. Hermes emits bounded excerpts and citations only after checking the
+Wiki users. The provider emits bounded excerpts and citations only after checking the
 key binding and record state.
 
 It is derived state, not a new canonical content table:
@@ -149,15 +170,15 @@ It is derived state, not a new canonical content table:
 
 ## API Key Creation Model
 
-The User Center API-key flow gains a Hermes Memory option.
+The User Center API-key flow gains a Memory provider option.
 
 | Input / event | Result |
 |---|---|
-| Create private Hermes key | Validate owner role; create API key with selected memory scopes; create new namespace and binding transactionally. |
-| Create shared Hermes key | Validate owner selects an existing owned namespace; create a separate API key and binding to that namespace transactionally. |
+| Create private Memory provider key | Validate owner role; create API key with selected memory scopes; create new namespace and binding transactionally. |
+| Create shared Memory provider key | Validate owner selects an existing owned namespace; create a separate API key and binding to that namespace transactionally. |
 | Revoke key | Existing `revoked_at` takes effect on the next request; its binding cannot authenticate or reveal destination content. |
 | Disable namespace | Existing bindings stay auditable but all provider routes reject it safely. |
-| Delete/forget record | Service marks the Hermes record forgotten and excludes it from recall; the immutable Raw page/revision is retained. |
+| Delete/forget record | Service marks the Agent Memory record forgotten and excludes it from recall; the immutable Raw page/revision is retained. |
 
 No key can edit its scopes or binding in place. Rotation uses a newly provisioned
 key and binding, then revokes the old key after the provider is reconfigured.
@@ -180,7 +201,7 @@ received -> queued -> running -> durable
 - `durable` means the Evidence Record, backing page revision, and record mapping
   committed together.
 - A strict checkpoint may acknowledge only `durable`; `queued`, `running`,
-  `failed`, or timeout must cause the Hermes provider to fail closed.
+  `failed`, or timeout must cause the active provider to fail closed.
 
 ## State Transitions
 

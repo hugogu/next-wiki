@@ -1,4 +1,4 @@
-# Implementation Plan: Hermes Memory Provider
+# Implementation Plan: Generic Agent Memory Backend (Hermes client)
 
 **Branch**: `039-hermes-memory-provider` | **Date**: 2026-08-27 | **Spec**: [spec.md](./spec.md)
 
@@ -6,14 +6,14 @@
 
 ## Summary
 
-Deliver `next-wiki` as an independently installable Hermes Memory Provider. A
+Deliver `next-wiki` as an independently installable Agent Memory Provider. A
 published Python package discovers through Hermes's memory-provider entry point,
 uses the normal `hermes memory setup` secret flow, recalls and stores memory
 through a narrow versioned Wiki REST contract, and supplies safe status,
 diagnostic, and bootstrap commands.
 
 The Wiki will add an enforceable Memory Destination boundary: every dedicated
-Hermes API key is bound to exactly one owner-managed destination, and all recall,
+memory-provider API key is bound to exactly one owner-managed destination, and all recall,
 save, evidence-capture, and forget operations derive that destination from the
 authenticated key. This prevents client configuration or page paths from becoming
 the authorization boundary. Durable text is written as immutable, restricted Raw
@@ -21,7 +21,12 @@ entries through the shared Raw writer and page/revision content backend;
 published entries participate in the common reconciliation/indexing and audit
 pipelines. Supporting tables only bind keys, identify records, connect evidence,
 and make retries idempotent. The first-run optional help suite gains a managed,
-collision-safe Hermes guide.
+  collision-safe Agent Memory guide.
+
+The public contract is intentionally client-neutral. Hermes is the first
+adapter; later Mino, Claude Code, or other agents can use the same routes and
+Raw/index projection by selecting their own immutable `agent_identity` in key
+metadata.
 
 ## Technical Context
 
@@ -83,7 +88,7 @@ management remain out of scope.
 | P3 — portable, grounded memory | Restricted immutable Raw entries/revisions hold canonical memory and original evidence. Memory metadata carries source revision links; the common recall/index projection is derived and rebuildable. No generated memory is public by default. | Pass |
 | P5 — permissions first | A dedicated API key has explicit memory scopes and a server-side single destination binding. The REST service derives namespace from authentication, re-checks ownership/state/scopes on every request, and never trusts a provider-supplied profile or path. | Pass |
 | P7 — asynchronous heavy work | Normal post-turn capture creates a pg-boss job and returns immediately. The Python provider queues it in a daemon worker. A required compression checkpoint submits then polls the durable job state; it fails closed if it cannot finish. Workers call `runWithoutDataCache`. | Pass |
-| P8 — source content and reversible changes | Memory/evidence content is appended through the shared Raw/page-revision lifecycle and remains immutable. Forget changes only the Hermes projection state while retaining the Raw source and audit metadata; capture retries are idempotent by destination and digest. | Pass |
+| P8 — source content and reversible changes | Memory/evidence content is appended through the shared Raw/page-revision lifecycle and remains immutable. Forget changes only the Agent Memory projection state while retaining the Raw source and audit metadata; capture retries are idempotent by destination and digest. | Pass |
 | P9 — open standards | Hermes calls documented REST + JSON endpoints protected by Bearer API keys; routes use shared Zod schemas and appear in OpenAPI. MCP remains the general AI-client adapter, not this lifecycle-specific transport. | Pass |
 | P10 — explicit registration | API routes, permission scopes, job handler, audit origin, provider entry point, setup-page definitions, and publish workflow are explicit registries/files. No Wiki-side filesystem plugin discovery is added. | Pass |
 | P12 — public content delivery | Only the managed Help page and generated welcome/help links change public content. They use normal published-page cache representation and targeted invalidation; credentials, status, destinations, evidence, and controls stay authenticated. | Pass |
@@ -92,12 +97,12 @@ management remain out of scope.
 
 - A Memory Record's content is an immutable restricted Raw page revision. An
   Evidence Record's original conversation text is likewise an immutable Raw
-  entry. The shared Raw writer stores the body verbatim, assigns the Hermes
+  entry. The shared Raw writer stores the body verbatim, assigns the Agent Memory
   system category/source metadata, publishes once, and invokes common index
   reconciliation. Raw-space availability (currently LLM Wiki writing mode) is
   an explicit prerequisite and is surfaced by diagnostics.
-- `hermes_memory_records` is a locator/provenance projection only. It never
-  stores a second copy of content. `hermes_memory_evidence_links` records which
+- `agent_memory_records` is a locator/provenance projection only. It never
+  stores a second copy of content. `agent_memory_evidence_links` records which
   evidence revisions support an explicit memory, while page/revision history
   remains the content source of truth.
 - Every request uses the authenticated API key's destination binding and normal
@@ -107,7 +112,7 @@ management remain out of scope.
 - Explicit save is an intentional restricted append. Automatic capture is an
   explicit setup choice. Both flows publish an immutable Raw revision, never
   alter an existing body, and never make it anonymously readable. Forget only
-  hides the logical record from Hermes recall; Raw retention remains governed by
+  hides the logical record from provider recall; Raw retention remains governed by
   the Raw space and ordinary owner/admin controls.
 - Namespace-filtered lexical recall is a derived, rebuildable projection over
   eligible current revisions. It does not require embeddings or an LLM. If a
@@ -125,7 +130,7 @@ specs/039-hermes-memory-provider/
 ├── data-model.md
 ├── quickstart.md
 ├── contracts/
-│   └── hermes-memory-rest-api.md
+│   └── hermes-memory-rest-api.md (client-neutral Agent Memory contract)
 └── tasks.md                         # created by /speckit-tasks
 ```
 
@@ -133,7 +138,8 @@ specs/039-hermes-memory-provider/
 
 ```text
 apps/web/
-├── app/api/v1/hermes/memory/
+├── app/api/v1/memory/
+│   ├── _shared.ts
 │   ├── connection/route.ts
 │   ├── diagnostics/route.ts
 │   ├── recall/route.ts
@@ -142,22 +148,22 @@ apps/web/
 │   ├── evidence/route.ts
 │   └── evidence/[captureId]/route.ts
 ├── src/components/user-center/
-│   └── ApiKeyCreateDialog.tsx        # Hermes key/destination option
+│   └── ApiKeyCreateDialog.tsx        # Memory-provider key/destination option
 ├── src/server/
 │   ├── api/                          # Zod/OpenAPI/error/audit integration
 │   ├── db/schema/                    # Drizzle source schemas and generated migration
 │   ├── jobs/                         # registered capture job handler
 │   ├── permissions/                  # memory scopes and destination checks
 │   └── services/
-│       ├── hermes-memory.ts
-│       ├── hermes-memory-recall.ts
+│       ├── agent-memory.ts
+│       ├── agent-memory-recall.ts
 │       └── setup-sample-page-*.ts
 └── test and e2e/                     # service, route, permission, onboarding coverage
 
 packages/
 ├── shared/src/                       # scopes, public contracts, audit schemas
 ├── mcp-server/                       # docs cross-link only; no Hermes runtime code
-└── hermes-memory-provider/
+└── hermes-memory-provider/ (Hermes client adapter)
     ├── pyproject.toml
     ├── README.md
     ├── src/next_wiki_memory/
@@ -170,7 +176,7 @@ packages/
     └── tests/
 
 docs/
-└── hermes-memory-provider.md
+└── hermes-memory-provider.md (Hermes client deployment guide)
 
 .github/workflows/
 └── publish-hermes-memory-provider.yml
@@ -192,7 +198,7 @@ image or broadening the existing Node MCP server.
      a separately invokable safe bootstrap command.
 
 2. **Create the enforceable server boundary**
-   - Extend API-key creation with a dedicated Hermes-memory preset and a
+   - Extend API-key creation with a feature-level Memory provider preset and a
      transaction that creates or deliberately reuses a Memory Destination, then
      binds the newly minted key to it. The key receives only `memory.read`,
      `memory.write`, and/or `memory.delete` as selected; generic page scopes do
@@ -204,9 +210,9 @@ image or broadening the existing Node MCP server.
 3. **Implement memory service and narrow REST surface**
    - Resolve the destination solely from the authenticated key. Reuse the
      shared Raw-entry writer, page/revision content store, category/provenance,
-     and index-reconciliation services behind a `hermes-memory` adapter; do not
-     expose generic page CRUD to the provider. The adapter appends immutable Raw
-     records and changes only the Hermes projection on forget.
+     and index-reconciliation services behind an `agent-memory` adapter; do not
+     expose generic page CRUD to providers. The adapter appends immutable Raw
+     records and changes only the agent-memory projection on forget.
    - Add AI-independent bounded lexical recall over only bound record IDs,
      explicit save/upsert, source-evidence links, reversible forget, and safe
      connection/diagnostic results. Extend audit origin and error mapping without
@@ -229,7 +235,7 @@ image or broadening the existing Node MCP server.
      the provider becomes active.
 
 6. **Make configuration discoverable**
-   - Add the marker-owned `help/hermes-memory` sample page, linked from generated
+   - Add the marker-owned `help/agent-memory` sample page, linked from generated
      welcome and main-features content. Preserve collision/idempotency behavior
      in the default wiki space; resolve that space before collision lookup so an
      unrelated Raw or Generated page at the same path cannot block the guide.

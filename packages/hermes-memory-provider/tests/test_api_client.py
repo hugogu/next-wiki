@@ -46,9 +46,9 @@ def test_client_uses_scoped_api_routes_and_bearer_key() -> None:
     assert client.diagnostics() == {"status": "healthy"}
     request, timeout = transport.requests[0]
     assert request.get_method() == "GET"
-    assert request.full_url == "http://127.0.0.1:3000/api/v1/hermes/memory/diagnostics"
+    assert request.full_url == "http://127.0.0.1:3000/api/v1/memory/diagnostics"
     assert request.get_header("Authorization") == "Bearer nwk_test_secret"
-    assert request.get_header("X-next-wiki-hermes-provider-version") == "0.1.0"
+    assert request.get_header("X-next-wiki-memory-provider-version") == "0.1.0"
     assert timeout == 5.0
 
 

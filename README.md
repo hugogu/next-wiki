@@ -301,11 +301,12 @@ configuration and LLM Wiki memory conventions.
 ### Hermes memory provider
 
 The [`next-wiki-hermes-memory`](packages/hermes-memory-provider/README.md)
-Python package is a native Hermes `MemoryProvider`, not an MCP wrapper. It
-creates a dedicated, server-enforced memory destination for each Hermes API key
-and exposes safe recall, save, and forget tools. Memory is stored as immutable,
+Python package is the first client of the generic Agent Memory backend (a native
+Hermes `MemoryProvider`, not an MCP wrapper). It creates a dedicated,
+server-enforced memory destination and `agent_identity` binding for each key and
+exposes safe recall, save, and forget tools. Memory is stored as immutable,
 restricted Raw entries through the shared page/revision/content-store and index
-pipeline; forgetting changes only the Hermes recall projection. See the
+pipeline; forgetting changes only the Agent Memory recall projection. See the
 [Hermes memory deployment guide](docs/hermes-memory-provider.md) for key
 creation, installation, capture/checkpoint policy, and reverse-proxy guidance.
 

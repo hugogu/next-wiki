@@ -15,8 +15,8 @@ const KEY_PREFIX_LENGTH = 12;
 const MAX_KEYS_PER_USER = 10;
 const PREFIX_COLLISION_RETRIES = 3;
 
-type HermesMemoryKeyOptions = NonNullable<CreateApiKeyInput['hermesMemory']>;
-type HermesMemoryDestination = NonNullable<ApiKeyView['hermesMemoryDestination']>;
+type MemoryProviderKeyOptions = NonNullable<CreateApiKeyInput['memoryProvider']>;
+type MemoryDestination = NonNullable<ApiKeyView['memoryDestination']>;
 
 function generateKey(): string {
   const bytes = randomBytes(KEY_RANDOM_BYTES);
@@ -45,18 +45,24 @@ export async function create(
   name: string,
   scopes: ApiKeyScope[],
   requestedSpaceAccess?: SpaceKind[],
-  hermesMemory?: HermesMemoryKeyOptions,
+  memoryProvider?: MemoryProviderKeyOptions,
 ): Promise<ApiKeyCreated> {
   const userId = requireUserId(ctx);
   const memoryScopes = scopes.filter((scope) => scope.startsWith('memory.'));
-  if (memoryScopes.length > 0 && !hermesMemory) {
-    throw new DomainError('BAD_REQUEST', 'Hermes memory scopes require a bound Hermes memory destination');
+  const memoryAgentIdentity = typeof memoryProvider?.agentIdentity === 'string'
+    ? memoryProvider.agentIdentity.trim()
+    : undefined;
+  if (memoryProvider && (!memoryAgentIdentity || memoryAgentIdentity.length > 100 || !/^[^\u0000-\u001f\u007f]+$/u.test(memoryAgentIdentity))) {
+    throw new DomainError('BAD_REQUEST', 'Agent identity must be a non-empty value no longer than 100 characters');
   }
-  if (hermesMemory && (memoryScopes.length === 0 || memoryScopes.length !== scopes.length)) {
-    throw new DomainError('BAD_REQUEST', 'A Hermes memory key may contain only dedicated memory scopes');
+  if (memoryScopes.length > 0 && !memoryProvider) {
+    throw new DomainError('BAD_REQUEST', 'Agent memory scopes require a bound Agent memory destination');
   }
-  if (hermesMemory && (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin')) {
-    throw new DomainError('FORBIDDEN', 'Only administrators may create a Hermes memory API key');
+  if (memoryProvider && (memoryScopes.length === 0 || memoryScopes.length !== scopes.length)) {
+    throw new DomainError('BAD_REQUEST', 'An Agent memory key may contain only dedicated memory scopes');
+  }
+  if (memoryProvider && (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin')) {
+    throw new DomainError('FORBIDDEN', 'Only administrators may create an Agent memory API key');
   }
 
   // 'wiki' is always implicitly allowed (see spaceAllowedForKey), but the
@@ -67,8 +73,8 @@ export async function create(
   if (grantsAdminOnlySpace && !(ctx.actor.kind === 'user' && ctx.actor.role === 'admin')) {
     throw new DomainError('FORBIDDEN', 'Only admins may grant raw/generated space access to an API key');
   }
-  if (hermesMemory && spaceAccess.some((kind) => kind !== 'wiki')) {
-    throw new DomainError('BAD_REQUEST', 'Hermes memory API keys cannot access Raw or Generated spaces');
+  if (memoryProvider && spaceAccess.some((kind) => kind !== 'wiki')) {
+    throw new DomainError('BAD_REQUEST', 'Agent memory API keys cannot access Raw or Generated spaces');
   }
 
   const activeCount = await db.$count(
@@ -125,29 +131,30 @@ export async function create(
 
     if (!row) throw new Error('API_KEY_INSERT_FAILED');
 
-    let destination: HermesMemoryDestination | null = null;
-    if (hermesMemory) {
-      const namespace = hermesMemory.sharedNamespaceId
-        ? await tx.query.hermesMemoryNamespaces.findFirst({
+    let destination: MemoryDestination | null = null;
+    if (memoryProvider) {
+      const namespace = memoryProvider.sharedNamespaceId
+        ? await tx.query.agentMemoryNamespaces.findFirst({
             where: and(
-              eq(schema.hermesMemoryNamespaces.id, hermesMemory.sharedNamespaceId),
-              eq(schema.hermesMemoryNamespaces.ownerUserId, userId),
-              eq(schema.hermesMemoryNamespaces.state, 'active'),
+              eq(schema.agentMemoryNamespaces.id, memoryProvider.sharedNamespaceId),
+              eq(schema.agentMemoryNamespaces.ownerUserId, userId),
+              eq(schema.agentMemoryNamespaces.state, 'active'),
             ),
           })
         : (await tx
-            .insert(schema.hermesMemoryNamespaces)
-            .values({ ownerUserId: userId, displayName: hermesMemory.displayName?.trim() || 'Hermes memory' })
+            .insert(schema.agentMemoryNamespaces)
+            .values({ ownerUserId: userId, displayName: memoryProvider.displayName?.trim() || 'Agent memory' })
             .returning())[0];
       if (!namespace) {
-        throw new DomainError('NOT_FOUND', 'The selected Hermes memory destination is unavailable');
+        throw new DomainError('NOT_FOUND', 'The selected Agent memory destination is unavailable');
       }
-      await tx.insert(schema.hermesMemoryKeyBindings).values({
+      await tx.insert(schema.agentMemoryKeyBindings).values({
         apiKeyId: row.id,
         namespaceId: namespace.id,
-        sharedByOwner: Boolean(hermesMemory.sharedNamespaceId),
+        agentIdentity: memoryAgentIdentity!,
+        sharedByOwner: Boolean(memoryProvider.sharedNamespaceId),
       });
-      destination = { id: namespace.id, displayName: namespace.displayName, state: namespace.state };
+      destination = { id: namespace.id, displayName: namespace.displayName, state: namespace.state, agentIdentity: memoryAgentIdentity! };
     }
 
     return { row, destination };
@@ -165,7 +172,7 @@ export async function create(
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
-    hermesMemoryDestination: destination,
+    memoryDestination: destination,
   };
 }
 
@@ -178,8 +185,8 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
   });
 
   const bindings = rows.length > 0
-    ? await db.query.hermesMemoryKeyBindings.findMany({
-        where: inArray(schema.hermesMemoryKeyBindings.apiKeyId, rows.map((row) => row.id)),
+    ? await db.query.agentMemoryKeyBindings.findMany({
+        where: inArray(schema.agentMemoryKeyBindings.apiKeyId, rows.map((row) => row.id)),
         with: { namespace: true },
       })
     : [];
@@ -187,6 +194,7 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     id: binding.namespace.id,
     displayName: binding.namespace.displayName,
     state: binding.namespace.state,
+    agentIdentity: binding.agentIdentity,
   }]));
 
   return rows.map((row) => ({
@@ -198,17 +206,17 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
-    hermesMemoryDestination: destinations.get(row.id) ?? null,
+    memoryDestination: destinations.get(row.id) ?? null,
   }));
 }
 
-export async function listHermesMemoryDestinations(ctx: PermCtx): Promise<HermesMemoryDestination[]> {
+export async function listMemoryDestinations(ctx: PermCtx): Promise<MemoryDestination[]> {
   const userId = requireUserId(ctx);
-  const rows = await db.query.hermesMemoryNamespaces.findMany({
-    where: eq(schema.hermesMemoryNamespaces.ownerUserId, userId),
-    orderBy: sql`${schema.hermesMemoryNamespaces.createdAt} desc`,
+  const rows = await db.query.agentMemoryNamespaces.findMany({
+    where: eq(schema.agentMemoryNamespaces.ownerUserId, userId),
+    orderBy: sql`${schema.agentMemoryNamespaces.createdAt} desc`,
   });
-  return rows.map((row) => ({ id: row.id, displayName: row.displayName, state: row.state }));
+  return rows.map((row) => ({ id: row.id, displayName: row.displayName, state: row.state, agentIdentity: 'unassigned' }));
 }
 
 export async function reveal(ctx: PermCtx, keyId: string): Promise<ApiKeyReveal> {
