@@ -35,6 +35,536 @@
         ]
       },
       "ADDRESS_ALIAS_RETAINED": {},
+      "AgentMemoryCitation": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionHash": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "pageId",
+          "revisionId",
+          "revisionHash",
+          "title",
+          "canonicalUrl",
+          "createdAt"
+        ]
+      },
+      "AgentMemoryConnection": {
+        "type": "object",
+        "properties": {
+          "apiVersion": {
+            "type": "string",
+            "enum": [
+              "v1"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "next-wiki"
+            ]
+          },
+          "namespace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "active"
+                ]
+              },
+              "agentIdentity": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "state",
+              "agentIdentity"
+            ]
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "recall": {
+                "type": "boolean"
+              },
+              "save": {
+                "type": "boolean"
+              },
+              "forget": {
+                "type": "boolean"
+              },
+              "asynchronousEvidenceCapture": {
+                "type": "boolean"
+              },
+              "strictCheckpoint": {
+                "type": "boolean"
+              },
+              "semanticRecall": {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              }
+            },
+            "required": [
+              "recall",
+              "save",
+              "forget",
+              "asynchronousEvidenceCapture",
+              "strictCheckpoint",
+              "semanticRecall"
+            ]
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "maxRecallResults": {
+                "type": "integer"
+              },
+              "maxSaveCharacters": {
+                "type": "integer"
+              },
+              "maxEvidenceCharacters": {
+                "type": "integer"
+              },
+              "maxEvidenceMessages": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "maxRecallResults",
+              "maxSaveCharacters",
+              "maxEvidenceCharacters",
+              "maxEvidenceMessages"
+            ]
+          }
+        },
+        "required": [
+          "apiVersion",
+          "provider",
+          "namespace",
+          "capabilities",
+          "limits"
+        ],
+        "description": "Authenticated Agent memory provider connection and its dedicated destination."
+      },
+      "AgentMemoryDiagnostics": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "healthy"
+            ]
+          },
+          "apiVersion": {
+            "type": "string",
+            "enum": [
+              "v1"
+            ]
+          },
+          "namespaceState": {
+            "type": "string",
+            "enum": [
+              "active"
+            ]
+          },
+          "grantedScopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "memory.read",
+                "memory.write",
+                "memory.delete"
+              ]
+            }
+          }
+        },
+        "required": [
+          "status",
+          "apiVersion",
+          "namespaceState",
+          "grantedScopes"
+        ],
+        "description": "Safe non-secret Agent memory diagnostics."
+      },
+      "AgentMemoryEvidenceInput": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sessionDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32,128}$"
+          },
+          "checkpoint": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "assistant"
+                  ]
+                },
+                "content": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64000
+                }
+              },
+              "required": [
+                "role",
+                "content"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 100
+          }
+        },
+        "required": [
+          "idempotencyKey",
+          "sessionDigest",
+          "checkpoint",
+          "messages"
+        ],
+        "description": "Queue a durable, idempotent evidence capture for the caller's bound destination."
+      },
+      "AgentMemoryEvidenceQueued": {
+        "type": "object",
+        "properties": {
+          "captureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "durable",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "pollUrl": {
+            "type": "string",
+            "description": "Origin-relative API path beginning with /api/v1; resolve it against the configured API URL origin for polling capture status."
+          },
+          "idempotent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "captureId",
+          "status",
+          "pollUrl",
+          "idempotent"
+        ]
+      },
+      "AgentMemoryEvidenceStatus": {
+        "type": "object",
+        "properties": {
+          "captureId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "running",
+              "durable",
+              "failed",
+              "cancelled"
+            ]
+          },
+          "durable": {
+            "type": "boolean"
+          },
+          "evidence": {
+            "type": "object",
+            "properties": {
+              "evidenceId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "citation": {
+                "$ref": "#/components/schemas/AgentMemoryCitation"
+              }
+            },
+            "required": [
+              "evidenceId",
+              "citation"
+            ]
+          },
+          "failureCode": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "captureId",
+          "status",
+          "durable"
+        ]
+      },
+      "AgentMemoryForgetInput": {
+        "type": "object",
+        "properties": {
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "AgentMemoryForgetResponse": {
+        "type": "object",
+        "properties": {
+          "memoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "forgotten"
+            ]
+          },
+          "forgottenAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "memoryId",
+          "state",
+          "forgottenAt"
+        ]
+      },
+      "AgentMemoryRecallInput": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "description": "Recall query for the caller's bound Agent memory destination."
+      },
+      "AgentMemoryRecallResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentMemoryRecord"
+            }
+          },
+          "retrieval": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "lexical"
+                ]
+              },
+              "complete": {
+                "type": "boolean"
+              },
+              "returned": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "mode",
+              "complete",
+              "returned"
+            ]
+          }
+        },
+        "required": [
+          "results",
+          "retrieval"
+        ]
+      },
+      "AgentMemoryRecord": {
+        "type": "object",
+        "properties": {
+          "memoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "memory",
+              "evidence"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "forgotten"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/AgentMemoryCitation"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "evidenceId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "relation": {
+                  "type": "string",
+                  "enum": [
+                    "explicit_save",
+                    "automatic_capture",
+                    "checkpoint"
+                  ]
+                },
+                "citation": {
+                  "$ref": "#/components/schemas/AgentMemoryCitation"
+                }
+              },
+              "required": [
+                "evidenceId",
+                "relation",
+                "citation"
+              ]
+            }
+          }
+        },
+        "required": [
+          "memoryId",
+          "type",
+          "state",
+          "title",
+          "excerpt",
+          "citation",
+          "evidence"
+        ]
+      },
+      "AgentMemorySaveInput": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16000
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "maxItems": 10
+          },
+          "evidenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 20
+          }
+        },
+        "required": [
+          "idempotencyKey",
+          "content"
+        ],
+        "description": "Write a memory record to the caller's bound destination."
+      },
+      "AgentMemorySaveResponse": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/AgentMemoryRecord"
+          },
+          "idempotent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "record",
+          "idempotent"
+        ]
+      },
       "AiActionView": {
         "type": "object",
         "properties": {
@@ -1074,7 +1604,11 @@
                 "transfers",
                 "manage_tags",
                 "ai.read",
-                "ai.image"
+                "ai.image",
+                "attachments",
+                "memory.read",
+                "memory.write",
+                "memory.delete"
               ]
             },
             "description": "Permission scopes granted to the key."
@@ -1116,6 +1650,38 @@
           "keySecret": {
             "type": "string",
             "description": "Full secret key value. Shown only once, at creation time."
+          },
+          "memoryDestination": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "disabled"
+                ]
+              },
+              "agentIdentity": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "state",
+              "agentIdentity"
+            ],
+            "description": "Dedicated Agent memory destination, or null for a normal API key."
           }
         },
         "required": [
@@ -1178,7 +1744,11 @@
                   "transfers",
                   "manage_tags",
                   "ai.read",
-                  "ai.image"
+                  "ai.image",
+                  "attachments",
+                  "memory.read",
+                  "memory.write",
+                  "memory.delete"
                 ]
               },
               "description": "Permission scopes granted to the key."
@@ -1216,6 +1786,38 @@
                 "null"
               ],
               "description": "Timestamp when the key was last used, or null if never used."
+            },
+            "memoryDestination": {
+              "type": [
+                "object",
+                "null"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "displayName": {
+                  "type": "string"
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "disabled"
+                  ]
+                },
+                "agentIdentity": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "id",
+                "displayName",
+                "state",
+                "agentIdentity"
+              ],
+              "description": "Dedicated Agent memory destination, or null for a normal API key."
             }
           },
           "required": [
@@ -1716,7 +2318,11 @@
                 "transfers",
                 "manage_tags",
                 "ai.read",
-                "ai.image"
+                "ai.image",
+                "attachments",
+                "memory.read",
+                "memory.write",
+                "memory.delete"
               ]
             },
             "minItems": 1,
@@ -1733,6 +2339,30 @@
               ]
             },
             "description": "Content spaces the key may read, independent of scopes. Defaults to wiki-only; raw/generated require an admin owner."
+          },
+          "memoryProvider": {
+            "type": "object",
+            "properties": {
+              "displayName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "sharedNamespaceId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "agentIdentity": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100,
+                "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+              }
+            },
+            "required": [
+              "agentIdentity"
+            ],
+            "description": "Creates or binds the key to an isolated memory destination and agent identity. It can only be used with memory scopes."
           }
         },
         "required": [
@@ -10910,6 +11540,216 @@
               "application/json": {
                 "schema": {
                   "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/connection": {
+      "get": {
+        "operationId": "get-v1-memory-connection",
+        "summary": "Inspect Agent memory connection",
+        "description": "Returns only the bound memory namespace and enabled capabilities. Requires a memory-provider Bearer API key and the provider version header.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryConnection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/diagnostics": {
+      "get": {
+        "operationId": "get-v1-memory-diagnostics",
+        "summary": "Diagnose Agent memory access",
+        "description": "Performs an authenticated, non-secret destination and scope check. It does not expose credentials or response bodies.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryDiagnostics"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/evidence": {
+      "post": {
+        "operationId": "post-v1-memory-evidence",
+        "summary": "Queue agent evidence capture",
+        "description": "Queues an idempotent evidence capture. Clients must poll the returned capture URL before claiming a strict checkpoint is durable.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryEvidenceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryEvidenceQueued"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/recall": {
+      "post": {
+        "operationId": "post-v1-memory-recall",
+        "summary": "Recall Agent memory records",
+        "description": "Searches only records in the API key's bound memory destination and agent identity.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryRecallInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryRecallResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/records": {
+      "post": {
+        "operationId": "post-v1-memory-records",
+        "summary": "Save an Agent memory record",
+        "description": "Creates an immutable revision-backed record in the API key's bound destination. Retries with the same idempotency key return the existing record.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemorySaveInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemorySaveResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/evidence/{captureId}": {
+      "get": {
+        "operationId": "get-v1-memory-evidence-{captureId}",
+        "summary": "Poll agent evidence capture",
+        "description": "Returns the durable, pending, or failed state for a capture in the calling API key's bound destination.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [
+          {
+            "name": "captureId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: captureId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryEvidenceStatus"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/records/{memoryId}": {
+      "delete": {
+        "operationId": "delete-v1-memory-records-{memoryId}",
+        "summary": "Forget an Agent memory record",
+        "description": "Soft-deletes a record only when it belongs to the calling API key's bound destination.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [
+          {
+            "name": "memoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: memoryId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryForgetResponse"
                 }
               }
             }
@@ -20677,7 +21517,7 @@
       "put": {
         "operationId": "put-setup-sample-pages",
         "summary": "Generate or skip sample pages",
-        "description": "Generates the optional welcome, Markdown syntax, and main features pages as normal published wiki pages (idempotent, collision-safe), or records the skip choice. Requires the signed-in initial Admin.",
+        "description": "Generates the optional welcome, Markdown syntax, main features, and Agent memory guide pages as normal published wiki pages (idempotent, collision-safe), or records the skip choice. Requires the signed-in initial Admin.",
         "tags": [
           "Setup"
         ],
@@ -23872,6 +24712,18 @@
         }
       }
     },
+    "/api-keys/memory-destinations": {
+      "get": {
+        "operationId": "get-api-keys-memory-destinations",
+        "summary": "List Agent memory destinations",
+        "description": "Returns the current user's active or disabled Agent memory destinations. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
     "/user/email": {
       "patch": {
         "operationId": "patch-user-email",
@@ -24278,6 +25130,9 @@
   "tags": [
     {
       "name": "Admin"
+    },
+    {
+      "name": "Agent Memory"
     },
     {
       "name": "AI"

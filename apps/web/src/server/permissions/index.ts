@@ -127,6 +127,9 @@ const scopeToActions: Record<ApiKeyScope, Action[]> = {
   // must hold this scope specifically to attach files, independent of its
   // content create/edit permissions (spec FR-007).
   attachments: ['attach_file'],
+  'memory.read': [],
+  'memory.write': [],
+  'memory.delete': [],
 };
 
 function actionAllowedByScope(actor: Extract<Actor, { kind: 'api_key' }>, action: Action): boolean {

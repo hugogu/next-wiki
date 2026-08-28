@@ -29,6 +29,9 @@ export const apiKeyScopeEnum = pgEnum('api_key_scope', [
   'ai.read',
   'ai.image',
   'attachments',
+  'memory.read',
+  'memory.write',
+  'memory.delete',
 ]);
 
 // ---- Content storage (003) -------------------------------------------------
@@ -402,7 +405,23 @@ export const translationUsageSourceEnum = pgEnum('translation_usage_source', [
 // ---- Feishu integration (019) ---------------------------------------------
 
 /** Source channel of an audit entry. Existing rows default to `web`. */
-export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu']);
+export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu', 'agent_memory']);
+
+export const agentMemoryNamespaceStateEnum = pgEnum('agent_memory_namespace_state', ['active', 'disabled']);
+export const agentMemoryRecordTypeEnum = pgEnum('agent_memory_record_type', ['memory', 'evidence']);
+export const agentMemoryRecordStateEnum = pgEnum('agent_memory_record_state', ['active', 'forgotten']);
+export const agentMemoryEvidenceRelationEnum = pgEnum('agent_memory_evidence_relation', [
+  'explicit_save',
+  'automatic_capture',
+  'checkpoint',
+]);
+export const agentMemoryCaptureStatusEnum = pgEnum('agent_memory_capture_status', [
+  'queued',
+  'running',
+  'durable',
+  'failed',
+  'cancelled',
+]);
 
 export const feishuConnectionModeEnum = pgEnum('feishu_connection_mode', ['webhook', 'websocket']);
 

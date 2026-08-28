@@ -39,6 +39,29 @@ export async function parsePublicJson<TOutput, TInput = TOutput>(
   return { ok: true, data: parsed.data };
 }
 
+export async function parseOptionalPublicJson<TOutput, TInput = TOutput>(
+  request: NextRequest,
+  schema: ZodSchema<TOutput, ZodTypeDef, TInput>,
+): Promise<{ ok: true; data: TOutput } | { ok: false; response: Response }> {
+  const raw = await request.text();
+  if (!raw.trim()) {
+    const parsed = schema.safeParse({});
+    if (!parsed.success) return { ok: false, response: validationError(parsed.error) };
+    return { ok: true, data: parsed.data };
+  }
+
+  let body: unknown;
+  try {
+    body = JSON.parse(raw);
+  } catch {
+    return { ok: false, response: publicApiError('VALIDATION_FAILED', 'Invalid JSON request body', 422) };
+  }
+
+  const parsed = schema.safeParse(body);
+  if (!parsed.success) return { ok: false, response: validationError(parsed.error) };
+  return { ok: true, data: parsed.data };
+}
+
 export function parsePublicQuery<TOutput, TInput = TOutput>(
   request: NextRequest,
   schema: ZodSchema<TOutput, ZodTypeDef, TInput>,

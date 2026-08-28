@@ -14,7 +14,7 @@ export const auditEntryTypeSchema = z.enum(['api', 'page']);
 export type AuditEntryType = z.infer<typeof auditEntryTypeSchema>;
 
 /** Source channel of an audit entry (019). Existing rows default to `web`. */
-export const auditOriginSchema = z.enum(['web', 'api', 'feishu']);
+export const auditOriginSchema = z.enum(['web', 'api', 'feishu', 'agent_memory']);
 export type AuditOrigin = z.infer<typeof auditOriginSchema>;
 
 export const requestLogSettingsAuditMetadataSchema = z.object({

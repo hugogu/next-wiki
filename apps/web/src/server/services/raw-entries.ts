@@ -100,7 +100,12 @@ export async function createEntry(
     title: string;
     inputKind: unknown;
     source?: unknown;
+    /** Additional trusted provenance fields for server integrations. */
+    additionalSourceMetadata?: Record<string, unknown>;
     content: string;
+    /** Internal integrations may force private visibility instead of using the
+     * Raw space default. Public API callers leave this unset. */
+    visibility?: 'public' | 'registered' | 'restricted';
     contentType?: unknown;
     originalBytes?: unknown;
     categoryId?: string;
@@ -122,7 +127,11 @@ export async function createEntry(
   const contentType = resolveContentType(input.contentType, originalBytes);
   // Raw body is stored verbatim — no OKF frontmatter, no markdown conversion.
   const contentSource = input.content;
-  const sourceMetadata: RawSourceMetadata = { inputKind: parsedKind.data, ...(parsedSource?.data ?? {}) };
+  const sourceMetadata: RawSourceMetadata & Record<string, unknown> = {
+    ...(parsedSource?.data ?? {}),
+    ...(input.additionalSourceMetadata ?? {}),
+    inputKind: parsedKind.data,
+  };
   const originalAssetId = originalBytes ? await storeOriginalBytes(originalBytes, contentType, userId) : null;
   const revisionId = randomUUID();
   const { html, hash } = renderMarkdown(contentSource);
@@ -144,7 +153,7 @@ export async function createEntry(
         title: input.title,
         authorId: userId,
         nature: 'original',
-        visibility: getEffectiveDefaultVisibility(space),
+        visibility: input.visibility ?? getEffectiveDefaultVisibility(space),
         rawCategoryId: categoryId,
       })
       .returning();

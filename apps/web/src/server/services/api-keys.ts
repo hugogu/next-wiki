@@ -1,11 +1,11 @@
 import { randomBytes } from 'node:crypto';
-import { eq, and, isNull, sql } from 'drizzle-orm';
+import { eq, and, isNull, sql, inArray } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { encryptKey, decryptKey, constantTimeCompare } from '@/server/crypto/key-encryption';
 import type { PermCtx } from '@/server/permissions';
-import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, SpaceKind } from '@next-wiki/shared';
+import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, SpaceKind } from '@next-wiki/shared';
 
 const ADMIN_ONLY_SPACE_KINDS: readonly SpaceKind[] = ['raw', 'generated'];
 
@@ -14,6 +14,9 @@ const KEY_RANDOM_BYTES = 32;
 const KEY_PREFIX_LENGTH = 12;
 const MAX_KEYS_PER_USER = 10;
 const PREFIX_COLLISION_RETRIES = 3;
+
+type MemoryProviderKeyOptions = NonNullable<CreateApiKeyInput['memoryProvider']>;
+type MemoryDestination = NonNullable<ApiKeyView['memoryDestination']>;
 
 function generateKey(): string {
   const bytes = randomBytes(KEY_RANDOM_BYTES);
@@ -42,8 +45,25 @@ export async function create(
   name: string,
   scopes: ApiKeyScope[],
   requestedSpaceAccess?: SpaceKind[],
+  memoryProvider?: MemoryProviderKeyOptions,
 ): Promise<ApiKeyCreated> {
   const userId = requireUserId(ctx);
+  const memoryScopes = scopes.filter((scope) => scope.startsWith('memory.'));
+  const memoryAgentIdentity = typeof memoryProvider?.agentIdentity === 'string'
+    ? memoryProvider.agentIdentity.trim()
+    : undefined;
+  if (memoryProvider && (!memoryAgentIdentity || memoryAgentIdentity.length > 100 || !/^[^\u0000-\u001f\u007f]+$/u.test(memoryAgentIdentity))) {
+    throw new DomainError('BAD_REQUEST', 'Agent identity must be a non-empty value no longer than 100 characters');
+  }
+  if (memoryScopes.length > 0 && !memoryProvider) {
+    throw new DomainError('BAD_REQUEST', 'Agent memory scopes require a bound Agent memory destination');
+  }
+  if (memoryProvider && (memoryScopes.length === 0 || memoryScopes.length !== scopes.length)) {
+    throw new DomainError('BAD_REQUEST', 'An Agent memory key may contain only dedicated memory scopes');
+  }
+  if (memoryProvider && (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin')) {
+    throw new DomainError('FORBIDDEN', 'Only administrators may create an Agent memory API key');
+  }
 
   // 'wiki' is always implicitly allowed (see spaceAllowedForKey), but the
   // stored/returned list should reflect that canonically rather than only
@@ -52,6 +72,9 @@ export async function create(
   const grantsAdminOnlySpace = spaceAccess.some((kind) => ADMIN_ONLY_SPACE_KINDS.includes(kind));
   if (grantsAdminOnlySpace && !(ctx.actor.kind === 'user' && ctx.actor.role === 'admin')) {
     throw new DomainError('FORBIDDEN', 'Only admins may grant raw/generated space access to an API key');
+  }
+  if (memoryProvider && spaceAccess.some((kind) => kind !== 'wiki')) {
+    throw new DomainError('BAD_REQUEST', 'Agent memory API keys cannot access Raw or Generated spaces');
   }
 
   const activeCount = await db.$count(
@@ -93,21 +116,51 @@ export async function create(
     throw new DomainError('CONFLICT', 'Could not generate a unique API key prefix. Please try again.');
   }
 
-  const [row] = await db
-    .insert(schema.apiKeys)
-    .values({
-      userId,
-      name: name.trim(),
-      scopes,
-      spaceAccess,
-      keyPrefix: prefix,
-      keySecretEncrypted: encrypted,
-    })
-    .returning();
+  const created = await db.transaction(async (tx) => {
+    const [row] = await tx
+      .insert(schema.apiKeys)
+      .values({
+        userId,
+        name: name.trim(),
+        scopes,
+        spaceAccess,
+        keyPrefix: prefix,
+        keySecretEncrypted: encrypted,
+      })
+      .returning();
 
-  if (!row) {
-    throw new Error('API_KEY_INSERT_FAILED');
-  }
+    if (!row) throw new Error('API_KEY_INSERT_FAILED');
+
+    let destination: MemoryDestination | null = null;
+    if (memoryProvider) {
+      const namespace = memoryProvider.sharedNamespaceId
+        ? await tx.query.agentMemoryNamespaces.findFirst({
+            where: and(
+              eq(schema.agentMemoryNamespaces.id, memoryProvider.sharedNamespaceId),
+              eq(schema.agentMemoryNamespaces.ownerUserId, userId),
+              eq(schema.agentMemoryNamespaces.state, 'active'),
+            ),
+          })
+        : (await tx
+            .insert(schema.agentMemoryNamespaces)
+            .values({ ownerUserId: userId, displayName: memoryProvider.displayName?.trim() || 'Agent memory' })
+            .returning())[0];
+      if (!namespace) {
+        throw new DomainError('NOT_FOUND', 'The selected Agent memory destination is unavailable');
+      }
+      await tx.insert(schema.agentMemoryKeyBindings).values({
+        apiKeyId: row.id,
+        namespaceId: namespace.id,
+        agentIdentity: memoryAgentIdentity!,
+        sharedByOwner: Boolean(memoryProvider.sharedNamespaceId),
+      });
+      destination = { id: namespace.id, displayName: namespace.displayName, state: namespace.state, agentIdentity: memoryAgentIdentity! };
+    }
+
+    return { row, destination };
+  });
+
+  const { row, destination } = created;
 
   return {
     id: row.id,
@@ -119,6 +172,7 @@ export async function create(
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
+    memoryDestination: destination,
   };
 }
 
@@ -130,6 +184,19 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     orderBy: sql`${schema.apiKeys.createdAt} desc`,
   });
 
+  const bindings = rows.length > 0
+    ? await db.query.agentMemoryKeyBindings.findMany({
+        where: inArray(schema.agentMemoryKeyBindings.apiKeyId, rows.map((row) => row.id)),
+        with: { namespace: true },
+      })
+    : [];
+  const destinations = new Map(bindings.map((binding) => [binding.apiKeyId, {
+    id: binding.namespace.id,
+    displayName: binding.namespace.displayName,
+    state: binding.namespace.state,
+    agentIdentity: binding.agentIdentity,
+  }]));
+
   return rows.map((row) => ({
     id: row.id,
     name: row.name,
@@ -139,7 +206,17 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     createdAt: row.createdAt.toISOString(),
     revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
+    memoryDestination: destinations.get(row.id) ?? null,
   }));
+}
+
+export async function listMemoryDestinations(ctx: PermCtx): Promise<MemoryDestination[]> {
+  const userId = requireUserId(ctx);
+  const rows = await db.query.agentMemoryNamespaces.findMany({
+    where: eq(schema.agentMemoryNamespaces.ownerUserId, userId),
+    orderBy: sql`${schema.agentMemoryNamespaces.createdAt} desc`,
+  });
+  return rows.map((row) => ({ id: row.id, displayName: row.displayName, state: row.state, agentIdentity: 'unassigned' }));
 }
 
 export async function reveal(ctx: PermCtx, keyId: string): Promise<ApiKeyReveal> {

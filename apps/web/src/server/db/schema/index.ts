@@ -2600,6 +2600,7 @@ export const staticSitePublications = pgTable(
 // the base tables above; this trailing re-export keeps that one-directional.
 export * from './ai-tools';
 export * from './request-logs';
+export * from './agent-memory';
 
 // ---- Agent Skills (028) -----------------------------------------------------
 // Skill/override rows, their files, immutable file history, and per-skill admin

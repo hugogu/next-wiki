@@ -61,12 +61,14 @@ describe('sample page definitions (US3)', () => {
       welcome: 'welcome',
       markdownSyntax: 'help/markdown-syntax',
       mainFeatures: 'help/main-features',
+      agentMemory: 'help/agent-memory',
     });
   });
 
-  it('onboarding welcome links to both help pages', () => {
+  it('onboarding welcome links to every help page', () => {
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/markdown-syntax)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/main-features)');
+    expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/agent-memory)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.ONBOARDING_LINKS_MARKER);
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
@@ -100,24 +102,25 @@ describe('sample page definitions (US3)', () => {
       expect(source).toContain(topic);
     }
     expect(source).toContain('](/help/markdown-syntax)');
+    expect(source).toContain('](/help/agent-memory)');
     expect(source).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
 });
 
 describe('sample page writer (US3)', () => {
-  it('creates all three pages as published revisions attributed to the admin', async () => {
+  it('creates all four pages as published revisions attributed to the admin', async () => {
     const { actor, userId } = await openSetupAtSampleStep();
     const result = await samplePages.generateSamplePages(actor);
 
     expect(result.status).toBe('completed');
     expect(result.nextStep).toBe('summary');
-    expect(result.pages).toHaveLength(3);
+    expect(result.pages).toHaveLength(4);
     for (const page of result.pages) {
       expect(page.status).toBe('created');
       expect(page.pageId).toBeDefined();
     }
 
-    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features']) {
+    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features', 'help/agent-memory']) {
       const page = await findPageByPath(path);
       expect(page).toBeDefined();
       expect(page?.authorId).toBe(userId);
@@ -190,6 +193,7 @@ describe('sample page writer (US3)', () => {
     expect(result.status).toBe('partial');
     expect(result.pages.find((page) => page.path === 'help/markdown-syntax')?.status).toBe('collision');
     expect(result.pages.find((page) => page.path === 'help/main-features')?.status).toBe('created');
+    expect(result.pages.find((page) => page.path === 'help/agent-memory')?.status).toBe('created');
 
     const page = await findPageByPath('help/markdown-syntax');
     const [current] = await publishedRevisions('help/markdown-syntax');
@@ -198,6 +202,25 @@ describe('sample page writer (US3)', () => {
 
     const progress = await readSetupProgress();
     expect(progress?.samplePagesStatus).toBe('partial');
+  });
+
+  it('does not treat a same-path page in another space as a default-wiki collision', async () => {
+    const { actor, userId } = await openSetupAtSampleStep();
+    const [otherSpace] = await db
+      .insert(schema.spaces)
+      .values({ slug: 'generated-fixture', name: 'Generated fixture', kind: 'generated' })
+      .returning();
+    await db.insert(schema.pages).values({
+      spaceId: otherSpace!.id,
+      slug: 'help/agent-memory',
+      path: 'help/agent-memory',
+      title: 'Foreign Hermes page',
+      authorId: userId,
+    });
+
+    const result = await samplePages.generateSamplePages(actor);
+
+    expect(result.pages.find((page) => page.path === 'help/agent-memory')).toMatchObject({ status: 'created' });
   });
 
   it('skip records the choice without creating pages', async () => {
@@ -238,8 +261,8 @@ describe('sample page cache invalidation (US3)', () => {
     cache.invalidatePublicContentCache.mockClear();
     const { actor } = await openSetupAtSampleStep();
     await samplePages.generateSamplePages(actor);
-    // One invalidation per published revision (welcome + 2 help pages).
-    expect(cache.invalidatePublicContentCache).toHaveBeenCalledTimes(3);
+    // One invalidation per published revision (welcome + 3 help pages).
+    expect(cache.invalidatePublicContentCache).toHaveBeenCalledTimes(4);
   });
 
   it('does not invalidate when nothing is created (skip)', async () => {

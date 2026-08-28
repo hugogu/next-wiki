@@ -2403,6 +2403,13 @@
       "namePlaceholder": "e.g. CI bot",
       "scopesLabel": "Scopes",
       "scopesHint": "Select at least one scope. Scopes cannot be changed later.",
+      "memoryProviderPreset": "Memory provider",
+      "memoryProviderPresetHint": "Creates a dedicated, isolated memory destination for this API key. Hermes is the first supported client integration.",
+      "agentIdentityLabel": "Agent identity",
+      "memoryDestinationHint": "This key is limited to its dedicated memory destination. It cannot access regular Wiki pages.",
+      "memoryProviderNewDestination": "Create a new isolated destination for this key",
+      "memoryProviderSharedDestination": "Use existing destination: {name}",
+      "memoryDestination": "Memory destination",
       "spaceAccessLabel": "Space access",
       "spaceAccessHint": "Which content spaces this key may read. Wiki is always included and cannot be changed later.",
       "spaceAccessAdminOnly": "Requires an admin account",
@@ -2447,6 +2454,11 @@
         "transfers": "Transfers",
         "manage_tags": "Manage tags",
         "attachments": "Attachments",
+        "memory": {
+          "read": "Memory recall",
+          "write": "Memory save",
+          "delete": "Memory forget"
+        },
         "ai": {
           "read": "AI read",
           "image": "AI image generation"
@@ -2464,6 +2476,11 @@
         "transfers": "Manage content transfers and migrations (admin only)",
         "manage_tags": "Curate the shared tag vocabulary",
         "attachments": "Attach files to pages — independent of create/edit; also requires read access to the target page",
+        "memory": {
+          "read": "Recall records from this key's dedicated Agent memory destination",
+          "write": "Save records and evidence to this key's dedicated Agent memory destination",
+          "delete": "Soft-delete records from this key's dedicated Agent memory destination"
+        },
         "ai": {
           "read": "Use AI-powered search and semantic retrieval",
           "image": "Generate private Wiki images from editable page content"

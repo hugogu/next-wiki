@@ -103,7 +103,14 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
                 const revoked = !!key.revokedAt;
                 return (
                   <DataTableRow key={key.id} className={revoked ? 'opacity-60' : ''}>
-                    <DataTableCell className="font-medium">{key.name}</DataTableCell>
+                    <DataTableCell className="font-medium">
+                      <div>{key.name}</div>
+                      {key.memoryDestination && (
+                        <div className="mt-1 text-xs text-muted">
+                          {t('userCenter.apiKeys.memoryDestination')}: {key.memoryDestination.displayName}
+                        </div>
+                      )}
+                    </DataTableCell>
                     <DataTableCell>
                       <div className="flex flex-wrap gap-xs">
                         {API_KEY_SCOPES.filter((s) => key.scopes.includes(s)).map((scope) => (

@@ -47,6 +47,13 @@ export type PublicApiErrorCode =
   | 'PAGE_ADDRESS_SELF'
   | 'ADDRESS_ALIAS_RETAINED'
   | 'PAGE_NOT_DELETED'
+  | 'AGENT_MEMORY_SCOPE_REQUIRED'
+  | 'AGENT_MEMORY_KEY_UNBOUND'
+  | 'AGENT_MEMORY_NAMESPACE_UNAVAILABLE'
+  | 'AGENT_MEMORY_RECORD_NOT_FOUND'
+  | 'AGENT_MEMORY_EVIDENCE_INVALID'
+  | 'AGENT_MEMORY_CHECKPOINT_NOT_DURABLE'
+  | 'AGENT_MEMORY_INCOMPATIBLE_CLIENT'
   | 'INTERNAL_ERROR';
 
 export type PublicApiErrorBody = {
@@ -162,6 +169,20 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'ADDRESS_ALIAS_RETAINED', status: 409 };
     case 'PAGE_NOT_DELETED':
       return { code: 'PAGE_NOT_DELETED', status: 409 };
+    case 'AGENT_MEMORY_SCOPE_REQUIRED':
+      return { code: 'AGENT_MEMORY_SCOPE_REQUIRED', status: 403 };
+    case 'AGENT_MEMORY_KEY_UNBOUND':
+      return { code: 'AGENT_MEMORY_KEY_UNBOUND', status: 403 };
+    case 'AGENT_MEMORY_NAMESPACE_UNAVAILABLE':
+      return { code: 'AGENT_MEMORY_NAMESPACE_UNAVAILABLE', status: 403 };
+    case 'AGENT_MEMORY_RECORD_NOT_FOUND':
+      return { code: 'AGENT_MEMORY_RECORD_NOT_FOUND', status: 404 };
+    case 'AGENT_MEMORY_EVIDENCE_INVALID':
+      return { code: 'AGENT_MEMORY_EVIDENCE_INVALID', status: 422 };
+    case 'AGENT_MEMORY_CHECKPOINT_NOT_DURABLE':
+      return { code: 'AGENT_MEMORY_CHECKPOINT_NOT_DURABLE', status: 409 };
+    case 'AGENT_MEMORY_INCOMPATIBLE_CLIENT':
+      return { code: 'AGENT_MEMORY_INCOMPATIBLE_CLIENT', status: 426 };
     default:
       return { code: 'VALIDATION_FAILED', status: 422 };
   }

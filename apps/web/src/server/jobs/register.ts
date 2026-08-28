@@ -46,6 +46,7 @@ import {
 } from './writing-mode-switch';
 import { runRawConversationCapture } from './raw-conversation-capture';
 import { runRequestLogPersist } from './request-log-persist';
+import { runAgentMemoryCapture } from './agent-memory-capture';
 import { runScheduledAiJobRun, runScheduledAiTick } from './scheduled-ai-jobs';
 import { runStaticSitePublish } from './static-site-publish';
 import { tickScheduledPublish } from '@/server/services/static-site';
@@ -208,6 +209,9 @@ export async function registerJobs(boss: PgBoss): Promise<void> {
   );
   await boss.work(QUEUES.rawConversationCapture, { batchSize: 50 }, async (jobs: JobBatch) => {
     for (const job of jobs) await runRawConversationCapture(job.data);
+  });
+  await boss.work(QUEUES.agentMemoryCapture, { batchSize: 10 }, async (jobs: JobBatch) => {
+    for (const job of jobs) await runAgentMemoryCapture(job.data);
   });
   await boss.schedule(QUEUES.replication, '* * * * *', {});
   await boss.schedule(QUEUES.gitExport, '* * * * *', { scheduled: true });

@@ -1,0 +1,62 @@
+name: Publish Hermes memory provider
+
+on:
+  push:
+    tags:
+      - 'hermes-memory-provider-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test (${{ matrix.hermes-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        hermes-version: ['0.7.0', 'latest']
+    defaults:
+      run:
+        working-directory: packages/hermes-memory-provider
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build pytest
+          if [ "${{ matrix.hermes-version }}" = "latest" ]; then
+            python -m pip install hermes-agent
+          else
+            python -m pip install "hermes-agent==${{ matrix.hermes-version }}"
+          fi
+          python -m pip install .
+      - name: Run provider tests
+        run: python -m pytest
+      - name: Build wheel
+        run: python -m build
+
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/hermes-memory-provider-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: packages/hermes-memory-provider
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --upgrade build
+      - run: python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: packages/hermes-memory-provider/dist/

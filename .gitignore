@@ -80,6 +80,15 @@ apps/web/public/static-site/
 .playwright-mcp/
 .claude/workflows
 
+# Hermes memory provider Python build/test artifacts
+/packages/hermes-memory-provider/.pytest_cache/
+/packages/hermes-memory-provider/.venv/
+/packages/hermes-memory-provider/*.egg-info/
+/packages/hermes-memory-provider/src/*.egg-info/
+/packages/hermes-memory-provider/src/**/__pycache__/
+/packages/hermes-memory-provider/tests/**/__pycache__/
+/packages/hermes-memory-provider/**/*.pyc
+
 # Worktrees
 .worktrees/
 worktrees/

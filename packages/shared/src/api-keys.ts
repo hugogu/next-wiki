@@ -14,6 +14,9 @@ export const apiKeyScopeSchema = z.enum([
   'ai.read',
   'ai.image',
   'attachments',
+  'memory.read',
+  'memory.write',
+  'memory.delete',
 ]);
 export type ApiKeyScope = z.infer<typeof apiKeyScopeSchema>;
 
@@ -48,6 +51,13 @@ export const createApiKeyInputSchema = z.object({
       message: 'Space access entries must be unique',
     })
     .optional(),
+  memoryProvider: z
+    .object({
+      displayName: z.string().min(1).max(100).optional(),
+      sharedNamespaceId: z.string().uuid().optional(),
+      agentIdentity: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
+    })
+    .optional(),
 });
 export type CreateApiKeyInput = z.infer<typeof createApiKeyInputSchema>;
 
@@ -60,6 +70,15 @@ export const apiKeyViewSchema = z.object({
   createdAt: z.string(),
   revokedAt: z.string().nullable(),
   lastUsedAt: z.string().nullable(),
+  memoryDestination: z
+    .object({
+      id: z.string().uuid(),
+      displayName: z.string(),
+      state: z.enum(['active', 'disabled']),
+      agentIdentity: z.string(),
+    })
+    .nullable()
+    .optional(),
 });
 export type ApiKeyView = z.infer<typeof apiKeyViewSchema>;
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from '@/i18n/client';
 import {
   API_KEY_SCOPES,
@@ -9,7 +9,7 @@ import {
   type ApiKeyCreated,
   type SpaceKind,
 } from '@next-wiki/shared';
-import { apiPost } from '@/lib/api/client';
+import { apiGet, apiPost } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { XIcon } from '@/components/icons';
@@ -21,11 +21,20 @@ interface ApiKeyCreateDialogProps {
   currentUserIsAdmin: boolean;
 }
 
+type MemoryDestination = {
+  id: string;
+  displayName: string;
+  state: 'active' | 'disabled';
+};
+
 export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: ApiKeyCreateDialogProps) {
   const { t } = useTranslation();
   const [name, setName] = useState('');
   const [scopes, setScopes] = useState<ApiKeyScope[]>([]);
   const [spaceAccess, setSpaceAccess] = useState<SpaceKind[]>(['wiki']);
+  const [memoryDestinations, setMemoryDestinations] = useState<MemoryDestination[]>([]);
+  const [sharedNamespaceId, setSharedNamespaceId] = useState('');
+  const [agentIdentity, setAgentIdentity] = useState('hermes');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -35,12 +44,35 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
     );
   };
 
+  const memoryProviderScopes: ApiKeyScope[] = ['memory.read', 'memory.write', 'memory.delete'];
+  const isMemoryProviderKey = memoryProviderScopes.some((scope) => scopes.includes(scope));
+
+  const toggleMemoryProvider = () => {
+    setScopes(() => (isMemoryProviderKey ? [] : memoryProviderScopes));
+    setSpaceAccess(['wiki']);
+  };
+
   const toggleSpace = (space: SpaceKind) => {
     if (space === 'wiki') return; // always included, not user-toggleable
     setSpaceAccess((prev) =>
       prev.includes(space) ? prev.filter((s) => s !== space) : [...prev, space],
     );
   };
+
+  useEffect(() => {
+    if (!isMemoryProviderKey) return;
+    let cancelled = false;
+    void apiGet<MemoryDestination[]>('/api/api-keys/memory-destinations')
+      .then((destinations) => {
+        if (!cancelled) setMemoryDestinations(destinations.filter((destination) => destination.state === 'active'));
+      })
+      .catch(() => {
+        if (!cancelled) setMemoryDestinations([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [isMemoryProviderKey]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,12 +84,22 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
     setError('');
     try {
       const result = await apiPost<
-        { name: string; scopes: ApiKeyScope[]; spaceAccess: SpaceKind[] },
+        {
+          name: string;
+          scopes: ApiKeyScope[];
+          spaceAccess: SpaceKind[];
+          memoryProvider?: { displayName?: string; sharedNamespaceId?: string; agentIdentity: string };
+        },
         ApiKeyCreated
       >('/api/api-keys', {
         name,
         scopes,
         spaceAccess,
+        ...(isMemoryProviderKey ? {
+          memoryProvider: sharedNamespaceId
+            ? { sharedNamespaceId, agentIdentity: agentIdentity.trim() }
+            : { displayName: name.trim(), agentIdentity: agentIdentity.trim() },
+        } : {}),
       });
       onCreated(result);
       onClose();
@@ -105,6 +147,20 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
           <div>
             <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.scopesLabel')}</span>
             <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.scopesHint')}</p>
+            <label className={`mb-sm flex items-start gap-sm rounded-md border border-primary/40 bg-primary/5 p-sm ${currentUserIsAdmin ? 'cursor-pointer' : 'opacity-50'}`}>
+              <input
+                type="checkbox"
+                checked={isMemoryProviderKey}
+                onChange={toggleMemoryProvider}
+                disabled={!currentUserIsAdmin}
+                className="mt-1"
+              />
+              <div className="text-sm">
+                <div className="font-medium">{t('userCenter.apiKeys.memoryProviderPreset')}</div>
+                <div className="text-muted text-xs">{t('userCenter.apiKeys.memoryProviderPresetHint')}</div>
+                {!currentUserIsAdmin && <div className="text-warning text-xs">{t('userCenter.apiKeys.spaceAccessAdminOnly')}</div>}
+              </div>
+            </label>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-2">
               {API_KEY_SCOPES.map((scope) => (
                 <label key={scope} className="flex items-start gap-sm rounded-md border border-border p-sm cursor-pointer hover:bg-surface-elevated">
@@ -112,6 +168,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                     type="checkbox"
                     checked={scopes.includes(scope)}
                     onChange={() => toggleScope(scope)}
+                    disabled={(!currentUserIsAdmin && memoryProviderScopes.includes(scope)) || (isMemoryProviderKey && !memoryProviderScopes.includes(scope))}
                     className="mt-1"
                   />
                   <div className="text-sm">
@@ -123,7 +180,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
             </div>
           </div>
 
-          <div>
+          {!isMemoryProviderKey && <div>
             <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.spaceAccessLabel')}</span>
             <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.spaceAccessHint')}</p>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-3">
@@ -153,7 +210,37 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                 );
               })}
             </div>
-          </div>
+          </div>}
+
+          {isMemoryProviderKey && (
+            <div className="space-y-sm rounded-md border border-border bg-surface-elevated p-sm text-xs text-muted">
+              <label className="block">
+                <span className="mb-xs block font-medium">{t('userCenter.apiKeys.agentIdentityLabel')}</span>
+                <Input value={agentIdentity} onChange={(event) => setAgentIdentity(event.target.value)} required minLength={1} maxLength={100} />
+              </label>
+              <p>{t('userCenter.apiKeys.memoryDestinationHint')}</p>
+              <label className="flex items-center gap-sm cursor-pointer">
+                <input
+                  type="radio"
+                  name="agent-memory-destination"
+                  checked={!sharedNamespaceId}
+                  onChange={() => setSharedNamespaceId('')}
+                />
+                {t('userCenter.apiKeys.memoryProviderNewDestination')}
+              </label>
+              {memoryDestinations.map((destination) => (
+                <label key={destination.id} className="flex items-center gap-sm cursor-pointer">
+                  <input
+                    type="radio"
+                    name="agent-memory-destination"
+                    checked={sharedNamespaceId === destination.id}
+                    onChange={() => setSharedNamespaceId(destination.id)}
+                  />
+                  {t('userCenter.apiKeys.memoryProviderSharedDestination', { name: destination.displayName })}
+                </label>
+              ))}
+            </div>
+          )}
 
           {error && <p className="text-sm text-danger">{error}</p>}
 
