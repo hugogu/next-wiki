@@ -12,6 +12,7 @@ CONFIG_VERSION = 1
 CONFIG_FILENAME = "next-wiki-memory.json"
 API_KEY_ENV_VAR = "NEXT_WIKI_MEMORY_API_KEY"
 
+# Order matters: tests assert this exact sequence.
 FIELD_DEFINITIONS: tuple[dict[str, object], ...] = (
     {
         "key": "wiki_api_base_url",

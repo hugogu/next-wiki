@@ -15,6 +15,10 @@ def test_cli_and_desktop_schemas_share_the_same_field_declarations(monkeypatch) 
     secret = next(field for field in desktop_fields if field["key"] == "api_key")
     assert secret["is_set"] is True
     assert "value" not in secret
+    assert secret["url"].startswith("https://github.com/hugogu/")
+    assert secret["name"] == secret["key"]
+    assert secret["label"] == secret["description"]
+    assert secret["help"] == secret["description"]
 
 
 def test_hermes_setup_schema_is_a_list_of_keyed_fields() -> None:
