@@ -1,6 +1,7 @@
 import { env } from '@/server/config';
 import {
   AiProviderError,
+  sanitizeProviderMessage,
   type AiProviderAdapter,
   type DiscoveredModel,
   type EmbeddingInput,
@@ -202,7 +203,15 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
               message,
               isTransient,
               undefined,
-              { response: { body: JSON.stringify(providerError) } },
+              // Mirrors http-client.ts's `{ response: { status, body } }` detail
+              // shape: sanitized/bounded the same way an HTTP error body is,
+              // since this is persisted and shown in the admin run-record viewer.
+              {
+                response: {
+                  status: typeof providerError.code === 'number' ? providerError.code : undefined,
+                  body: sanitizeProviderMessage(JSON.stringify(providerError)),
+                },
+              },
             );
           }
           const choice = event.choices?.[0];
