@@ -124,12 +124,14 @@ Capture enabled: yes
 Each completed eligible turn is queued asynchronously at
 `POST /api/v1/memory/evidence`; the response turn is not blocked on the Wiki
 worker. Only user and assistant text is submitted. Tool results, tool calls,
-system text, and delegated/non-primary contexts are excluded. Verify a test
-conversation by checking for the immutable Evidence/Raw entry in the
-owner-authorized **Agent Memory** category and an `agent_memory` row in Admin →
-Access Log after the worker reports `durable`. `hermes next-wiki check` checks
-connectivity and authorization only; it does not prove that a capture was
-written.
+system text, and delegated/non-primary contexts are excluded. The worker
+creates an immutable Evidence Record backed by a Raw revision. After the
+capture reports `durable`, that evidence is directly returned by the normal
+namespace-scoped memory recall; there is no separate synthesis job to wait
+for. Verify a test conversation by checking for the immutable Evidence/Raw
+entry in the owner-authorized **Agent Memory** category and an `agent_memory`
+row in Admin → Access Log. `hermes next-wiki check` checks connectivity and
+authorization only; it does not prove that a capture was written.
 
 Strict pre-compression checkpointing is a separate opt-in. Enable it only when
 your Hermes runtime supports checkpoint API v2 and your operator accepts that a

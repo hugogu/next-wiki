@@ -115,7 +115,8 @@ management remain out of scope.
   hides the logical record from provider recall; Raw retention remains governed by
   the Raw space and ordinary owner/admin controls.
 - Namespace-filtered lexical recall is a derived, rebuildable projection over
-  eligible current revisions. It does not require embeddings or an LLM. If a
+  eligible current revisions for both explicit memories and durable evidence.
+  It does not require embeddings or an LLM. If a
   future semantic adapter is used, it must receive the same allowed-record set
   and return citations only after the service re-checks the binding.
 

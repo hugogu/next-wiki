@@ -133,9 +133,10 @@ recall is an optional later adapter, never a requirement for Hermes memory.
 
 **Rationale**: Raw is the Wiki's source layer for unmodified external evidence,
 and the shared writer already preserves verbatim content, provenance, revision
-history, audit, content storage, and index hooks. This keeps Hermes memory
-searchable by the same page/index infrastructure as other Wiki content while
-the namespace projection still enforces per-key isolation. Raw-space availability
+history, audit, content storage, and index hooks. This keeps explicit memories
+and durable captured evidence searchable by the same page/index infrastructure
+as other Wiki content while the namespace projection still enforces per-key
+isolation. Raw-space availability
 (currently enabled by LLM Wiki writing mode) is an explicit prerequisite and
 must be diagnosed rather than silently falling back to a second store.
 

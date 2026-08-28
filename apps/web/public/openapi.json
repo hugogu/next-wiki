@@ -437,7 +437,8 @@
         "required": [
           "results",
           "retrieval"
-        ]
+        ],
+        "description": "Bounded recall results containing active explicit memories and durable captured evidence."
       },
       "AgentMemoryRecord": {
         "type": "object",

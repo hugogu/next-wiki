@@ -243,6 +243,10 @@ keeping Hermes as the first supported provider.
   updates, and pg-boss retry options in `apps/web/src/server/services/agent-memory.ts`,
   `apps/web/src/server/jobs/agent-memory-capture.ts`, and
   `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`.
+- [X] T087 Include durable Evidence Records in namespace-scoped lexical recall;
+  add an asynchronous capture-to-recall regression test and update the REST
+  contract, data model, plan, package README, and deployment guide so clients
+  do not wait for a nonexistent synthesis step.
 - [X] T084 Add cross-client fixture coverage proving two identities can share a
   destination without sharing records, captures, or idempotency keys.
 - [ ] T085 Run the single generated 0021 migration on a populated

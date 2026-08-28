@@ -362,7 +362,7 @@ export const AgentMemoryRecord = z.object({
 export const AgentMemoryRecallResponse = z.object({
   results: z.array(AgentMemoryRecord),
   retrieval: z.object({ mode: z.literal('lexical'), complete: z.boolean(), returned: z.number().int().nonnegative() }),
-});
+}).describe('Bounded recall results containing active explicit memories and durable captured evidence.');
 
 export const AgentMemorySaveInput = z.object({
   idempotencyKey: z.string().min(1).max(128), content: z.string().min(1).max(16_000),

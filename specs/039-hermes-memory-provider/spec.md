@@ -121,6 +121,10 @@ durable memory.
    the Wiki key may not preserve, **When** capture is attempted, **Then** the
    provider follows the configured redaction and permission policy, records a
    safe failure where needed, and never broadens the key's access.
+6. **Given** an asynchronous capture reaches `durable`, **When** a later
+   namespace-scoped recall matches its content, **Then** the provider returns
+   the immutable evidence citation directly with `type: "evidence"`; it does
+   not require a separate synthesis job or duplicate the Raw body.
 
 ---
 
