@@ -472,5 +472,33 @@ describe('audit service', () => {
     expect(onlyFeishu.entries).toHaveLength(1);
     expect(onlyFeishu.entries[0]!.origin).toBe('feishu');
   });
+
+  it('records and filters Agent Memory API requests', async () => {
+    const admin = await createTestUser('audit-origin-memory-admin@example.com', 'admin');
+    await auditService.writeEntry({
+      keyId: null,
+      userId: admin.id,
+      entryType: 'api',
+      origin: 'agent_memory',
+      method: 'POST',
+      path: '/api/v1/memory/records',
+      statusCode: 403,
+      durationMs: 4,
+      authStatus: 'authenticated',
+      errorMessage: 'The bound Agent memory destination is unavailable',
+    });
+
+    const onlyAgentMemory = await auditService.listAll(buildUserCtx(admin.id, 'admin'), {
+      page: 1,
+      pageSize: 20,
+      origin: 'agent_memory',
+    });
+    expect(onlyAgentMemory.entries).toHaveLength(1);
+    expect(onlyAgentMemory.entries[0]).toMatchObject({
+      origin: 'agent_memory',
+      path: '/api/v1/memory/records',
+      statusCode: 403,
+    });
+  });
   });
 });
