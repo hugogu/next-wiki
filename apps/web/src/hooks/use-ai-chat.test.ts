@@ -8,6 +8,7 @@ const {
   buildToolEnabledQuestionPayload,
   startWikiQuestionAction,
   wikiAiErrorTranslationKey,
+  wikiAiErrorDisplayMessage,
 } = await import('./use-ai-chat');
 
 describe('useAiChat payload helpers', () => {
@@ -122,5 +123,33 @@ describe('useAiChat payload helpers', () => {
       .toBe('ai.chat.errors.webResearchAccessDenied');
     expect(wikiAiErrorTranslationKey({ message: 'AI request failed' }))
       .toBe('ai.chat.errors.requestFailed');
+  });
+});
+
+describe('wikiAiErrorDisplayMessage', () => {
+  const t = (key: string) => ({
+    'ai.chat.errors.providerUnavailable': 'The AI provider is temporarily unavailable. Please retry shortly.',
+    'ai.chat.errors.invalidResponse': 'The AI could not produce a valid Wiki operation. Retry or rephrase the request.',
+  })[key] ?? key;
+
+  it('appends the server-specific detail to the localized guidance', () => {
+    expect(wikiAiErrorDisplayMessage(t, {
+      code: 'PROVIDER_UNAVAILABLE',
+      message: 'Upstream error from Nvidia: Service temporarily overloaded',
+    })).toBe(
+      'The AI provider is temporarily unavailable. Please retry shortly. (Upstream error from Nvidia: Service temporarily overloaded)',
+    );
+  });
+
+  it('does not duplicate the detail when it already matches the localized text', () => {
+    expect(wikiAiErrorDisplayMessage(t, {
+      code: 'PROVIDER_UNAVAILABLE',
+      message: 'The AI provider is temporarily unavailable. Please retry shortly.',
+    })).toBe('The AI provider is temporarily unavailable. Please retry shortly.');
+  });
+
+  it('falls back to the localized guidance alone when there is no message', () => {
+    expect(wikiAiErrorDisplayMessage(t, { code: 'PROVIDER_UNAVAILABLE' }))
+      .toBe('The AI provider is temporarily unavailable. Please retry shortly.');
   });
 });

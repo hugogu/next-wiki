@@ -116,6 +116,23 @@ describe('planner equivalence', () => {
     }
   });
 
+  it('surfaces an OpenRouter-style in-band provider error instead of "no actionable output"', async () => {
+    const fixture = await startAiProviderFixture({
+      streamError: { code: 502, message: 'Upstream error from Nvidia: Service temporarily overloaded', errorType: 'provider_unavailable' },
+    });
+    try {
+      await expect(createNativeToolPlanner({
+        ...deps(fixture.baseUrl, [], []),
+        tools: () => listToolDefinitions().filter((tool) => tool.name === 'search_wiki'),
+      })(STATE)).rejects.toMatchObject({
+        code: 'PROVIDER_UNAVAILABLE',
+        message: 'Upstream error from Nvidia: Service temporarily overloaded',
+      });
+    } finally {
+      await fixture.close();
+    }
+  }, 10_000);
+
   it('does not expose an unfenced tool protocol as a native-planner answer', async () => {
     const fixture = await startAiProviderFixture({
       textResponse: 'tool_calls:\n  - tool: search_wiki\n    arguments:\n      query: "backup"',

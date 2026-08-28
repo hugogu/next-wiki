@@ -45,7 +45,16 @@ export async function runAiAction(actionId: string): Promise<void> {
     const latest = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
     if (latest?.status === 'running') await finishAction(actionId, 'completed');
   } catch (error) {
-    const errorDetail = error instanceof Error ? error.stack ?? null : String(error);
+    // Prefer the provider's own sanitized request/response context (e.g. the
+    // raw in-stream error body OpenRouter/etc. reported) over a JS call
+    // stack — it's what the admin run-record viewer actually needs to
+    // diagnose an upstream failure.
+    const errorDetail =
+      error instanceof AiProviderError && error.detail
+        ? JSON.stringify(error.detail)
+        : error instanceof Error
+          ? error.stack ?? null
+          : String(error);
     if (error instanceof DomainError) {
       await finishAction(actionId, error.code === 'CANCELLED' ? 'cancelled' : 'failed', {
         errorCode: error.code,
