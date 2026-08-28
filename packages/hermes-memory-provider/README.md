@@ -32,6 +32,10 @@ latter needs `HERMES_ENABLE_PROJECT_PLUGINS=1`). Do not install two providers
 with the `next-wiki` slug: Hermes uses discovery precedence and reports the
 first matching provider.
 
+This provider calls the versioned REST endpoints under `/api/v1/memory/*`.
+`/api/v1/mcp` is not a Memory endpoint; the separate
+`@next-wiki/mcp-server` package is a stdio MCP adapter for generic Wiki tools.
+
 ## Safe configuration and checks
 
 The provider writes only non-secret settings (including `agent_identity`) to
