@@ -713,6 +713,8 @@
       "urlPrefix": "URL prefix",
       "reinitializeSamples": "Reinitialize example pages",
       "reinitializeSamplesSuccess": "Example pages have been reinitialized.",
+      "reinitializeSamplesPartial": "Example pages were only partially reinitialized.",
+      "reinitializeSamplesFailed": "Example pages could not be reinitialized.",
       "reinitializeSamplesError": "Unable to reinitialize example pages."
     },
     "searchSettings": {

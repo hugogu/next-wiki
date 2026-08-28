@@ -1404,26 +1404,34 @@ export async function restoreDeletedPage(ctx: PermCtx, path: string, spaceSlug?:
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
   await assertSpaceKindAllowed(space.kind);
 
-  const page = await db.query.pages.findFirst({
-    where: and(
-      eq(schema.pages.spaceId, space.id),
-      eq(schema.pages.path, path),
-      isNull(schema.pages.translationGroupId),
-    ),
-  });
-  if (!page) throw new DomainError('NOT_FOUND', 'Deleted page not found');
-  if (!page.deletedAt) return;
-
-  await db.transaction(async (tx) => {
+  const restored = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
-    await tx
+    const [page] = await tx
+      .select({ id: schema.pages.id, deletedAt: schema.pages.deletedAt })
+      .from(schema.pages)
+      .where(and(
+        eq(schema.pages.spaceId, space.id),
+        eq(schema.pages.path, path),
+        isNull(schema.pages.translationGroupId),
+      ))
+      .for('update')
+      .limit(1);
+    if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+    if (!page.deletedAt) return { pageId: page.id, restored: false };
+
+    const [updated] = await tx
       .update(schema.pages)
       .set({ deletedAt: null, updatedAt: new Date() })
-      .where(eq(schema.pages.id, page.id));
+      .where(and(eq(schema.pages.id, page.id), isNotNull(schema.pages.deletedAt)))
+      .returning({ id: schema.pages.id });
+    if (!updated) throw new DomainError('CONFLICT', 'Page restore was not applied');
+    return { pageId: updated.id, restored: true };
   });
-  invalidatePublicContentCache();
-  await notifyPublicContentChanged('publish');
-  await reconcilePageAcrossIndexes(page.id, ctx);
+  if (restored.restored) {
+    invalidatePublicContentCache();
+    await notifyPublicContentChanged('publish');
+    await reconcilePageAcrossIndexes(restored.pageId, ctx);
+  }
 }
 
 export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Promise<void> {

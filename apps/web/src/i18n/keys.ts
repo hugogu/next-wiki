@@ -492,6 +492,8 @@ export const translationKeys = [
   "admin.spaces.urlPrefix",
   "admin.spaces.reinitializeSamples",
   "admin.spaces.reinitializeSamplesSuccess",
+  "admin.spaces.reinitializeSamplesPartial",
+  "admin.spaces.reinitializeSamplesFailed",
   "admin.spaces.reinitializeSamplesError",
   "admin.searchSettings.title",
   "admin.searchSettings.description",

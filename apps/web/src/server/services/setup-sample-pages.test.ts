@@ -200,8 +200,29 @@ describe('sample page writer (US3)', () => {
     const result = await samplePages.reinitializeSamplePages(actor, wikiSpace!.id);
 
     expect(result.pages.find((item) => item.path === 'integrations/hermes')).toMatchObject({ status: 'updated' });
-    expect(await findPageByPath('integrations/hermes')).toBeDefined();
+    expect((await findPageByPath('integrations/hermes'))?.deletedAt).toBeNull();
+    expect(await publishedRevisions('integrations/hermes')).toHaveLength(2);
     expect(await db.query.pages.findMany({ where: eq(schema.pages.path, 'integrations/hermes') })).toHaveLength(1);
+  });
+
+  it('restores every deleted managed example and publishes the current content', async () => {
+    const { actor } = await openSetupAtSampleStep();
+    await samplePages.generateSamplePages(actor);
+    const paths = ['welcome', 'help/markdown-syntax', 'help/main-features', 'integrations/hermes'];
+    for (const path of paths) await pagesService.remove({ actor }, path);
+
+    const wikiSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    const result = await samplePages.reinitializeSamplePages(actor, wikiSpace!.id);
+
+    expect(result.status).toBe('completed');
+    for (const path of paths) {
+      expect(result.pages.find((item) => item.path === path)).toMatchObject({ status: 'updated' });
+      expect((await findPageByPath(path))?.deletedAt).toBeNull();
+      expect(await publishedRevisions(path)).toHaveLength(2);
+    }
+    expect((await publishedRevisions('help/markdown-syntax')).at(-1)?.contentSource).toBe(definitions.MARKDOWN_SYNTAX_PAGE_SOURCE);
+    expect((await publishedRevisions('help/main-features')).at(-1)?.contentSource).toBe(definitions.MAIN_FEATURES_PAGE_SOURCE);
+    expect((await publishedRevisions('integrations/hermes')).at(-1)?.contentSource).toBe(definitions.AGENT_MEMORY_PAGE_SOURCE);
   });
 
   it('does not restore a deleted user-authored page at a sample path', async () => {

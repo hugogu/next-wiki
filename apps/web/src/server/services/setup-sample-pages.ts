@@ -68,6 +68,41 @@ async function findDeletedPage(path: string) {
   });
 }
 
+type SamplePageRow = NonNullable<Awaited<ReturnType<typeof findPage>>>;
+
+/**
+ * A page can be edited after setup, so only checking its current revision is
+ * not enough to identify a managed example. The surviving revision history is
+ * the durable ownership marker for an explicit admin reinitialization.
+ */
+async function isManagedSamplePage(page: SamplePageRow): Promise<boolean> {
+  const revisions = await db.query.pageRevisions.findMany({
+    where: and(eq(schema.pageRevisions.pageId, page.id), isNull(schema.pageRevisions.deletedAt)),
+    columns: { contentSource: true },
+  });
+  return revisions.some((revision) => revision.contentSource?.includes(SAMPLE_PAGE_MARKER));
+}
+
+async function findOrRestorePage(
+  ctx: PermCtx,
+  path: string,
+  refreshManaged: boolean,
+): Promise<{ page: SamplePageRow | null; restored: boolean; collision: boolean }> {
+  const existing = await findPage(path);
+  if (existing) return { page: existing, restored: false, collision: false };
+
+  const deleted = await findDeletedPage(path);
+  if (!deleted) return { page: null, restored: false, collision: false };
+  if (!refreshManaged || !(await isManagedSamplePage(deleted))) {
+    return { page: null, restored: false, collision: true };
+  }
+
+  await pagesService.restoreDeletedPage(ctx, path);
+  const restored = await findPage(path);
+  if (!restored) throw new Error(`Restored sample page ${path} is not readable`);
+  return { page: restored, restored: true, collision: false };
+}
+
 async function publishedSource(pageId: string, publishedVersionId: string | null): Promise<string | null> {
   if (!publishedVersionId) return null;
   const revision = await db.query.pageRevisions.findFirst({
@@ -94,19 +129,20 @@ async function enrichWelcomePage(
   ctx: PermCtx,
   page: { id: string; path: string; title: string; currentPublishedVersionId: string | null },
   refreshManaged: boolean,
+  restoredDeleted: boolean,
 ): Promise<SetupSamplePageResult> {
   const source = await publishedSource(page.id, page.currentPublishedVersionId);
   if (source?.includes(ONBOARDING_LINKS_MARKER)) {
     // The welcome page may contain user-authored content before the managed
     // links block. Refresh only that block when Admin explicitly reinitializes
     // examples; a normal first-run retry remains idempotent.
-    if (!refreshManaged || !source.includes(SAMPLE_PAGE_MARKER)) {
+    if (!refreshManaged || (!source.includes(SAMPLE_PAGE_MARKER) && !restoredDeleted)) {
       return { path: page.path, status: 'skipped', pageId: page.id };
     }
     const markerIndex = source.indexOf(ONBOARDING_LINKS_MARKER);
     const base = source.slice(0, markerIndex).trimEnd();
     const refreshed = `${base}\n${ONBOARDING_WELCOME_LINKS_BLOCK}`;
-    if (refreshed === source) return { path: page.path, status: 'skipped', pageId: page.id };
+    if (refreshed === source && !restoredDeleted) return { path: page.path, status: 'skipped', pageId: page.id };
     const { versionNumber } = await pagesService.newDraft(ctx, page.path, {
       title: page.title,
       contentSource: refreshed,
@@ -151,16 +187,10 @@ async function writeSamplePage(
     }
   }
   if (!existing) {
-    const deleted = await findDeletedPage(input.path);
-    const deletedSource = deleted
-      ? await publishedSource(deleted.id, deleted.currentPublishedVersionId)
-      : null;
-    if (deleted && refreshManaged && deletedSource?.includes(SAMPLE_PAGE_MARKER)) {
-      await pagesService.restoreDeletedPage(ctx, input.path);
-      existing = await findPage(input.path);
-      restoredDeleted = true;
-    }
-    if (!existing && deleted) {
+    const restored = await findOrRestorePage(ctx, input.path, refreshManaged);
+    existing = restored.page;
+    restoredDeleted = restored.restored;
+    if (restored.collision) {
       return { path: input.path, status: 'collision', reason: 'A deleted page already reserves this path' };
     }
   }
@@ -169,8 +199,8 @@ async function writeSamplePage(
     return { path: input.path, status: 'created', pageId };
   }
   const source = await publishedSource(existing.id, existing.currentPublishedVersionId);
-  if (source?.includes(SAMPLE_PAGE_MARKER)) {
-    if (refreshManaged && source !== input.contentSource) {
+  if (restoredDeleted || source?.includes(SAMPLE_PAGE_MARKER)) {
+    if (refreshManaged && (restoredDeleted || source !== input.contentSource)) {
       const { versionNumber } = await pagesService.newDraft(ctx, input.path, {
         title: input.title,
         contentSource: input.contentSource,
@@ -230,20 +260,22 @@ async function generateSamplePagesInternal(
   const results: SetupSamplePageResult[] = [];
 
   try {
-    const welcome = await findPage(SAMPLE_PAGE_PATHS.welcome);
-    results.push(
-      welcome
-        ? await enrichWelcomePage(ctx, welcome, refreshManaged)
-        : {
-            path: SAMPLE_PAGE_PATHS.welcome,
-            status: 'created',
-            pageId: await createPublishedPage(ctx, {
-              path: SAMPLE_PAGE_PATHS.welcome,
-              title: WELCOME_PAGE_TITLE,
-              contentSource: ONBOARDING_WELCOME_PAGE_SOURCE,
-            }),
-          },
-    );
+    const welcome = await findOrRestorePage(ctx, SAMPLE_PAGE_PATHS.welcome, refreshManaged);
+    if (welcome.collision) {
+      results.push({ path: SAMPLE_PAGE_PATHS.welcome, status: 'collision', reason: 'A deleted page already reserves this path' });
+    } else if (welcome.page) {
+      results.push(await enrichWelcomePage(ctx, welcome.page, refreshManaged, welcome.restored));
+    } else {
+      results.push({
+        path: SAMPLE_PAGE_PATHS.welcome,
+        status: 'created',
+        pageId: await createPublishedPage(ctx, {
+          path: SAMPLE_PAGE_PATHS.welcome,
+          title: WELCOME_PAGE_TITLE,
+          contentSource: ONBOARDING_WELCOME_PAGE_SOURCE,
+        }),
+      });
+    }
   } catch (error) {
     results.push({
       path: SAMPLE_PAGE_PATHS.welcome,

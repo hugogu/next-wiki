@@ -249,7 +249,8 @@ keeping Hermes as the first supported provider.
   do not wait for a nonexistent synthesis step.
 - [X] T088 [US4] Add the admin-only Wiki-space action and protected endpoint for
   manually reinitializing, refreshing, and restoring soft-deleted managed
-  example pages after first-run setup, with collision-safe service coverage in
+  example pages after first-run setup, with collision-safe service coverage and
+  explicit partial/failed response handling in
   `apps/web/src/components/admin/spaces/SpaceSettingsPanel.tsx`,
   `apps/web/app/api/settings/spaces/[spaceId]/sample-pages/route.ts`, and
   `apps/web/src/server/services/setup-sample-pages.ts`.

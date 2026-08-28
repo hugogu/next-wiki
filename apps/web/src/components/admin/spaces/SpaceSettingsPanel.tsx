@@ -1,5 +1,6 @@
 'use client';
 
+import type { SetupSamplePagesResponse } from '@next-wiki/shared';
 import { useState, type FormEvent } from 'react';
 import { EditIcon, InfoIcon, RefreshIcon } from '@/components/icons';
 import { Alert } from '@/components/ui/Alert';
@@ -28,6 +29,7 @@ export type SpaceSettingsItem = {
 };
 
 type SpaceSettingsResponse = Partial<SpaceSettingsItem> & { message?: string };
+type ReinitializeSamplePagesResponse = SetupSamplePagesResponse & { message?: string };
 
 export function SpaceSettingsPanel({ initialSpaces, canManage = true }: { initialSpaces: SpaceSettingsItem[]; canManage?: boolean }) {
   const { t } = useTranslation();
@@ -86,8 +88,19 @@ export function SpaceSettingsPanel({ initialSpaces, canManage = true }: { initia
     setNotice(null);
     try {
       const response = await fetch(`/api/settings/spaces/${space.id}/sample-pages`, { method: 'POST' });
-      const body = await response.json().catch(() => null) as SpaceSettingsResponse | null;
-      if (!response.ok) throw new Error(body?.message ?? t('admin.spaces.reinitializeSamplesError'));
+      const body = await response.json().catch(() => null) as ReinitializeSamplePagesResponse | null;
+      if (!response.ok || body?.status !== 'completed') {
+        const problems = body?.pages
+          ?.filter((page) => page.status === 'collision' || page.status === 'failed')
+          .map((page) => page.reason ? `${page.path}: ${page.reason}` : page.path)
+          .join('; ');
+        const statusMessage = body?.status === 'failed'
+          ? t('admin.spaces.reinitializeSamplesFailed')
+          : body?.status === 'partial'
+            ? t('admin.spaces.reinitializeSamplesPartial')
+            : body?.message ?? t('admin.spaces.reinitializeSamplesError');
+        throw new Error(`${statusMessage}${problems ? ` ${problems}` : ''}`);
+      }
       setNotice(t('admin.spaces.reinitializeSamplesSuccess'));
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('admin.spaces.reinitializeSamplesError'));
