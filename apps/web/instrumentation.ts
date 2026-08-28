@@ -52,13 +52,6 @@ export async function register() {
 }
 
 /**
- * Next.js's request-level error hook — the safety net for anything that
- * escapes a route handler's own try/catch (React Server Component render
- * errors, middleware, etc.). `withApiAudit`/`withPublicApi`/`handleApiError`
- * already log the exceptions they catch, so this necessarily overlaps with
- * them for API routes; it only adds coverage for what those can't see.
- */
-/**
  * Next.js populates this with a fixed set of enum-like descriptors (see
  * RequestErrorContext in next/dist/server/instrumentation/types) — never
  * request/response data. Read defensively (it's typed `unknown` here) and
@@ -76,6 +69,13 @@ function describeRequestErrorContext(context: unknown): Record<string, string> {
   return picked;
 }
 
+/**
+ * Next.js's request-level error hook — the safety net for anything that
+ * escapes a route handler's own try/catch (React Server Component render
+ * errors, middleware, etc.). `withApiAudit`/`withPublicApi`/`handleApiError`
+ * already log the exceptions they catch, so this necessarily overlaps with
+ * them for API routes; it only adds coverage for what those can't see.
+ */
 export async function onRequestError(
   error: unknown,
   request: Readonly<{ path: string; method: string }>,
