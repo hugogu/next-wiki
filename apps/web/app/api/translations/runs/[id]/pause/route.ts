@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createApiContext } from '@/server/api/session';
 import { uuidSchema } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as translations from '@/server/services/translations';
 
@@ -14,8 +13,7 @@ async function handlePOST(_request: NextRequest, { params }: { params: Promise<{
       status: 202,
     });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { pageMoveInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { uuidSchema, parseParams, parseJson, formatZodError } from '@/server/api/validate';
-import { apiError, mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { moveToSpace } from '@/server/services/pages';
 
@@ -27,8 +26,7 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
   try {
     return NextResponse.json(await moveToSpace(ctx, parsedId.data, parsedBody.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

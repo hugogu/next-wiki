@@ -26,6 +26,9 @@ export async function startAiProviderFixture(options: {
    * response remains in effect so a test cannot accidentally turn into an
    * unbounded empty stream. */
   textResponses?: string[];
+  /** OpenRouter-style in-band SSE error: a `chat.completion.chunk` with empty
+   * `choices` and an `error` field, instead of a non-2xx response. */
+  streamError?: { code?: number; message: string; errorType?: string };
 } = {}) {
   const requests: Array<{ path: string; body: unknown }> = [];
   const dimensions = options.embeddingDimensions ?? 3;
@@ -130,6 +133,18 @@ export async function startAiProviderFixture(options: {
       }
       response.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-cache' });
       if (options.malformed) return response.end('data: not-json\n\n');
+      if (options.streamError) {
+        const { code, message, errorType } = options.streamError;
+        response.write(
+          `data: ${JSON.stringify({
+            id: 'gen-fixture',
+            object: 'chat.completion.chunk',
+            choices: [],
+            error: { code, message, metadata: errorType ? { error_type: errorType } : undefined },
+          })}\n\n`,
+        );
+        return response.end();
+      }
       if (wantsTools && toolMode !== 'none') {
         for (const frame of openAiToolFrames(toolMode)) response.write(`data: ${frame}\n\n`);
         return response.end('data: [DONE]\n\n');

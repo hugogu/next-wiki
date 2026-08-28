@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSearchSettingsInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { readSearchSettings, updateSearchSettings } from '@/server/services/search-settings';
 
 /** @openapi @summary Get search settings @description Available to authenticated users; updates remain administrator-only. @tag Search Admin @auth bearer */
@@ -11,8 +10,7 @@ export async function GET() {
   try {
     return NextResponse.json(await readSearchSettings(await createApiContext()));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -23,7 +21,6 @@ export async function PATCH(request: NextRequest) {
   try {
     return NextResponse.json(await updateSearchSettings(await createApiContext(), parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { uuidSchema } from '@/server/api/validate';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as artifacts from '@/server/services/transfer-artifacts';
@@ -12,8 +11,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
   try {
     return NextResponse.json(await artifacts.get(await createApiContext(), id));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -24,8 +22,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
     await artifacts.remove(await createApiContext(), id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

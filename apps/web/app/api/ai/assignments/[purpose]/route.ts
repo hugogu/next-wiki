@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { aiAssignmentUpdateSchema, aiPurposeSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { assignPurpose } from '@/server/services/ai-admin';
 
 /**
@@ -30,7 +29,6 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       },
     ));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

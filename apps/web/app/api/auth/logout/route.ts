@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { internalError } from '@/server/api/errors';
 import * as authService from '@/server/services/auth';
+import { logger } from '@/server/logger';
 
 /**
  * Sign out.
@@ -16,7 +17,8 @@ export async function POST() {
   try {
     await authService.logout();
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    logger.exception('logout failed', error);
     return internalError();
   }
 }

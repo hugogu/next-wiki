@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { aiActionFeatureSchema, aiActionStatusSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { handleApiError } from '@/server/api/errors';
 import { listActions } from '@/server/services/ai-actions';
 
 /** @openapi @summary List AI action audit @tag AI @auth bearer */
@@ -28,7 +27,6 @@ export async function GET(request: NextRequest) {
       }),
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

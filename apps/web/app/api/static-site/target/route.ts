@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { staticSiteTargetUpsertSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { configureTarget, deleteTarget, getTarget } from '@/server/services/static-site';
 
@@ -11,8 +10,7 @@ async function handleGET() {
   try {
     return NextResponse.json(await getTarget(await createApiContext()));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -38,8 +36,7 @@ async function handlePUT(request: NextRequest) {
     // not exist yet when this returns.
     return NextResponse.json(result.view, { status: parsed.data.isEnabled ? 202 : 200 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -59,8 +56,7 @@ async function handleDELETE() {
     await deleteTarget(await createApiContext());
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

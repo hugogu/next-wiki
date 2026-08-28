@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createSkillInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { createSkill, listSkillsForAdmin } from '@/server/services/skills/admin';
 
 /**
@@ -19,8 +18,7 @@ export async function GET() {
   try {
     return NextResponse.json(await listSkillsForAdmin(await createApiContext()));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -40,7 +38,6 @@ export async function POST(request: NextRequest) {
       status: 201,
     });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

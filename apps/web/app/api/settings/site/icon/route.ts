@@ -1,8 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { clearIcon, getIcon, getSiteView, setIcon } from '@/server/services/site-settings';
+import { logger } from '@/server/logger';
 
 /**
  * @openapi
@@ -26,8 +26,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -50,15 +49,15 @@ export async function PUT(request: NextRequest) {
     }
     bytes = Buffer.from(await file.arrayBuffer());
     mime = file.type;
-  } catch {
+  } catch (error) {
+    logger.warnException('invalid multipart form data', error);
     return apiError('BAD_REQUEST', 'Invalid multipart form data', 400);
   }
   try {
     await setIcon(ctx, bytes, mime);
     return NextResponse.json(await getSiteView());
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -74,7 +73,6 @@ export async function DELETE() {
     await clearIcon(await createApiContext());
     return NextResponse.json(await getSiteView());
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

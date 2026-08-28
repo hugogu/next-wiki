@@ -123,7 +123,7 @@ async function executeExport(backendId: string): Promise<void> {
         updatedAt: new Date(),
       })
       .where(eq(schema.storageBackends.id, backendId));
-    logger.error('Git export failed', { backendId, error: message });
+    logger.exception('Git export failed', error, { backendId });
     throw error;
   } finally {
     await rm(temp, { recursive: true, force: true });

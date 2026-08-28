@@ -100,6 +100,32 @@ describe('OpenAI-compatible provider adapter', () => {
       await fixture.close();
     }
   });
+
+  it('surfaces an OpenRouter-style in-band SSE error instead of treating it as empty output', async () => {
+    const fixture = await startAiProviderFixture({
+      streamError: { code: 502, message: 'Upstream error from Nvidia: Service temporarily overloaded', errorType: 'provider_unavailable' },
+    });
+    try {
+      const adapter = new OpenAiCompatibleAdapter(config(fixture.baseUrl, 'openrouter'));
+      await expect(async () => {
+        for await (const event of adapter.streamText({
+          actionId: 'action',
+          modelExternalId: 'fixture/text',
+          system: 'system',
+          messages: [{ role: 'user', content: 'question' }],
+          abortSignal: new AbortController().signal,
+        })) {
+          void event;
+        }
+      }).rejects.toMatchObject({
+        code: 'PROVIDER_UNAVAILABLE',
+        retryable: true,
+        message: 'Upstream error from Nvidia: Service temporarily overloaded',
+      });
+    } finally {
+      await fixture.close();
+    }
+  });
 });
 
 /**

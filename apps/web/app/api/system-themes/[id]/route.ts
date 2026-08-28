@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { updateSystemThemeInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { deleteSystemTheme, getSystemTheme, updateSystemTheme } from '@/server/services/system-theme';
 
 const idSchema = z.string().uuid();
@@ -22,8 +21,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   try {
     return NextResponse.json(await getSystemTheme(await createApiContext(), id));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -43,8 +41,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   try {
     return NextResponse.json(await updateSystemTheme(await createApiContext(), id, parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -65,7 +62,6 @@ export async function DELETE(
     await deleteSystemTheme(await createApiContext(), id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

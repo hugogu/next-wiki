@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { translationPromptUpdateSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, uuidSchema } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as config from '@/server/services/translation-config';
 
@@ -17,8 +16,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
   try {
     return NextResponse.json(await config.getPrompt(await createApiContext(), id));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -30,8 +28,7 @@ async function handlePATCH(request: NextRequest, { params }: { params: Promise<{
   try {
     return NextResponse.json(await config.updatePrompt(await createApiContext(), id, parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -42,8 +39,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
     await config.retirePrompt(await createApiContext(), id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

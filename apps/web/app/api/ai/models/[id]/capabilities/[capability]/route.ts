@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { aiCapabilityOverrideSchema, aiCapabilitySchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { removeCapabilityOverride, setCapabilityOverride } from '@/server/services/ai-admin';
 
 type Params = { params: Promise<{ id: string; capability: string }> };
@@ -26,8 +25,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
     );
     return NextResponse.json({ ok: true });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -40,7 +38,6 @@ export async function DELETE(_request: NextRequest, { params }: Params) {
     await removeCapabilityOverride(await createApiContext(), values.id, capability.data);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { feishuRegistrationStartInputSchema } from '@next-wiki/shared';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { beginFeishuAppRegistration } from '@/server/services/feishu-app-registration';
 
 /**
@@ -24,7 +23,6 @@ export async function POST(request: NextRequest) {
       await beginFeishuAppRegistration(await createApiContext(), parsed.data),
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

@@ -181,13 +181,11 @@ function toSafeFailure(
         : 'The tool arguments were invalid. Check the argument names and types for this tool and retry.',
     );
   }
-  logger.error('tool execution threw an unrecognized error', {
+  logger.exception('tool execution threw an unrecognized error', error, {
     actionId: context.actionId,
     workflowId: context.workflowId,
     toolCallId: context.toolCallId,
     toolName: context.toolName,
-    errorName: error instanceof Error ? error.name : undefined,
-    errorMessage: error instanceof Error ? error.message : String(error),
   });
   return fail('TOOL_FAILED', 'The tool could not complete.', originalErrorDetail(error));
 }

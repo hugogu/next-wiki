@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { renderMarkdown } from '@/server/pipeline';
+import { logger } from '@/server/logger';
 
 const previewSchema = z.object({
   contentSource: z.string(),
@@ -26,7 +27,8 @@ export async function POST(request: Request) {
   try {
     const { html } = renderMarkdown(parsed.data.contentSource);
     return NextResponse.json({ html });
-  } catch {
+  } catch (error) {
+    logger.exception('render markdown preview failed', error);
     return NextResponse.json({ code: 'INTERNAL_ERROR', message: 'Failed to render preview' }, { status: 500 });
   }
 }

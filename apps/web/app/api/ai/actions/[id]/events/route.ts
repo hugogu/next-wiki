@@ -1,8 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { createActionEventStream } from '@/server/ai/events/action-events';
 import { getAnonymousAiAccessToken } from '@/server/services/auth';
 
@@ -29,7 +28,6 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       },
     });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

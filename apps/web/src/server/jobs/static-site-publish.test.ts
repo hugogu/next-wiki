@@ -126,7 +126,7 @@ describe('redactCredentials', () => {
     // A misconfigured remote can carry a credential the job never stored.
     const message = redactCredentials('fatal: https://someone:hunter2@github.com/o/r.git', null);
     expect(message).not.toContain('hunter2');
-    expect(message).toContain('[redacted]@');
+    expect(message).toContain('[REDACTED]@');
   });
 
   it('leaves an ordinary message alone', () => {

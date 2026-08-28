@@ -3,6 +3,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { EngineDeadlineExceeded } from '../deadline';
 import type { SearchCandidate, SearchEngine, SearchEngineQuery } from '../types';
+import { logger } from '@/server/logger';
 import {
   candidateWindow,
   collectCompletedLexicalWindows,
@@ -39,7 +40,7 @@ export function createFuzzyEngine(): SearchEngine {
         return { state: 'ready', candidates };
       } catch (error) {
         if (error instanceof EngineDeadlineExceeded) return { state: 'timed_out' };
-        console.error('fuzzy search engine failed:', error);
+        logger.exception('fuzzy search engine failed', error);
         return { state: 'failed' };
       }
     },

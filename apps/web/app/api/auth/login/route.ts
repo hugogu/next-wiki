@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { loginInputSchema, loginOutputSchema } from '@next-wiki/shared';
 import { parseJson, formatZodError } from '@/server/api/validate';
-import { apiError, mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import * as authService from '@/server/services/auth';
 
 /**
@@ -28,7 +27,6 @@ export async function POST(request: Request) {
     const output = loginOutputSchema.parse(result);
     return NextResponse.json(output);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

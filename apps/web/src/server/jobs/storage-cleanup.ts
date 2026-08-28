@@ -54,6 +54,7 @@ export async function runStorageCleanup(jobId: string): Promise<void> {
             .set({ deletedItems: deleted })
             .where(eq(schema.storageCleanupJobs.id, jobId));
         } catch (error) {
+          logger.exception('storage-cleanup: failed to delete key', error, { jobId, key });
           firstError ??= error instanceof Error ? error.message : String(error);
         }
       }
@@ -79,6 +80,7 @@ export async function runStorageCleanup(jobId: string): Promise<void> {
       })
       .where(eq(schema.storageBackends.id, backend.id));
   } catch (error) {
+    logger.exception('storage-cleanup failed', error, { jobId });
     await fail(jobId, error instanceof Error ? error.message : String(error));
   }
 }

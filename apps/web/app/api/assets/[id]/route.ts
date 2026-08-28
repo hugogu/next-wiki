@@ -8,6 +8,7 @@ import {
   UNAVAILABLE_IMAGE_BYTES,
   UNAVAILABLE_IMAGE_CONTENT_TYPE,
 } from '@/server/content-store/unavailable-image';
+import { logger } from '@/server/logger';
 
 const idSchema = z.string().uuid();
 
@@ -64,7 +65,8 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
       headers['Content-Disposition'] = 'inline';
     }
     return new NextResponse(new Uint8Array(result.bytes), { status: 200, headers });
-  } catch {
+  } catch (error) {
+    logger.exception('serve image asset failed', error, { id });
     return internalError();
   }
 }

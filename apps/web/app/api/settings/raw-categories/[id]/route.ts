@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { deleteCategory, retireCategory, updateCategory } from '@/server/services/raw-categories';
 
 export const dynamic = 'force-dynamic';
@@ -30,8 +29,7 @@ export async function PATCH(request: Request, { params }: Params) {
       : await updateCategory(ctx, id, parsed.data);
     return NextResponse.json(category);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -44,7 +42,6 @@ export async function DELETE(_request: Request, { params }: Params) {
     await deleteCategory(ctx, id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { migrationStartSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
-import { apiError, mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as migrationService from '@/server/services/migration';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
@@ -21,8 +20,7 @@ async function handlePOST(request: NextRequest) {
     await enqueue(QUEUES.migration, { migrationId: id });
     return NextResponse.json({ id, status: 'pending' }, { status: 202 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -32,8 +30,7 @@ async function handleGET() {
     const items = await migrationService.listMigrations(ctx);
     return NextResponse.json({ items });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

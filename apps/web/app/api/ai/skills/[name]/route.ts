@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { updateSkillInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import {
   deleteSkill,
   getSkillForAdmin,
@@ -21,8 +20,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   try {
     return NextResponse.json(await getSkillForAdmin(await createApiContext(), (await params).name));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -43,8 +41,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       await setSkillEnabledForAdmin(ctx, (await params).name, parsed.data.enabled),
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -64,7 +61,6 @@ export async function DELETE(
     await deleteSkill(await createApiContext(), (await params).name);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

@@ -1,4 +1,5 @@
 import { parse as parseYaml } from 'yaml';
+import { logger } from '@/server/logger';
 
 const FRONTMATTER_PATTERN = /^---\r?\n([\s\S]*?)\r?\n---\r?\n(?:\r?\n)?([\s\S]*)$/;
 
@@ -51,7 +52,7 @@ export function parsePageFrontmatter(markdown: string): {
     }
     return { frontmatter: parsed as Record<string, unknown>, markdown: body };
   } catch (error) {
-    console.warn('Failed to parse page frontmatter as YAML', error);
+    logger.warnException('Failed to parse page frontmatter as YAML', error);
     return { frontmatter: null, markdown: body };
   }
 }

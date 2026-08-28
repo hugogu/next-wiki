@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createApiContext } from '@/server/api/session';
 import { uuidSchema, parseParams, formatZodError } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { getPublication } from '@/server/services/static-site';
 
@@ -16,8 +15,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
     if (!run) return apiError('NOT_FOUND', 'Publish run not found', 404);
     return NextResponse.json(run);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

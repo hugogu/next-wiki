@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { writeSkillFileInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import {
   deleteSkillFileForAdmin,
   readSkillFileForAdmin,
@@ -46,8 +45,7 @@ export async function GET(request: NextRequest, { params }: Params) {
       await readSkillFileForAdmin(await createApiContext(), (await params).name, path),
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -70,8 +68,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
       await writeSkillFileForAdmin(await createApiContext(), (await params).name, path, parsed.data),
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -91,7 +88,6 @@ export async function DELETE(request: NextRequest, { params }: Params) {
     await deleteSkillFileForAdmin(await createApiContext(), (await params).name, path);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

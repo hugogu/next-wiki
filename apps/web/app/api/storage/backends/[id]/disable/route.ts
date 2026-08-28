@@ -2,9 +2,8 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { storageBackendDisableSchema } from '@next-wiki/shared';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { parseJson, formatZodError } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as storageConfig from '@/server/services/storage-config';
 import * as cleanup from '@/server/services/cleanup';
@@ -28,8 +27,7 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
     }
     return NextResponse.json(view);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

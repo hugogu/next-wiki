@@ -5,6 +5,7 @@ import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { DomainError } from '@/server/errors';
 import { internalError } from '@/server/api/errors';
 import { mapPublicDomainError, publicApiError, validationError } from '@/server/api/public-errors';
+import { logger } from '@/server/logger';
 import type { PermCtx } from '@/server/permissions';
 
 export type PublicRouteContext<TParams extends Record<string, string | string[]> = Record<string, string | string[]>> = {
@@ -30,7 +31,8 @@ export async function parsePublicJson<TOutput, TInput = TOutput>(
   let body: unknown;
   try {
     body = await request.json();
-  } catch {
+  } catch (error) {
+    logger.warnException('invalid JSON request body', error);
     return { ok: false, response: publicApiError('VALIDATION_FAILED', 'Invalid JSON request body', 422) };
   }
 
@@ -53,7 +55,8 @@ export async function parseOptionalPublicJson<TOutput, TInput = TOutput>(
   let body: unknown;
   try {
     body = JSON.parse(raw);
-  } catch {
+  } catch (error) {
+    logger.warnException('invalid JSON request body', error);
     return { ok: false, response: publicApiError('VALIDATION_FAILED', 'Invalid JSON request body', 422) };
   }
 
@@ -85,11 +88,20 @@ export function withPublicApi<TParams extends Record<string, string | string[]> 
 ): RouteHandler {
   return withApiAudit(async (request, context) => {
     const ctx = await createApiContext();
+    const method = request.method;
+    const path = new URL(request.url).pathname;
     try {
       return await handler(request, context as PublicRouteContext<TParams>, ctx);
     } catch (error) {
-      if (error instanceof DomainError) return mapPublicDomainError(error);
-      console.error('Unhandled public API error:', error);
+      if (error instanceof DomainError) {
+        // Deliberately omits error.message: DomainError messages are written
+        // for client display and can carry caller-supplied text (e.g. an
+        // invalid path echoed back), so they don't belong in server logs.
+        // The code is enough to identify what happened.
+        logger.warn('Public API domain error', { code: error.code, method, path });
+        return mapPublicDomainError(error);
+      }
+      logger.exception('Unhandled public API error', error, { method, path });
       return internalError();
     }
   });

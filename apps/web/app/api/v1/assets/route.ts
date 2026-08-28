@@ -1,6 +1,7 @@
 import { publicJson, withPublicApi } from '../_shared/route';
 import { publicApiError } from '@/server/api/public-errors';
 import * as publicContent from '@/server/services/public-content';
+import { logger } from '@/server/logger';
 
 /**
  * Upload a supported asset for Markdown insertion.
@@ -21,7 +22,8 @@ export const POST = withPublicApi(async (request, _context, ctx) => {
       return publicApiError('VALIDATION_FAILED', 'A file field is required', 422);
     }
     bytes = Buffer.from(await file.arrayBuffer());
-  } catch {
+  } catch (error) {
+    logger.warnException('invalid multipart form data', error);
     return publicApiError('VALIDATION_FAILED', 'Invalid multipart form data', 422);
   }
 

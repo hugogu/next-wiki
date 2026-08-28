@@ -14,6 +14,7 @@ import {
   type AiToolProposalEventPayload,
 } from '@next-wiki/shared';
 import type { TranslationKey } from '@/i18n/keys';
+import type { TranslateFunction } from '@/i18n/types';
 import { useTranslation } from '@/i18n/client';
 import { uuid } from '@/lib/uuid';
 
@@ -164,6 +165,23 @@ export function wikiAiErrorTranslationKey(error: {
   return 'ai.chat.errors.requestFailed';
 }
 
+/**
+ * The localized key alone collapses every provider/model-specific failure
+ * into one generic sentence per error code — useful as a guaranteed-safe
+ * fallback, but it hides the actual reason (e.g. an upstream provider's own
+ * error text relayed through OpenRouter's in-band error chunks). Append the
+ * server's specific message when there is one and it isn't just a repeat of
+ * the friendly text.
+ */
+export function wikiAiErrorDisplayMessage(
+  t: TranslateFunction,
+  error: { code?: unknown; message?: unknown },
+): string {
+  const friendly = t(wikiAiErrorTranslationKey(error));
+  const detail = typeof error.message === 'string' ? error.message.trim() : '';
+  return detail && detail !== friendly ? `${friendly} (${detail})` : friendly;
+}
+
 export async function startWikiQuestionAction(
   start: (
     path: string,
@@ -246,7 +264,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
       emitAnswer(assistantId, answerText);
     }
     if (event.type === 'citations') store.citations(assistantId, (event.payload.citations ?? []) as AiCitation[]);
-    if (event.type === 'error') store.fail(assistantId, t(wikiAiErrorTranslationKey(event.payload)));
+    if (event.type === 'error') store.fail(assistantId, wikiAiErrorDisplayMessage(t, event.payload));
     if (event.type === 'completed' || event.type === 'error') {
       const { answerText, thinkingText } = flushStreamState(stateRef.current);
       if (thinkingText) store.think(assistantId, thinkingText);
@@ -281,7 +299,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
         eventsUrl: `/api/ai/actions/${actionId}/events`,
       }, handleActionEvent(assistantId));
     } catch (error) {
-      store.fail(assistantId, t(wikiAiErrorTranslationKey(error as { code?: unknown; message?: unknown })));
+      store.fail(assistantId, wikiAiErrorDisplayMessage(t, error as { code?: unknown; message?: unknown }));
     }
   }, [action, handleActionEvent, store, t]);
 
@@ -315,7 +333,7 @@ export function useAiChat(currentPage?: { pageId: string; revisionId: string }) 
       // client-side (e.g. POST/EventSource interrupted by a proxy).
       store.setActionId(assistantId, accepted.id);
     } catch (error) {
-      store.fail(assistantId, t(wikiAiErrorTranslationKey(error as { code?: unknown; message?: unknown })));
+      store.fail(assistantId, wikiAiErrorDisplayMessage(t, error as { code?: unknown; message?: unknown }));
     }
   }
   return { ...store, ...action, ask, resume, cancel };

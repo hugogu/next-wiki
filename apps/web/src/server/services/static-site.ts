@@ -18,6 +18,7 @@ import { DomainError } from '@/server/errors';
 import { findIntegration, resolveCredential } from './integrations';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { buildGitEnvironment, git } from '@/server/git/transport';
+import { redactSensitiveText } from '@/server/logger';
 
 type TargetRow = typeof schema.staticSiteTargets.$inferSelect;
 type PublicationRow = typeof schema.staticSitePublications.$inferSelect;
@@ -269,12 +270,7 @@ export async function validateTarget(ctx: PermCtx): Promise<StaticSiteValidation
  * never displays a token by accident.
  */
 function redactValidationMessage(message: string, secret: string): string {
-  let output = message;
-  if (secret.length >= 8) {
-    output = output.split(secret).join('[redacted]');
-  }
-  output = output.replace(/(\w+:\/\/)[^/\s@]*@/g, '$1[redacted]@');
-  return output;
+  return redactSensitiveText(message, secret);
 }
 
 /**

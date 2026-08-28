@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { auditQueryParamsSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseQuery, formatZodError } from '@/server/api/validate';
-import { apiError, mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as auditService from '@/server/services/audit';
 
@@ -18,8 +17,7 @@ async function handleGET(request: NextRequest) {
     const result = await auditService.listOwn(ctx, parsed.data);
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

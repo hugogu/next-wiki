@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { integrationKindSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { deleteIntegration, getIntegration } from '@/server/services/integrations';
 
@@ -17,8 +16,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
   try {
     return NextResponse.json(await getIntegration(await createApiContext(), kind));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -42,8 +40,7 @@ async function handleDELETE(
     await deleteIntegration(await createApiContext(), kind);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

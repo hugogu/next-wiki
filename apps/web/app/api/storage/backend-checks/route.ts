@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { backendCheckSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
-import { apiError, mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as storageConfig from '@/server/services/storage-config';
 
@@ -19,8 +18,7 @@ async function handlePOST(request: NextRequest) {
     const result = await storageConfig.checkBackend(ctx, parsed.data);
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

@@ -1,6 +1,7 @@
 import { env } from '@/server/config';
 import {
   AiProviderError,
+  sanitizeProviderMessage,
   type AiProviderAdapter,
   type DiscoveredModel,
   type EmbeddingInput,
@@ -173,11 +174,45 @@ export class OpenAiCompatibleAdapter implements AiProviderAdapter {
               completion_tokens?: number;
               prompt_tokens_details?: { cached_tokens?: number };
             };
+            // OpenRouter-specific: a mid-stream upstream failure (e.g. the
+            // selected provider is overloaded) arrives as an otherwise normal
+            // `chat.completion.chunk` with empty `choices` and this `error`
+            // field set, rather than a non-2xx HTTP response or a connection
+            // drop. Every other provider signals failure one of those two
+            // ways, which is why this shape needs its own check.
+            error?: { code?: unknown; message?: unknown; metadata?: { error_type?: unknown } };
           };
           try {
             event = JSON.parse(data);
           } catch {
             throw new AiProviderError('INVALID_RESPONSE', 'Provider returned a malformed stream');
+          }
+          if (event.error) {
+            const providerError = event.error;
+            const message = typeof providerError.message === 'string' ? providerError.message : 'Provider reported an in-stream error';
+            // A numeric HTTP-style code (e.g. 502/503) or an explicit
+            // "provider_unavailable" type both mean the upstream is
+            // temporarily down, not that the request itself is invalid —
+            // mirrors the >=500 handling in http-client.ts's HTTP-level
+            // error mapping.
+            const isTransient =
+              (typeof providerError.code === 'number' && providerError.code >= 500) ||
+              providerError.metadata?.error_type === 'provider_unavailable';
+            throw new AiProviderError(
+              isTransient ? 'PROVIDER_UNAVAILABLE' : 'INVALID_RESPONSE',
+              message,
+              isTransient,
+              undefined,
+              // Mirrors http-client.ts's `{ response: { status, body } }` detail
+              // shape: sanitized/bounded the same way an HTTP error body is,
+              // since this is persisted and shown in the admin run-record viewer.
+              {
+                response: {
+                  status: typeof providerError.code === 'number' ? providerError.code : undefined,
+                  body: sanitizeProviderMessage(JSON.stringify(providerError)),
+                },
+              },
+            );
           }
           const choice = event.choices?.[0];
           const text = choice?.delta?.content;

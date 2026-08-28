@@ -7,6 +7,7 @@ import type {
 } from '@next-wiki/shared';
 import type { PermCtx } from '@/server/permissions';
 import * as searchAnalytics from '@/server/services/search-analytics';
+import { logger } from '@/server/logger';
 import { buildExcerpt, compactExcerpt, projectReadableCandidatePages } from './candidate-projection';
 import { fuseCandidates, type EngineContribution } from './ranking';
 import { productionSearchEngineRegistry, type SearchEngineRegistry } from './registry';
@@ -97,7 +98,7 @@ export async function runCoordinatedSearch(
     if (result.status === 'fulfilled') {
       outcomes.set(capability, result.value);
     } else {
-      console.error(`Search engine ${capability} threw:`, result.reason);
+      logger.exception(`Search engine ${capability} threw`, result.reason, { capability });
       outcomes.set(capability, { state: 'failed' });
     }
   });
@@ -223,7 +224,7 @@ async function persistRunTransitions(
       });
     } catch (error) {
       // Run bookkeeping must never turn readable results into a failed search.
-      console.error(`Failed to persist ${capability} search run transition:`, error);
+      logger.exception(`Failed to persist ${capability} search run transition`, error, { capability });
     }
   }));
 }

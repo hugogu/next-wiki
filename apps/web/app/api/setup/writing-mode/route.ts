@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { setupWritingModeInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { recordWritingMode } from '@/server/services/setup';
 
 export const dynamic = 'force-dynamic';
@@ -25,7 +24,6 @@ export async function PUT(request: NextRequest) {
     const ctx = await createApiContext();
     return NextResponse.json(await recordWritingMode(ctx.actor, parsed.data.mode));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
