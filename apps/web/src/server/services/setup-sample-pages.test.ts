@@ -165,6 +165,30 @@ describe('sample page writer (US3)', () => {
     expect(await findPageByPath('integrations/hermes')).toBeDefined();
   });
 
+  it('refreshes marker-owned pages when reinitializing after an example update', async () => {
+    const { actor } = await openSetupAtSampleStep();
+    await samplePages.generateSamplePages(actor);
+
+    const page = await findPageByPath('integrations/hermes');
+    expect(page).toBeDefined();
+    const published = await publishedRevisions('integrations/hermes');
+    const current = published.at(-1);
+    expect(current).toBeDefined();
+    const staleDraft = await pagesService.newDraft({ actor }, 'integrations/hermes', {
+      title: page!.title,
+      contentSource: `${current!.contentSource}\n\nStale example content.\n`,
+    });
+    await revisionsService.publish({ actor }, { path: 'integrations/hermes', version: staleDraft.versionNumber });
+
+    const wikiSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    const result = await samplePages.reinitializeSamplePages(actor, wikiSpace!.id);
+
+    expect(result.pages.find((item) => item.path === 'integrations/hermes')).toMatchObject({ status: 'updated' });
+    const refreshed = await publishedRevisions('integrations/hermes');
+    expect(refreshed).toHaveLength(3);
+    expect(refreshed.at(-1)!.contentSource).toBe(definitions.AGENT_MEMORY_PAGE_SOURCE);
+  });
+
   it('rejects reinitialization for non-Wiki spaces', async () => {
     await resetSetupOnboardingState();
     const { userId } = await createAdminUser();

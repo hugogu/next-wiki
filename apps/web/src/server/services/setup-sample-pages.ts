@@ -80,10 +80,26 @@ async function createPublishedPage(
 async function enrichWelcomePage(
   ctx: PermCtx,
   page: { id: string; path: string; title: string; currentPublishedVersionId: string | null },
+  refreshManaged: boolean,
 ): Promise<SetupSamplePageResult> {
   const source = await publishedSource(page.id, page.currentPublishedVersionId);
   if (source?.includes(ONBOARDING_LINKS_MARKER)) {
-    return { path: page.path, status: 'skipped', pageId: page.id };
+    // The welcome page may contain user-authored content before the managed
+    // links block. Refresh only that block when Admin explicitly reinitializes
+    // examples; a normal first-run retry remains idempotent.
+    if (!refreshManaged || !source.includes(SAMPLE_PAGE_MARKER)) {
+      return { path: page.path, status: 'skipped', pageId: page.id };
+    }
+    const markerIndex = source.indexOf(ONBOARDING_LINKS_MARKER);
+    const base = source.slice(0, markerIndex).trimEnd();
+    const refreshed = `${base}\n${ONBOARDING_WELCOME_LINKS_BLOCK}`;
+    if (refreshed === source) return { path: page.path, status: 'skipped', pageId: page.id };
+    const { versionNumber } = await pagesService.newDraft(ctx, page.path, {
+      title: page.title,
+      contentSource: refreshed,
+    });
+    await revisionsService.publish(ctx, { path: page.path, version: versionNumber });
+    return { path: page.path, status: 'updated', pageId: page.id };
   }
   const base = source ?? `# ${page.title}\n`;
   const enriched = `${base.trimEnd()}\n${ONBOARDING_WELCOME_LINKS_BLOCK}`;
@@ -98,8 +114,10 @@ async function enrichWelcomePage(
 async function writeSamplePage(
   ctx: PermCtx,
   input: { path: string; title: string; contentSource: string; legacyPath?: string },
+  refreshManaged: boolean,
 ): Promise<SetupSamplePageResult> {
   let existing = await findPage(input.path);
+  let movedLegacy = false;
   if (!existing && input.legacyPath) {
     const legacy = await findPage(input.legacyPath);
     const legacySource = legacy
@@ -115,7 +133,7 @@ async function writeSamplePage(
         slug: input.path,
       });
       existing = await findPage(input.path);
-      return { path: input.path, status: 'updated', pageId: existing?.id ?? legacy.id };
+      movedLegacy = true;
     }
   }
   if (!existing) {
@@ -124,7 +142,15 @@ async function writeSamplePage(
   }
   const source = await publishedSource(existing.id, existing.currentPublishedVersionId);
   if (source?.includes(SAMPLE_PAGE_MARKER)) {
-    return { path: input.path, status: 'skipped', pageId: existing.id };
+    if (refreshManaged && source !== input.contentSource) {
+      const { versionNumber } = await pagesService.newDraft(ctx, input.path, {
+        title: input.title,
+        contentSource: input.contentSource,
+      });
+      await revisionsService.publish(ctx, { path: input.path, version: versionNumber });
+      return { path: input.path, status: 'updated', pageId: existing.id };
+    }
+    return { path: input.path, status: movedLegacy ? 'updated' : 'skipped', pageId: existing.id };
   }
   // A user-authored page at a canonical sample path is never overwritten.
   return { path: input.path, status: 'collision', reason: 'A user-authored page already exists at this path' };
@@ -141,7 +167,7 @@ export async function generateSamplePages(actor: Actor): Promise<SetupSamplePage
   if (progress.currentStep !== 'sample_pages' && progress.currentStep !== 'summary') {
     throw new DomainError('BAD_REQUEST', 'Select a writing mode before configuring sample pages');
   }
-  return generateSamplePagesInternal(actor, true);
+  return generateSamplePagesInternal(actor, true, false);
 }
 
 function assertAdmin(actor: Actor): void {
@@ -152,8 +178,9 @@ function assertAdmin(actor: Actor): void {
 
 /**
  * Re-run managed sample-page initialization from Admin → Spaces after
- * first-run setup has closed. Only the built-in Wiki space is valid; page
- * generation remains collision-safe and idempotent.
+ * first-run setup has closed. Only the built-in Wiki space is valid; missing
+ * pages are created and marker-owned pages are refreshed without touching
+ * user-authored collisions.
  */
 export async function reinitializeSamplePages(actor: Actor, spaceId: string): Promise<SetupSamplePagesResponse> {
   assertAdmin(actor);
@@ -162,10 +189,14 @@ export async function reinitializeSamplePages(actor: Actor, spaceId: string): Pr
   if (space.kind !== 'wiki' || !wikiSpace || space.id !== wikiSpace.id) {
     throw new DomainError('BAD_REQUEST', 'Sample pages can only be initialized for the Wiki space');
   }
-  return generateSamplePagesInternal(actor, false);
+  return generateSamplePagesInternal(actor, false, true);
 }
 
-async function generateSamplePagesInternal(actor: Actor, recordSetupProgress: boolean): Promise<SetupSamplePagesResponse> {
+async function generateSamplePagesInternal(
+  actor: Actor,
+  recordSetupProgress: boolean,
+  refreshManaged: boolean,
+): Promise<SetupSamplePagesResponse> {
   const ctx = asCtx(actor);
 
   const results: SetupSamplePageResult[] = [];
@@ -174,7 +205,7 @@ async function generateSamplePagesInternal(actor: Actor, recordSetupProgress: bo
     const welcome = await findPage(SAMPLE_PAGE_PATHS.welcome);
     results.push(
       welcome
-        ? await enrichWelcomePage(ctx, welcome)
+        ? await enrichWelcomePage(ctx, welcome, refreshManaged)
         : {
             path: SAMPLE_PAGE_PATHS.welcome,
             status: 'created',
@@ -204,7 +235,7 @@ async function generateSamplePagesInternal(actor: Actor, recordSetupProgress: bo
     },
   ]) {
     try {
-      results.push(await writeSamplePage(ctx, definition));
+      results.push(await writeSamplePage(ctx, definition, refreshManaged));
     } catch (error) {
       results.push({
         path: definition.path,
