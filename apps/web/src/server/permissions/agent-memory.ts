@@ -9,6 +9,7 @@ export type AgentMemoryScope = 'memory.read' | 'memory.write' | 'memory.delete';
 export type AgentMemoryAccess = {
   keyId: string;
   userId: string;
+  connectionId: string | null;
   namespaceId: string;
   namespaceName: string;
   agentIdentity: string;
@@ -41,9 +42,17 @@ export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: Agen
     throw new DomainError('AGENT_MEMORY_NAMESPACE_UNAVAILABLE', 'The bound Agent memory destination is unavailable');
   }
 
+  const connection = binding.connectionId
+    ? await db.query.agentMemoryConnections.findFirst({ where: eq(schema.agentMemoryConnections.id, binding.connectionId) })
+    : null;
+  if (connection && (connection.ownerUserId !== ctx.actor.userId || connection.state !== 'active')) {
+    throw new DomainError('AGENT_MEMORY_NAMESPACE_UNAVAILABLE', 'The bound Agent memory connection is unavailable');
+  }
+
   return {
     keyId: ctx.actor.keyId,
     userId: ctx.actor.userId,
+    connectionId: connection?.id ?? null,
     namespaceId: binding.namespaceId,
     namespaceName: binding.namespace.displayName,
     agentIdentity: binding.agentIdentity,

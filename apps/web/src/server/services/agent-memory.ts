@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, or } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
@@ -13,15 +13,18 @@ import { resolveSpace } from '@/server/services/spaces';
 import { isLlmWikiMode } from '@/server/services/writing-mode';
 import { env } from '@/server/config';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
-import { agentMemoryEvidenceInputSchema } from '@next-wiki/shared';
-import type { ApiKeyScope, AgentMemoryEvidenceInput, AgentMemoryRecord, AgentMemorySaveInput } from '@next-wiki/shared';
+import { decryptAiJson, encryptAiJson } from '@/server/crypto/ai-encryption';
+import { agentMemoryEvidenceInputSchema, agentMemoryPromotionInputSchema, agentMemoryV2CaptureInputSchema, agentMemoryV2RecallInputSchema, agentMemoryV2SaveInputSchema } from '@next-wiki/shared';
+import type { ApiKeyScope, AgentMemoryEvidenceInput, AgentMemoryPromotionInput, AgentMemoryRecord, AgentMemorySaveInput, AgentMemoryV2CaptureInput, AgentMemoryV2RecallInput, AgentMemoryV2SaveInput, AgentMemoryV2Record } from '@next-wiki/shared';
+import { readableDestinationIds, writableDestinationIds } from '@/server/services/agent-memory-grants';
 
 const MEMORY_PAGE_PREFIX = 'agent-memory';
 const AGENT_MEMORY_CATEGORY_SYSTEM_KEY = 'agent-memory';
 const MAX_EXCERPT_LENGTH = 1_200;
+const CAPTURE_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 
 type MemoryRecordRow = typeof schema.agentMemoryRecords.$inferSelect;
-type EvidenceRelation = 'explicit_save' | 'automatic_capture' | 'checkpoint';
+type EvidenceRelation = 'explicit_save' | 'automatic_capture' | 'checkpoint' | 'promotion';
 
 function memoryRawContext(ctx: PermCtx): PermCtx {
   if (ctx.actor.kind !== 'api_key') {
@@ -122,6 +125,34 @@ async function recordToView(record: MemoryRecordRow): Promise<AgentMemoryRecord 
   };
 }
 
+async function recordToV2View(
+  ctx: PermCtx,
+  view: AgentMemoryRecord,
+  options: { allowWritableDestination?: boolean } = {},
+): Promise<AgentMemoryV2Record | null> {
+  const access = await requireAgentMemoryAccess(ctx, 'any');
+  const row = await db.query.agentMemoryRecords.findFirst({ where: eq(schema.agentMemoryRecords.id, view.memoryId) });
+  if (!row || row.state !== 'active') return null;
+  const readable = await readableDestinationIds(access);
+  const writable = options.allowWritableDestination ? await writableDestinationIds(access) : [];
+  const mayReadOwnWrite = options.allowWritableDestination
+    && row.authorConnectionId === access.connectionId
+    && writable.includes(row.namespaceId);
+  if (!readable.includes(row.namespaceId) && !mayReadOwnWrite) return null;
+  const namespace = await db.query.agentMemoryNamespaces.findFirst({ where: eq(schema.agentMemoryNamespaces.id, row.namespaceId) });
+  const authorConnectionId = row.authorConnectionId;
+  if (!namespace || namespace.state !== 'active' || !authorConnectionId) return null;
+  const freshView = await recordToView(row);
+  if (!freshView) return null;
+  return {
+    ...freshView,
+    role: row.recordRole,
+    origin: row.origin,
+    destinationRole: namespace.role,
+    authorConnectionId,
+  };
+}
+
 function citation(
   page: typeof schema.pages.$inferSelect,
   revision: typeof schema.pageRevisions.$inferSelect,
@@ -138,12 +169,17 @@ function citation(
   };
 }
 
-async function existingByIdempotency(namespaceId: string, agentIdentity: string, idempotencyKey: string): Promise<MemoryRecordRow | null> {
+async function existingByIdempotency(namespaceId: string, agentIdentity: string, idempotencyKey: string, connectionId?: string | null): Promise<MemoryRecordRow | null> {
   return (await db.query.agentMemoryRecords.findFirst({
     where: and(
       eq(schema.agentMemoryRecords.namespaceId, namespaceId),
-      eq(schema.agentMemoryRecords.agentIdentity, agentIdentity),
       eq(schema.agentMemoryRecords.idempotencyKey, idempotencyKey),
+      connectionId
+        ? or(
+            eq(schema.agentMemoryRecords.authorConnectionId, connectionId),
+            and(isNull(schema.agentMemoryRecords.authorConnectionId), eq(schema.agentMemoryRecords.agentIdentity, agentIdentity)),
+          )
+        : eq(schema.agentMemoryRecords.agentIdentity, agentIdentity),
     ),
   })) ?? null;
 }
@@ -194,9 +230,11 @@ async function createRecord(
     sourceSessionDigest?: string;
     evidenceIds?: string[];
     relation?: EvidenceRelation;
+    role?: 'evidence' | 'synthesis' | 'curated';
+    origin?: 'explicit_save' | 'automatic_capture' | 'checkpoint' | 'import' | 'promotion';
   },
 ): Promise<{ record: AgentMemoryRecord; idempotent: boolean }> {
-  const existing = await existingByIdempotency(access.namespaceId, access.agentIdentity, input.idempotencyKey);
+  const existing = await existingByIdempotency(access.namespaceId, access.agentIdentity, input.idempotencyKey, access.connectionId);
   if (existing) {
     await assertMatchingIdempotentRecord(existing, input);
     const view = await recordToView(existing);
@@ -231,6 +269,9 @@ async function createRecord(
         id: recordId,
         namespaceId: access.namespaceId,
         agentIdentity: access.agentIdentity,
+        authorConnectionId: access.connectionId,
+        recordRole: input.role ?? (input.type === 'evidence' ? 'evidence' : 'synthesis'),
+        origin: input.origin ?? (input.type === 'evidence' ? 'automatic_capture' : 'explicit_save'),
         recordType: input.type,
         pageId: page.pageId,
         currentRevisionId: page.versionId,
@@ -256,7 +297,7 @@ async function createRecord(
     // The Raw path is deterministic for the idempotency key, so a retry cannot
     // create a second indexed source entry. The winner remains the only Agent Memory
     // projection for this key.
-    const winner = await existingByIdempotency(access.namespaceId, access.agentIdentity, input.idempotencyKey);
+    const winner = await existingByIdempotency(access.namespaceId, access.agentIdentity, input.idempotencyKey, access.connectionId);
     if (winner) {
       await assertMatchingIdempotentRecord(winner, input);
       const view = await recordToView(winner);
@@ -324,6 +365,48 @@ export async function save(ctx: PermCtx, input: AgentMemorySaveInput): Promise<{
   });
 }
 
+/** v2 save keeps the same canonical Raw writer but accepts only closed provenance enums. */
+export async function saveV2(ctx: PermCtx, input: AgentMemoryV2SaveInput): Promise<{ record: AgentMemoryV2Record; idempotent: boolean }> {
+  const parsed = agentMemoryV2SaveInputSchema.safeParse(input);
+  if (!parsed.success) throw new DomainError('BAD_REQUEST', 'Agent memory record input is invalid');
+  const access = await requireAgentMemoryAccess(ctx, 'memory.write');
+  if (!access.connectionId) {
+    const namespace = await db.query.agentMemoryNamespaces.findFirst({
+      where: eq(schema.agentMemoryNamespaces.id, access.namespaceId),
+      columns: { role: true },
+    });
+    if (namespace?.role === 'shared') {
+      throw new DomainError('FORBIDDEN', 'A stable connection and owner-managed write grant are required for shared Agent memory writes');
+    }
+  }
+  const writable = await writableDestinationIds(access);
+  if (!writable.includes(access.namespaceId)) throw new DomainError('AGENT_MEMORY_SCOPE_REQUIRED', 'The connection has no writable destination');
+  // A write grant is an owner-managed server binding. If one exists, it is the
+  // selected destination for this credential; the request never supplies an
+  // arbitrary destination identifier. Otherwise writes stay private.
+  const destinationId = writable.find((id) => id !== access.namespaceId) ?? access.namespaceId;
+  const targetAccess = destinationId === access.namespaceId
+    ? access
+    : { ...access, namespaceId: destinationId, namespaceName: 'Agent memory' };
+  if ((parsed.data.role === 'curated' || parsed.data.origin === 'promotion') && ctx.actor.kind !== 'user') {
+    throw new DomainError('FORBIDDEN', 'Promotion is owner-authorized only');
+  }
+  const result = await createRecord(ctx, targetAccess, {
+    type: 'memory',
+    idempotencyKey: parsed.data.idempotencyKey,
+    title: parsed.data.title ?? 'Agent memory',
+    content: parsed.data.content,
+    tags: parsed.data.tags,
+    evidenceIds: parsed.data.evidenceIds,
+    relation: 'explicit_save',
+    role: parsed.data.role,
+    origin: parsed.data.origin,
+  });
+  const record = await recordToV2View(ctx, result.record, { allowWritableDestination: true });
+  if (!record) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The saved memory record is unavailable');
+  return { record, idempotent: result.idempotent };
+}
+
 export async function recall(ctx: PermCtx, query: string, limit: number): Promise<AgentMemoryRecord[]> {
   const access = await requireAgentMemoryAccess(ctx, 'memory.read');
   const candidates = await db.query.agentMemoryRecords.findMany({
@@ -351,7 +434,72 @@ export async function recall(ctx: PermCtx, query: string, limit: number): Promis
     .map(({ view }) => view);
 }
 
+export async function recallV2(ctx: PermCtx, input: AgentMemoryV2RecallInput): Promise<AgentMemoryV2Record[]> {
+  const parsed = agentMemoryV2RecallInputSchema.safeParse(input);
+  if (!parsed.success) throw new DomainError('BAD_REQUEST', 'Agent memory recall input is invalid');
+  const access = await requireAgentMemoryAccess(ctx, 'memory.read');
+  const destinationIds = parsed.data.scope === 'own'
+    ? [access.namespaceId]
+    : await readableDestinationIds(access, { includeOwn: parsed.data.scope === 'own_and_granted' });
+  if (!destinationIds.length) return [];
+  const candidates = await db.query.agentMemoryRecords.findMany({
+    where: and(
+      inArray(schema.agentMemoryRecords.namespaceId, destinationIds),
+      inArray(schema.agentMemoryRecords.recordType, ['memory', 'evidence']),
+      eq(schema.agentMemoryRecords.state, 'active'),
+    ),
+    orderBy: (records, { desc }) => [desc(records.updatedAt)],
+    limit: Math.max((parsed.data.limit ?? 5) * 4, parsed.data.limit ?? 5),
+  });
+  const scored = await Promise.all(candidates.map(async (record) => {
+    const view = await recordToView(record);
+    return view ? { view, score: lexicalScore(parsed.data.query, view.excerpt, view.title) } : null;
+  }));
+  const records = scored
+    .filter((item): item is { view: AgentMemoryRecord; score: number } => item !== null && item.score > 0)
+    .sort((left, right) => right.score - left.score)
+    .slice(0, parsed.data.limit ?? 5)
+    .map(({ view }) => view);
+  const enriched = await Promise.all(records.map((record) => recordToV2View(ctx, record)));
+  return enriched.filter((record): record is AgentMemoryV2Record => record !== null);
+}
+
+export async function getV2Connection(ctx: PermCtx) {
+  const access = await requireAgentMemoryAccess(ctx, 'any');
+  if (!access.connectionId) throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to a stable Agent memory connection');
+  const connection = await db.query.agentMemoryConnections.findFirst({
+    where: eq(schema.agentMemoryConnections.id, access.connectionId),
+    with: { namespace: true },
+  });
+  if (!connection || connection.state !== 'active' || connection.namespace.state !== 'active') {
+    throw new DomainError('AGENT_MEMORY_NAMESPACE_UNAVAILABLE', 'The Agent memory connection is unavailable');
+  }
+  const scopes = ctx.actor.kind === 'api_key' ? ctx.actor.scopes : [];
+  return {
+    connectionId: connection.id,
+    agentIdentity: connection.agentIdentity,
+    displayLabel: connection.displayLabel,
+    state: connection.state,
+    capabilities: {
+      recall: scopes.includes('memory.read'),
+      save: scopes.includes('memory.write'),
+      forget: scopes.includes('memory.delete'),
+      capture: scopes.includes('memory.write'),
+    },
+    limits: { maxRecallResults: 10, maxSaveCharacters: 16_000, maxEvidenceCharacters: 64_000 },
+  } as const;
+}
+
 export async function forget(ctx: PermCtx, memoryId: string): Promise<{ memoryId: string; state: 'forgotten'; forgottenAt: string }> {
+  const result = await updateRecordState(ctx, memoryId, 'forgotten');
+  return { memoryId: result.memoryId, state: 'forgotten', forgottenAt: result.forgottenAt ?? new Date().toISOString() };
+}
+
+export async function updateRecordState(
+  ctx: PermCtx,
+  memoryId: string,
+  state: 'active' | 'forgotten' | 'archived',
+): Promise<{ memoryId: string; state: 'active' | 'forgotten' | 'archived'; forgottenAt: string | null }> {
   const access = await requireAgentMemoryAccess(ctx, 'memory.delete');
   const record = await db.query.agentMemoryRecords.findFirst({
     where: and(
@@ -362,17 +510,98 @@ export async function forget(ctx: PermCtx, memoryId: string): Promise<{ memoryId
     ),
   });
   if (!record) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'Memory record not found');
-  if (record.state === 'forgotten') {
-    return { memoryId: record.id, state: 'forgotten', forgottenAt: record.forgottenAt?.toISOString() ?? record.updatedAt.toISOString() };
-  }
+  if (record.state === state) return { memoryId: record.id, state, forgottenAt: record.forgottenAt?.toISOString() ?? null };
   const now = new Date();
-  await db.update(schema.agentMemoryRecords).set({ state: 'forgotten', forgottenAt: now, updatedAt: now }).where(eq(schema.agentMemoryRecords.id, record.id));
-  return { memoryId: record.id, state: 'forgotten', forgottenAt: now.toISOString() };
+  const forgottenAt = state === 'forgotten' ? now : state === 'active' ? null : record.forgottenAt;
+  await db.update(schema.agentMemoryRecords).set({ state, forgottenAt, updatedAt: now }).where(eq(schema.agentMemoryRecords.id, record.id));
+  return { memoryId: record.id, state, forgottenAt: forgottenAt?.toISOString() ?? null };
+}
+
+/**
+ * Owner-authorized promotion creates a new curated record in a shared
+ * destination and links it to the original evidence. It intentionally uses
+ * the normal Raw writer, so the promoted body receives the same revision,
+ * indexing, and retention treatment as every other memory record.
+ */
+export async function promoteRecord(
+  ctx: PermCtx,
+  connectionId: string,
+  input: AgentMemoryPromotionInput,
+): Promise<{ record: AgentMemoryRecord; idempotent: boolean }> {
+  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'Only the Wiki owner can promote Agent memory');
+  }
+  const parsed = agentMemoryPromotionInputSchema.safeParse(input);
+  if (!parsed.success) throw new DomainError('BAD_REQUEST', 'Promotion input is invalid');
+  await assertRawMemoryReady();
+
+  const source = await db.query.agentMemoryRecords.findFirst({ where: eq(schema.agentMemoryRecords.id, parsed.data.sourceMemoryId) });
+  if (!source || source.state !== 'active' || source.authorConnectionId === null) {
+    throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The source memory is unavailable');
+  }
+  const [connection, destination] = await Promise.all([
+    db.query.agentMemoryConnections.findFirst({
+      where: and(eq(schema.agentMemoryConnections.id, source.authorConnectionId), eq(schema.agentMemoryConnections.ownerUserId, ctx.actor.userId)),
+    }),
+    db.query.agentMemoryNamespaces.findFirst({
+      where: and(eq(schema.agentMemoryNamespaces.id, parsed.data.destinationId), eq(schema.agentMemoryNamespaces.ownerUserId, ctx.actor.userId)),
+    }),
+  ]);
+  if (!connection || connection.state !== 'active') throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The source memory is unavailable');
+  if (connection.id !== connectionId) throw new DomainError('FORBIDDEN', 'The source memory is not owned by this connection');
+  if (!destination || destination.state !== 'active' || destination.role !== 'shared') {
+    throw new DomainError('FORBIDDEN', 'Promotion requires an active shared destination owned by the current user');
+  }
+
+  const existing = await existingByIdempotency(destination.id, source.agentIdentity, parsed.data.idempotencyKey, source.authorConnectionId);
+  if (existing) {
+    await assertMatchingIdempotentRecord(existing, { type: 'memory', title: parsed.data.title, content: parsed.data.content });
+    const view = await recordToView(existing);
+    if (!view) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The promoted memory is unavailable');
+    return { record: view, idempotent: true };
+  }
+
+  const categoryId = await ensureAgentMemoryCategory();
+  const page = await rawEntries.createEntry(ctx, {
+    path: memoryPath(destination.id, source.agentIdentity, 'memory', parsed.data.idempotencyKey),
+    title: parsed.data.title,
+    inputKind: 'manual-note',
+    source: { provider: 'agent-memory' },
+    additionalSourceMetadata: {
+      origin: 'promotion',
+      sourceRecordId: source.id,
+      sourceRevisionId: source.currentRevisionId,
+    },
+    content: parsed.data.content,
+    visibility: 'restricted',
+    categoryId,
+  });
+  const [record] = await db.insert(schema.agentMemoryRecords).values({
+    namespaceId: destination.id,
+    agentIdentity: source.agentIdentity,
+    authorConnectionId: source.authorConnectionId,
+    recordRole: 'curated',
+    origin: 'promotion',
+    recordType: 'memory',
+    pageId: page.pageId,
+    currentRevisionId: page.versionId,
+    idempotencyKey: parsed.data.idempotencyKey,
+  }).returning();
+  if (!record) throw new Error('AGENT_MEMORY_RECORD_INSERT_FAILED');
+  await db.insert(schema.agentMemoryEvidenceLinks).values({
+    memoryRecordId: record.id,
+    evidenceRecordId: source.id,
+    relation: 'promotion',
+  });
+  const view = await recordToView(record);
+  if (!view) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The promoted memory is unavailable');
+  return { record: view, idempotent: false };
 }
 
 export async function createEvidenceRecord(
   ctx: PermCtx,
   input: AgentMemoryEvidenceInput,
+  options: { origin?: 'automatic_capture' | 'checkpoint' } = {},
 ): Promise<{ record: AgentMemoryRecord; idempotent: boolean }> {
   const access = await requireAgentMemoryAccess(ctx, 'memory.write');
   const content = input.messages.map((message) => `## ${message.role}\n\n${message.content}`).join('\n\n');
@@ -382,7 +611,28 @@ export async function createEvidenceRecord(
     title: input.checkpoint ? 'Agent checkpoint evidence' : 'Agent conversation evidence',
     content,
     sourceSessionDigest: input.sessionDigest,
+    role: 'evidence',
+    origin: options.origin ?? (input.checkpoint ? 'checkpoint' : 'automatic_capture'),
   });
+}
+
+export async function saveEvidenceV2(ctx: PermCtx, input: AgentMemoryV2CaptureInput): Promise<{ record: AgentMemoryV2Record; idempotent: boolean }> {
+  const parsed = agentMemoryV2CaptureInputSchema.safeParse(input);
+  if (!parsed.success) throw new DomainError('BAD_REQUEST', 'Agent memory evidence input is invalid');
+  const access = await requireAgentMemoryAccess(ctx, 'memory.write');
+  const content = parsed.data.messages.map((message) => `## ${message.role}\n\n${message.content}`).join('\n\n');
+  const result = await createRecord(ctx, access, {
+    type: 'evidence',
+    idempotencyKey: parsed.data.idempotencyKey,
+    title: parsed.data.checkpoint ? 'Agent checkpoint evidence' : 'Agent conversation evidence',
+    content,
+    sourceSessionDigest: parsed.data.sessionDigest,
+    role: 'evidence',
+    origin: parsed.data.origin,
+  });
+  const record = await recordToV2View(ctx, result.record, { allowWritableDestination: true });
+  if (!record) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The saved evidence record is unavailable');
+  return { record, idempotent: result.idempotent };
 }
 
 export type AgentMemoryCaptureSubmission = {
@@ -394,15 +644,16 @@ export type AgentMemoryCaptureSubmission = {
 
 export async function submitEvidenceCapture(
   ctx: PermCtx,
-  input: AgentMemoryEvidenceInput,
+  input: AgentMemoryEvidenceInput | AgentMemoryV2CaptureInput,
 ): Promise<AgentMemoryCaptureSubmission> {
-  const parsedInput = agentMemoryEvidenceInputSchema.safeParse(input);
+  const parsedInput = agentMemoryV2CaptureInputSchema.safeParse(input);
   if (!parsedInput.success) {
     throw new DomainError('AGENT_MEMORY_EVIDENCE_INVALID', 'Evidence capture payload is invalid or exceeds the configured limits');
   }
   const normalizedInput = parsedInput.data;
   const access = await requireAgentMemoryAccess(ctx, 'memory.write');
   const payloadDigest = evidencePayloadDigest(normalizedInput);
+  const payloadEncrypted = encryptAiJson({ messages: normalizedInput.messages });
   return db.transaction(async (tx) => {
     let [capture] = await tx
       .select()
@@ -432,9 +683,12 @@ export async function submitEvidenceCapture(
           id: captureId,
           namespaceId: access.namespaceId,
           apiKeyId: access.keyId,
+          connectionId: access.connectionId,
           agentIdentity: access.agentIdentity,
           idempotencyKey: normalizedInput.idempotencyKey,
           payloadDigest,
+          payloadEncrypted,
+          captureKind: normalizedInput.origin,
           sessionDigest: normalizedInput.sessionDigest,
           checkpoint: normalizedInput.checkpoint,
         })
@@ -465,9 +719,14 @@ export async function submitEvidenceCapture(
 
     if (capture.payloadDigest === 'legacy') {
       await tx.update(schema.agentMemoryCaptures)
-        .set({ payloadDigest, updatedAt: new Date() })
+        .set({ payloadDigest, payloadEncrypted, updatedAt: new Date() })
         .where(eq(schema.agentMemoryCaptures.id, capture.id));
-      capture = { ...capture, payloadDigest };
+      capture = { ...capture, payloadDigest, payloadEncrypted };
+    } else if (!capture.payloadEncrypted) {
+      await tx.update(schema.agentMemoryCaptures)
+        .set({ payloadEncrypted, updatedAt: new Date() })
+        .where(eq(schema.agentMemoryCaptures.id, capture.id));
+      capture = { ...capture, payloadEncrypted };
     }
 
     if (capture.status === 'durable' || capture.status === 'running' || (capture.status === 'queued' && capture.jobId)) {
@@ -485,7 +744,6 @@ export async function submitEvidenceCapture(
     try {
       jobId = await enqueue(QUEUES.agentMemoryCapture, {
         captureId: capture.id,
-        messages: normalizedInput.messages,
       }, {
         singletonKey: capture.id,
         singletonSeconds: 60,
@@ -545,7 +803,7 @@ export async function getEvidenceCapture(ctx: PermCtx, captureId: string): Promi
 }
 
 export async function runEvidenceCapture(
-  data: { captureId: string; messages: AgentMemoryEvidenceInput['messages'] },
+  data: { captureId: string },
 ): Promise<void> {
   const capture = await db.query.agentMemoryCaptures.findFirst({ where: eq(schema.agentMemoryCaptures.id, data.captureId) });
   // submitEvidenceCapture publishes the pg-boss job while its reservation
@@ -554,11 +812,32 @@ export async function runEvidenceCapture(
   // acknowledging a job that would otherwise be lost.
   if (!capture) throw new Error('AGENT_MEMORY_CAPTURE_NOT_VISIBLE');
   if (capture.status === 'durable' || capture.status === 'cancelled') return;
+  if (Date.now() - capture.createdAt.getTime() > CAPTURE_TTL_MS) {
+    await db.update(schema.agentMemoryCaptures)
+      .set({ status: 'failed', failureCode: 'AGENT_MEMORY_CAPTURE_EXPIRED', payloadEncrypted: null, updatedAt: new Date() })
+      .where(and(eq(schema.agentMemoryCaptures.id, capture.id), inArray(schema.agentMemoryCaptures.status, ['queued', 'running', 'failed'])));
+    return;
+  }
+  if (!capture.payloadEncrypted) {
+    await db.update(schema.agentMemoryCaptures)
+      .set({ status: 'failed', failureCode: 'AGENT_MEMORY_EVIDENCE_PAYLOAD_UNAVAILABLE', updatedAt: new Date() })
+      .where(and(eq(schema.agentMemoryCaptures.id, capture.id), inArray(schema.agentMemoryCaptures.status, ['queued', 'running', 'failed'])));
+    return;
+  }
+  let messages: AgentMemoryEvidenceInput['messages'];
+  try {
+    messages = decryptAiJson<{ messages: AgentMemoryEvidenceInput['messages'] }>(capture.payloadEncrypted).messages;
+  } catch {
+    await db.update(schema.agentMemoryCaptures)
+      .set({ status: 'failed', failureCode: 'AGENT_MEMORY_EVIDENCE_PAYLOAD_UNAVAILABLE', updatedAt: new Date() })
+      .where(and(eq(schema.agentMemoryCaptures.id, capture.id), inArray(schema.agentMemoryCaptures.status, ['queued', 'running', 'failed'])));
+    return;
+  }
   const parsedInput = agentMemoryEvidenceInputSchema.safeParse({
     idempotencyKey: capture.idempotencyKey,
     sessionDigest: capture.sessionDigest,
     checkpoint: capture.checkpoint,
-    messages: data.messages,
+    messages,
   });
   if (!parsedInput.success) {
     await db.update(schema.agentMemoryCaptures)
@@ -597,10 +876,15 @@ export async function runEvidenceCapture(
   if (!claimed) return;
 
   try {
-    const key = await db.query.apiKeys.findFirst({
-      where: and(eq(schema.apiKeys.id, capture.apiKeyId), isNull(schema.apiKeys.revokedAt)),
-      with: { user: true },
-    });
+    const key = capture.connectionId
+      ? (await db.query.agentMemoryKeyBindings.findMany({
+          where: eq(schema.agentMemoryKeyBindings.connectionId, capture.connectionId),
+          with: { key: { with: { user: true } } },
+        })).map((binding) => binding.key).find((candidate) => !candidate.revokedAt)
+      : await db.query.apiKeys.findFirst({
+          where: and(eq(schema.apiKeys.id, capture.apiKeyId), isNull(schema.apiKeys.revokedAt)),
+          with: { user: true },
+        });
     if (!key || key.user.status === 'disabled') {
       throw new DomainError('UNAUTHORIZED', 'The Agent memory key is no longer active');
     }
@@ -623,9 +907,9 @@ export async function runEvidenceCapture(
       sessionDigest: capture.sessionDigest,
       checkpoint: capture.checkpoint,
       messages: parsedInput.data.messages,
-    });
+    }, { origin: capture.captureKind === 'checkpoint' ? 'checkpoint' : 'automatic_capture' });
     await db.update(schema.agentMemoryCaptures)
-      .set({ status: 'durable', evidenceRecordId: result.record.memoryId, failureCode: null, updatedAt: new Date() })
+      .set({ status: 'durable', evidenceRecordId: result.record.memoryId, payloadEncrypted: null, failureCode: null, updatedAt: new Date() })
       .where(and(eq(schema.agentMemoryCaptures.id, capture.id), eq(schema.agentMemoryCaptures.status, 'running')));
   } catch (error) {
     const failureCode = error instanceof DomainError ? error.code : 'AGENT_MEMORY_CAPTURE_FAILED';

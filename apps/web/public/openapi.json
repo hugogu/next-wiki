@@ -382,6 +382,42 @@
           "forgottenAt"
         ]
       },
+      "AgentMemoryPromotionInput": {
+        "type": "object",
+        "properties": {
+          "sourceMemoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "destinationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16000
+          }
+        },
+        "required": [
+          "sourceMemoryId",
+          "destinationId",
+          "idempotencyKey",
+          "title",
+          "content"
+        ],
+        "description": "Owner-authorized promotion into a shared destination."
+      },
       "AgentMemoryRecallInput": {
         "type": "object",
         "properties": {
@@ -458,7 +494,8 @@
             "type": "string",
             "enum": [
               "active",
-              "forgotten"
+              "forgotten",
+              "archived"
             ]
           },
           "title": {
@@ -484,7 +521,8 @@
                   "enum": [
                     "explicit_save",
                     "automatic_capture",
-                    "checkpoint"
+                    "checkpoint",
+                    "promotion"
                   ]
                 },
                 "citation": {
@@ -508,6 +546,42 @@
           "citation",
           "evidence"
         ]
+      },
+      "AgentMemoryRecordLifecycleInput": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "forgotten",
+              "archived"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "description": "Reversible recall-state change. Source pages and revisions are never deleted."
+      },
+      "AgentMemoryRetentionInput": {
+        "type": "object",
+        "properties": {
+          "retentionDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3650
+          }
+        },
+        "required": [
+          "retentionDays"
+        ],
+        "description": "Owner-selected retention metadata; it never expands access or deletes canonical revisions."
       },
       "AgentMemorySaveInput": {
         "type": "object",
@@ -556,6 +630,393 @@
         "properties": {
           "record": {
             "$ref": "#/components/schemas/AgentMemoryRecord"
+          },
+          "idempotent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "record",
+          "idempotent"
+        ]
+      },
+      "AgentMemoryV2CaptureInput": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "sessionDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{32,128}$"
+          },
+          "checkpoint": {
+            "type": "boolean"
+          },
+          "messages": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "role": {
+                  "type": "string",
+                  "enum": [
+                    "user",
+                    "assistant"
+                  ]
+                },
+                "content": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64000
+                }
+              },
+              "required": [
+                "role",
+                "content"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 100
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "automatic_capture",
+              "checkpoint"
+            ],
+            "default": "automatic_capture"
+          }
+        },
+        "required": [
+          "idempotencyKey",
+          "sessionDigest",
+          "checkpoint",
+          "messages",
+          "origin"
+        ],
+        "description": "Write or queue a bounded evidence record without exposing raw content in generic queue data."
+      },
+      "AgentMemoryV2Connection": {
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agentIdentity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "displayLabel": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled",
+              "revoked"
+            ]
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "recall": {
+                "type": "boolean"
+              },
+              "save": {
+                "type": "boolean"
+              },
+              "forget": {
+                "type": "boolean"
+              },
+              "capture": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "recall",
+              "save",
+              "forget",
+              "capture"
+            ]
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "maxRecallResults": {
+                "type": "integer"
+              },
+              "maxSaveCharacters": {
+                "type": "integer"
+              },
+              "maxEvidenceCharacters": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "maxRecallResults",
+              "maxSaveCharacters",
+              "maxEvidenceCharacters"
+            ]
+          }
+        },
+        "required": [
+          "connectionId",
+          "agentIdentity",
+          "displayLabel",
+          "state",
+          "capabilities",
+          "limits"
+        ],
+        "description": "Stable Agent Memory v2 connection capabilities without grant inventory."
+      },
+      "AgentMemoryV2RecallInput": {
+        "type": "object",
+        "properties": {
+          "query": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "own",
+              "granted",
+              "own_and_granted"
+            ],
+            "default": "granted"
+          },
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10
+          }
+        },
+        "required": [
+          "query",
+          "scope"
+        ],
+        "description": "Bounded recall intent; destination and grant identifiers are server-derived."
+      },
+      "AgentMemoryV2RecallResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AgentMemoryV2Record"
+            }
+          },
+          "retrieval": {
+            "type": "object",
+            "properties": {
+              "mode": {
+                "type": "string",
+                "enum": [
+                  "lexical"
+                ]
+              },
+              "complete": {
+                "type": "boolean"
+              },
+              "returned": {
+                "type": "integer",
+                "minimum": 0
+              }
+            },
+            "required": [
+              "mode",
+              "complete",
+              "returned"
+            ]
+          }
+        },
+        "required": [
+          "results",
+          "retrieval"
+        ]
+      },
+      "AgentMemoryV2Record": {
+        "type": "object",
+        "properties": {
+          "memoryId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "memory",
+              "evidence"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "forgotten",
+              "archived"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "citation": {
+            "$ref": "#/components/schemas/AgentMemoryCitation"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "evidenceId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "relation": {
+                  "type": "string",
+                  "enum": [
+                    "explicit_save",
+                    "automatic_capture",
+                    "checkpoint",
+                    "promotion"
+                  ]
+                },
+                "citation": {
+                  "$ref": "#/components/schemas/AgentMemoryCitation"
+                }
+              },
+              "required": [
+                "evidenceId",
+                "relation",
+                "citation"
+              ]
+            }
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "evidence",
+              "synthesis",
+              "curated"
+            ]
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "explicit_save",
+              "automatic_capture",
+              "checkpoint",
+              "import",
+              "promotion"
+            ]
+          },
+          "destinationRole": {
+            "type": "string",
+            "enum": [
+              "private",
+              "shared"
+            ]
+          },
+          "authorConnectionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "memoryId",
+          "type",
+          "state",
+          "title",
+          "excerpt",
+          "citation",
+          "evidence",
+          "role",
+          "origin",
+          "destinationRole",
+          "authorConnectionId"
+        ]
+      },
+      "AgentMemoryV2SaveInput": {
+        "type": "object",
+        "properties": {
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 16000
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "tags": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            },
+            "maxItems": 10
+          },
+          "evidenceIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 20
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "evidence",
+              "synthesis",
+              "curated"
+            ],
+            "default": "synthesis"
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "explicit_save",
+              "automatic_capture",
+              "checkpoint",
+              "import",
+              "promotion"
+            ],
+            "default": "explicit_save"
+          }
+        },
+        "required": [
+          "idempotencyKey",
+          "content",
+          "role",
+          "origin"
+        ],
+        "description": "Write a memory record to the connection-selected private destination."
+      },
+      "AgentMemoryV2SaveResponse": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/AgentMemoryV2Record"
           },
           "idempotent": {
             "type": "boolean"
@@ -11690,6 +12151,125 @@
         }
       }
     },
+    "/v2/memory/connection": {
+      "get": {
+        "operationId": "get-v2-memory-connection",
+        "summary": "Inspect Agent Memory v2 connection",
+        "description": "Returns stable connection capabilities without destination or grant inventory.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryV2Connection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/memory/evidence": {
+      "post": {
+        "operationId": "post-v2-memory-evidence",
+        "summary": "Save a synchronous Agent Memory evidence record",
+        "description": "Writes an immutable evidence record to the connection's private destination.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryV2CaptureInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryV2SaveResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/memory/recall": {
+      "post": {
+        "operationId": "post-v2-memory-recall",
+        "summary": "Recall Agent Memory v2 records",
+        "description": "Searches own or owner-granted destinations selected by server policy; clients cannot submit destination identifiers.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryV2RecallInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryV2RecallResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v2/memory/records": {
+      "post": {
+        "operationId": "post-v2-memory-records",
+        "summary": "Save an Agent Memory v2 record",
+        "description": "Writes to the connection's server-selected private destination. Shared destinations require an owner-managed grant and cannot be selected by the client.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryV2SaveInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryV2SaveResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/memory/evidence/{captureId}": {
       "get": {
         "operationId": "get-v1-memory-evidence-{captureId}",
@@ -11754,6 +12334,63 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/v2/memory/records/{memoryId}": {
+      "patch": {
+        "operationId": "patch-v2-memory-records-{memoryId}",
+        "summary": "Change Agent Memory recall state",
+        "description": "Reversibly activates, forgets, or archives a memory projection. Canonical Raw evidence is retained.",
+        "tags": [
+          "Agent Memory"
+        ],
+        "parameters": [
+          {
+            "name": "memoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: memoryId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryRecordLifecycleInput"
+              }
+            }
+          }
+        },
+        "responses": {}
+      },
+      "delete": {
+        "operationId": "delete-v2-memory-records-{memoryId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "V2"
+        ],
+        "parameters": [
+          {
+            "name": "memoryId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: memoryId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           }
         }
       }
@@ -17480,6 +18117,370 @@
         }
       }
     },
+    "/api-keys/agent-memory/connections": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-connections",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-api-keys-agent-memory-connections",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/destinations": {
+      "post": {
+        "operationId": "post-api-keys-agent-memory-destinations",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-connections-{connectionId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      },
+      "patch": {
+        "operationId": "patch-api-keys-agent-memory-connections-{connectionId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/destinations/{destinationId}": {
+      "patch": {
+        "operationId": "patch-api-keys-agent-memory-destinations-{destinationId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "destinationId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: destinationId"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/grants/{grantId}": {
+      "delete": {
+        "operationId": "delete-api-keys-agent-memory-grants-{grantId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: grantId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}/credentials": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-connections-{connectionId}-credentials",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-api-keys-agent-memory-connections-{connectionId}-credentials",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}/promotions": {
+      "post": {
+        "operationId": "post-api-keys-agent-memory-connections-{connectionId}-promotions",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}/read-grants": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-connections-{connectionId}-read-grants",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-api-keys-agent-memory-connections-{connectionId}-read-grants",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}/retention": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-connections-{connectionId}-retention",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      },
+      "put": {
+        "operationId": "put-api-keys-agent-memory-connections-{connectionId}-retention",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}/write-grants": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-connections-{connectionId}-write-grants",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      },
+      "post": {
+        "operationId": "post-api-keys-agent-memory-connections-{connectionId}-write-grants",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {}
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}/credentials/{keyId}": {
+      "delete": {
+        "operationId": "delete-api-keys-agent-memory-connections-{connectionId}-credentials-{keyId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "Api-keys"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          },
+          {
+            "name": "keyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: keyId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
     "/system-themes": {
       "get": {
         "operationId": "get-system-themes",
@@ -21413,6 +22414,40 @@
         }
       }
     },
+    "/settings/spaces/{spaceId}/sample-pages": {
+      "post": {
+        "operationId": "post-settings-spaces-{spaceId}-sample-pages",
+        "summary": "Re-run managed example-page initialization for the built-in Wiki space.",
+        "description": "",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "spaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: spaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/settings/writing-mode/jobs/{id}": {
       "get": {
         "operationId": "get-settings-writing-mode-jobs-{id}",
@@ -25126,6 +26161,53 @@
           }
         }
       }
+    },
+    "/v2/memory/captures": {
+      "post": {
+        "operationId": "post-v2-memory-captures",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "V2"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/v2/memory/diagnostics": {
+      "get": {
+        "operationId": "get-v2-memory-diagnostics",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "V2"
+        ],
+        "parameters": [],
+        "responses": {}
+      }
+    },
+    "/v2/memory/captures/{captureId}": {
+      "get": {
+        "operationId": "get-v2-memory-captures-{captureId}",
+        "summary": "",
+        "description": "",
+        "tags": [
+          "V2"
+        ],
+        "parameters": [
+          {
+            "name": "captureId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: captureId"
+          }
+        ],
+        "responses": {}
+      }
     }
   },
   "tags": [
@@ -25152,6 +26234,9 @@
     },
     {
       "name": "Analytics"
+    },
+    {
+      "name": "Api-keys"
     },
     {
       "name": "Appearance"
@@ -25245,6 +26330,9 @@
     },
     {
       "name": "Users"
+    },
+    {
+      "name": "V2"
     }
   ]
 }

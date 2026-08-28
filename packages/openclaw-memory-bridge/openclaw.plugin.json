@@ -1,0 +1,60 @@
+{
+  "id": "next-wiki-memory-bridge",
+  "name": "next-wiki externalized memory",
+  "description": "Optional, non-capability bridge to a client-neutral next-wiki Agent Memory service.",
+  "version": "0.1.0",
+  "activation": { "onStartup": true },
+  "entry": "./dist/index.js",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "wikiApiBaseUrl": { "type": "string", "format": "uri" },
+      "credential": { "type": ["string", "object"] },
+      "capture": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean", "default": false },
+          "beforeCompaction": { "type": "boolean", "default": false },
+          "sessionEnd": { "type": "boolean", "default": false },
+          "agentEnd": { "type": "boolean", "default": false }
+        }
+      },
+      "externalContext": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "enabled": { "type": "boolean", "default": false },
+          "maxResults": { "type": "integer", "minimum": 1, "maximum": 10 },
+          "maxCharacters": { "type": "integer", "minimum": 100, "maximum": 20000 }
+        }
+      },
+      "outbox": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "maxEntries": { "type": "integer", "minimum": 1, "maximum": 10000 },
+          "maxBytes": { "type": "integer", "minimum": 4096, "maximum": 104857600 },
+          "maxAgeSeconds": { "type": "integer", "minimum": 60, "maximum": 2592000 }
+        }
+      }
+    },
+    "required": ["wikiApiBaseUrl", "credential"]
+  },
+  "contracts": {
+    "tools": [
+      "next_wiki_memory_search",
+      "next_wiki_memory_save",
+      "next_wiki_memory_forget",
+      "next_wiki_memory_status"
+    ]
+  },
+  "toolMetadata": {
+    "next_wiki_memory_search": { "optional": true },
+    "next_wiki_memory_save": { "optional": true },
+    "next_wiki_memory_forget": { "optional": true },
+    "next_wiki_memory_status": { "optional": true }
+  },
+  "compat": { "pluginApi": "1", "minGatewayVersion": "0.1.0" }
+}

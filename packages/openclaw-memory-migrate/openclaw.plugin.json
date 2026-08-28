@@ -1,0 +1,22 @@
+{
+  "id": "next-wiki-memory-migrate",
+  "name": "next-wiki OpenClaw memory migration",
+  "description": "One-time preview and resumable import utility; does not replace the bridge or delete local source files.",
+  "version": "0.1.0",
+  "entry": "./dist/index.js",
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "wikiApiBaseUrl": { "type": "string", "format": "uri" },
+      "credential": { "type": ["string", "object"] }
+    },
+    "required": ["wikiApiBaseUrl", "credential"]
+  },
+  "contracts": { "tools": ["next_wiki_memory_migrate_preview", "next_wiki_memory_migrate_run"] },
+  "toolMetadata": {
+    "next_wiki_memory_migrate_preview": { "optional": true },
+    "next_wiki_memory_migrate_run": { "optional": true }
+  },
+  "compat": { "pluginApi": "1", "minGatewayVersion": "0.1.0" }
+}

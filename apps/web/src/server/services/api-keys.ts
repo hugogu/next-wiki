@@ -148,13 +148,27 @@ export async function create(
       if (!namespace) {
         throw new DomainError('NOT_FOUND', 'The selected Agent memory destination is unavailable');
       }
+      if (memoryProvider.sharedNamespaceId && namespace.role !== 'shared') {
+        await tx.update(schema.agentMemoryNamespaces)
+          .set({ role: 'shared', updatedAt: new Date() })
+          .where(eq(schema.agentMemoryNamespaces.id, namespace.id));
+      }
+      const connection = !memoryProvider.sharedNamespaceId
+        ? (await tx.insert(schema.agentMemoryConnections).values({
+            ownerUserId: userId,
+            namespaceId: namespace.id,
+            agentIdentity: memoryAgentIdentity!,
+            displayLabel: memoryProvider.displayName?.trim() || memoryAgentIdentity!,
+          }).returning())[0]
+        : null;
       await tx.insert(schema.agentMemoryKeyBindings).values({
         apiKeyId: row.id,
+        connectionId: connection?.id ?? null,
         namespaceId: namespace.id,
         agentIdentity: memoryAgentIdentity!,
         sharedByOwner: Boolean(memoryProvider.sharedNamespaceId),
       });
-      destination = { id: namespace.id, displayName: namespace.displayName, state: namespace.state, agentIdentity: memoryAgentIdentity! };
+      destination = { id: namespace.id, connectionId: connection?.id ?? null, displayName: namespace.displayName, state: namespace.state, agentIdentity: memoryAgentIdentity! };
     }
 
     return { row, destination };
@@ -192,6 +206,7 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     : [];
   const destinations = new Map(bindings.map((binding) => [binding.apiKeyId, {
     id: binding.namespace.id,
+    connectionId: binding.connectionId ?? null,
     displayName: binding.namespace.displayName,
     state: binding.namespace.state,
     agentIdentity: binding.agentIdentity,
@@ -215,8 +230,15 @@ export async function listMemoryDestinations(ctx: PermCtx): Promise<MemoryDestin
   const rows = await db.query.agentMemoryNamespaces.findMany({
     where: eq(schema.agentMemoryNamespaces.ownerUserId, userId),
     orderBy: sql`${schema.agentMemoryNamespaces.createdAt} desc`,
+    with: { connections: true },
   });
-  return rows.map((row) => ({ id: row.id, displayName: row.displayName, state: row.state, agentIdentity: 'unassigned' }));
+  return rows.map((row) => ({
+    id: row.id,
+    connectionId: row.connections[0]?.id ?? null,
+    displayName: row.displayName,
+    state: row.state,
+    agentIdentity: row.connections[0]?.agentIdentity ?? 'unassigned',
+  }));
 }
 
 export async function reveal(ctx: PermCtx, keyId: string): Promise<ApiKeyReveal> {

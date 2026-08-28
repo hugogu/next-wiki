@@ -1,0 +1,56 @@
+name: Publish @next-wiki/openclaw-memory-bridge
+
+on:
+  push:
+    tags:
+      - 'openclaw-memory-bridge-v*'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @next-wiki/openclaw-memory-bridge typecheck
+      - run: pnpm --filter @next-wiki/openclaw-memory-bridge test
+      - run: pnpm --filter @next-wiki/openclaw-memory-bridge build
+      - name: Validate manifest and packed artifact
+        working-directory: packages/openclaw-memory-bridge
+        run: |
+          node -e "const m=require('./openclaw.plugin.json'); if(m.id!=='next-wiki-memory-bridge'||m.entry!=='./dist/index.js'||!m.configSchema) process.exit(1)"
+          npm pack --pack-destination "$RUNNER_TEMP"
+          npm install --global --prefix "$RUNNER_TEMP/bridge-install" "$RUNNER_TEMP"/next-wiki-openclaw-memory-bridge-*.tgz
+          test -f "$RUNNER_TEMP/bridge-install/lib/node_modules/@next-wiki/openclaw-memory-bridge/dist/index.js"
+
+  publish:
+    needs: verify
+    if: startsWith(github.ref, 'refs/tags/openclaw-memory-bridge-v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.22.3
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @next-wiki/openclaw-memory-bridge build
+      - name: Publish package
+        working-directory: packages/openclaw-memory-bridge
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

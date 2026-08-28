@@ -5,6 +5,7 @@ import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as apiKeyService from '@/server/services/api-keys';
 import * as agentMemory from '@/server/services/agent-memory';
+import * as agentMemoryGrants from '@/server/services/agent-memory-grants';
 import { setBoss } from '@/server/jobs/runtime';
 import { resetSetupOnboardingState, createAdminUser } from '../../../test/setup-onboarding-fixtures';
 import { ensureRawSpaceForConversations } from '../../../test/ai-fixtures';
@@ -107,7 +108,7 @@ describe('Agent memory service', () => {
     setBoss({ send } as never);
 
     const submitted = await agentMemory.submitEvidenceCapture(ctx, input);
-    await agentMemory.runEvidenceCapture({ captureId: submitted.captureId, messages: input.messages });
+    await agentMemory.runEvidenceCapture({ captureId: submitted.captureId });
 
     await expect(agentMemory.recall(ctx, 'captured retry policy', 5)).resolves.toEqual([
       expect.objectContaining({
@@ -125,6 +126,49 @@ describe('Agent memory service', () => {
 
     await expect(agentMemory.recall(second.ctx, 'private decision', 5)).resolves.toEqual([]);
     await expect(agentMemory.forget(second.ctx, saved.record.memoryId)).rejects.toMatchObject({ code: 'AGENT_MEMORY_RECORD_NOT_FOUND' });
+  });
+
+  it('uses explicit grants for cross-agent recall and shared writes', async () => {
+    const owner = await createAdminUser({ email: `v2-grants-${crypto.randomUUID()}@example.com` });
+    const first = await createMemoryActor('v2-first', undefined, { userId: owner.userId, agentIdentity: 'first' });
+    const second = await createMemoryActor('v2-second', undefined, { userId: owner.userId, agentIdentity: 'second' });
+    const firstDestinationId = first.created.memoryDestination!.id;
+    const secondConnectionId = second.created.memoryDestination!.connectionId!;
+
+    await db.update(schema.agentMemoryNamespaces)
+      .set({ role: 'shared' })
+      .where(eq(schema.agentMemoryNamespaces.id, firstDestinationId));
+    await agentMemoryGrants.createGrant(buildUserCtx(owner.userId, 'admin'), {
+      connectionId: secondConnectionId,
+      destinationId: firstDestinationId,
+      capability: 'read',
+    });
+    await agentMemoryGrants.createGrant(buildUserCtx(owner.userId, 'admin'), {
+      connectionId: secondConnectionId,
+      destinationId: firstDestinationId,
+      capability: 'write',
+    });
+
+    const saved = await agentMemory.saveV2(first.ctx, {
+      idempotencyKey: 'v2-shared-record',
+      content: 'Shared release decision for both agents.',
+      role: 'synthesis',
+      origin: 'explicit_save',
+    });
+    expect(saved.record.destinationRole).toBe('shared');
+    await expect(agentMemory.recallV2(second.ctx, {
+      query: 'release decision',
+      scope: 'granted',
+      limit: 5,
+    })).resolves.toEqual([expect.objectContaining({ memoryId: saved.record.memoryId, authorConnectionId: first.created.memoryDestination!.connectionId })]);
+
+    const secondSave = await agentMemory.saveV2(second.ctx, {
+      idempotencyKey: 'v2-second-shared-write',
+      content: 'Second agent shared update.',
+      role: 'synthesis',
+      origin: 'explicit_save',
+    });
+    expect(secondSave.record.destinationRole).toBe('shared');
   });
 
   it('isolates records and captures by agent identity within a shared destination', async () => {
@@ -199,7 +243,7 @@ describe('Agent memory service', () => {
     expect(retry).toMatchObject({ captureId: first.captureId, status: 'queued', idempotent: true });
     expect(send).toHaveBeenCalledWith(
       'agent-memory-capture',
-      { captureId: first.captureId, messages: input.messages },
+      { captureId: first.captureId },
       {
         singletonKey: first.captureId,
         singletonSeconds: 60,

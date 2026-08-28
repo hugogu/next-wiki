@@ -11,7 +11,7 @@ vi.mock('@/server/cache/public-cache', () => ({
 import { isCaptureJobData, runAgentMemoryCapture } from './agent-memory-capture';
 
 const captureId = '3d6f0a9b-6a2b-4a9d-9e3e-1ddc7f7a1c12';
-const validPayload = { captureId, messages: [{ role: 'user', content: 'Remember this decision.' }] };
+const validPayload = { captureId };
 
 describe('isCaptureJobData', () => {
   it('accepts a well-formed payload', () => {
@@ -22,10 +22,8 @@ describe('isCaptureJobData', () => {
     [null],
     [undefined],
     [{}],
-    [{ captureId: 'not-a-uuid', messages: validPayload.messages }],
-    [{ captureId, messages: [{ role: 'system', content: 'unexpected' }] }],
-    [{ captureId, messages: [{ role: 'assistant', content: 42 }] }],
-    [{ captureId, messages: [] }],
+    [{ captureId: 'not-a-uuid' }],
+    [{ captureId, messages: [{ role: 'user', content: 'raw secret' }] }],
   ])('rejects malformed payload %j', (data) => {
     expect(isCaptureJobData(data)).toBe(false);
   });

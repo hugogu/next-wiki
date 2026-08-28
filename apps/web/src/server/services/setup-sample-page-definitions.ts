@@ -18,6 +18,7 @@ export const SAMPLE_PAGE_PATHS = {
   markdownSyntax: 'help/markdown-syntax',
   mainFeatures: 'help/main-features',
   agentMemory: 'integrations/hermes',
+  openclawMemory: 'integrations/openclaw-memory-bridge',
 } as const;
 
 /** Previous setup-owned location, retained only for an idempotent first-run migration. */
@@ -91,6 +92,7 @@ ${ONBOARDING_LINKS_MARKER}
 - Learn the syntax in the [Markdown Syntax Guide](/help/markdown-syntax).
 - Tour the product in the [Main Features Guide](/help/main-features).
 - Connect Hermes securely in the [Hermes Integration Guide](/integrations/hermes).
+- Connect OpenClaw securely in the [OpenClaw Memory Bridge Guide](/integrations/openclaw-memory-bridge).
 `;
 
 /** Welcome content used when onboarding creates the welcome page itself. */
@@ -225,6 +227,7 @@ Administrators manage users, AI providers and models, storage backends, site ide
 ## Agent memory (optional)
 
 - Use the [Hermes Integration Guide](/integrations/hermes) to connect an agent identity to the shared Raw-space memory destination. Memory entries are immutable and indexed through the same Wiki content pipeline.
+- Use the [OpenClaw Memory Bridge Guide](/integrations/openclaw-memory-bridge) to keep OpenClaw's local memory and add cited external recall/capture.
 - The integration uses a dedicated API key with only memory scopes; it does not need a Wiki AI provider.
 
 > **Tip:** You can edit or delete this page at any time — it is a normal wiki page created during first-run setup.
@@ -278,4 +281,42 @@ Hermes can use the **next_wiki_memory_search**, **next_wiki_memory_save**, and *
 Rotate a key by creating a new dedicated key and re-running setup, then revoke the old key here in User Center. Revocation stops future access immediately; immutable Raw entries retain their original revisions under the Wiki's Raw retention policy, while Hermes forget only changes provider recall state.
 
 For the complete integration reference, see the [provider README](https://github.com/hugogu/next-wiki/blob/main/packages/hermes-memory-provider/README.md). The [general deployment guide](https://github.com/hugogu/next-wiki/blob/main/docs/deployment.md) covers shared backups and reverse-proxy operations.
+`;
+
+/** Managed onboarding page for the public OpenClaw adapter. */
+export const OPENCLAW_MEMORY_PAGE_TITLE = 'OpenClaw Memory Bridge Guide';
+export const OPENCLAW_MEMORY_PAGE_SOURCE = `# OpenClaw Memory Bridge Guide
+
+${SAMPLE_PAGE_MARKER}
+
+The OpenClaw Memory Bridge adds next-wiki as an external, cited memory destination while preserving OpenClaw's native/local memory. The next-wiki server is provider-neutral: each OpenClaw installation uses the same public API and the bridge package performs the OpenClaw-specific adaptation.
+
+## 1. Create a connection and key
+
+An administrator creates a dedicated Agent Memory connection in **User Center → API Keys → Agent memory**. Give each agent its own connection and private destination. Grant only **memory.read** and **memory.write**; add **memory.delete** only when the agent is explicitly allowed to forget records. Sharing is owner-managed through a read or write grant and is never selected by a request body or URL.
+
+Keep the API key in OpenClaw's secret store. Never commit it, place it in a normal JSON file, or pass it on a command line.
+
+## 2. Install the bridge
+
+\`\`\`bash
+npm install @next-wiki/openclaw-memory-bridge
+openclaw plugins install @next-wiki/openclaw-memory-bridge
+\`\`\`
+
+Configure the plugin with this Wiki's HTTPS API URL (for example, \`https://wiki.example.com/api/v2\`) and a secret reference. Enable the plugin's optional tools only after reviewing the host's tool policy. Automatic prompt enrichment is opt-in and requires conversation access plus prompt-injection permission in OpenClaw.
+
+The bridge keeps a bounded, permission-protected local outbox for restart-safe delivery. Hooks enqueue capture work and return quickly; a capture is reported as durable only after the server has written the immutable Raw revision. OpenClaw's local memory remains available if the Wiki is offline.
+
+## 3. Verify and operate
+
+Use the optional \`next_wiki_memory_status\` and \`next_wiki_memory_search\` tools to check connectivity and retrieve cited results. Search results include a stable revision citation. \`next_wiki_memory_save\` and \`next_wiki_memory_forget\` are explicit, approval-gated actions; forgetting only changes recall eligibility and does not delete the immutable Raw source.
+
+The bridge observes \`before_compaction\`, \`after_compaction\`, \`agent_end\`, and session/gateway lifecycle hooks. \`before_compaction\` is not a veto hook, so do not describe it as a hard compaction guarantee. Inspect the bridge diagnostics and the Agent Memory Raw entry when troubleshooting retries or a disabled/revoked connection.
+
+## 4. Import existing local memory (optional)
+
+The companion \`@next-wiki/openclaw-memory-migrate\` package supports a preview → approval → resumable import workflow. It fingerprints eligible Markdown files, never deletes source files, and sends only generic records with \`origin=import\`. Review the preview before approving and keep the migration ledger in the protected OpenClaw plugin data directory.
+
+For security, use HTTPS, rotate keys through User Center, and revoke the connection when an agent is retired. The server rechecks grants and record state for every recall result and returns no details for an inaccessible destination.
 `;

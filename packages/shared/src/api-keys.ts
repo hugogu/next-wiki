@@ -73,6 +73,7 @@ export const apiKeyViewSchema = z.object({
   memoryDestination: z
     .object({
       id: z.string().uuid(),
+      connectionId: z.string().uuid().nullable().optional(),
       displayName: z.string(),
       state: z.enum(['active', 'disabled']),
       agentIdentity: z.string(),
@@ -92,3 +93,28 @@ export const apiKeyRevealSchema = z.object({
   keySecret: z.string(),
 });
 export type ApiKeyReveal = z.infer<typeof apiKeyRevealSchema>;
+
+export const agentMemoryConnectionCreateSchema = z.object({
+  agentIdentity: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
+  displayLabel: z.string().trim().min(1).max(160).optional(),
+});
+export const agentMemoryConnectionStateInputSchema = z.object({
+  state: z.enum(['active', 'disabled', 'revoked']),
+});
+export const agentMemoryDestinationCreateSchema = z.object({
+  displayName: z.string().trim().min(1).max(160),
+  role: z.enum(['private', 'shared']).default('shared'),
+}).strict();
+export const agentMemoryDestinationStateInputSchema = z.object({
+  state: z.enum(['active', 'disabled']),
+}).strict();
+export const agentMemoryGrantCreateSchema = z.object({
+  destinationId: z.string().uuid(),
+  capability: z.enum(['read', 'write']),
+  expiresAt: z.string().datetime().nullable().optional(),
+});
+export const agentMemoryCredentialCreateSchema = z.object({
+  name: z.string().trim().min(1).max(100),
+  scopes: z.array(z.enum(['memory.read', 'memory.write', 'memory.delete'])).min(1).max(3)
+    .refine((items) => items.length === new Set(items).size, { message: 'Scopes must be unique' }),
+}).strict();

@@ -354,9 +354,9 @@ export const AgentMemoryCitation = z.object({
 });
 
 export const AgentMemoryRecord = z.object({
-  memoryId: z.string().uuid(), type: z.enum(['memory', 'evidence']), state: z.enum(['active', 'forgotten']),
+  memoryId: z.string().uuid(), type: z.enum(['memory', 'evidence']), state: z.enum(['active', 'forgotten', 'archived']),
   title: z.string(), excerpt: z.string(), citation: AgentMemoryCitation,
-  evidence: z.array(z.object({ evidenceId: z.string().uuid(), relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint']), citation: AgentMemoryCitation })).default([]),
+  evidence: z.array(z.object({ evidenceId: z.string().uuid(), relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint', 'promotion']), citation: AgentMemoryCitation })).default([]),
 });
 
 export const AgentMemoryRecallResponse = z.object({
@@ -377,6 +377,10 @@ export const AgentMemoryForgetResponse = z.object({
   state: z.literal('forgotten'),
   forgottenAt: z.string().datetime(),
 });
+export const AgentMemoryRecordLifecycleInput = z.object({
+  state: z.enum(['active', 'forgotten', 'archived']),
+  reason: z.string().min(1).max(500).optional(),
+}).describe('Reversible recall-state change. Source pages and revisions are never deleted.');
 
 export const AgentMemoryEvidenceInput = z.object({
   idempotencyKey: z.string().min(1).max(128), sessionDigest: z.string().regex(/^[a-f0-9]{32,128}$/), checkpoint: z.boolean(),
@@ -387,12 +391,66 @@ export const AgentMemoryEvidenceQueued = z.object({
   captureId: z.string().uuid(), status: z.enum(['queued', 'running', 'durable', 'failed', 'cancelled']),
   pollUrl: z.string().describe('Origin-relative API path beginning with /api/v1; resolve it against the configured API URL origin for polling capture status.'), idempotent: z.boolean(),
 });
+export const AgentMemoryPromotionInput = z.object({
+  sourceMemoryId: z.string().uuid(),
+  destinationId: z.string().uuid(),
+  idempotencyKey: z.string().min(1).max(128),
+  title: z.string().min(1).max(160),
+  content: z.string().min(1).max(16_000),
+}).describe('Owner-authorized promotion into a shared destination.');
+export const AgentMemoryRetentionInput = z.object({
+  retentionDays: z.number().int().min(1).max(3_650),
+}).describe('Owner-selected retention metadata; it never expands access or deletes canonical revisions.');
 
 export const AgentMemoryEvidenceStatus = z.object({
   captureId: z.string().uuid(), status: z.enum(['queued', 'running', 'durable', 'failed', 'cancelled']),
   durable: z.boolean(),
   evidence: z.object({ evidenceId: z.string().uuid(), citation: AgentMemoryCitation }).optional(),
   failureCode: z.string().optional(),
+});
+
+export const AgentMemoryV2Connection = z.object({
+  connectionId: z.string().uuid(),
+  agentIdentity: z.string().min(1).max(100),
+  displayLabel: z.string().min(1).max(160),
+  state: z.enum(['active', 'disabled', 'revoked']),
+  capabilities: z.object({ recall: z.boolean(), save: z.boolean(), forget: z.boolean(), capture: z.boolean() }),
+  limits: z.object({ maxRecallResults: z.number().int(), maxSaveCharacters: z.number().int(), maxEvidenceCharacters: z.number().int() }),
+}).describe('Stable Agent Memory v2 connection capabilities without grant inventory.');
+
+export const AgentMemoryV2RecallInput = z.object({
+  query: z.string().min(1).max(4_000),
+  scope: z.enum(['own', 'granted', 'own_and_granted']).default('granted'),
+  limit: z.number().int().min(1).max(10).optional(),
+}).describe('Bounded recall intent; destination and grant identifiers are server-derived.');
+
+export const AgentMemoryV2SaveInput = z.object({
+  idempotencyKey: z.string().min(1).max(128), content: z.string().min(1).max(16_000),
+  title: z.string().min(1).max(160).optional(), tags: z.array(z.string().min(1).max(64)).max(10).optional(),
+  evidenceIds: z.array(z.string().uuid()).max(20).optional(),
+  role: z.enum(['evidence', 'synthesis', 'curated']).default('synthesis'),
+  origin: z.enum(['explicit_save', 'automatic_capture', 'checkpoint', 'import', 'promotion']).default('explicit_save'),
+}).describe('Write a memory record to the connection-selected private destination.');
+
+export const AgentMemoryV2CaptureInput = z.object({
+  idempotencyKey: z.string().min(1).max(128),
+  sessionDigest: z.string().regex(/^[a-f0-9]{32,128}$/),
+  checkpoint: z.boolean(),
+  messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(64_000) })).min(1).max(100),
+  origin: z.enum(['automatic_capture', 'checkpoint']).default('automatic_capture'),
+}).describe('Write or queue a bounded evidence record without exposing raw content in generic queue data.');
+
+export const AgentMemoryV2Record = AgentMemoryRecord.extend({
+  role: z.enum(['evidence', 'synthesis', 'curated']),
+  origin: z.enum(['explicit_save', 'automatic_capture', 'checkpoint', 'import', 'promotion']),
+  destinationRole: z.enum(['private', 'shared']),
+  authorConnectionId: z.string().uuid(),
+});
+
+export const AgentMemoryV2SaveResponse = z.object({ record: AgentMemoryV2Record, idempotent: z.boolean() });
+export const AgentMemoryV2RecallResponse = z.object({
+  results: z.array(AgentMemoryV2Record),
+  retrieval: z.object({ mode: z.literal('lexical'), complete: z.boolean(), returned: z.number().int().nonnegative() }),
 });
 
 export const AuditListResponse = z

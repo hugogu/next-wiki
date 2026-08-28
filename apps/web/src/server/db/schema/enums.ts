@@ -408,12 +408,19 @@ export const translationUsageSourceEnum = pgEnum('translation_usage_source', [
 export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu', 'agent_memory']);
 
 export const agentMemoryNamespaceStateEnum = pgEnum('agent_memory_namespace_state', ['active', 'disabled']);
+export const agentMemoryDestinationRoleEnum = pgEnum('agent_memory_destination_role', ['private', 'shared']);
+export const agentMemoryConnectionStateEnum = pgEnum('agent_memory_connection_state', ['active', 'disabled', 'revoked']);
+export const agentMemoryGrantCapabilityEnum = pgEnum('agent_memory_grant_capability', ['read', 'write']);
+export const agentMemoryGrantStateEnum = pgEnum('agent_memory_grant_state', ['active', 'revoked', 'expired']);
+export const agentMemoryRecordRoleEnum = pgEnum('agent_memory_record_role', ['evidence', 'synthesis', 'curated']);
+export const agentMemoryRecordOriginEnum = pgEnum('agent_memory_record_origin', ['explicit_save', 'automatic_capture', 'checkpoint', 'import', 'promotion']);
 export const agentMemoryRecordTypeEnum = pgEnum('agent_memory_record_type', ['memory', 'evidence']);
-export const agentMemoryRecordStateEnum = pgEnum('agent_memory_record_state', ['active', 'forgotten']);
+export const agentMemoryRecordStateEnum = pgEnum('agent_memory_record_state', ['active', 'forgotten', 'archived']);
 export const agentMemoryEvidenceRelationEnum = pgEnum('agent_memory_evidence_relation', [
   'explicit_save',
   'automatic_capture',
   'checkpoint',
+  'promotion',
 ]);
 export const agentMemoryCaptureStatusEnum = pgEnum('agent_memory_capture_status', [
   'queued',

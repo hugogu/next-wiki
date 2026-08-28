@@ -15,6 +15,8 @@ import {
   AGENT_MEMORY_PAGE_SOURCE,
   AGENT_MEMORY_PAGE_TITLE,
   LEGACY_AGENT_MEMORY_PAGE_PATH,
+  OPENCLAW_MEMORY_PAGE_SOURCE,
+  OPENCLAW_MEMORY_PAGE_TITLE,
   MAIN_FEATURES_PAGE_SOURCE,
   MAIN_FEATURES_PAGE_TITLE,
   MARKDOWN_SYNTAX_PAGE_SOURCE,
@@ -131,7 +133,7 @@ async function writeSamplePage(
 }
 
 /**
- * Generate the optional welcome/markdown-syntax/main-features/Hermes integration pages through
+ * Generate the optional welcome/markdown-syntax/main-features and agent-integration pages through
  * the canonical page services (published revisions, normal permissions, and
  * public content cache invalidation via publish). Idempotent per page: reruns
  * skip setup-owned pages and report collisions for user-authored ones.
@@ -201,6 +203,11 @@ async function generateSamplePagesInternal(actor: Actor, recordSetupProgress: bo
       title: AGENT_MEMORY_PAGE_TITLE,
       contentSource: AGENT_MEMORY_PAGE_SOURCE,
       legacyPath: LEGACY_AGENT_MEMORY_PAGE_PATH,
+    },
+    {
+      path: SAMPLE_PAGE_PATHS.openclawMemory,
+      title: OPENCLAW_MEMORY_PAGE_TITLE,
+      contentSource: OPENCLAW_MEMORY_PAGE_SOURCE,
     },
   ]) {
     try {
