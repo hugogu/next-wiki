@@ -189,7 +189,7 @@
 
 **Purpose**: Complete managed public documentation, targeted public-cache behavior, OpenAPI publication, package release gates, and whole-system validation.
 
-- [ ] T074 [P] Convert the existing managed `help/agent-memory` source to generic language and add the marker-owned `help/openclaw-memory-bridge` guide with placeholders and discoverability linkage in `apps/web/src/server/services/setup-sample-pages.ts`
+- [ ] T074 [P] Add a marker-owned `integrations/openclaw-memory-bridge` guidance page to the sample Wiki beside `integrations/hermes`, link it from the generic Agent Memory/help onboarding content, and use placeholders only in `apps/web/src/server/services/setup-sample-page-definitions.ts` and `apps/web/src/server/services/setup-sample-pages.ts`
 - [ ] T075 Implement per-page and help-navigation public cache tags plus successful-mutation-only invalidation in `apps/web/src/server/cache/public-cache.ts`, `apps/web/src/server/services/pages.ts`, and `apps/web/src/server/services/public-content.ts`
 - [ ] T076 [P] Add managed-guide collision, rerun, disabled/failed-update, targeted-invalidation, static/ISR, and help-navigation tests in `apps/web/src/server/services/__tests__/setup-sample-pages.test.ts` and `apps/web/e2e/openclaw-memory-guide.spec.ts`
 - [ ] T077 Regenerate and verify public API documentation from route schemas in `apps/web/public/openapi.json` and `docs/openapi.md`
