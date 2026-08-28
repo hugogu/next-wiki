@@ -11,7 +11,11 @@ concurrency:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     services:
       postgres:
         image: pgvector/pgvector:0.8.3-pg16
@@ -61,7 +65,7 @@ jobs:
 
       - name: Run e2e suite
         working-directory: apps/web
-        run: pnpm test:e2e --reporter=list,html
+        run: pnpm test:e2e --reporter=list,html --shard=${{ matrix.shard }}/${{ strategy.job-total }}
         env:
           E2E_DATABASE_URL: postgresql://wiki:wiki@localhost:15433/wiki_e2e_test
 
@@ -69,7 +73,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-report
+          name: playwright-report-${{ matrix.shard }}
           path: apps/web/playwright-report/
           retention-days: 7
 
@@ -77,6 +81,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-test-results
+          name: playwright-test-results-${{ matrix.shard }}
           path: apps/web/test-results/
           retention-days: 7
