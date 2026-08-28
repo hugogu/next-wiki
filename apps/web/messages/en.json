@@ -710,7 +710,10 @@
       "edit": "Edit {name}",
       "editTitle": "Edit {name}",
       "editDescription": "Changes are saved to this space immediately.",
-      "urlPrefix": "URL prefix"
+      "urlPrefix": "URL prefix",
+      "reinitializeSamples": "Reinitialize example pages",
+      "reinitializeSamplesSuccess": "Example pages have been reinitialized.",
+      "reinitializeSamplesError": "Unable to reinitialize example pages."
     },
     "searchSettings": {
       "title": "Search Settings",

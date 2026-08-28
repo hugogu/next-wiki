@@ -245,7 +245,9 @@ image or broadening the existing Node MCP server.
      unrelated Raw or Generated page at the same path cannot block the guide.
    - Keep the package README as the single canonical Hermes integration guide;
      link it from the root README, deployment documentation, existing MCP
-     documentation, and the first-run Wiki page. Cover key creation,
+     documentation, and the first-run Wiki page. Add a Wiki-space-only Admin →
+     Spaces icon action that re-runs this idempotent initialization after setup
+     has closed. Cover key creation,
      local/remote addresses, transport, containers, activation, capture,
      checkpoint caveats, rotation, backup, revocation, and diagnosis without
      live secrets.

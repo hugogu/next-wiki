@@ -152,15 +152,19 @@ provider on a supported Hermes installation.
 2. **Given** a user-authored page already occupies the `integrations/hermes`
    address, **When** initial setup generates example pages, **Then** it reports
    the collision and never overwrites that page.
-3. **Given** a user follows the in-product guide or packaged README, **When**
+3. **Given** first-run setup has already completed, **When** an administrator
+   uses the Wiki space's reinitialize-example-pages action in Admin → Spaces,
+   **Then** missing or newly introduced managed pages are initialized through
+   the same idempotent, collision-safe flow without reopening setup.
+4. **Given** a user follows the in-product guide or packaged README, **When**
    they configure Hermes, **Then** they receive copyable install, activation,
    API-key, configuration, verification, upgrade, revocation, and
    troubleshooting instructions for local and remotely hosted Wikis.
-4. **Given** a user prefers automation, **When** they run the supplied setup
+5. **Given** a user prefers automation, **When** they run the supplied setup
    helper, **Then** it can safely install or prepare the provider configuration,
    validate non-secret inputs, and run a connectivity check without requiring
    them to manually edit opaque configuration files.
-5. **Given** the helper is run in preview mode or fails validation, **When** it
+6. **Given** the helper is run in preview mode or fails validation, **When** it
    exits, **Then** it makes no configuration change and clearly shows the next
    safe action; command-line history, diagnostic output, and generated files do
    not reveal credentials.
@@ -293,7 +297,9 @@ operations fail safely while previously stored Wiki records remain intact.
   under a virtual integrations folder and link it from the generated
   welcome/help content. Generation MUST be idempotent and collision safe:
   managed content may be enriched once, but user-authored content MUST never be
-  overwritten.
+  overwritten. After first-run setup closes, an administrator MUST be able to
+  invoke the same initialization flow manually from the built-in Wiki space's
+  Admin → Spaces action without changing setup state.
 - **FR-016**: The Hermes integration guide and automation output MUST be useful for
   both same-machine development and remote self-hosted deployments, including
   reachable-address, transport-security, reverse-proxy, and container-network

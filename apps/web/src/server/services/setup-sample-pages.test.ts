@@ -152,6 +152,33 @@ describe('sample page writer (US3)', () => {
     expect(after).toHaveLength(before.length);
   });
 
+  it('reinitializes examples from Admin Spaces after first-run setup is closed', async () => {
+    await resetSetupOnboardingState();
+    const { userId } = await createAdminUser();
+    const wikiSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+
+    const result = await samplePages.reinitializeSamplePages(adminActor(userId), wikiSpace!.id);
+
+    expect(result.status).toBe('completed');
+    expect(result.pages).toHaveLength(4);
+    expect(await readSetupProgress()).toBeUndefined();
+    expect(await findPageByPath('integrations/hermes')).toBeDefined();
+  });
+
+  it('rejects reinitialization for non-Wiki spaces', async () => {
+    await resetSetupOnboardingState();
+    const { userId } = await createAdminUser();
+    const [generatedSpace] = await db
+      .insert(schema.spaces)
+      .values({ slug: 'generated-fixture', name: 'Generated fixture', kind: 'generated' })
+      .returning();
+
+    await expect(samplePages.reinitializeSamplePages(adminActor(userId), generatedSpace!.id)).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+    });
+    expect(await findPageByPath('integrations/hermes')).toBeUndefined();
+  });
+
   it('enriches an existing welcome page with a new published revision', async () => {
     const { actor, userId } = await openSetupAtSampleStep();
     const ctx = { actor };

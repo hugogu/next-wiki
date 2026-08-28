@@ -247,6 +247,12 @@ keeping Hermes as the first supported provider.
   add an asynchronous capture-to-recall regression test and update the REST
   contract, data model, plan, package README, and deployment guide so clients
   do not wait for a nonexistent synthesis step.
+- [X] T088 [US4] Add the admin-only Wiki-space action and protected endpoint for
+  manually reinitializing managed example pages after first-run setup, with
+  collision-safe service coverage in
+  `apps/web/src/components/admin/spaces/SpaceSettingsPanel.tsx`,
+  `apps/web/app/api/settings/spaces/[spaceId]/sample-pages/route.ts`, and
+  `apps/web/src/server/services/setup-sample-pages.ts`.
 - [X] T084 Add cross-client fixture coverage proving two identities can share a
   destination without sharing records, captures, or idempotency keys.
 - [ ] T085 Run the single generated 0021 migration on a populated

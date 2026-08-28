@@ -710,7 +710,10 @@
       "edit": "编辑{name}",
       "editTitle": "编辑{name}",
       "editDescription": "更改会立即保存到该空间。",
-      "urlPrefix": "URL 前缀"
+      "urlPrefix": "URL 前缀",
+      "reinitializeSamples": "重新初始化示例页面",
+      "reinitializeSamplesSuccess": "示例页面已重新初始化。",
+      "reinitializeSamplesError": "无法重新初始化示例页面。"
     },
     "searchSettings": {
       "title": "搜索设置",
