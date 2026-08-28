@@ -49,6 +49,12 @@ provider keeps the configured identity for its destination-scoped capture
 digest and lets the Wiki key binding enforce authorization; this is expected
 and does not require renaming the Hermes profile.
 
+The Hermes Plugins screen should show `next-wiki` as **ready** and **active**
+after setup. The API key field is handled by Hermes's secret store; it is safe
+to leave the field blank when keeping an existing key.
+
+![Hermes Plugins setup for next-wiki](https://raw.githubusercontent.com/hugogu/next-wiki/main/apps/web/public/images/hermes-next-wiki-plugin-setup.png)
+
 ## Safe configuration and checks
 
 The provider writes only non-secret settings (including `agent_identity`) to

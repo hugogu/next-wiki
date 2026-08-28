@@ -15,7 +15,10 @@ export async function POST(_request: Request, { params }: { params: Promise<{ sp
   if (!parsedParams.success) return apiError('BAD_REQUEST', 'Invalid space id', 400);
   try {
     const result = await reinitializeSamplePages((await createApiContext()).actor, parsedParams.data.spaceId);
-    return NextResponse.json(result);
+    // Keep the per-page outcomes in the response so an administrator can see
+    // exactly what was restored or failed. A partial/failed maintenance run
+    // must not look like a successful HTTP operation to callers.
+    return NextResponse.json(result, { status: result.status === 'completed' ? 200 : 409 });
   } catch (error) {
     if (error instanceof DomainError) return mapDomainError(error);
     return internalError();

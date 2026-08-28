@@ -35,6 +35,20 @@ describe('POST /api/settings/spaces/[spaceId]/sample-pages', () => {
     expect(samplePages.reinitializeSamplePages).toHaveBeenCalledWith(expect.anything(), spaceId);
   });
 
+  it('returns a non-success status when page initialization is partial', async () => {
+    const result = {
+      status: 'partial',
+      pages: [{ path: 'help/markdown-syntax', status: 'collision', reason: 'A page already exists' }],
+      nextStep: 'summary',
+    } as const;
+    samplePages.reinitializeSamplePages.mockResolvedValue(result);
+
+    const response = await post();
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual(result);
+  });
+
   it('rejects malformed space ids before calling the service', async () => {
     const response = await POST(
       new NextRequest('http://localhost/api/settings/spaces/not-a-uuid/sample-pages', { method: 'POST' }),

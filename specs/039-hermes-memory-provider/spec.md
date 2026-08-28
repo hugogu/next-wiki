@@ -154,9 +154,15 @@ provider on a supported Hermes installation.
    the collision and never overwrites that page.
 3. **Given** first-run setup has already completed, **When** an administrator
    uses the Wiki space's reinitialize-example-pages action in Admin → Spaces,
-   **Then** missing or newly introduced managed pages are initialized through
-   the same idempotent, collision-safe flow without reopening setup.
-4. **Given** a user follows the in-product guide or packaged README, **When**
+   **Then** missing or soft-deleted marker-owned pages are restored and
+   initialized, existing marker-owned pages are refreshed to the current
+   example content through the same collision-safe flow without reopening
+   setup, and user-authored pages at sample paths remain untouched.
+4. **Given** a reinitialization cannot complete every page, **When** the
+   operation returns, **Then** the response reports a partial/failed status
+   with per-page outcomes and the Admin UI shows an error rather than a
+   success notice.
+5. **Given** a user follows the in-product guide or packaged README, **When**
    they configure Hermes, **Then** they receive copyable install, activation,
    API-key, configuration, verification, upgrade, revocation, and
    troubleshooting instructions for local and remotely hosted Wikis.

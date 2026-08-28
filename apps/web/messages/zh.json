@@ -713,6 +713,8 @@
       "urlPrefix": "URL 前缀",
       "reinitializeSamples": "重新初始化示例页面",
       "reinitializeSamplesSuccess": "示例页面已重新初始化。",
+      "reinitializeSamplesPartial": "示例页面仅部分完成重新初始化。",
+      "reinitializeSamplesFailed": "示例页面重新初始化失败。",
       "reinitializeSamplesError": "无法重新初始化示例页面。"
     },
     "searchSettings": {
