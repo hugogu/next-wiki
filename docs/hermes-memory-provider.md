@@ -96,9 +96,32 @@ networking just for this provider.
 ## Capture and checkpoint policy
 
 Explicit saves and recalls are available as namespaced Hermes tools. Automatic
-turn capture is off by default. When enabled, only user and assistant text is
-submitted; tool results, tool calls, and system text are omitted. Capture is
-also skipped for non-primary/delegated contexts.
+turn capture is off by default, so installing and activating the provider alone
+does not archive conversations. Explicit saves remain model-directed and are
+available even while capture is disabled.
+
+To enable automatic capture, re-run `hermes memory setup`, select `next-wiki`,
+and answer yes to the `capture_enabled` / conversation-capture field. For an
+already configured profile, edit only the boolean in
+`$HERMES_HOME/next-wiki-memory.json` (inside a container, use the value of
+`$HERMES_HOME` in that container; do not assume a host path such as
+`/opt/data`). Never put the API key in this JSON file. Restart the Hermes
+process or gateway and start a new session, then confirm:
+
+```text
+hermes next-wiki status
+Capture enabled: yes
+```
+
+Each completed eligible turn is queued asynchronously at
+`POST /api/v1/memory/evidence`; the response turn is not blocked on the Wiki
+worker. Only user and assistant text is submitted. Tool results, tool calls,
+system text, and delegated/non-primary contexts are excluded. Verify a test
+conversation by checking for the immutable Evidence/Raw entry in the
+owner-authorized **Agent Memory** category and an `agent_memory` row in Admin →
+Access Log after the worker reports `durable`. `hermes next-wiki check` checks
+connectivity and authorization only; it does not prove that a capture was
+written.
 
 Strict pre-compression checkpointing is a separate opt-in. Enable it only when
 your Hermes runtime supports checkpoint API v2 and your operator accepts that a
