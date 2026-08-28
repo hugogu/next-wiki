@@ -236,6 +236,10 @@ ${SAMPLE_PAGE_MARKER}
 
 Use this optional integration to make this Wiki the durable, inspectable memory for one configured agent identity. Hermes is the first supported client. Enable **LLM Wiki** writing mode so the shared **Raw** space is available. Memory records and opted-in conversation evidence are restricted, immutable Raw entries with published revisions and common Wiki indexing/provenance; forgetting only hides a logical record from provider recall and does not change the Raw source.
 
+The Hermes Plugins screen should show **next-wiki** as **ready** and **active** after setup. The API key field is managed by Hermes's secret store; leave it blank when keeping an existing key.
+
+![Hermes Plugins setup for next-wiki](/images/hermes-next-wiki-plugin-setup.png)
+
 ## 1. Create a dedicated key
 
 Open **User Center → API Keys** and choose the **Memory provider** option. Set a stable **Agent identity** (use hermes for Hermes). Create a new private destination unless you deliberately want to share a destination with another client identity. Grant only the memory scopes you need:
