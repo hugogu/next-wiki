@@ -35,6 +35,13 @@ first matching provider.
 This provider calls the versioned REST endpoints under `/api/v1/memory/*`.
 `/api/v1/mcp` is not a Memory endpoint; the separate
 `@next-wiki/mcp-server` package is a stdio MCP adapter for generic Wiki tools.
+Hermes renders every model-selected function in the same generic “Tool Call”
+panel, so seeing `next_wiki_memory_*` there is expected and does not mean MCP
+is being used. Native provider calls are routed by Hermes's `MemoryManager`;
+they do not have an `mcp__` prefix and do not require an MCP server entry.
+If the tool name has an `mcp__` prefix or the configuration is under
+`mcp_servers`, a separate MCP integration is being used instead of this
+provider.
 
 ## Safe configuration and checks
 

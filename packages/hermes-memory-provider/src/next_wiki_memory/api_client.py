@@ -11,7 +11,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .config import ProviderConfig, configured_api_key
 
-PROVIDER_VERSION = "0.1.1"
+PROVIDER_VERSION = "0.1.2"
 MAX_RESPONSE_BYTES = 1_000_000
 
 

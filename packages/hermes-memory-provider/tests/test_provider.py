@@ -44,6 +44,12 @@ def test_register_and_provider_tools_are_namespaced(monkeypatch, tmp_path) -> No
     assert response == {"ok": True, "results": [{"query": "remember this", "limit": 2}]}
 
 
+def test_provider_tool_descriptions_identify_native_rest_transport() -> None:
+    descriptions = [schema["function"]["description"] for schema in NextWikiMemoryProvider().get_tool_schemas()]
+    assert all("native provider REST API" in description for description in descriptions)
+    assert all("not MCP" in description for description in descriptions)
+
+
 def test_provider_returns_redacted_safe_tool_failures(monkeypatch, tmp_path) -> None:
     monkeypatch.setenv("NEXT_WIKI_MEMORY_API_KEY", "nwk_test_secret")
     save_config(tmp_path, ProviderConfig("https://wiki.example.com/api/v1"))

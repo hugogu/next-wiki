@@ -70,6 +70,13 @@ Hermes package. The generic Agent Memory API is versioned at
 `/api/v1/memory/*`; an incompatible provider or server fails with an actionable
 426 response instead of falling back to generic page endpoints.
 
+This is a native Hermes MemoryProvider, not an MCP server or MCP client. The
+provider calls the Wiki REST endpoints directly. Hermes uses a generic “Tool
+Call” display for both native provider functions and MCP functions, so the
+display label alone is not an MCP diagnostic. Native provider tools are named
+`next_wiki_memory_*`; an `mcp__`-prefixed name or an entry under `mcp_servers`
+indicates that the separate `@next-wiki/mcp-server` integration is active.
+
 Checkpoint API v2 support is runtime-dependent rather than assumed from this
 minimum. Keep strict checkpointing disabled until `hermes next-wiki check` and
 your Hermes runtime documentation confirm the relevant lifecycle hook.

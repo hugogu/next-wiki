@@ -32,3 +32,5 @@ def test_hermes_setup_schema_is_a_list_of_keyed_fields() -> None:
         "capture_enabled",
     ]
     assert sum(bool(field.get("secret")) for field in schema) == 1
+    assert "not MCP" in schema[0]["description"]
+    assert "direct REST API" in schema[1]["description"]

@@ -115,7 +115,7 @@ class NextWikiMemoryProvider:
                 "type": "function",
                 "function": {
                     "name": "next_wiki_memory_search",
-                    "description": "Search only this agent identity's next-wiki memory destination.",
+                    "description": "Search this agent identity's next-wiki memory destination through the native provider REST API (not MCP).",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -131,7 +131,7 @@ class NextWikiMemoryProvider:
                 "type": "function",
                 "function": {
                     "name": "next_wiki_memory_save",
-                    "description": "Explicitly save approved long-term memory to the bound next-wiki destination.",
+                    "description": "Explicitly save approved long-term memory through the native provider REST API to the bound next-wiki destination (not MCP).",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -148,7 +148,7 @@ class NextWikiMemoryProvider:
                 "type": "function",
                 "function": {
                     "name": "next_wiki_memory_forget",
-                    "description": "Reversibly forget one memory in the bound next-wiki destination.",
+                    "description": "Reversibly forget one memory through the native provider REST API in the bound next-wiki destination (not MCP).",
                     "parameters": {
                         "type": "object",
                         "properties": {
