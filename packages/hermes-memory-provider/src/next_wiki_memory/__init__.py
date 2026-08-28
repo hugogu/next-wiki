@@ -81,7 +81,7 @@ class NextWikiMemoryProvider:
             context = kwargs.get("agent_context")
             self._primary_context = context in (None, "primary") or (isinstance(context, dict) and context.get("primary") is True)
 
-    def get_config_schema(self) -> dict[str, object]:
+    def get_config_schema(self) -> list[dict[str, object]]:
         return get_config_schema()
 
     def save_config(self, values: dict[str, object], hermes_home: str, **_: Any) -> None:
