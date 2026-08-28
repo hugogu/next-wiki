@@ -56,8 +56,17 @@ a separate global plugin API version.
 and session context at initialization. State must use the `hermes_home` supplied
 by Hermes and update when a session switches. The current host requires
 `is_available` to avoid network calls and expects post-turn sync to be
-non-blocking. The strict checkpoint API is additive and not guaranteed by the
-first public MemoryProvider release.
+non-blocking. Hermes's dashboard discovers a provider named `next-wiki` from
+`$HERMES_HOME/next-wiki.json`, so older `next-wiki-memory.json` files are read
+and migrated to that canonical name. Runtime `agent_identity` is context from
+the host and may differ from the configured/key-bound namespace; the provider
+must not reject that normal profile arrangement. The strict checkpoint API is
+additive and not guaranteed by the first public MemoryProvider release.
+
+Hermes 0.20+ invokes `sync_turn(user_content, assistant_content,
+session_id=..., messages=...)` and calls `system_prompt_block()` while building
+the prompt. The adapter accepts both the current and legacy sync signatures and
+implements the static hook without injecting additional prompt text.
 
 **Alternatives considered**:
 

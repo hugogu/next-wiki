@@ -259,6 +259,11 @@ keeping Hermes as the first supported provider.
   `origin/main` compatibility fixture and verify Raw-page retention, index
   rebuildability, absence of `hermes_memory_*` objects, and rollback/recovery
   guidance.
+- [X] T089 Update the Hermes adapter for dashboard-readable `next-wiki.json`
+  configuration with legacy filename migration, tolerate host/runtime identity
+  differences, implement `system_prompt_block()`, and accept Hermes 0.20+
+  `sync_turn(user, assistant, *, session_id, messages)` alongside the legacy
+  message-list form in `packages/hermes-memory-provider/`.
 
 ---
 

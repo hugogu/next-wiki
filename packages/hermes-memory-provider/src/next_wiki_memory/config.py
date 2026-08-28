@@ -9,7 +9,11 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 CONFIG_VERSION = 1
-CONFIG_FILENAME = "next-wiki-memory.json"
+# Hermes dashboard discovers provider config using the provider name, so the
+# canonical filename must match ``next-wiki.json``. Keep reading the old name
+# to migrate installations created by provider releases <= 0.1.3.
+CONFIG_FILENAME = "next-wiki.json"
+LEGACY_CONFIG_FILENAME = "next-wiki-memory.json"
 API_KEY_ENV_VAR = "NEXT_WIKI_MEMORY_API_KEY"
 
 # Order matters: tests assert this exact sequence.
@@ -56,6 +60,10 @@ def config_path(hermes_home: str | Path) -> Path:
     return Path(hermes_home).expanduser() / CONFIG_FILENAME
 
 
+def legacy_config_path(hermes_home: str | Path) -> Path:
+    return Path(hermes_home).expanduser() / LEGACY_CONFIG_FILENAME
+
+
 def validate_wiki_api_base_url(value: str) -> str:
     parsed = urlparse(value.strip())
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -82,11 +90,19 @@ def validate_agent_identity(value: str) -> str:
 
 
 def load_config(hermes_home: str | Path) -> ProviderConfig | None:
-    path = config_path(hermes_home)
+    canonical_path = config_path(hermes_home)
+    path = canonical_path
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except FileNotFoundError:
-        return None
+        legacy_path = legacy_config_path(hermes_home)
+        try:
+            payload = json.loads(legacy_path.read_text(encoding="utf-8"))
+            path = legacy_path
+        except FileNotFoundError:
+            return None
+        except (OSError, json.JSONDecodeError) as error:
+            raise ValueError("The next-wiki memory configuration is unreadable; run init again") from error
     except (OSError, json.JSONDecodeError) as error:
         raise ValueError("The next-wiki memory configuration is unreadable; run init again") from error
     if not isinstance(payload, dict) or payload.get("version") != CONFIG_VERSION:
@@ -103,7 +119,7 @@ def load_config(hermes_home: str | Path) -> ProviderConfig | None:
     strict_checkpoint_enabled = payload.get("strict_checkpoint_enabled", False)
     if not isinstance(strict_checkpoint_enabled, bool):
         raise ValueError("The next-wiki memory strict_checkpoint_enabled setting must be boolean")
-    return ProviderConfig(
+    config = ProviderConfig(
         wiki_api_base_url=validate_wiki_api_base_url(url),
         agent_identity=validate_agent_identity(agent_identity),
         capture_enabled=capture_enabled,
@@ -112,6 +128,17 @@ def load_config(hermes_home: str | Path) -> ProviderConfig | None:
         recall_limit=min(max(int(payload.get("recall_limit", 5)), 1), 10),
         version=CONFIG_VERSION,
     )
+    # Migrate the legacy filename once it has been read. This is intentionally
+    # limited to non-secret provider settings and makes the config visible to
+    # Hermes's dashboard readiness checker without requiring a second setup.
+    if path != canonical_path and not canonical_path.exists():
+        try:
+            save_config(hermes_home, config)
+        except OSError:
+            # A read-only Hermes home should still be usable by the provider;
+            # the next writable setup invocation can complete the migration.
+            pass
+    return config
 
 
 def save_config(hermes_home: str | Path, config: ProviderConfig, *, dry_run: bool = False) -> Path:

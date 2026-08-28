@@ -73,16 +73,25 @@ class NextWikiMemoryProvider:
                 raise ValueError("Agent identity must be a string")
             user_id = kwargs.get("user_id_alt") or kwargs.get("user_id")
             configured_identity = self._config.agent_identity if self._config else "hermes"
-            normalized_identity = validate_agent_identity(str(identity)) if identity else configured_identity
-            if identity and normalized_identity != configured_identity:
-                raise ValueError("Hermes agent_identity does not match the configured memory-provider identity")
-            self._agent_identity = normalized_identity
+            # Hermes's runtime identity identifies the host session, while the
+            # provider config identifies the server-bound memory namespace. They
+            # are allowed to differ (for example, a profile named ``hermes``
+            # using a key bound to ``hermes-memory``); the server binding remains
+            # the authorization boundary. Validate the runtime value for safe
+            # diagnostics, but always use the configured identity for requests.
+            if identity:
+                validate_agent_identity(identity)
+            self._agent_identity = validate_agent_identity(configured_identity)
             self._runtime_user_id = self._bounded_string(str(user_id), 256, "user_id") if user_id else None
             context = kwargs.get("agent_context")
             self._primary_context = context in (None, "primary") or (isinstance(context, dict) and context.get("primary") is True)
 
     def get_config_schema(self) -> list[dict[str, object]]:
         return get_config_schema()
+
+    def system_prompt_block(self) -> str:
+        """Return no static prompt content; recall is injected by ``prefetch``."""
+        return ""
 
     def save_config(self, values: dict[str, object], hermes_home: str, **_: Any) -> None:
         url = values.get("wiki_api_base_url")
@@ -205,18 +214,35 @@ class NextWikiMemoryProvider:
     def queue_prefetch(self, query: str, **kwargs: Any) -> None:
         self._submit(lambda: self.prefetch(query, **kwargs))
 
-    def sync_turn(self, messages: list[Any] | None = None, **_: Any) -> None:
+    def sync_turn(
+        self,
+        user_content: str | list[Any] | None = None,
+        assistant_content: str | None = None,
+        *,
+        session_id: str = "",
+        messages: list[Any] | None = None,
+        **_: Any,
+    ) -> None:
+        """Queue one completed turn using both Hermes sync signatures.
+
+        Hermes 0.20+ calls ``sync_turn(user, assistant, session_id=...,
+        messages=...)`` while older hosts omit ``messages``. Tests and older
+        integrations may pass a normalized message list as the first argument;
+        that form remains supported for a clean migration.
+        """
+        turn_messages = messages if messages is not None else self._messages_from_turn(user_content, assistant_content)
         with self._state_lock:
             config = self._config
             primary_context = self._primary_context
-            session_id = self._session_id
+            configured_session_id = self._session_id
             agent_identity = self._agent_identity
             runtime_user_id = self._runtime_user_id
         if not config or not config.capture_enabled or not primary_context:
             return
-        normalized = self._normalize_messages(messages or [])
+        normalized = self._normalize_messages(turn_messages)
         if not normalized:
             return
+        effective_session_id = self._bounded_string(session_id, 256, "session_id") if session_id else configured_session_id
         # Capture the lifecycle identity at enqueue time. A session switch can
         # happen before the background worker runs; using the mutable current
         # state there would attribute the previous turn to the new session.
@@ -224,7 +250,7 @@ class NextWikiMemoryProvider:
             normalized,
             checkpoint=False,
             wait=False,
-            session_id=session_id,
+            session_id=effective_session_id,
             agent_identity=agent_identity,
             runtime_user_id=runtime_user_id,
         ))
@@ -321,6 +347,17 @@ class NextWikiMemoryProvider:
             normalized.append({"role": role, "content": bounded})
             total += len(bounded)
         return normalized
+
+    @staticmethod
+    def _messages_from_turn(user_content: str | list[Any] | None, assistant_content: str | None) -> list[Any]:
+        if isinstance(user_content, list) and assistant_content is None:
+            return user_content
+        messages: list[Any] = []
+        if isinstance(user_content, str) and user_content.strip():
+            messages.append({"role": "user", "content": user_content})
+        if isinstance(assistant_content, str) and assistant_content.strip():
+            messages.append({"role": "assistant", "content": assistant_content})
+        return messages
 
     def _capture(
         self,

@@ -13,12 +13,17 @@ def test_capture_is_opt_in_and_filters_tool_and_system_content(monkeypatch, tmp_
     monkeypatch.setattr(provider, "_submit", lambda operation: operation())
     monkeypatch.setattr(provider, "_capture", lambda messages, checkpoint, wait, **_: captured.append((messages, checkpoint, wait)))
 
-    provider.sync_turn([
-        {"role": "system", "content": "never retain"},
-        {"role": "tool", "content": "tool result"},
-        {"role": "user", "content": "keep user"},
-        {"role": "assistant", "content": "keep assistant"},
-    ])
+    provider.sync_turn(
+        "keep user",
+        "keep assistant",
+        session_id="host-session",
+        messages=[
+            {"role": "system", "content": "never retain"},
+            {"role": "tool", "content": "tool result"},
+            {"role": "user", "content": "keep user"},
+            {"role": "assistant", "content": "keep assistant"},
+        ],
+    )
 
     assert captured == [([{"role": "user", "content": "keep user"}, {"role": "assistant", "content": "keep assistant"}], False, False)]
 
@@ -42,6 +47,20 @@ def test_async_capture_keeps_the_session_identity_across_a_session_switch(monkey
         "agent_identity": "hermes",
         "runtime_user_id": None,
     }]
+
+
+def test_legacy_message_list_sync_signature_remains_supported(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("NEXT_WIKI_MEMORY_API_KEY", "nwk_test_secret")
+    save_config(tmp_path, ProviderConfig("https://wiki.example.com/api/v1", capture_enabled=True))
+    provider = NextWikiMemoryProvider()
+    provider.initialize("session", hermes_home=tmp_path, agent_context="primary")
+    captured = []
+    monkeypatch.setattr(provider, "_submit", lambda operation: operation())
+    monkeypatch.setattr(provider, "_capture", lambda messages, checkpoint, wait, **_: captured.append(messages))
+
+    provider.sync_turn([{"role": "user", "content": "legacy call"}])
+
+    assert captured == [[{"role": "user", "content": "legacy call"}]]
 
 
 def test_non_primary_context_never_captures(monkeypatch, tmp_path) -> None:

@@ -387,10 +387,10 @@ must explain that condition rather than claiming tools are usable.
 
 | Field | Secret | Default | Storage |
 |---|---:|---|---|
-| `wiki_api_base_url` | No | none | `$HERMES_HOME/next-wiki-memory.json` |
+| `wiki_api_base_url` | No | none | `$HERMES_HOME/next-wiki.json` |
 | `api_key` / `NEXT_WIKI_MEMORY_API_KEY` | Yes | none | Hermes profile `.env` |
-| `agent_identity` | No | `hermes` | `$HERMES_HOME/next-wiki-memory.json` |
-| `capture_enabled` | No | `false` | `$HERMES_HOME/next-wiki-memory.json` |
+| `agent_identity` | No | `hermes` | `$HERMES_HOME/next-wiki.json` |
+| `capture_enabled` | No | `false` | `$HERMES_HOME/next-wiki.json` |
 
 Destination identity is returned by `GET /connection` after a dedicated API key
 has been created in next-wiki; it is not a free-form security selector in the
