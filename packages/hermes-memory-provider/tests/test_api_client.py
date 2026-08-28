@@ -21,8 +21,9 @@ class _Response:
     def __exit__(self, *_: Any) -> None:
         return None
 
-    def read(self) -> bytes:
-        return json.dumps(self._payload).encode("utf-8")
+    def read(self, amount: int = -1) -> bytes:
+        body = json.dumps(self._payload).encode("utf-8")
+        return body if amount < 0 else body[:amount]
 
 
 class _TransportFixture:
