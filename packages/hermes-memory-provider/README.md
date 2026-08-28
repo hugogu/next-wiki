@@ -72,6 +72,14 @@ Remote URLs must use HTTPS. A loopback URL is valid only when Hermes runs in
 the same network namespace as the Wiki; Docker containers generally cannot use
 the host's `127.0.0.1`.
 
+Every request identifies itself with the stable
+`next-wiki-memory/<provider-version>` User-Agent. If a reverse proxy or
+Cloudflare returns `Error 1010` or
+`browser_signature_banned`, the provider reports `transport_blocked` rather
+than a misleading memory-scope error. Allow the `next-wiki-memory/*` User-Agent
+at the edge (or route the provider through a trusted proxy); do not broaden API
+key scopes until the edge returns the Wiki's normal JSON response.
+
 ## Memory behavior and privacy
 
 Hermes receives three namespaced tools:

@@ -11,8 +11,20 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .config import ProviderConfig, configured_api_key
 
-PROVIDER_VERSION = "0.1.2"
+PROVIDER_VERSION = "0.1.3"
+USER_AGENT = f"next-wiki-memory/{PROVIDER_VERSION}"
 MAX_RESPONSE_BYTES = 1_000_000
+MAX_ERROR_BODY_BYTES = 64_000
+
+
+def _is_cloudflare_signature_block(error: HTTPError) -> bool:
+    """Identify Cloudflare's browser-signature block without exposing its body."""
+    try:
+        body = error.read(MAX_ERROR_BODY_BYTES).decode("utf-8", errors="ignore").lower()
+    except Exception:
+        body = ""
+    compact = body.replace(" ", "")
+    return "browser_signature_banned" in body or "error 1010" in body or '"code":1010' in compact
 
 
 @dataclass(frozen=True)
@@ -48,6 +60,7 @@ class WikiApiClient:
                 "Authorization": f"Bearer {self._api_key}",
                 "Content-Type": "application/json",
                 "Accept": "application/json",
+                "User-Agent": USER_AGENT,
                 "X-Next-Wiki-Memory-Provider-Version": PROVIDER_VERSION,
             },
         )
@@ -59,6 +72,11 @@ class WikiApiClient:
                 parsed = json.loads(body.decode("utf-8"))
                 return parsed if isinstance(parsed, dict) else {}
         except HTTPError as error:
+            if error.code == 403 and _is_cloudflare_signature_block(error):
+                raise ApiClientError(
+                    "transport_blocked",
+                    "The Wiki edge proxy blocked this client signature (Cloudflare error 1010). Allow the next-wiki-memory user agent or adjust the reverse proxy; this is not a memory-scope error",
+                ) from None
             actions = {
                 401: ("unauthorized", "The API key is invalid or revoked. Create or reveal a dedicated Hermes key and run setup again"),
                 403: ("forbidden", "The key lacks a required memory scope or its destination is disabled. Check its scopes and binding"),

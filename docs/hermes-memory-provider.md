@@ -93,6 +93,14 @@ your Hermes runtime documentation confirm the relevant lifecycle hook.
 another service. Add DNS/reverse-proxy routing deliberately; do not enable host
 networking just for this provider.
 
+The provider sends a `next-wiki-memory/<provider-version>` User-Agent on every
+request. If Cloudflare or another edge proxy returns `Error 1010`
+(`browser_signature_banned`), this is a transport/WAF block, not a missing
+`memory.*` scope. The provider classifies it as `transport_blocked` and omits
+the edge response body. Allow the `next-wiki-memory/*` User-Agent or use a
+trusted reverse-proxy route; only investigate key scopes after the edge permits
+the request through to the Wiki API.
+
 ## Capture and checkpoint policy
 
 Explicit saves and recalls are available as namespaced Hermes tools. Automatic
