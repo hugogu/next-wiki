@@ -211,7 +211,7 @@
     },
     "samplePages": {
       "title": "生成示例和帮助页面（可选）",
-      "description": "创建欢迎页、Markdown 语法指南和主要功能介绍，它们都是普通的维基页面，之后可以编辑或删除。",
+      "description": "创建欢迎页、Markdown 语法指南、主要功能介绍和 Hermes 集成指南，它们都是普通的维基页面，之后可以编辑或删除。",
       "generate": "生成示例页面",
       "generating": "正在生成...",
       "skip": "跳过示例页面",
@@ -710,7 +710,10 @@
       "edit": "编辑{name}",
       "editTitle": "编辑{name}",
       "editDescription": "更改会立即保存到该空间。",
-      "urlPrefix": "URL 前缀"
+      "urlPrefix": "URL 前缀",
+      "reinitializeSamples": "重新初始化示例页面",
+      "reinitializeSamplesSuccess": "示例页面已重新初始化。",
+      "reinitializeSamplesError": "无法重新初始化示例页面。"
     },
     "searchSettings": {
       "title": "搜索设置",

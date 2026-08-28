@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, type FormEvent } from 'react';
-import { EditIcon, InfoIcon } from '@/components/icons';
+import { EditIcon, InfoIcon, RefreshIcon } from '@/components/icons';
 import { Alert } from '@/components/ui/Alert';
 import { Button } from '@/components/ui/Button';
 import {
@@ -34,7 +34,9 @@ export function SpaceSettingsPanel({ initialSpaces, canManage = true }: { initia
   const [spaces, setSpaces] = useState(initialSpaces);
   const [editingSpace, setEditingSpace] = useState<SpaceSettingsItem | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reinitializingSpaceId, setReinitializingSpaceId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   function spaceLabel(kind: SpaceSettingsItem['kind']): string {
     return kind === 'wiki'
@@ -54,6 +56,7 @@ export function SpaceSettingsPanel({ initialSpaces, canManage = true }: { initia
 
     setSaving(true);
     setError(null);
+    setNotice(null);
     try {
       const response = await fetch(`/api/settings/spaces/${editingSpace.id}`, {
         method: 'PUT',
@@ -75,6 +78,24 @@ export function SpaceSettingsPanel({ initialSpaces, canManage = true }: { initia
     }
   }
 
+  async function reinitializeSamplePages(space: SpaceSettingsItem) {
+    if (space.kind !== 'wiki') return;
+
+    setReinitializingSpaceId(space.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const response = await fetch(`/api/settings/spaces/${space.id}/sample-pages`, { method: 'POST' });
+      const body = await response.json().catch(() => null) as SpaceSettingsResponse | null;
+      if (!response.ok) throw new Error(body?.message ?? t('admin.spaces.reinitializeSamplesError'));
+      setNotice(t('admin.spaces.reinitializeSamplesSuccess'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('admin.spaces.reinitializeSamplesError'));
+    } finally {
+      setReinitializingSpaceId(null);
+    }
+  }
+
   return (
     <section className="space-y-md" aria-label={t('admin.spaces.ariaLabel')}>
       <header className="flex items-start justify-between gap-md">
@@ -87,6 +108,7 @@ export function SpaceSettingsPanel({ initialSpaces, canManage = true }: { initia
       </header>
 
       {error ? <Alert>{error}</Alert> : null}
+      {notice ? <p className="rounded-md bg-success/10 p-md text-sm text-success" role="status">{notice}</p> : null}
 
       <DataTable>
         <DataTableHead>
@@ -123,19 +145,35 @@ export function SpaceSettingsPanel({ initialSpaces, canManage = true }: { initia
                 </StatusBadge>
               </DataTableCell>
               {canManage && <DataTableCell align="right">
-                <Tooltip label={t('admin.spaces.edit', { name: spaceLabel(space.kind) })}>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    aria-label={t('admin.spaces.edit', { name: spaceLabel(space.kind) })}
-                    onClick={() => {
-                      setError(null);
-                      setEditingSpace({ ...space });
-                    }}
-                  >
-                    <EditIcon className="h-5 w-5" aria-hidden="true" />
-                  </Button>
-                </Tooltip>
+                <span className="inline-flex items-center gap-xs">
+                  {space.kind === 'wiki' && (
+                    <Tooltip label={t('admin.spaces.reinitializeSamples')}>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        aria-label={t('admin.spaces.reinitializeSamples')}
+                        disabled={reinitializingSpaceId === space.id}
+                        onClick={() => void reinitializeSamplePages(space)}
+                      >
+                        <RefreshIcon className={`h-5 w-5${reinitializingSpaceId === space.id ? ' animate-spin' : ''}`} aria-hidden="true" />
+                      </Button>
+                    </Tooltip>
+                  )}
+                  <Tooltip label={t('admin.spaces.edit', { name: spaceLabel(space.kind) })}>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      aria-label={t('admin.spaces.edit', { name: spaceLabel(space.kind) })}
+                      onClick={() => {
+                        setError(null);
+                        setNotice(null);
+                        setEditingSpace({ ...space });
+                      }}
+                    >
+                      <EditIcon className="h-5 w-5" aria-hidden="true" />
+                    </Button>
+                  </Tooltip>
+                </span>
               </DataTableCell>}
             </DataTableRow>
           ))}

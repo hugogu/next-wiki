@@ -89,8 +89,9 @@ Backups older than `BACKUP_RETENTION_DAYS` (default 14) are pruned.
 
 Agent Memory records are restricted, immutable Raw entries backed by the shared
 page/revision content store and are included in both backups. See the
-[Hermes memory provider](hermes-memory-provider.md) guide before connecting a
-remote client, especially for TLS and container-network requirements.
+[Hermes memory provider](../packages/hermes-memory-provider/README.md) guide
+before connecting a remote client, especially for TLS and container-network
+requirements.
 
 ### Restore
 

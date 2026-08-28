@@ -284,7 +284,7 @@ test.describe('US2/US3: skip AI and skip examples', () => {
     // Declined help pages do not exist.
     const helpResponse = await page.request.get('/help/markdown-syntax');
     expect(helpResponse.status()).toBe(404);
-    const hermesHelpResponse = await page.request.get('/help/agent-memory');
+    const hermesHelpResponse = await page.request.get('/integrations/hermes');
     expect(hermesHelpResponse.status()).toBe(404);
 
     // Wiki home is reachable through the summary.
@@ -314,7 +314,7 @@ test.describe('US3: generate examples', () => {
     await expect(page.getByText(/help\/markdown-syntax/).first()).toBeVisible();
     await expect(page.getByText(/skipped \(already exists\)/i)).toBeVisible();
     await expect(page.getByRole('link', { name: 'help/main-features' })).toBeVisible();
-    await expect(page.getByRole('link', { name: 'help/agent-memory' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'integrations/hermes' })).toBeVisible();
 
     // Generated pages render through normal wiki navigation, anonymously too.
     const anon = await browser.newContext();
@@ -327,11 +327,11 @@ test.describe('US3: generate examples', () => {
       await reader.goto('/help/main-features');
       await expect(reader.getByRole('heading', { name: /main features guide/i })).toBeVisible();
       await expect(
-        reader.getByTestId('page-reader-article').getByRole('link', { name: /agent memory guide/i }),
+        reader.getByTestId('page-reader-article').getByRole('link', { name: /hermes integration guide/i }),
       ).toBeVisible();
 
-      await reader.goto('/help/agent-memory');
-      await expect(reader.getByRole('heading', { name: /agent memory guide/i })).toBeVisible();
+      await reader.goto('/integrations/hermes');
+      await expect(reader.getByRole('heading', { name: /hermes integration guide/i })).toBeVisible();
       await expect(reader.getByTestId('page-reader-article')).toContainText('shared Raw space');
 
       // The colliding page keeps its user-authored content.
@@ -353,7 +353,7 @@ test.describe('US3: generate examples', () => {
     // paths and the public ISR cache legitimately serves them until the next
     // publish invalidates it.
     const rows = await withDb((sql) =>
-      sql<{ path: string }[]>`SELECT path FROM pages WHERE path IN ('help/main-features', 'help/markdown-syntax', 'help/agent-memory')`,
+      sql<{ path: string }[]>`SELECT path FROM pages WHERE path IN ('help/main-features', 'help/markdown-syntax', 'integrations/hermes')`,
     );
     expect(rows).toEqual([]);
   });

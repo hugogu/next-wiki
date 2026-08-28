@@ -169,9 +169,12 @@ provider-supplied profile value is echoed.
 
 ## `POST /memory/recall`
 
-Performs bounded, namespace-filtered lexical recall. It is synchronous only
-within the defined immediate database budget; an unavailable derived index is a
-safe non-success outcome, not a fallback to unrestricted page search.
+Performs bounded, namespace-filtered lexical recall over active explicit memory
+and durable conversation-evidence records. It is synchronous only within the
+defined immediate database budget; an unavailable derived index is a safe
+non-success outcome, not a fallback to unrestricted page search. Evidence is
+already canonical Raw content, so no separate synthesis step is required for
+it to become searchable after the capture reaches `durable`.
 
 **Authorization**: `memory.read`.
 
@@ -203,9 +206,11 @@ safe non-success outcome, not a fallback to unrestricted page search.
 ```
 
 An empty `results` array with `complete=true` means no relevant permitted
-memory. It must not be confused with authentication, destination, or index
-failure. Current evidence records are excluded from recall unless a later
-explicit evidence-read contract changes that rule.
+memory or durable evidence. It must not be confused with authentication,
+destination, or index failure. Queued/running captures are not returned until
+their Evidence Record is durable. Results identify their source with `type:
+"memory"` or `type: "evidence"`; evidence remains immutable and is not
+forgettable through the memory-record DELETE operation.
 
 ## `POST /memory/records`
 

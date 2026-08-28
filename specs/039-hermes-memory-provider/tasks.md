@@ -158,11 +158,11 @@ overwrite.
 
 - [X] T052 [P] [US4] Extend managed-sample-page tests for the fourth published guide, welcome/main-feature links, rerun idempotency, four cache invalidations, collision protection, and default-space-only collision lookup in `apps/web/src/server/services/setup-sample-pages.test.ts`.
 - [X] T053 [P] [US4] Extend setup route and onboarding Playwright coverage for four outcomes, visible Hermes help content, and collision reporting in `apps/web/app/api/setup/sample-pages/setup-sample-pages-route.test.ts` and `apps/web/e2e/setup-onboarding.spec.ts`.
-- [X] T054 [US4] Add the marker-owned published `help/agent-memory` source, welcome link, and Main Features link in `apps/web/src/server/services/setup-sample-page-definitions.ts`.
+- [X] T054 [US4] Add the marker-owned published `integrations/hermes` source under the virtual integrations folder, welcome link, and Main Features link in `apps/web/src/server/services/setup-sample-page-definitions.ts`.
 - [X] T055 [US4] Resolve the default wiki space before generated-page collision lookup and include the Hermes guide in generated results in `apps/web/src/server/services/setup-sample-pages.ts`.
 - [X] T056 [US4] Update setup-step/API descriptive copy and localized four-page results in `apps/web/src/components/setup/SamplePagesStep.tsx`, `apps/web/app/api/setup/sample-pages/route.ts`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
 - [X] T057 [US4] Write the npm/PyPI-shipped installation, setup, activation, local/remote/container address, capture/checkpoint, rotation/revoke, backup, and safe-diagnostics guide in `packages/hermes-memory-provider/README.md`.
-- [X] T058 [US4] Write deployment/operator guidance and link it from public documentation in `docs/hermes-memory-provider.md`, `docs/deployment.md`, `README.md`, and `packages/mcp-server/README.md`.
+- [X] T058 [US4] Keep the package README as the single canonical deployment/operator guide and link it from `docs/deployment.md`, `README.md`, `packages/mcp-server/README.md`, and the first-run Wiki integration page.
 - [X] T059 [US4] Validate the documented shell flows, `--dry-run` no-change guarantee, and public guide wording against `specs/039-hermes-memory-provider/quickstart.md` and `packages/hermes-memory-provider/tests/test_cli.py`.
 
 **Checkpoint**: A fresh Wiki exposes an idempotent public guide while all
@@ -203,14 +203,14 @@ security properties, release build, and deployment behavior.
 - [X] T067 [P] Verify every new Agent Memory route appears with correct security, schemas, errors, and no-cache response behavior in `apps/web/src/server/api/openapi-schemas.test.ts` and `apps/web/app/api/v1/public-route-architecture.test.ts`.
 - [ ] T068 [P] Add regression coverage that generic page scopes and Raw/Generated space access cannot authorize the dedicated memory surface in `apps/web/src/server/permissions/agent-memory.test.ts` and `apps/web/app/api/v1/memory/recall/route.test.ts`.
 - [ ] T069 [P] Build/install the wheel against the documented minimum and current Hermes versions, proving entry-point, `cli.py`, Desktop schema, lifecycle hook, toolset gate, and provider-name collision compatibility in `packages/hermes-memory-provider/tests/test_hermes_compatibility.py` and `.github/workflows/publish-hermes-memory-provider.yml`.
-- [ ] T070 [P] Review all emitted provider/server messages and documentation for credential, content, profile, session-ID, and raw-error leakage in `packages/hermes-memory-provider/src/next_wiki_memory/redaction.py`, `apps/web/src/server/services/agent-memory.ts`, and `docs/hermes-memory-provider.md`.
+- [ ] T070 [P] Review all emitted provider/server messages and documentation for credential, content, profile, session-ID, and raw-error leakage in `packages/hermes-memory-provider/src/next_wiki_memory/redaction.py`, `apps/web/src/server/services/agent-memory.ts`, and `packages/hermes-memory-provider/README.md`.
 - [X] T071 Run `pnpm db:generate` after all schema work and confirm no pending changes from `apps/web/src/server/db/schema/agent-memory.ts`; do not hand-author migration files under `apps/web/src/server/db/migrations/`.
 - [ ] T072 Run focused Vitest, pytest, Playwright, and OpenAPI suites for `apps/web/src/server/services/agent-memory.test.ts`, `apps/web/app/api/v1/memory/recall/route.test.ts`, `apps/web/e2e/setup-onboarding.spec.ts`, and `packages/hermes-memory-provider/tests/`.
 - [ ] T073 Run workspace typecheck, lint, package wheel build, and Docker Compose end-to-end validation using `package.json`, `packages/hermes-memory-provider/pyproject.toml`, and `docker-compose.yml`; fix only feature-related failures.
-- [ ] T074 Re-run every command and manual scenario in `specs/039-hermes-memory-provider/quickstart.md`, recording supported Hermes version/commit evidence and any compatibility limits in `docs/hermes-memory-provider.md`.
+- [ ] T074 Re-run every command and manual scenario in `specs/039-hermes-memory-provider/quickstart.md`, recording supported Hermes version/commit evidence and any compatibility limits in `packages/hermes-memory-provider/README.md`.
 - [X] T075 [US2] Route explicit memory and evidence writes through the shared Raw writer with the Agent Memory system category, restricted visibility, verbatim source metadata, and common index reconciliation; make Raw/LLM Wiki availability an actionable connection prerequisite in `apps/web/src/server/services/agent-memory.ts` and `apps/web/src/server/services/raw-entries.ts`.
 - [X] T076 [US2] Update service coverage to assert Raw-space placement, immutable published revision content, source tags/category metadata, and unchanged Raw pages after Hermes forget in `apps/web/src/server/services/agent-memory.test.ts`.
-- [X] T077 [US4] Synchronize spec, plan, research, data model, REST contract, quickstart, onboarding guide, package README, deployment docs, and task wording with the shared immutable Raw-storage design in `specs/039-hermes-memory-provider/`, `apps/web/src/server/services/setup-sample-page-definitions.ts`, `packages/hermes-memory-provider/README.md`, `docs/hermes-memory-provider.md`, `docs/deployment.md`, and `README.md`.
+- [X] T077 [US4] Synchronize spec, plan, research, data model, REST contract, quickstart, onboarding guide, package README, deployment docs, and task wording with the shared immutable Raw-storage design in `specs/039-hermes-memory-provider/`, `apps/web/src/server/services/setup-sample-page-definitions.ts`, `packages/hermes-memory-provider/README.md`, `docs/deployment.md`, and `README.md`.
 
 ## Phase 9: Review-driven generic Agent Memory backend
 
@@ -243,6 +243,16 @@ keeping Hermes as the first supported provider.
   updates, and pg-boss retry options in `apps/web/src/server/services/agent-memory.ts`,
   `apps/web/src/server/jobs/agent-memory-capture.ts`, and
   `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`.
+- [X] T087 Include durable Evidence Records in namespace-scoped lexical recall;
+  add an asynchronous capture-to-recall regression test and update the REST
+  contract, data model, plan, package README, and deployment guide so clients
+  do not wait for a nonexistent synthesis step.
+- [X] T088 [US4] Add the admin-only Wiki-space action and protected endpoint for
+  manually reinitializing managed example pages after first-run setup, with
+  collision-safe service coverage in
+  `apps/web/src/components/admin/spaces/SpaceSettingsPanel.tsx`,
+  `apps/web/app/api/settings/spaces/[spaceId]/sample-pages/route.ts`, and
+  `apps/web/src/server/services/setup-sample-pages.ts`.
 - [X] T084 Add cross-client fixture coverage proving two identities can share a
   destination without sharing records, captures, or idempotency keys.
 - [ ] T085 Run the single generated 0021 migration on a populated

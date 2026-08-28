@@ -95,6 +95,29 @@ describe('Agent memory service', () => {
     expect(deleted).toBeDefined();
   });
 
+  it('recalls durable automatic-capture evidence without a synthesis step', async () => {
+    const { ctx } = await createMemoryActor('capture-recall');
+    const input = {
+      idempotencyKey: `capture-${crypto.randomUUID()}`,
+      sessionDigest: 'c'.repeat(64),
+      checkpoint: false,
+      messages: [{ role: 'user' as const, content: 'Remember the captured retry policy.' }],
+    };
+    const send = vi.fn().mockResolvedValue('job-capture-recall');
+    setBoss({ send } as never);
+
+    const submitted = await agentMemory.submitEvidenceCapture(ctx, input);
+    await agentMemory.runEvidenceCapture({ captureId: submitted.captureId, messages: input.messages });
+
+    await expect(agentMemory.recall(ctx, 'captured retry policy', 5)).resolves.toEqual([
+      expect.objectContaining({
+        type: 'evidence',
+        title: 'Agent conversation evidence',
+        excerpt: expect.stringContaining('captured retry policy'),
+      }),
+    ]);
+  });
+
   it('does not expose a record across dedicated destinations', async () => {
     const first = await createMemoryActor('first');
     const second = await createMemoryActor('second');

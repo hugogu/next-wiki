@@ -133,9 +133,10 @@ recall is an optional later adapter, never a requirement for Hermes memory.
 
 **Rationale**: Raw is the Wiki's source layer for unmodified external evidence,
 and the shared writer already preserves verbatim content, provenance, revision
-history, audit, content storage, and index hooks. This keeps Hermes memory
-searchable by the same page/index infrastructure as other Wiki content while
-the namespace projection still enforces per-key isolation. Raw-space availability
+history, audit, content storage, and index hooks. This keeps explicit memories
+and durable captured evidence searchable by the same page/index infrastructure
+as other Wiki content while the namespace projection still enforces per-key
+isolation. Raw-space availability
 (currently enabled by LLM Wiki writing mode) is an explicit prerequisite and
 must be diagnosed rather than silently falling back to a second store.
 
@@ -209,8 +210,12 @@ tool shadowing and toolset gating is handled honestly.
 ## 8. In-Product Guidance and Public Delivery
 
 **Decision**: Extend the existing optional sample-page writer with a managed
-`help/agent-memory` page, linked from marker-owned welcome and main-features
-content. Add package and deployment documentation alongside a README cross-link.
+`integrations/hermes` page under a virtual `integrations` folder, linked from
+marker-owned welcome and main-features content. Existing marker-owned
+`help/agent-memory` pages are moved idempotently to the new path rather than
+duplicated. Keep the shipped package README as the single canonical public
+Hermes integration guide, and link it from deployment documentation and the
+generated Wiki page rather than maintaining a second standalone Hermes guide.
 
 **Rationale**: The current onboarding writer already creates published,
 revisioned, cache-invalidated help pages idempotently and refuses collisions with
@@ -221,7 +226,7 @@ secure setup path without a new configuration screen or Docker dependency.
 
 - Documentation only in the repository: rejected because it is hard to discover
   from a newly initialized instance.
-- Always overwrite `help/agent-memory`: rejected because current setup protects
+- Always overwrite the integration page: rejected because current setup protects
   user-authored help content.
 - Add a dynamic public configuration dashboard: rejected because secrets and
   integration state must remain authenticated.

@@ -437,7 +437,8 @@
         "required": [
           "results",
           "retrieval"
-        ]
+        ],
+        "description": "Bounded recall results containing active explicit memories and durable captured evidence."
       },
       "AgentMemoryRecord": {
         "type": "object",
@@ -21517,7 +21518,7 @@
       "put": {
         "operationId": "put-setup-sample-pages",
         "summary": "Generate or skip sample pages",
-        "description": "Generates the optional welcome, Markdown syntax, main features, and Agent memory guide pages as normal published wiki pages (idempotent, collision-safe), or records the skip choice. Requires the signed-in initial Admin.",
+        "description": "Generates the optional welcome, Markdown syntax, main features, and Hermes integration guide pages as normal published wiki pages (idempotent, collision-safe), or records the skip choice. Requires the signed-in initial Admin.",
         "tags": [
           "Setup"
         ],

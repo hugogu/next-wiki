@@ -50,6 +50,7 @@ describe('SpaceSettingsPanel', () => {
     expect(html).toContain('Public pages are readable without signing in after they are published.');
     expect(html).toContain('aria-label="Edit Wiki"');
     expect(html).toContain('aria-label="Edit Generated"');
+    expect(html).toContain('aria-label="Reinitialize example pages"');
   });
 
   it('uses the active locale for the administrative labels', () => {

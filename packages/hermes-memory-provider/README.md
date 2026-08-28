@@ -87,11 +87,14 @@ Hermes receives three namespaced tools:
 - `next_wiki_memory_search(query, limit)` recalls only the key's destination;
 - `next_wiki_memory_save(content, title?, tags?)` writes an immutable Raw
   memory record; and
-- `next_wiki_memory_forget(memory_id, reason?)` hides a record from future
-  recall in that same destination. The original Raw entry is never changed.
+- `next_wiki_memory_forget(memory_id, reason?)` hides an explicit memory record
+  from future recall in that same destination. The original Raw entry is never
+  changed; immutable evidence records are not deleted by this operation.
 
-Recall results contain a canonical Wiki revision citation. Automatic turn
-capture is disabled by default. Explicit `next_wiki_memory_save` calls still
+Recall results contain a canonical Wiki revision citation and may have
+`type: "memory"` for an explicit save or `type: "evidence"` for a durable
+automatic capture. Automatic turn capture is disabled by default. Explicit
+`next_wiki_memory_save` calls still
 work when capture is off; the model must choose that tool itself. To capture
 eligible conversation turns automatically:
 
@@ -110,10 +113,12 @@ When enabled, each completed eligible turn is submitted asynchronously to
 `/api/v1/memory/evidence`. The provider keeps only user and assistant text,
 excluding tool calls/results and system content, and skips delegated or other
 non-primary contexts. The Wiki worker then writes an immutable Evidence Record
-and Raw revision; inspect the **Agent Memory** category or the `agent_memory`
-filter in Admin → Access Log after the worker reaches `durable`. A normal turn
-does not wait for this write, so allow the worker time to process it and use a
-disposable conversation when testing.
+and Raw revision. Once the capture reaches `durable`, it is directly searchable
+through `next_wiki_memory_search`; there is no separate memory-synthesis job to
+wait for. Inspect the **Agent Memory** category or the `agent_memory` filter in
+Admin → Access Log while testing. A normal turn does not wait for this write,
+so allow the worker time to process it and use a disposable conversation when
+testing.
 
 Strict pre-compression checkpoints are opt-in and require a Hermes runtime that
 supports checkpoint API v2. When enabled, compression must not treat a
@@ -130,6 +135,7 @@ the immutable Raw entry retains its original content and revisions for
 administrators according to the Wiki's Raw-space retention policy.
 
 Back up the Wiki database and content store with the normal deployment backup
-procedure; memory pages and their revision citations are included. For full
-server and reverse-proxy guidance, see
-[the deployment guide](../../docs/hermes-memory-provider.md).
+procedure; memory pages and their revision citations are included. The normal
+[deployment guide](../../docs/deployment.md) covers the shared backup and
+reverse-proxy procedures. This README is the canonical Hermes integration guide
+shipped with the provider and linked from the Wiki's first-run integration page.

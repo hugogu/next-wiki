@@ -138,10 +138,12 @@ A provenance relationship from a `memory` record to one or more supporting
 | `created_at` | Link creation time | Immutable provenance fact. |
 
 The composite primary/unique key prevents duplicate evidence links. Forgetting a
-memory retains the evidence link and immutable evidence page for audit/recovery;
-the record is excluded from Agent Memory recall. A later owner-controlled Raw
-retention/privacy workflow may remove source content explicitly; Hermes forget
-never performs that mutation.
+memory excludes that memory projection from Agent Memory recall while retaining
+the evidence link and immutable evidence page for audit/recovery. An active
+evidence record remains independently recallable because it is canonical Raw
+content; Hermes forget never mutates or deletes that source. A later
+owner-controlled Raw retention/privacy workflow may remove source content
+explicitly.
 
 ### Agent Memory Capture
 
@@ -172,7 +174,9 @@ Constraints and indexes:
 ## Derived Retrieval State
 
 The namespace-aware lexical recall adapter uses active `agent_memory_records`
-as its allowed candidate set and reads their current restricted Raw revisions.
+(both `memory` and durable `evidence` records) as its allowed candidate set and
+reads their current restricted Raw revisions. Queued or running captures are
+not candidates until their Evidence Record is durable.
 Each Raw write also enters the existing page/index reconciliation path, so the
 same common search/index infrastructure can discover the content for authorized
 Wiki users. The provider emits bounded excerpts and citations only after checking the

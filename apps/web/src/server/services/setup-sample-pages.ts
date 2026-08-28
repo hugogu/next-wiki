@@ -14,6 +14,7 @@ import { assertSetupAdmin, recordSamplePagesOutcome, recordSamplePagesSkip } fro
 import {
   AGENT_MEMORY_PAGE_SOURCE,
   AGENT_MEMORY_PAGE_TITLE,
+  LEGACY_AGENT_MEMORY_PAGE_PATH,
   MAIN_FEATURES_PAGE_SOURCE,
   MAIN_FEATURES_PAGE_TITLE,
   MARKDOWN_SYNTAX_PAGE_SOURCE,
@@ -25,7 +26,7 @@ import {
   SAMPLE_PAGE_PATHS,
   WELCOME_PAGE_TITLE,
 } from '@/server/services/setup-sample-page-definitions';
-import { resolveSpace } from '@/server/services/spaces';
+import { getSpaceById, resolveSpace } from '@/server/services/spaces';
 
 function asCtx(actor: Actor): PermCtx {
   return { actor };
@@ -96,9 +97,27 @@ async function enrichWelcomePage(
 
 async function writeSamplePage(
   ctx: PermCtx,
-  input: { path: string; title: string; contentSource: string },
+  input: { path: string; title: string; contentSource: string; legacyPath?: string },
 ): Promise<SetupSamplePageResult> {
-  const existing = await findPage(input.path);
+  let existing = await findPage(input.path);
+  if (!existing && input.legacyPath) {
+    const legacy = await findPage(input.legacyPath);
+    const legacySource = legacy
+      ? await publishedSource(legacy.id, legacy.currentPublishedVersionId)
+      : null;
+    if (legacy && legacySource?.includes(SAMPLE_PAGE_MARKER)) {
+      // Preserve existing installs without leaving a duplicate setup-owned
+      // guide behind. Updating both tree path and public slug retains the old
+      // address as a redirect while making the integrations folder canonical.
+      // User-authored legacy pages are never moved.
+      await pagesService.updateProperties(ctx, legacy.path, {
+        path: input.path,
+        slug: input.path,
+      });
+      existing = await findPage(input.path);
+      return { path: input.path, status: 'updated', pageId: existing?.id ?? legacy.id };
+    }
+  }
   if (!existing) {
     const pageId = await createPublishedPage(ctx, input);
     return { path: input.path, status: 'created', pageId };
@@ -112,7 +131,7 @@ async function writeSamplePage(
 }
 
 /**
- * Generate the optional welcome/markdown-syntax/main-features/Agent Memory pages through
+ * Generate the optional welcome/markdown-syntax/main-features/Hermes integration pages through
  * the canonical page services (published revisions, normal permissions, and
  * public content cache invalidation via publish). Idempotent per page: reruns
  * skip setup-owned pages and report collisions for user-authored ones.
@@ -122,6 +141,31 @@ export async function generateSamplePages(actor: Actor): Promise<SetupSamplePage
   if (progress.currentStep !== 'sample_pages' && progress.currentStep !== 'summary') {
     throw new DomainError('BAD_REQUEST', 'Select a writing mode before configuring sample pages');
   }
+  return generateSamplePagesInternal(actor, true);
+}
+
+function assertAdmin(actor: Actor): void {
+  if (actor.kind !== 'user' || actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to initialize sample pages');
+  }
+}
+
+/**
+ * Re-run managed sample-page initialization from Admin → Spaces after
+ * first-run setup has closed. Only the built-in Wiki space is valid; page
+ * generation remains collision-safe and idempotent.
+ */
+export async function reinitializeSamplePages(actor: Actor, spaceId: string): Promise<SetupSamplePagesResponse> {
+  assertAdmin(actor);
+  const [space, wikiSpace] = await Promise.all([getSpaceById(spaceId), resolveSpace()]);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  if (space.kind !== 'wiki' || !wikiSpace || space.id !== wikiSpace.id) {
+    throw new DomainError('BAD_REQUEST', 'Sample pages can only be initialized for the Wiki space');
+  }
+  return generateSamplePagesInternal(actor, false);
+}
+
+async function generateSamplePagesInternal(actor: Actor, recordSetupProgress: boolean): Promise<SetupSamplePagesResponse> {
   const ctx = asCtx(actor);
 
   const results: SetupSamplePageResult[] = [];
@@ -152,7 +196,12 @@ export async function generateSamplePages(actor: Actor): Promise<SetupSamplePage
   for (const definition of [
     { path: SAMPLE_PAGE_PATHS.markdownSyntax, title: MARKDOWN_SYNTAX_PAGE_TITLE, contentSource: MARKDOWN_SYNTAX_PAGE_SOURCE },
     { path: SAMPLE_PAGE_PATHS.mainFeatures, title: MAIN_FEATURES_PAGE_TITLE, contentSource: MAIN_FEATURES_PAGE_SOURCE },
-    { path: SAMPLE_PAGE_PATHS.agentMemory, title: AGENT_MEMORY_PAGE_TITLE, contentSource: AGENT_MEMORY_PAGE_SOURCE },
+    {
+      path: SAMPLE_PAGE_PATHS.agentMemory,
+      title: AGENT_MEMORY_PAGE_TITLE,
+      contentSource: AGENT_MEMORY_PAGE_SOURCE,
+      legacyPath: LEGACY_AGENT_MEMORY_PAGE_PATH,
+    },
   ]) {
     try {
       results.push(await writeSamplePage(ctx, definition));
@@ -168,6 +217,6 @@ export async function generateSamplePages(actor: Actor): Promise<SetupSamplePage
   const succeeded = results.filter((result) => ['created', 'updated', 'skipped'].includes(result.status)).length;
   const status: Extract<SetupSamplePagesStatus, 'completed' | 'partial' | 'failed'> =
     succeeded === results.length ? 'completed' : succeeded > 0 ? 'partial' : 'failed';
-  await recordSamplePagesOutcome(status, results);
+  if (recordSetupProgress) await recordSamplePagesOutcome(status, results);
   return { status, pages: results, nextStep: 'summary' };
 }

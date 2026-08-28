@@ -21,7 +21,7 @@ classifiers = [
 
 [project.urls]
 Homepage = "https://github.com/hugogu/next-wiki"
-Documentation = "https://github.com/hugogu/next-wiki/blob/main/docs/hermes-memory-provider.md"
+Documentation = "https://github.com/hugogu/next-wiki/blob/main/packages/hermes-memory-provider/README.md"
 Repository = "https://github.com/hugogu/next-wiki"
 
 [project.scripts]

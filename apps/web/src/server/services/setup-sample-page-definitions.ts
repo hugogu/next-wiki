@@ -17,13 +17,16 @@ export const SAMPLE_PAGE_PATHS = {
   welcome: 'welcome',
   markdownSyntax: 'help/markdown-syntax',
   mainFeatures: 'help/main-features',
-  agentMemory: 'help/agent-memory',
+  agentMemory: 'integrations/hermes',
 } as const;
+
+/** Previous setup-owned location, retained only for an idempotent first-run migration. */
+export const LEGACY_AGENT_MEMORY_PAGE_PATH = 'help/agent-memory';
 
 export const WELCOME_PAGE_TITLE = 'Welcome to next-wiki';
 export const MARKDOWN_SYNTAX_PAGE_TITLE = 'Markdown Syntax Guide';
 export const MAIN_FEATURES_PAGE_TITLE = 'Main Features Guide';
-export const AGENT_MEMORY_PAGE_TITLE = 'Agent Memory Guide';
+export const AGENT_MEMORY_PAGE_TITLE = 'Hermes Integration Guide';
 
 export const WELCOME_PAGE_SOURCE = `# Welcome to next-wiki
 
@@ -87,7 +90,7 @@ ${ONBOARDING_LINKS_MARKER}
 
 - Learn the syntax in the [Markdown Syntax Guide](/help/markdown-syntax).
 - Tour the product in the [Main Features Guide](/help/main-features).
-- Connect Hermes securely in the [Agent Memory Guide](/help/agent-memory).
+- Connect Hermes securely in the [Hermes Integration Guide](/integrations/hermes).
 `;
 
 /** Welcome content used when onboarding creates the welcome page itself. */
@@ -221,13 +224,13 @@ Administrators manage users, AI providers and models, storage backends, site ide
 
 ## Agent memory (optional)
 
-- Use the [Agent Memory Guide](/help/agent-memory) to connect an agent identity to the shared Raw-space memory destination. Memory entries are immutable and indexed through the same Wiki content pipeline.
+- Use the [Hermes Integration Guide](/integrations/hermes) to connect an agent identity to the shared Raw-space memory destination. Memory entries are immutable and indexed through the same Wiki content pipeline.
 - The integration uses a dedicated API key with only memory scopes; it does not need a Wiki AI provider.
 
 > **Tip:** You can edit or delete this page at any time — it is a normal wiki page created during first-run setup.
 `;
 
-export const AGENT_MEMORY_PAGE_SOURCE = `# Agent Memory Guide
+export const AGENT_MEMORY_PAGE_SOURCE = `# Hermes Integration Guide
 
 ${SAMPLE_PAGE_MARKER}
 
@@ -274,5 +277,5 @@ Hermes can use the **next_wiki_memory_search**, **next_wiki_memory_save**, and *
 
 Rotate a key by creating a new dedicated key and re-running setup, then revoke the old key here in User Center. Revocation stops future access immediately; immutable Raw entries retain their original revisions under the Wiki's Raw retention policy, while Hermes forget only changes provider recall state.
 
-See the packaged provider README and the deployment documentation for upgrades, backups, reverse proxies, and detailed troubleshooting.
+For the complete integration reference, see the [provider README](https://github.com/hugogu/next-wiki/blob/main/packages/hermes-memory-provider/README.md). The [general deployment guide](https://github.com/hugogu/next-wiki/blob/main/docs/deployment.md) covers shared backups and reverse-proxy operations.
 `;

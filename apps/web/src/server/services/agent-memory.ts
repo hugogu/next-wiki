@@ -330,7 +330,11 @@ export async function recall(ctx: PermCtx, query: string, limit: number): Promis
     where: and(
       eq(schema.agentMemoryRecords.namespaceId, access.namespaceId),
       eq(schema.agentMemoryRecords.agentIdentity, access.agentIdentity),
-      eq(schema.agentMemoryRecords.recordType, 'memory'),
+      // Durable automatic captures are first-class searchable evidence. They
+      // share the same namespace/identity boundary and Raw-backed revision
+      // checks as explicit memories, so filtering them out here makes the
+      // capture feature appear to succeed while recall can never observe it.
+      inArray(schema.agentMemoryRecords.recordType, ['memory', 'evidence']),
       eq(schema.agentMemoryRecords.state, 'active'),
     ),
     orderBy: (records, { desc }) => [desc(records.updatedAt)],
