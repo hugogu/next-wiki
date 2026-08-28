@@ -14,35 +14,28 @@ API_KEY_ENV_VAR = "NEXT_WIKI_MEMORY_API_KEY"
 
 FIELD_DEFINITIONS: tuple[dict[str, object], ...] = (
     {
-        "name": "wiki_api_base_url",
-        "label": "next-wiki API URL",
-        "type": "string",
+        "key": "wiki_api_base_url",
+        "description": "Versioned next-wiki API URL, for example https://wiki.example.com/api/v1",
         "required": True,
-        "help": "Versioned next-wiki API URL, for example https://wiki.example.com/api/v1",
     },
     {
-        "name": "api_key",
-        "label": "Hermes memory API key",
-        "type": "string",
+        "key": "api_key",
+        "description": "Hermes memory API key",
         "required": True,
         "secret": True,
         "env_var": API_KEY_ENV_VAR,
-        "help": "Create a dedicated key in next-wiki User Center → API Keys.",
+        "url": "https://github.com/hugogu/next-wiki/blob/main/docs/hermes-memory-provider.md",
     },
     {
-        "name": "agent_identity",
-        "label": "Agent identity",
-        "type": "string",
+        "key": "agent_identity",
+        "description": "Stable client namespace used to isolate memory when a destination is shared.",
         "required": True,
         "default": "hermes",
-        "help": "Stable client namespace used to isolate memory when a destination is shared.",
     },
     {
-        "name": "capture_enabled",
-        "label": "Capture conversations",
-        "type": "boolean",
+        "key": "capture_enabled",
+        "description": "Off by default; when enabled, only user/assistant evidence is captured.",
         "default": False,
-        "help": "Off by default. When enabled, only user/assistant evidence is captured.",
     },
 )
 
