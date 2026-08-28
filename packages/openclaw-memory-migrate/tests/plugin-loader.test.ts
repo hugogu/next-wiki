@@ -9,7 +9,7 @@ describe('migration plugin entry', () => {
     expect(manifest.contracts.tools).toEqual(['next_wiki_memory_migrate_preview', 'next_wiki_memory_migrate_run']);
     const tools: string[] = [];
     entry({
-      config: { wikiApiBaseUrl: 'https://wiki.example.test/api/v2/memory', credential: { value: 'secret' } },
+      config: { wikiApiBaseUrl: 'https://wiki.example.test/api/v2/memory', credential: { value: 'secret' }, ledgerEncryptionKey: { value: 'ledger-secret' } },
       registerTool: (name) => tools.push(name),
     });
     expect(tools).toEqual(manifest.contracts.tools);

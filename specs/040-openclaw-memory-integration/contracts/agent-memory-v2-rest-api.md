@@ -21,25 +21,20 @@ Returns safe discovery for the authenticated connection.
 
 ~~~json
 {
-  "apiVersion": "v2",
-  "connection": {
-    "id": "uuid",
-    "state": "active",
-    "agentIdentity": "assistant-a"
-  },
+  "connectionId": "uuid",
+  "agentIdentity": "assistant-a",
+  "displayLabel": "Assistant A",
+  "state": "active",
   "capabilities": {
     "recall": true,
-    "explicitSave": true,
+    "save": true,
     "forget": true,
-    "asynchronousCapture": true,
-    "grantedRecall": true,
-    "sharedWrite": false
+    "capture": true
   },
   "limits": {
     "maxRecallResults": 10,
-    "maxRecallQueryCharacters": 4000,
-    "maxRecordCharacters": 16000,
-    "maxCaptureCharacters": 64000
+    "maxSaveCharacters": 16000,
+    "maxEvidenceCharacters": 64000
   }
 }
 ~~~
@@ -55,14 +50,9 @@ Returns a credential-safe category for setup and status tools.
 ~~~json
 {
   "status": "healthy",
-  "apiVersion": "v2",
-  "connectionState": "active",
+  "namespaceState": "active",
   "grantedScopes": ["memory.read", "memory.write"],
-  "lastSafeOutcome": {
-    "operation": "capture",
-    "at": "2026-08-28T10:00:00.000Z",
-    "status": "durable"
-  }
+  "apiVersion": "v2"
 }
 ~~~
 
@@ -163,7 +153,6 @@ Submits selected opted-in capture material for asynchronous durable ingestion.
 {
   "captureId": "uuid",
   "status": "queued",
-  "durable": false,
   "idempotent": false,
   "pollUrl": "/api/v2/memory/captures/uuid"
 }

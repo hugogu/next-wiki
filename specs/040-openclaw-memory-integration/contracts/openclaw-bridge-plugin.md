@@ -32,7 +32,7 @@ Native OpenClaw plugins run in the Gateway process. Installation is therefore an
 
 ## Service and local outbox
 
-The plugin registers a service that owns delivery. At service startup it resolves the public OpenClaw state directory, opens a plugin-private durable outbox, recovers non-terminal entries, and reports bounded health diagnostics. At stop it stops new work, aborts active requests, keeps unacknowledged entries for recovery, and attempts only a short bounded flush.
+The plugin registers a service that owns delivery. At service startup it resolves the public OpenClaw state directory, opens a plugin-private durable outbox, recovers non-terminal entries, and reports bounded health diagnostics. At stop it stops new work, lets an already-active delivery finish without claiming another entry, keeps unacknowledged entries for recovery, and attempts a short bounded flush when no delivery is active.
 
 The bridge owns this outbox because a normally distributed third-party plugin cannot rely on privileged bundled-runtime queues. It uses private filesystem permissions, atomic state transitions, a maximum entry count and byte budget, maximum payload age, bounded exponential backoff with jitter, and a quarantined dead-letter state. The local outbox is sensitive transient storage: its documentation declares the machine-at-rest trust boundary and its retention limits.
 

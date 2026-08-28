@@ -24,7 +24,7 @@ describe('OpenClaw memory migration', () => {
     const source = join(root, 'memory.md');
     await writeFile(source, 'memory');
     const [candidate] = await discoverSources(root);
-    const ledger = await ImportLedger.load(join(root, 'ledger.json'), 'run-1', [{ fingerprint: candidate.sourceFingerprint, idempotencyKey: importIdempotencyKey(candidate), status: 'pending' }]);
+    const ledger = await ImportLedger.load(join(root, 'ledger.json'), 'run-1', [{ fingerprint: candidate.sourceFingerprint, idempotencyKey: importIdempotencyKey(candidate), status: 'pending' }], 'ledger-secret');
     const saves: string[] = [];
     await expect(runImport(ledger, [candidate], { save: async (input) => { saves.push(input.idempotencyKey); return {}; } }, false)).rejects.toThrow('approval');
     await runImport(ledger, [candidate], { save: async (input) => { saves.push(input.idempotencyKey); return {}; } }, true);
@@ -32,5 +32,6 @@ describe('OpenClaw memory migration', () => {
     expect(saves).toEqual([importIdempotencyKey(candidate)]);
     expect((await ledger.snapshot).state).toBe('completed');
     expect(await readFile(source, 'utf8')).toBe('memory');
+    await expect(ImportLedger.load(join(root, 'ledger.json'), 'run-1', [{ fingerprint: candidate.sourceFingerprint, idempotencyKey: importIdempotencyKey(candidate), status: 'pending' }], 'wrong-secret')).rejects.toThrow('ledger_unreadable');
   });
 });

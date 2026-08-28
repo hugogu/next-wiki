@@ -54,6 +54,11 @@ export class MemoryBridgeService {
     const startedAt = Date.now();
     try {
       while (deadlineMs === 0 || Date.now() - startedAt < deadlineMs) {
+        // During a normal drain, shutdown finishes the current request but
+        // must not claim another entry. stop() starts a bounded drain itself
+        // when no request is active, so queued work still gets one best-effort
+        // delivery window without extending an already-running drain.
+        if (this.stopping && deadlineMs === 0) return;
         const entry = await this.outbox.claim();
         if (!entry) return;
         try {

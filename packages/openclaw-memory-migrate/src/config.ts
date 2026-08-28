@@ -1,8 +1,14 @@
 import { z } from 'zod';
 
+const secretValueSchema = z.union([
+  z.string().min(1),
+  z.object({ value: z.string().min(1) }).passthrough(),
+]);
+
 export const migrateConfigSchema = z.object({
   wikiApiBaseUrl: z.string().url(),
-  credential: z.union([z.string().min(1), z.object({ value: z.string().min(1) }).passthrough()]),
+  credential: secretValueSchema,
+  ledgerEncryptionKey: secretValueSchema,
 }).strict();
 
 export type MigrateConfig = z.infer<typeof migrateConfigSchema>;
@@ -14,5 +20,9 @@ export function parseMigrateConfig(value: unknown): MigrateConfig {
 }
 
 export function credentialValue(value: MigrateConfig['credential']): string {
+  return typeof value === 'string' ? value : value.value;
+}
+
+export function ledgerEncryptionKeyValue(value: MigrateConfig['ledgerEncryptionKey']): string {
   return typeof value === 'string' ? value : value.value;
 }

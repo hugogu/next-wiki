@@ -6,7 +6,7 @@ export { parseMigrateConfig, migrateConfigSchema } from './config';
 export { MigrationApiClient } from './api-client';
 
 import { buildPreview } from './preview';
-import { parseMigrateConfig } from './config';
+import { ledgerEncryptionKeyValue, parseMigrateConfig } from './config';
 import { discoverSources } from './source-discovery';
 import { ImportLedger } from './ledger';
 import { importIdempotencyKey, runImport } from './import-runner';
@@ -42,7 +42,7 @@ const entry = definePluginEntry((api: MigrationPluginApi) => {
       fingerprint: candidate.sourceFingerprint,
       idempotencyKey: importIdempotencyKey(candidate),
       status: 'pending' as const,
-    })));
+    })), ledgerEncryptionKeyValue(config.ledgerEncryptionKey));
     await runImport(ledger, candidates, client, approve);
     return { status: ledger.snapshot.state, imported: ledger.snapshot.items.filter((item) => item.status === 'completed').length };
   }, { optional: true });

@@ -82,8 +82,11 @@ test.describe('read-only Admin pages', () => {
       },
     });
     expect(create.status()).toBe(201);
-    const created = await create.json() as { id: string; latestRevision: { id: string } };
-    const publish = await page.request.post(`/api/v1/pages/${created.id}/revisions/1/publication`, {
+    const created = await create.json() as {
+      id: string;
+      latestRevision: { id: string; version: number };
+    };
+    const publish = await page.request.post(`/api/v1/pages/${created.id}/revisions/${created.latestRevision.version}/publication`, {
       data: { expectedRevisionId: created.latestRevision.id },
     });
     expect(publish.status()).toBe(200);

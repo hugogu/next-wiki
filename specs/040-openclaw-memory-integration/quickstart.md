@@ -110,9 +110,10 @@ Use the separate `@next-wiki/openclaw-memory-migrate` utility, not the continuou
 
 1. Select the source data locally and run a preview.
 2. Review the detected record count, fingerprints, omissions, and retention implications.
-3. Approve the run explicitly.
-4. Interrupt and resume it; the local encrypted ledger must prevent duplicate imports through deterministic idempotency keys.
-5. Verify no source file is deleted, moved, or changed.
+3. Configure a separate `ledgerEncryptionKey` secret and keep it stable for the lifetime of the resumable run; it must not be derived from the ledger path.
+4. Approve the run explicitly.
+5. Interrupt and resume it; the local encrypted ledger must prevent duplicate imports through deterministic idempotency keys.
+6. Verify no source file is deleted, moved, or changed.
 
 Imported records use normal generic server writes with `origin=import`; their source paths and arbitrary local metadata are never sent as a free-form server capability.
 

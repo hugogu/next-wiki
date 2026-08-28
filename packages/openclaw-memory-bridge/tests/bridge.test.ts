@@ -8,6 +8,7 @@ import { FileOutbox } from '../src/outbox';
 import { externalContext } from '../src/prompt-context';
 import { registerLifecycleHooks } from '../src/hooks';
 import { MemoryBridgeService } from '../src/service';
+import { registerTools } from '../src/tools';
 
 describe('OpenClaw bridge', () => {
   it('parses strict config and requires a resolved SecretRef value', () => {
@@ -61,7 +62,21 @@ describe('OpenClaw bridge', () => {
     expect(names).toEqual(expect.arrayContaining(['before_compaction', 'after_compaction', 'agent_end', 'session_end', 'gateway_start', 'gateway_stop']));
   });
 
-  it('continues draining queued captures after shutdown starts', async () => {
+  it('rejects empty search and save inputs before calling the API', async () => {
+    const handlers = new Map<string, (input: Record<string, unknown>) => Promise<unknown>>();
+    const client = { recall: vi.fn(), save: vi.fn() };
+    registerTools({ registerTool: (name, handler) => handlers.set(name, handler) }, client as never, async () => true);
+    const search = handlers.get('next_wiki_memory_search');
+    const save = handlers.get('next_wiki_memory_save');
+    if (!search || !save) throw new Error('test_tool_not_registered');
+
+    await expect(search({ query: '  ' })).rejects.toThrow('query_required');
+    await expect(save({ content: '\n\t' })).rejects.toThrow('content_required');
+    expect(client.recall).not.toHaveBeenCalled();
+    expect(client.save).not.toHaveBeenCalled();
+  });
+
+  it('finishes the active capture without claiming another entry after shutdown starts', async () => {
     const stateDir = await mkdtemp(join(tmpdir(), 'next-wiki-bridge-'));
     const config = parseBridgeConfig({
       wikiApiBaseUrl: 'https://wiki.example.test/api/v2/memory',
@@ -95,7 +110,7 @@ describe('OpenClaw bridge', () => {
     releaseFirst();
     await stopping;
 
-    expect(client.capture).toHaveBeenCalledTimes(2);
-    expect(service.outbox.list().map((entry) => entry.state)).toEqual(['acknowledged', 'acknowledged']);
+    expect(client.capture).toHaveBeenCalledTimes(1);
+    expect(service.outbox.list().map((entry) => entry.state)).toEqual(['acknowledged', 'pending']);
   });
 });

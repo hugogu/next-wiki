@@ -42,7 +42,7 @@ test.describe('AI curation API — keyword + frontmatter + semantic search (010)
     const architecturePath = `${path}/architecture`;
     const securityPath = `${path}/security`;
 
-    const createArch = await page.request.post('/api/v1/pages', {
+    const createArch = await page.request.post('/api/v1/pages?include=latestRevision', {
       headers: { Authorization: `Bearer ${key}` },
       data: {
         path: architecturePath,
@@ -52,12 +52,13 @@ test.describe('AI curation API — keyword + frontmatter + semantic search (010)
     });
     expect(createArch.status()).toBe(201);
     const archPage = await createArch.json();
-    await page.request.post(`/api/v1/pages/${archPage.id}/revisions/1/publication`, {
+    const publishArch = await page.request.post(`/api/v1/pages/${archPage.id}/revisions/${archPage.latestRevision.version}/publication`, {
       headers: { Authorization: `Bearer ${key}` },
-      data: {},
+      data: { expectedRevisionId: archPage.latestRevision.id },
     });
+    expect(publishArch.status()).toBe(200);
 
-    const createSecurity = await page.request.post('/api/v1/pages', {
+    const createSecurity = await page.request.post('/api/v1/pages?include=latestRevision', {
       headers: { Authorization: `Bearer ${key}` },
       data: {
         path: securityPath,
@@ -67,10 +68,11 @@ test.describe('AI curation API — keyword + frontmatter + semantic search (010)
     });
     expect(createSecurity.status()).toBe(201);
     const securityPage = await createSecurity.json();
-    await page.request.post(`/api/v1/pages/${securityPage.id}/revisions/1/publication`, {
+    const publishSecurity = await page.request.post(`/api/v1/pages/${securityPage.id}/revisions/${securityPage.latestRevision.version}/publication`, {
       headers: { Authorization: `Bearer ${key}` },
-      data: {},
+      data: { expectedRevisionId: securityPage.latestRevision.id },
     });
+    expect(publishSecurity.status()).toBe(200);
 
     // Read the page back and confirm frontmatter round-trips.
     const read = await page.request.get(`/api/v1/pages/${archPage.id}`, {

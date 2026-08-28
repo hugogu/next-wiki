@@ -9,9 +9,10 @@
     "additionalProperties": false,
     "properties": {
       "wikiApiBaseUrl": { "type": "string", "format": "uri" },
-      "credential": { "type": ["string", "object"] }
+      "credential": { "type": ["string", "object"] },
+      "ledgerEncryptionKey": { "type": ["string", "object"] }
     },
-    "required": ["wikiApiBaseUrl", "credential"]
+    "required": ["wikiApiBaseUrl", "credential", "ledgerEncryptionKey"]
   },
   "contracts": { "tools": ["next_wiki_memory_migrate_preview", "next_wiki_memory_migrate_run"] },
   "toolMetadata": {
