@@ -94,7 +94,11 @@ export function withPublicApi<TParams extends Record<string, string | string[]> 
       return await handler(request, context as PublicRouteContext<TParams>, ctx);
     } catch (error) {
       if (error instanceof DomainError) {
-        logger.warn('Public API domain error', { code: error.code, message: error.message, method, path });
+        // Deliberately omits error.message: DomainError messages are written
+        // for client display and can carry caller-supplied text (e.g. an
+        // invalid path echoed back), so they don't belong in server logs.
+        // The code is enough to identify what happened.
+        logger.warn('Public API domain error', { code: error.code, method, path });
         return mapPublicDomainError(error);
       }
       logger.exception('Unhandled public API error', error, { method, path });

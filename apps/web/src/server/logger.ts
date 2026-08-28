@@ -63,7 +63,7 @@ export function redactSensitiveText(input: string, knownSecret?: string | null):
   if (knownSecret && knownSecret.length >= 8) {
     output = output.split(knownSecret).join('[REDACTED]');
   }
-  output = output.replace(/(\w+:\/\/)[^/\s@]*@/g, '$1[REDACTED]@');
+  output = output.replace(/([\w+.-]+:\/\/)[^/\s@]*@/g, '$1[REDACTED]@');
   output = output.replace(/\b(Bearer\s+)\S+/gi, '$1[REDACTED]');
   output = output.replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, '[REDACTED_EMAIL]');
   return output;

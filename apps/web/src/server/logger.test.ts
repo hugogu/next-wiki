@@ -82,6 +82,16 @@ describe('redactSensitiveText', () => {
     expect(out).toContain('[REDACTED]@');
   });
 
+  it('redacts URL userinfo for compound schemes like git+ssh:// and http+unix://', () => {
+    const gitSsh = redactSensitiveText('fatal: git+ssh://deploy:hunter2@example.com/repo.git');
+    expect(gitSsh).not.toContain('hunter2');
+    expect(gitSsh).toContain('[REDACTED]@');
+
+    const httpUnix = redactSensitiveText('fatal: http+unix://user:hunter2@%2Fvar%2Frun%2Fdocker.sock/info');
+    expect(httpUnix).not.toContain('hunter2');
+    expect(httpUnix).toContain('[REDACTED]@');
+  });
+
   it('redacts Bearer tokens', () => {
     const out = redactSensitiveText('rejected request with Authorization: Bearer abc.def-123');
     expect(out).not.toContain('abc.def-123');

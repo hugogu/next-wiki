@@ -58,6 +58,24 @@ export async function register() {
  * already log the exceptions they catch, so this necessarily overlaps with
  * them for API routes; it only adds coverage for what those can't see.
  */
+/**
+ * Next.js populates this with a fixed set of enum-like descriptors (see
+ * RequestErrorContext in next/dist/server/instrumentation/types) — never
+ * request/response data. Read defensively (it's typed `unknown` here) and
+ * pick only these known-safe string fields, rather than logging the object
+ * wholesale: an unknown value from framework internals isn't a promise that
+ * every field is safe to log or that it will always be JSON-serializable.
+ */
+function describeRequestErrorContext(context: unknown): Record<string, string> {
+  const picked: Record<string, string> = {};
+  if (typeof context !== 'object' || context === null) return picked;
+  for (const key of ['routerKind', 'routePath', 'routeType', 'renderSource', 'revalidateReason'] as const) {
+    const value = (context as Record<string, unknown>)[key];
+    if (typeof value === 'string') picked[key] = value;
+  }
+  return picked;
+}
+
 export async function onRequestError(
   error: unknown,
   request: Readonly<{ path: string; method: string }>,
@@ -68,6 +86,6 @@ export async function onRequestError(
   logger.exception('Unhandled request error', error, {
     path: request.path,
     method: request.method,
-    context,
+    ...describeRequestErrorContext(context),
   });
 }
