@@ -211,7 +211,7 @@
     },
     "samplePages": {
       "title": "Generate example and help pages (optional)",
-      "description": "Create a welcome page, a Markdown syntax guide, and a main features tour as normal wiki pages. You can edit or delete them later.",
+      "description": "Create a welcome page, a Markdown syntax guide, a main features tour, and a Hermes integration guide as normal wiki pages. You can edit or delete them later.",
       "generate": "Generate example pages",
       "generating": "Generating...",
       "skip": "Skip example pages",

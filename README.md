@@ -309,7 +309,7 @@ restricted Raw entries through the shared page/revision/content-store and index
 pipeline; forgetting changes only the Agent Memory recall projection. Automatic
 conversation capture is deliberately off by default and must be enabled in the
 provider profile after setup. See the
-[Hermes memory deployment guide](docs/hermes-memory-provider.md) for key
+[Hermes memory provider guide](packages/hermes-memory-provider/README.md) for key
 creation, installation, capture/checkpoint policy, and reverse-proxy guidance.
 
 ## Content import, export, and storage

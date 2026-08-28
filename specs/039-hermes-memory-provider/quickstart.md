@@ -46,14 +46,18 @@ reverse-proxy failure must be corrected before configuration continues.
 
 ## 2. Generate and Read the In-Product Guide
 
-During initial setup choose **Generate help pages**. Verify that:
+During initial setup choose **Generate example pages**. Verify that:
 
-1. `help/agent-memory` is published with placeholder-only installation and
-   security guidance.
+1. `integrations/hermes` is published under the virtual `integrations` folder
+   with placeholder-only installation and security guidance.
 2. The generated Welcome next-steps block and Main Features page link to it.
 3. Rerunning generation does not create an additional revision.
 4. A user-authored page at the same address is reported as a collision and is
    not changed.
+5. On an installation generated before the integrations path was introduced,
+   the marker-owned `help/agent-memory` page is moved to
+   `integrations/hermes` without creating a duplicate; a user-authored legacy
+   page remains untouched.
 
 The public reader document must remain static/ISR under the normal Wiki
 delivery path. It must not include any logged-in provider configuration,

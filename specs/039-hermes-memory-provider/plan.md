@@ -73,7 +73,7 @@ additional stateful service is required.
 destination per dedicated API key, bounded recall and capture payloads, lexical
 recall as the AI-independent baseline over the namespace projection, immutable
 Raw-space storage and common index reconciliation (Raw/LLM Wiki mode is a
-prerequisite), and one public setup-help page. Historical imports, memory
+prerequisite), and one public setup integration page. Historical imports, memory
 federation, arbitrary multi-provider UI, and generic third-party provider
 management remain out of scope.
 
@@ -91,7 +91,7 @@ management remain out of scope.
 | P8 — source content and reversible changes | Memory/evidence content is appended through the shared Raw/page-revision lifecycle and remains immutable. Forget changes only the Agent Memory projection state while retaining the Raw source and audit metadata; capture retries are idempotent by destination and digest. | Pass |
 | P9 — open standards | Hermes calls documented REST + JSON endpoints protected by Bearer API keys; routes use shared Zod schemas and appear in OpenAPI. MCP remains the general AI-client adapter, not this lifecycle-specific transport. | Pass |
 | P10 — explicit registration | API routes, permission scopes, job handler, audit origin, provider entry point, setup-page definitions, and publish workflow are explicit registries/files. No Wiki-side filesystem plugin discovery is added. | Pass |
-| P12 — public content delivery | Only the managed Help page and generated welcome/help links change public content. They use normal published-page cache representation and targeted invalidation; credentials, status, destinations, evidence, and controls stay authenticated. | Pass |
+| P12 — public content delivery | Only the managed integration page and generated welcome/help links change public content. They use normal published-page cache representation and targeted invalidation; credentials, status, destinations, evidence, and controls stay authenticated. | Pass |
 
 ### Source of Truth, Provenance, and Publication Boundary
 
@@ -176,9 +176,6 @@ packages/
     │   └── redaction.py
     └── tests/
 
-docs/
-└── hermes-memory-provider.md (Hermes client deployment guide)
-
 .github/workflows/
 └── publish-hermes-memory-provider.yml
 ```
@@ -240,14 +237,18 @@ image or broadening the existing Node MCP server.
      the provider becomes active.
 
 6. **Make configuration discoverable**
-   - Add the marker-owned `help/agent-memory` sample page, linked from generated
-     welcome and main-features content. Preserve collision/idempotency behavior
-     in the default wiki space; resolve that space before collision lookup so an
+   - Add the marker-owned `integrations/hermes` sample page under the virtual
+     `integrations` folder, linked from generated welcome and main-features
+     content. Migrate the old `help/agent-memory` marker page without
+     duplicating it, while preserving collision/idempotency behavior in the
+     default wiki space; resolve that space before collision lookup so an
      unrelated Raw or Generated page at the same path cannot block the guide.
-   - Publish the package README and deployment guide; link both from root README
-     and existing MCP documentation. Cover key creation, local/remote addresses,
-     transport, containers, activation, capture, checkpoint caveats, rotation,
-     backup, revocation, and diagnosis without live secrets.
+   - Keep the package README as the single canonical Hermes integration guide;
+     link it from the root README, deployment documentation, existing MCP
+     documentation, and the first-run Wiki page. Cover key creation,
+     local/remote addresses, transport, containers, activation, capture,
+     checkpoint caveats, rotation, backup, revocation, and diagnosis without
+     live secrets.
 
 7. **Verify, release, and document operations**
    - Add unit, integration, route/OpenAPI, E2E, pytest, and Docker Compose

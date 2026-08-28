@@ -61,14 +61,14 @@ describe('sample page definitions (US3)', () => {
       welcome: 'welcome',
       markdownSyntax: 'help/markdown-syntax',
       mainFeatures: 'help/main-features',
-      agentMemory: 'help/agent-memory',
+      agentMemory: 'integrations/hermes',
     });
   });
 
   it('onboarding welcome links to every help page', () => {
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/markdown-syntax)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/main-features)');
-    expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/agent-memory)');
+    expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/integrations/hermes)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.ONBOARDING_LINKS_MARKER);
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
@@ -102,7 +102,7 @@ describe('sample page definitions (US3)', () => {
       expect(source).toContain(topic);
     }
     expect(source).toContain('](/help/markdown-syntax)');
-    expect(source).toContain('](/help/agent-memory)');
+    expect(source).toContain('](/integrations/hermes)');
     expect(source).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
 });
@@ -120,7 +120,7 @@ describe('sample page writer (US3)', () => {
       expect(page.pageId).toBeDefined();
     }
 
-    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features', 'help/agent-memory']) {
+    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features', 'integrations/hermes']) {
       const page = await findPageByPath(path);
       expect(page).toBeDefined();
       expect(page?.authorId).toBe(userId);
@@ -193,7 +193,7 @@ describe('sample page writer (US3)', () => {
     expect(result.status).toBe('partial');
     expect(result.pages.find((page) => page.path === 'help/markdown-syntax')?.status).toBe('collision');
     expect(result.pages.find((page) => page.path === 'help/main-features')?.status).toBe('created');
-    expect(result.pages.find((page) => page.path === 'help/agent-memory')?.status).toBe('created');
+    expect(result.pages.find((page) => page.path === 'integrations/hermes')?.status).toBe('created');
 
     const page = await findPageByPath('help/markdown-syntax');
     const [current] = await publishedRevisions('help/markdown-syntax');
@@ -212,15 +212,36 @@ describe('sample page writer (US3)', () => {
       .returning();
     await db.insert(schema.pages).values({
       spaceId: otherSpace!.id,
-      slug: 'help/agent-memory',
-      path: 'help/agent-memory',
+      slug: 'integrations/hermes',
+      path: 'integrations/hermes',
       title: 'Foreign Hermes page',
       authorId: userId,
     });
 
     const result = await samplePages.generateSamplePages(actor);
 
-    expect(result.pages.find((page) => page.path === 'help/agent-memory')).toMatchObject({ status: 'created' });
+    expect(result.pages.find((page) => page.path === 'integrations/hermes')).toMatchObject({ status: 'created' });
+  });
+
+  it('moves the legacy marker-owned Hermes guide into integrations without duplicating it', async () => {
+    const { actor } = await openSetupAtSampleStep();
+    const ctx = { actor };
+    const legacy = await pagesService.create(ctx, {
+      path: definitions.LEGACY_AGENT_MEMORY_PAGE_PATH,
+      title: definitions.AGENT_MEMORY_PAGE_TITLE,
+      contentSource: definitions.AGENT_MEMORY_PAGE_SOURCE,
+    });
+    await revisionsService.publish(ctx, { path: definitions.LEGACY_AGENT_MEMORY_PAGE_PATH, version: 1 });
+
+    const result = await samplePages.generateSamplePages(actor);
+
+    expect(result.pages.find((page) => page.path === 'integrations/hermes')).toMatchObject({
+      status: 'updated',
+      pageId: legacy.pageId,
+    });
+    expect(await findPageByPath(definitions.LEGACY_AGENT_MEMORY_PAGE_PATH)).toBeUndefined();
+    const migrated = await findPageByPath('integrations/hermes');
+    expect(migrated).toMatchObject({ id: legacy.pageId, slug: 'integrations/hermes' });
   });
 
   it('skip records the choice without creating pages', async () => {

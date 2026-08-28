@@ -135,6 +135,7 @@ the immutable Raw entry retains its original content and revisions for
 administrators according to the Wiki's Raw-space retention policy.
 
 Back up the Wiki database and content store with the normal deployment backup
-procedure; memory pages and their revision citations are included. For full
-server and reverse-proxy guidance, see
-[the deployment guide](../../docs/hermes-memory-provider.md).
+procedure; memory pages and their revision citations are included. The normal
+[deployment guide](../../docs/deployment.md) covers the shared backup and
+reverse-proxy procedures. This README is the canonical Hermes integration guide
+shipped with the provider and linked from the Wiki's first-run integration page.

@@ -25,7 +25,7 @@ FIELD_DEFINITIONS: tuple[dict[str, object], ...] = (
         "required": True,
         "secret": True,
         "env_var": API_KEY_ENV_VAR,
-        "url": "https://github.com/hugogu/next-wiki/blob/main/docs/hermes-memory-provider.md",
+        "url": "https://github.com/hugogu/next-wiki/blob/main/packages/hermes-memory-provider/README.md",
     },
     {
         "key": "agent_identity",

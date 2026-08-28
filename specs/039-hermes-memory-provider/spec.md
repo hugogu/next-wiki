@@ -138,20 +138,20 @@ guessing configuration values.
 **Why this priority**: A plugin that works only for developers who discover it
 by chance does not make the Wiki practically usable as Hermes memory.
 
-**Independent Test**: On a fresh Wiki, choose to generate the standard help
-pages, open the Hermes memory guide from the welcome/help navigation, and use
+**Independent Test**: On a fresh Wiki, choose to generate the standard example
+pages, open the Hermes integration guide from the welcome/help navigation, and use
 only that guide plus the provided setup helper to reach a verified configured
 provider on a supported Hermes installation.
 
 **Acceptance Scenarios**:
 
 1. **Given** an owner is completing the Wiki's initial setup, **When** they
-   choose to generate help pages, **Then** the published help collection
-   includes a Hermes memory guide and the existing welcome/help links make it
-   discoverable.
-2. **Given** a user-authored page already occupies the Agent Memory help address,
-   **When** initial setup generates help pages, **Then** it reports the
-   collision and never overwrites that page.
+   choose to generate example pages, **Then** the published collection
+   includes an `integrations/hermes` Hermes guide under a virtual integrations
+   folder and the existing welcome/help links make it discoverable.
+2. **Given** a user-authored page already occupies the `integrations/hermes`
+   address, **When** initial setup generates example pages, **Then** it reports
+   the collision and never overwrites that page.
 3. **Given** a user follows the in-product guide or packaged README, **When**
    they configure Hermes, **Then** they receive copyable install, activation,
    API-key, configuration, verification, upgrade, revocation, and
@@ -288,12 +288,13 @@ operations fail safely while previously stored Wiki records remain intact.
   placement, configuration fields, profile/destination isolation, automatic
   capture, checkpoint behavior, memory tools, verification, upgrade, key
   rotation/revocation, backup, and troubleshooting.
-- **FR-015**: The initial setup's optional help-page generation MUST add a
-  managed Hermes memory guide at a stable Help address and link it from the
-  generated welcome/help content. Generation MUST be idempotent and collision
-  safe: managed content may be enriched once, but user-authored content MUST
-  never be overwritten.
-- **FR-016**: The Hermes help guide and automation output MUST be useful for
+- **FR-015**: The initial setup's optional example-page generation MUST add a
+  managed Hermes integration guide at the stable `integrations/hermes` address
+  under a virtual integrations folder and link it from the generated
+  welcome/help content. Generation MUST be idempotent and collision safe:
+  managed content may be enriched once, but user-authored content MUST never be
+  overwritten.
+- **FR-016**: The Hermes integration guide and automation output MUST be useful for
   both same-machine development and remote self-hosted deployments, including
   reachable-address, transport-security, reverse-proxy, and container-network
   considerations; examples MUST use placeholders, never real credentials.
@@ -308,7 +309,7 @@ operations fail safely while previously stored Wiki records remain intact.
 
 ### Public Content Delivery *(required when a feature changes anonymously readable published content)*
 
-- The feature adds an optional, generated Help page and a corresponding
+- The feature adds an optional, generated integration page and a corresponding
   discoverability link to the generated welcome/help material. These are normal
   published Wiki documents, not personalized controls; they follow the existing
   published-page representation, navigation, revision, and invalidation flow.
@@ -344,8 +345,9 @@ operations fail safely while previously stored Wiki records remain intact.
 - **Provider Diagnostic Report**: A credential-safe local result describing
   installation, configuration completeness, compatibility, reachability,
   permission outcome, and recommended repair actions.
-- **Agent Memory Help Page**: Managed onboarding documentation explaining how
-  to connect and operate Hermes with the owner's Wiki.
+- **Hermes Integration Guide**: Managed onboarding documentation at
+  `integrations/hermes` explaining how to connect and operate Hermes with the
+  owner's Wiki.
 
 ## Success Criteria *(mandatory)*
 
@@ -364,10 +366,10 @@ operations fail safely while previously stored Wiki records remain intact.
 - **SC-004**: In retry and required-checkpoint tests, repeated or overlapping
   capture requests create no duplicate source record, and 100% of failed
   required checkpoints prevent the affected lossy compression from completing.
-- **SC-005**: In setup-help regression tests, initial generation creates the
-  Hermes guide and discoverability link on a fresh instance, reruns without
-  duplicate revisions, and preserves 100% of user-authored colliding help
-  pages.
+- **SC-005**: In setup-page regression tests, initial generation creates the
+  `integrations/hermes` guide and discoverability link on a fresh instance,
+  reruns without duplicate revisions, and preserves 100% of user-authored
+  colliding integration pages.
 - **SC-006**: In secret-safety tests covering setup, preview, diagnostics,
   failure output, documentation examples, and audit displays, no API credential
   or protected Wiki content is revealed.
