@@ -16,7 +16,10 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        hermes-version: ['0.7.0', 'latest']
+        # 0.7.0 introduced the MemoryProvider contract upstream, but it was
+        # never published to PyPI. 0.13.0 is the oldest installable Hermes
+        # distribution that exposes that contract.
+        hermes-version: ['0.13.0', 'latest']
     defaults:
       run:
         working-directory: packages/hermes-memory-provider

@@ -62,11 +62,13 @@ environment secret mechanism instead.
 
 ## Compatibility
 
-The package is published as a `hermes_agent.memory_providers` entry point. Its
-release workflow tests Hermes `0.7.0` (the first pluggable `MemoryProvider`
-release) and the latest available Hermes package. The generic Agent Memory API
-is versioned at `/api/v1/memory/*`; an incompatible provider or server fails with an actionable 426
-response instead of falling back to generic page endpoints.
+The package is published as a `hermes_agent.memory_providers` entry point. The
+upstream MemoryProvider contract was introduced in Hermes `0.7.0`, but that
+release was never published to PyPI. CI therefore tests `0.13.0`, the oldest
+installable Hermes distribution exposing the contract, and the latest available
+Hermes package. The generic Agent Memory API is versioned at
+`/api/v1/memory/*`; an incompatible provider or server fails with an actionable
+426 response instead of falling back to generic page endpoints.
 
 Checkpoint API v2 support is runtime-dependent rather than assumed from this
 minimum. Keep strict checkpointing disabled until `hermes next-wiki check` and
