@@ -4,7 +4,15 @@ import json
 
 import pytest
 
-from next_wiki_memory.config import ProviderConfig, config_path, load_config, save_config, validate_agent_identity, validate_wiki_api_base_url
+from next_wiki_memory.config import (
+    LEGACY_CONFIG_FILENAME,
+    ProviderConfig,
+    config_path,
+    load_config,
+    save_config,
+    validate_agent_identity,
+    validate_wiki_api_base_url,
+)
 from next_wiki_memory.redaction import redact, safe_url
 
 
@@ -47,6 +55,24 @@ def test_save_config_revalidates_urls_from_desktop_or_other_callers(tmp_path) ->
     config_path(tmp_path).write_text(json.dumps(payload))
     with pytest.raises(ValueError, match="capture_enabled"):
         load_config(tmp_path)
+
+
+def test_legacy_config_filename_is_migrated_for_hermes_dashboard(tmp_path) -> None:
+    legacy_path = tmp_path / LEGACY_CONFIG_FILENAME
+    legacy_path.write_text(json.dumps({
+        "version": 1,
+        "wiki_api_base_url": "https://wiki.example.com/api/v1",
+        "agent_identity": "hermes-memory",
+        "capture_enabled": True,
+    }))
+
+    config = load_config(tmp_path)
+
+    assert config is not None
+    assert config.agent_identity == "hermes-memory"
+    assert config_path(tmp_path).exists()
+    assert json.loads(config_path(tmp_path).read_text())["wiki_api_base_url"] == "https://wiki.example.com/api/v1"
+    assert legacy_path.exists()
 
 
 def test_safe_rendering_removes_secrets_and_url_queries() -> None:

@@ -43,11 +43,21 @@ If the tool name has an `mcp__` prefix or the configuration is under
 `mcp_servers`, a separate MCP integration is being used instead of this
 provider.
 
+Hermes may pass its runtime identity as `hermes` even when the API key was
+provisioned with another configured identity such as `hermes-memory`. The
+provider keeps the configured identity for its destination-scoped capture
+digest and lets the Wiki key binding enforce authorization; this is expected
+and does not require renaming the Hermes profile.
+
 ## Safe configuration and checks
 
 The provider writes only non-secret settings (including `agent_identity`) to
-`$HERMES_HOME/next-wiki-memory.json`; the secret belongs in Hermes's profile
-secret store. It never accepts a key as a command-line argument.
+`$HERMES_HOME/next-wiki.json`, matching the filename Hermes's dashboard uses
+when it checks whether a provider is configured. Versions up to 0.1.3 wrote
+`next-wiki-memory.json`; the provider reads that legacy filename and migrates it
+to the dashboard-compatible name without copying any secret. The API key
+belongs in Hermes's profile secret store. It never accepts a key as a
+command-line argument.
 
 ```bash
 # Preview a local configuration without writing it or contacting the Wiki.
@@ -100,7 +110,7 @@ eligible conversation turns automatically:
 
 1. Re-run `hermes memory setup`, select `next-wiki`, and answer **yes** to the
    `capture_enabled` / conversation-capture field. For an existing profile,
-   you may instead edit `$HERMES_HOME/next-wiki-memory.json` and change only
+   you may instead edit `$HERMES_HOME/next-wiki.json` and change only
    `"capture_enabled": false` to `true`. Preserve the existing URL, identity,
    and version fields, and never add the API key to this file.
 2. Restart the Hermes process (or gateway/container) and start a new session;
@@ -119,6 +129,11 @@ wait for. Inspect the **Agent Memory** category or the `agent_memory` filter in
 Admin → Access Log while testing. A normal turn does not wait for this write,
 so allow the worker time to process it and use a disposable conversation when
 testing.
+
+Hermes 0.20 and later calls `sync_turn(user, assistant, session_id=...,
+messages=...)`; older releases may omit `messages`. The provider accepts both
+forms and implements Hermes's `system_prompt_block()` hook (with no static
+prompt content) so status warnings do not turn into failed memory startup.
 
 Strict pre-compression checkpoints are opt-in and require a Hermes runtime that
 supports checkpoint API v2. When enabled, compression must not treat a
