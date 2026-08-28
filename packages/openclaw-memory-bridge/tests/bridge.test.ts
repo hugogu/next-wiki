@@ -1,17 +1,18 @@
 import { mkdtemp, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { parseBridgeConfig, resolveCredential } from '../src/config';
 import { normalizeCapture } from '../src/capture';
 import { FileOutbox } from '../src/outbox';
 import { externalContext } from '../src/prompt-context';
 import { registerLifecycleHooks } from '../src/hooks';
+import { MemoryBridgeService } from '../src/service';
 
 describe('OpenClaw bridge', () => {
   it('parses strict config and requires a resolved SecretRef value', () => {
-    expect(parseBridgeConfig({ wikiApiBaseUrl: 'https://wiki.example.test/api/v2', credential: { value: 'secret' } }).capture.enabled).toBe(false);
-    const unresolved = parseBridgeConfig({ wikiApiBaseUrl: 'https://wiki.example.test/api/v2', credential: { ref: 'openclaw://secret' } });
+    expect(parseBridgeConfig({ wikiApiBaseUrl: 'https://wiki.example.test/api/v2/memory', credential: { value: 'secret' } }).capture.enabled).toBe(false);
+    const unresolved = parseBridgeConfig({ wikiApiBaseUrl: 'https://wiki.example.test/api/v2/memory', credential: { ref: 'openclaw://secret' } });
     expect(() => resolveCredential(unresolved.credential)).toThrow();
   });
 
@@ -55,8 +56,46 @@ describe('OpenClaw bridge', () => {
   it('registers lifecycle observation hooks only when capture is enabled', () => {
     const names: string[] = [];
     const api = { registerHook: (name: string) => names.push(name) };
-    const config = parseBridgeConfig({ wikiApiBaseUrl: 'https://wiki.example.test/api/v2', credential: { value: 'secret' }, capture: { enabled: true, beforeCompaction: true, sessionEnd: true, agentEnd: true } });
+    const config = parseBridgeConfig({ wikiApiBaseUrl: 'https://wiki.example.test/api/v2/memory', credential: { value: 'secret' }, capture: { enabled: true, beforeCompaction: true, sessionEnd: true, agentEnd: true } });
     registerLifecycleHooks(api, config, async () => undefined);
     expect(names).toEqual(expect.arrayContaining(['before_compaction', 'after_compaction', 'agent_end', 'session_end', 'gateway_start', 'gateway_stop']));
+  });
+
+  it('continues draining queued captures after shutdown starts', async () => {
+    const stateDir = await mkdtemp(join(tmpdir(), 'next-wiki-bridge-'));
+    const config = parseBridgeConfig({
+      wikiApiBaseUrl: 'https://wiki.example.test/api/v2/memory',
+      credential: { value: 'secret' },
+      outbox: { maxEntries: 4, maxBytes: 10_000 },
+    });
+    let releaseFirst!: () => void;
+    let firstStarted!: () => void;
+    const firstStartedPromise = new Promise<void>((resolve) => { firstStarted = resolve; });
+    const firstGate = new Promise<void>((resolve) => { releaseFirst = resolve; });
+    let calls = 0;
+    const client = {
+      connection: vi.fn(async () => ({ connectionId: 'connection', agentIdentity: 'agent', displayLabel: 'Agent', state: 'active', capabilities: { recall: true, save: true, forget: true, capture: true } })),
+      capture: vi.fn(async () => {
+        calls += 1;
+        if (calls === 1) {
+          firstStarted();
+          await firstGate;
+        }
+        return { captureId: `capture-${calls}`, status: 'queued', pollUrl: '/captures', idempotent: false };
+      }),
+    };
+    const service = new MemoryBridgeService(config, client as never, stateDir);
+
+    await service.start();
+    await service.enqueue({ eventId: 'event-1', sessionDigest: 'session', checkpoint: false, messages: [{ role: 'user', content: 'one' }] });
+    await firstStartedPromise;
+    await service.enqueue({ eventId: 'event-2', sessionDigest: 'session', checkpoint: false, messages: [{ role: 'user', content: 'two' }] });
+
+    const stopping = service.stop();
+    releaseFirst();
+    await stopping;
+
+    expect(client.capture).toHaveBeenCalledTimes(2);
+    expect(service.outbox.list().map((entry) => entry.state)).toEqual(['acknowledged', 'acknowledged']);
   });
 });

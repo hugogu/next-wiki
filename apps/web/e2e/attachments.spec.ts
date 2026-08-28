@@ -100,9 +100,17 @@ test.describe('page attachments happy path (US1-US3)', () => {
     await openProperties(page);
     await page.getByRole('button', { name: 'Remove notes.txt' }).click();
     await expect(page.getByRole('heading', { name: 'Remove attachment' })).toBeVisible();
-    await page.getByRole('button', { name: 'Remove', exact: true }).click();
+    const removeResponse = page.waitForResponse((response) =>
+      response.request().method() === 'DELETE'
+      && response.url().includes('/api/v1/attachments/')
+      && response.status() === 204,
+    );
+    await Promise.all([
+      removeResponse,
+      page.getByRole('button', { name: 'Remove', exact: true }).click(),
+    ]);
     await expect(page.getByRole('heading', { name: 'Remove attachment' })).not.toBeVisible();
-    await expect(page.getByRole('link', { name: 'notes.txt' })).not.toBeVisible();
+    await expect(page.getByRole('link', { name: 'notes.txt' })).toHaveCount(0);
     await expect(page.getByRole('link', { name: 'pixel.png' })).toBeVisible();
 
     // Removed attachment disappears from the reader view too.

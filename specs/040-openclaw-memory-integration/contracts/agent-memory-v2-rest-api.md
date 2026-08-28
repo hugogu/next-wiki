@@ -146,8 +146,8 @@ Submits selected opted-in capture material for asynchronous durable ingestion.
 {
   "idempotencyKey": "stable-capture-event-key",
   "sessionDigest": "lowercase-hex-digest",
-  "eventDigest": "lowercase-hex-digest",
-  "captureKind": "post_compaction_summary",
+  "checkpoint": true,
+  "origin": "checkpoint",
   "messages": [
     { "role": "user", "content": "Selected source text" },
     { "role": "assistant", "content": "Selected summary text" }
@@ -155,7 +155,7 @@ Submits selected opted-in capture material for asynchronous durable ingestion.
 }
 ~~~
 
-- Capture kind is a closed server schema and determines original/generated nature.
+- `origin` is a closed enum (`automatic_capture` or `checkpoint`) and `checkpoint` identifies whether the material was collected at a checkpoint boundary.
 - Only normalized selected user/assistant source rows are accepted. System messages, tool calls/results, secrets, arbitrary metadata, and nested payload shapes are rejected.
 - The service encrypts the temporary envelope and queues a capture ID. It does not place message bodies in background job payloads or claim durability before the Raw revision exists.
 

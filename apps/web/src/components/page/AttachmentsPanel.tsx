@@ -36,16 +36,18 @@ export function AttachmentsPanel({ pageId, canManage = false }: { pageId: string
   const [removing, setRemoving] = useState(false);
   const [removeError, setRemoveError] = useState<string | null>(null);
   const [unavailableIds, setUnavailableIds] = useState<Set<string>>(new Set());
+  const listGeneration = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
+    const generation = ++listGeneration.current;
     void listAttachments(pageId)
       .then((result) => {
-        if (!cancelled) setItems(result);
+        if (!cancelled && generation === listGeneration.current) setItems(result);
       })
       .catch(() => {
-        if (!cancelled) setItems([]);
+        if (!cancelled && generation === listGeneration.current) setItems([]);
       });
     return () => {
       cancelled = true;
@@ -53,6 +55,7 @@ export function AttachmentsPanel({ pageId, canManage = false }: { pageId: string
   }, [pageId]);
 
   async function handleFileSelected(file: File) {
+    listGeneration.current += 1;
     setUploading(true);
     setError(null);
     try {
@@ -105,6 +108,7 @@ export function AttachmentsPanel({ pageId, canManage = false }: { pageId: string
 
   async function confirmRemove() {
     if (!pendingRemoval) return;
+    listGeneration.current += 1;
     setRemoving(true);
     setRemoveError(null);
     try {

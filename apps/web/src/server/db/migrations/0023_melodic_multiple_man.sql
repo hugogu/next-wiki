@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "agent_memory_records_namespace_identity_idempotency_legacy_unique" ON "agent_memory_records" USING btree ("namespace_id","agent_identity","idempotency_key") WHERE "agent_memory_records"."author_connection_id" is null;

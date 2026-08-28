@@ -41,7 +41,7 @@ export class MemoryBridgeService {
   async enqueue(event: CaptureEvent): Promise<void> {
     if (this.stopping) return;
     await this.outbox.enqueue(event.eventId, event);
-    void this.drain();
+    void this.startDrain();
   }
 
   status(): Record<string, unknown> {
@@ -53,7 +53,7 @@ export class MemoryBridgeService {
     this.draining = true;
     const startedAt = Date.now();
     try {
-      while (!this.stopping || (deadlineMs > 0 && Date.now() - startedAt < deadlineMs)) {
+      while (deadlineMs === 0 || Date.now() - startedAt < deadlineMs) {
         const entry = await this.outbox.claim();
         if (!entry) return;
         try {

@@ -37,7 +37,7 @@ plugins:
         allowConversationAccess: false
         allowPromptInjection: false
       config:
-        wikiApiBaseUrl: https://wiki.example.com/api/v2
+        wikiApiBaseUrl: https://wiki.example.com/api/v2/memory
         capture:
           enabled: false
         externalContext:

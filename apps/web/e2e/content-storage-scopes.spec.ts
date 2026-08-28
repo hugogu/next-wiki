@@ -22,7 +22,7 @@ test.describe('storage & preferences API-key scopes', () => {
   test('exposes the new scopes when creating a key', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     await page.goto('/user-center/api-keys');
-    await page.getByRole('button', { name: /create|new key/i }).first().click();
+    await page.getByRole('button', { name: 'Create API key' }).click();
 
     await expect(page.getByText('Storage', { exact: true })).toBeVisible();
     await expect(page.getByText('Preferences', { exact: true })).toBeVisible();

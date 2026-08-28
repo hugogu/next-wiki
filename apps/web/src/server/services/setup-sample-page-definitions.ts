@@ -304,7 +304,7 @@ npm install @next-wiki/openclaw-memory-bridge
 openclaw plugins install @next-wiki/openclaw-memory-bridge
 \`\`\`
 
-Configure the plugin with this Wiki's HTTPS API URL (for example, \`https://wiki.example.com/api/v2\`) and a secret reference. Enable the plugin's optional tools only after reviewing the host's tool policy. Automatic prompt enrichment is opt-in and requires conversation access plus prompt-injection permission in OpenClaw.
+Configure the plugin with this Wiki's HTTPS Agent Memory API URL (for example, \`https://wiki.example.com/api/v2/memory\`) and a secret reference. Enable the plugin's optional tools only after reviewing the host's tool policy. Automatic prompt enrichment is opt-in and requires conversation access plus prompt-injection permission in OpenClaw.
 
 The bridge keeps a bounded, permission-protected local outbox for restart-safe delivery. Hooks enqueue capture work and return quickly; a capture is reported as durable only after the server has written the immutable Raw revision. OpenClaw's local memory remains available if the Wiki is offline.
 

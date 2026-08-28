@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { readFile, readdir } from 'node:fs/promises';
 import { extname, join, relative } from 'node:path';
 
@@ -28,7 +29,7 @@ export async function discoverSources(root: string): Promise<MigrationCandidate[
       if (extname(entry.name).toLowerCase() !== '.md') continue;
       const relativePath = relative(root, absolute);
       const buffer = await readFile(absolute);
-      const digest = await import('node:crypto').then(({ createHash }) => createHash('sha256').update(buffer).digest('hex'));
+      const digest = createHash('sha256').update(buffer).digest('hex');
       if (buffer.byteLength > MAX_BYTES) {
         output.push({ relativePath, sourceFingerprint: digest, content: '', category: 'unknown', eligible: false, reason: 'oversized' });
         continue;

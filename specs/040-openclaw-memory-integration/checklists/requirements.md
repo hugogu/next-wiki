@@ -8,9 +8,9 @@
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
+- [x] Internal implementation details are excluded; externally visible contracts are documented where needed
 - [x] Focused on user value and business needs
-- [x] Written for non-technical stakeholders
+- [x] Written for product and implementation stakeholders, with technical contract terms called out explicitly
 - [x] All mandatory sections completed
 
 ## Requirement Completeness
@@ -29,7 +29,7 @@
 - [x] All functional requirements have clear acceptance criteria
 - [x] User scenarios cover primary flows
 - [x] Feature meets measurable outcomes defined in Success Criteria
-- [x] No implementation details leak into specification
+- [x] Internal implementation details do not leak into the specification; required external contracts remain explicit
 
 ## Notes
 

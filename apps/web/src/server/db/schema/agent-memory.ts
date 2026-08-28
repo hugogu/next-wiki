@@ -1,4 +1,4 @@
-import { relations } from 'drizzle-orm';
+import { relations, sql } from 'drizzle-orm';
 import { boolean, index, integer, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import {
   agentMemoryConnectionStateEnum,
@@ -125,6 +125,9 @@ export const agentMemoryRecords = pgTable(
   },
   (table) => ({
     namespaceConnectionIdempotency: uniqueIndex('agent_memory_records_namespace_connection_idempotency_unique').on(table.namespaceId, table.authorConnectionId, table.idempotencyKey),
+    legacyNamespaceIdentityIdempotency: uniqueIndex('agent_memory_records_namespace_identity_idempotency_legacy_unique')
+      .on(table.namespaceId, table.agentIdentity, table.idempotencyKey)
+      .where(sql`${table.authorConnectionId} is null`),
     namespaceStateUpdated: index('agent_memory_records_namespace_state_updated_idx').on(table.namespaceId, table.state, table.updatedAt),
     page: uniqueIndex('agent_memory_records_page_unique').on(table.pageId),
   }),
