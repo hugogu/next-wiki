@@ -1,1 +1,0 @@
-ALTER TABLE "agent_memory_captures" ADD COLUMN "payload_digest" text DEFAULT 'legacy' NOT NULL;

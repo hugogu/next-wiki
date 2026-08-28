@@ -206,6 +206,10 @@ image or broadening the existing Node MCP server.
    - Add Drizzle schema definitions for namespaces, bindings, records, evidence
      links, scope/audit enums, and indexes. Generate the migration exclusively
      with `pnpm db:generate`, then rerun it to confirm no pending schema change.
+     Because this branch is not merged yet, keep its migration history clean by
+     replacing the intermediate Hermes migrations with one 0021 migration from
+     the `origin/main` 0020 snapshot; the migration creates only generic
+     `agent_memory_*` objects.
 
 3. **Implement memory service and narrow REST surface**
    - Resolve the destination solely from the authenticated key. Reuse the

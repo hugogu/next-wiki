@@ -221,19 +221,19 @@ keeping Hermes as the first supported provider.
   `/api/v1/memory/*` and `/api/api-keys/memory-destinations`; update OpenAPI,
   provider transport paths, version headers, and route tests.
 - [X] T079 Rename server/shared schema, service, permission, job, queue, and
-  category identifiers to `agent-memory`; generate migrations 0023–0024 to
-  rename existing `hermes_memory_*` tables/enums and add the capture payload
-  digest without dropping data.
+  category identifiers to `agent-memory`; replace the unmerged intermediate
+  migrations with one generated 0021 migration from the `origin/main` 0020
+  snapshot that creates only `agent_memory_*` tables/enums and capture state.
 - [X] T080 Add required non-secret `agent_identity` to memory-provider key
   configuration and binding metadata; add non-null identity columns to records
-  and captures, backfill existing rows with `hermes`, and include identity in
-  idempotency and all authorization/retrieval predicates.
+  and captures, defaulting the first Hermes client configuration to `hermes`,
+  and include identity in idempotency and all authorization/retrieval
+  predicates.
 - [X] T081 Replace the user-facing “Hermes Memory provider” API-key preset with
   the feature-level “Memory provider” label, show Hermes under client guidance,
   and expose the identity field in the User Center form and OpenAPI schema.
-- [X] T082 Update audit attribution to the generic `agent_memory` origin and
-  keep the legacy `hermes` enum value only for historical rows; no client name
-  is inferred from a URL path.
+- [X] T082 Update audit attribution to the generic `agent_memory` origin; no
+  client-specific audit enum or URL path is used to identify a provider.
 - [X] T083 Synchronize spec, plan, research, data model, REST contract,
   quickstart, onboarding, package README, and deployment docs with the generic
   backend contract and explicitly defer primary after-compaction/session-start
@@ -245,8 +245,10 @@ keeping Hermes as the first supported provider.
   `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`.
 - [X] T084 Add cross-client fixture coverage proving two identities can share a
   destination without sharing records, captures, or idempotency keys.
-- [ ] T085 Run the migration on a populated compatibility fixture and verify
-  Raw-page retention, index rebuildability, and rollback/recovery guidance.
+- [ ] T085 Run the single generated 0021 migration on a populated
+  `origin/main` compatibility fixture and verify Raw-page retention, index
+  rebuildability, absence of `hermes_memory_*` objects, and rollback/recovery
+  guidance.
 
 ---
 

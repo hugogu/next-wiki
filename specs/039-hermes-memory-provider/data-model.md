@@ -3,8 +3,9 @@
 ## Generic backend revision
 
 The relational model is client-neutral. Physical tables are `agent_memory_*`;
-the initial Hermes migration renames the pre-release `hermes_memory_*` objects
-in place. `agent_identity` is non-null on key bindings, records, and captures,
+the feature branch's single generated migration creates these objects directly
+from the `origin/main` schema baseline; no `hermes_memory_*` tables are kept.
+`agent_identity` is non-null on key bindings, records, and captures,
 and is part of every namespace-scoped lookup and idempotency key. A shared
 destination therefore supports multiple clients safely without putting a client
 name in the URL. Raw pages/revisions remain the canonical immutable body and

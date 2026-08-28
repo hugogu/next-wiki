@@ -6,10 +6,12 @@ The design review requires a generic `/api/v1/memory/*` surface and
 `agent_memory_*` storage. Hermes is only the first adapter discovered through
 its memory-provider entry point. API-key metadata binds both the destination
 and a required `agent_identity`; clients cannot select either by path or tool
-arguments. A generated rename migration preserves existing rows and backfills
-the historical Hermes identity. Primary after-compaction capture and automatic
-session-start recall remain deferred until a second client validates the common
-lifecycle contract.
+arguments. Because this feature branch is not yet merged, its schema history is
+kept clean: one generated migration starts from the `origin/main` 0020
+snapshot and creates only `agent_memory_*` objects. There is no runtime
+`hermes_memory_*` compatibility table or client-specific audit enum. Primary
+after-compaction capture and automatic session-start recall remain deferred
+until a second client validates the common lifecycle contract.
 
 **Feature**: [Agent Memory Provider](./spec.md)
 **Date**: 2026-08-27

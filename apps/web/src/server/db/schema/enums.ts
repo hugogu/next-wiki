@@ -405,7 +405,7 @@ export const translationUsageSourceEnum = pgEnum('translation_usage_source', [
 // ---- Feishu integration (019) ---------------------------------------------
 
 /** Source channel of an audit entry. Existing rows default to `web`. */
-export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu', 'agent_memory', 'hermes']);
+export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu', 'agent_memory']);
 
 export const agentMemoryNamespaceStateEnum = pgEnum('agent_memory_namespace_state', ['active', 'disabled']);
 export const agentMemoryRecordTypeEnum = pgEnum('agent_memory_record_type', ['memory', 'evidence']);

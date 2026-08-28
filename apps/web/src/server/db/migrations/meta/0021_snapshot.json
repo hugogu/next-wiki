@@ -1,9 +1,721 @@
 {
-  "id": "d59ac5bf-1f4e-456f-860b-fb5b589c9b2d",
+  "id": "741d4937-d3b3-4e39-bd7d-4c264894461c",
   "prevId": "8bc0cfc0-e45c-45ce-8206-c244d7aebbc9",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
+    "public.agent_memory_captures": {
+      "name": "agent_memory_captures",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "namespace_id": {
+          "name": "namespace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "api_key_id": {
+          "name": "api_key_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_identity": {
+          "name": "agent_identity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'hermes'"
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "payload_digest": {
+          "name": "payload_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'legacy'"
+        },
+        "session_digest": {
+          "name": "session_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "checkpoint": {
+          "name": "checkpoint",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "status": {
+          "name": "status",
+          "type": "agent_memory_capture_status",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'queued'"
+        },
+        "evidence_record_id": {
+          "name": "evidence_record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "job_id": {
+          "name": "job_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "failure_code": {
+          "name": "failure_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_memory_captures_namespace_identity_idempotency_unique": {
+          "name": "agent_memory_captures_namespace_identity_idempotency_unique",
+          "columns": [
+            {
+              "expression": "namespace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "agent_identity",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_memory_captures_api_key_idx": {
+          "name": "agent_memory_captures_api_key_idx",
+          "columns": [
+            {
+              "expression": "api_key_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_memory_captures_status_updated_idx": {
+          "name": "agent_memory_captures_status_updated_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_memory_captures_namespace_id_agent_memory_namespaces_id_fk": {
+          "name": "agent_memory_captures_namespace_id_agent_memory_namespaces_id_fk",
+          "tableFrom": "agent_memory_captures",
+          "tableTo": "agent_memory_namespaces",
+          "columnsFrom": [
+            "namespace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "agent_memory_captures_api_key_id_api_keys_id_fk": {
+          "name": "agent_memory_captures_api_key_id_api_keys_id_fk",
+          "tableFrom": "agent_memory_captures",
+          "tableTo": "api_keys",
+          "columnsFrom": [
+            "api_key_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "agent_memory_captures_evidence_record_id_agent_memory_records_id_fk": {
+          "name": "agent_memory_captures_evidence_record_id_agent_memory_records_id_fk",
+          "tableFrom": "agent_memory_captures",
+          "tableTo": "agent_memory_records",
+          "columnsFrom": [
+            "evidence_record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agent_memory_evidence_links": {
+      "name": "agent_memory_evidence_links",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "memory_record_id": {
+          "name": "memory_record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "evidence_record_id": {
+          "name": "evidence_record_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "relation": {
+          "name": "relation",
+          "type": "agent_memory_evidence_relation",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_memory_evidence_links_unique": {
+          "name": "agent_memory_evidence_links_unique",
+          "columns": [
+            {
+              "expression": "memory_record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "evidence_record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "relation",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_memory_evidence_links_evidence_idx": {
+          "name": "agent_memory_evidence_links_evidence_idx",
+          "columns": [
+            {
+              "expression": "evidence_record_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_memory_evidence_links_memory_record_id_agent_memory_records_id_fk": {
+          "name": "agent_memory_evidence_links_memory_record_id_agent_memory_records_id_fk",
+          "tableFrom": "agent_memory_evidence_links",
+          "tableTo": "agent_memory_records",
+          "columnsFrom": [
+            "memory_record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "agent_memory_evidence_links_evidence_record_id_agent_memory_records_id_fk": {
+          "name": "agent_memory_evidence_links_evidence_record_id_agent_memory_records_id_fk",
+          "tableFrom": "agent_memory_evidence_links",
+          "tableTo": "agent_memory_records",
+          "columnsFrom": [
+            "evidence_record_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agent_memory_key_bindings": {
+      "name": "agent_memory_key_bindings",
+      "schema": "",
+      "columns": {
+        "api_key_id": {
+          "name": "api_key_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "namespace_id": {
+          "name": "namespace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_identity": {
+          "name": "agent_identity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'hermes'"
+        },
+        "shared_by_owner": {
+          "name": "shared_by_owner",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_memory_key_bindings_namespace_idx": {
+          "name": "agent_memory_key_bindings_namespace_idx",
+          "columns": [
+            {
+              "expression": "namespace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_memory_key_bindings_api_key_id_api_keys_id_fk": {
+          "name": "agent_memory_key_bindings_api_key_id_api_keys_id_fk",
+          "tableFrom": "agent_memory_key_bindings",
+          "tableTo": "api_keys",
+          "columnsFrom": [
+            "api_key_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "agent_memory_key_bindings_namespace_id_agent_memory_namespaces_id_fk": {
+          "name": "agent_memory_key_bindings_namespace_id_agent_memory_namespaces_id_fk",
+          "tableFrom": "agent_memory_key_bindings",
+          "tableTo": "agent_memory_namespaces",
+          "columnsFrom": [
+            "namespace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agent_memory_namespaces": {
+      "name": "agent_memory_namespaces",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "owner_user_id": {
+          "name": "owner_user_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "state": {
+          "name": "state",
+          "type": "agent_memory_namespace_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "disabled_at": {
+          "name": "disabled_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_memory_namespaces_owner_created_idx": {
+          "name": "agent_memory_namespaces_owner_created_idx",
+          "columns": [
+            {
+              "expression": "owner_user_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_memory_namespaces_owner_user_id_users_id_fk": {
+          "name": "agent_memory_namespaces_owner_user_id_users_id_fk",
+          "tableFrom": "agent_memory_namespaces",
+          "tableTo": "users",
+          "columnsFrom": [
+            "owner_user_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.agent_memory_records": {
+      "name": "agent_memory_records",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "namespace_id": {
+          "name": "namespace_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "agent_identity": {
+          "name": "agent_identity",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'hermes'"
+        },
+        "record_type": {
+          "name": "record_type",
+          "type": "agent_memory_record_type",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "page_id": {
+          "name": "page_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "current_revision_id": {
+          "name": "current_revision_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source_session_digest": {
+          "name": "source_session_digest",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "agent_memory_record_state",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'active'"
+        },
+        "forgotten_at": {
+          "name": "forgotten_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "agent_memory_records_namespace_identity_idempotency_unique": {
+          "name": "agent_memory_records_namespace_identity_idempotency_unique",
+          "columns": [
+            {
+              "expression": "namespace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "agent_identity",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_memory_records_namespace_state_updated_idx": {
+          "name": "agent_memory_records_namespace_state_updated_idx",
+          "columns": [
+            {
+              "expression": "namespace_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "state",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "updated_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "agent_memory_records_page_unique": {
+          "name": "agent_memory_records_page_unique",
+          "columns": [
+            {
+              "expression": "page_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "agent_memory_records_namespace_id_agent_memory_namespaces_id_fk": {
+          "name": "agent_memory_records_namespace_id_agent_memory_namespaces_id_fk",
+          "tableFrom": "agent_memory_records",
+          "tableTo": "agent_memory_namespaces",
+          "columnsFrom": [
+            "namespace_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "agent_memory_records_page_id_pages_id_fk": {
+          "name": "agent_memory_records_page_id_pages_id_fk",
+          "tableFrom": "agent_memory_records",
+          "tableTo": "pages",
+          "columnsFrom": [
+            "page_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        },
+        "agent_memory_records_current_revision_id_page_revisions_id_fk": {
+          "name": "agent_memory_records_current_revision_id_page_revisions_id_fk",
+          "tableFrom": "agent_memory_records",
+          "tableTo": "page_revisions",
+          "columnsFrom": [
+            "current_revision_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "restrict",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.ai_tool_calls": {
       "name": "ai_tool_calls",
       "schema": "",
@@ -1098,644 +1810,6 @@
             "id"
           ],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.hermes_memory_captures": {
-      "name": "hermes_memory_captures",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "namespace_id": {
-          "name": "namespace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "session_digest": {
-          "name": "session_digest",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "checkpoint": {
-          "name": "checkpoint",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "status": {
-          "name": "status",
-          "type": "hermes_memory_capture_status",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'queued'"
-        },
-        "evidence_record_id": {
-          "name": "evidence_record_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "job_id": {
-          "name": "job_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "failure_code": {
-          "name": "failure_code",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "hermes_memory_captures_namespace_idempotency_unique": {
-          "name": "hermes_memory_captures_namespace_idempotency_unique",
-          "columns": [
-            {
-              "expression": "namespace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "idempotency_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "hermes_memory_captures_status_updated_idx": {
-          "name": "hermes_memory_captures_status_updated_idx",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "hermes_memory_captures_namespace_id_hermes_memory_namespaces_id_fk": {
-          "name": "hermes_memory_captures_namespace_id_hermes_memory_namespaces_id_fk",
-          "tableFrom": "hermes_memory_captures",
-          "tableTo": "hermes_memory_namespaces",
-          "columnsFrom": [
-            "namespace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "hermes_memory_captures_evidence_record_id_hermes_memory_records_id_fk": {
-          "name": "hermes_memory_captures_evidence_record_id_hermes_memory_records_id_fk",
-          "tableFrom": "hermes_memory_captures",
-          "tableTo": "hermes_memory_records",
-          "columnsFrom": [
-            "evidence_record_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.hermes_memory_evidence_links": {
-      "name": "hermes_memory_evidence_links",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "memory_record_id": {
-          "name": "memory_record_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "evidence_record_id": {
-          "name": "evidence_record_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "relation": {
-          "name": "relation",
-          "type": "hermes_memory_evidence_relation",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "hermes_memory_evidence_links_unique": {
-          "name": "hermes_memory_evidence_links_unique",
-          "columns": [
-            {
-              "expression": "memory_record_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "evidence_record_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "relation",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "hermes_memory_evidence_links_evidence_idx": {
-          "name": "hermes_memory_evidence_links_evidence_idx",
-          "columns": [
-            {
-              "expression": "evidence_record_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "hermes_memory_evidence_links_memory_record_id_hermes_memory_records_id_fk": {
-          "name": "hermes_memory_evidence_links_memory_record_id_hermes_memory_records_id_fk",
-          "tableFrom": "hermes_memory_evidence_links",
-          "tableTo": "hermes_memory_records",
-          "columnsFrom": [
-            "memory_record_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "hermes_memory_evidence_links_evidence_record_id_hermes_memory_records_id_fk": {
-          "name": "hermes_memory_evidence_links_evidence_record_id_hermes_memory_records_id_fk",
-          "tableFrom": "hermes_memory_evidence_links",
-          "tableTo": "hermes_memory_records",
-          "columnsFrom": [
-            "evidence_record_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.hermes_memory_key_bindings": {
-      "name": "hermes_memory_key_bindings",
-      "schema": "",
-      "columns": {
-        "api_key_id": {
-          "name": "api_key_id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "namespace_id": {
-          "name": "namespace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "shared_by_owner": {
-          "name": "shared_by_owner",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "hermes_memory_key_bindings_namespace_idx": {
-          "name": "hermes_memory_key_bindings_namespace_idx",
-          "columns": [
-            {
-              "expression": "namespace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "hermes_memory_key_bindings_api_key_id_api_keys_id_fk": {
-          "name": "hermes_memory_key_bindings_api_key_id_api_keys_id_fk",
-          "tableFrom": "hermes_memory_key_bindings",
-          "tableTo": "api_keys",
-          "columnsFrom": [
-            "api_key_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "hermes_memory_key_bindings_namespace_id_hermes_memory_namespaces_id_fk": {
-          "name": "hermes_memory_key_bindings_namespace_id_hermes_memory_namespaces_id_fk",
-          "tableFrom": "hermes_memory_key_bindings",
-          "tableTo": "hermes_memory_namespaces",
-          "columnsFrom": [
-            "namespace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.hermes_memory_namespaces": {
-      "name": "hermes_memory_namespaces",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "owner_user_id": {
-          "name": "owner_user_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "display_name": {
-          "name": "display_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "state": {
-          "name": "state",
-          "type": "hermes_memory_namespace_state",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "disabled_at": {
-          "name": "disabled_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "hermes_memory_namespaces_owner_created_idx": {
-          "name": "hermes_memory_namespaces_owner_created_idx",
-          "columns": [
-            {
-              "expression": "owner_user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "created_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "hermes_memory_namespaces_owner_user_id_users_id_fk": {
-          "name": "hermes_memory_namespaces_owner_user_id_users_id_fk",
-          "tableFrom": "hermes_memory_namespaces",
-          "tableTo": "users",
-          "columnsFrom": [
-            "owner_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.hermes_memory_records": {
-      "name": "hermes_memory_records",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "namespace_id": {
-          "name": "namespace_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "record_type": {
-          "name": "record_type",
-          "type": "hermes_memory_record_type",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "page_id": {
-          "name": "page_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "current_revision_id": {
-          "name": "current_revision_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "idempotency_key": {
-          "name": "idempotency_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_session_digest": {
-          "name": "source_session_digest",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "state": {
-          "name": "state",
-          "type": "hermes_memory_record_state",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "forgotten_at": {
-          "name": "forgotten_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {
-        "hermes_memory_records_namespace_idempotency_unique": {
-          "name": "hermes_memory_records_namespace_idempotency_unique",
-          "columns": [
-            {
-              "expression": "namespace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "idempotency_key",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "hermes_memory_records_namespace_state_updated_idx": {
-          "name": "hermes_memory_records_namespace_state_updated_idx",
-          "columns": [
-            {
-              "expression": "namespace_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "state",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "updated_at",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "hermes_memory_records_page_unique": {
-          "name": "hermes_memory_records_page_unique",
-          "columns": [
-            {
-              "expression": "page_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "hermes_memory_records_namespace_id_hermes_memory_namespaces_id_fk": {
-          "name": "hermes_memory_records_namespace_id_hermes_memory_namespaces_id_fk",
-          "tableFrom": "hermes_memory_records",
-          "tableTo": "hermes_memory_namespaces",
-          "columnsFrom": [
-            "namespace_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "hermes_memory_records_page_id_pages_id_fk": {
-          "name": "hermes_memory_records_page_id_pages_id_fk",
-          "tableFrom": "hermes_memory_records",
-          "tableTo": "pages",
-          "columnsFrom": [
-            "page_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
-          "onUpdate": "no action"
-        },
-        "hermes_memory_records_current_revision_id_page_revisions_id_fk": {
-          "name": "hermes_memory_records_current_revision_id_page_revisions_id_fk",
-          "tableFrom": "hermes_memory_records",
-          "tableTo": "page_revisions",
-          "columnsFrom": [
-            "current_revision_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "restrict",
           "onUpdate": "no action"
         }
       },
@@ -15420,6 +15494,50 @@
         "machine"
       ]
     },
+    "public.agent_memory_capture_status": {
+      "name": "agent_memory_capture_status",
+      "schema": "public",
+      "values": [
+        "queued",
+        "running",
+        "durable",
+        "failed",
+        "cancelled"
+      ]
+    },
+    "public.agent_memory_evidence_relation": {
+      "name": "agent_memory_evidence_relation",
+      "schema": "public",
+      "values": [
+        "explicit_save",
+        "automatic_capture",
+        "checkpoint"
+      ]
+    },
+    "public.agent_memory_namespace_state": {
+      "name": "agent_memory_namespace_state",
+      "schema": "public",
+      "values": [
+        "active",
+        "disabled"
+      ]
+    },
+    "public.agent_memory_record_state": {
+      "name": "agent_memory_record_state",
+      "schema": "public",
+      "values": [
+        "active",
+        "forgotten"
+      ]
+    },
+    "public.agent_memory_record_type": {
+      "name": "agent_memory_record_type",
+      "schema": "public",
+      "values": [
+        "memory",
+        "evidence"
+      ]
+    },
     "public.ai_action_feature": {
       "name": "ai_action_feature",
       "schema": "public",
@@ -15775,7 +15893,7 @@
         "web",
         "api",
         "feishu",
-        "hermes"
+        "agent_memory"
       ]
     },
     "public.cleanup_status": {
@@ -15895,50 +16013,6 @@
         "paused",
         "failing",
         "action_required"
-      ]
-    },
-    "public.hermes_memory_capture_status": {
-      "name": "hermes_memory_capture_status",
-      "schema": "public",
-      "values": [
-        "queued",
-        "running",
-        "durable",
-        "failed",
-        "cancelled"
-      ]
-    },
-    "public.hermes_memory_evidence_relation": {
-      "name": "hermes_memory_evidence_relation",
-      "schema": "public",
-      "values": [
-        "explicit_save",
-        "automatic_capture",
-        "checkpoint"
-      ]
-    },
-    "public.hermes_memory_namespace_state": {
-      "name": "hermes_memory_namespace_state",
-      "schema": "public",
-      "values": [
-        "active",
-        "disabled"
-      ]
-    },
-    "public.hermes_memory_record_state": {
-      "name": "hermes_memory_record_state",
-      "schema": "public",
-      "values": [
-        "active",
-        "forgotten"
-      ]
-    },
-    "public.hermes_memory_record_type": {
-      "name": "hermes_memory_record_type",
-      "schema": "public",
-      "values": [
-        "memory",
-        "evidence"
       ]
     },
     "public.integration_auth_mode": {
