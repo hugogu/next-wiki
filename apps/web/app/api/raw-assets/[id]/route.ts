@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
 import { apiError, internalError } from '@/server/api/errors';
 import * as contentAssets from '@/server/services/content-assets';
+import { logger } from '@/server/logger';
 
 const idSchema = z.string().uuid();
 
@@ -32,7 +33,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
         'X-Content-Type-Options': 'nosniff',
       },
     });
-  } catch {
+  } catch (error) {
+    logger.exception('serve raw asset failed', error, { id });
     return internalError();
   }
 }

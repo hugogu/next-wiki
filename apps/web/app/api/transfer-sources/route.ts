@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { transferSourceCreateSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError } from '@/server/api/validate';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as sources from '@/server/services/transfer-sources';
@@ -11,8 +10,7 @@ async function handleGET() {
   try {
     return NextResponse.json({ items: await sources.list(await createApiContext()) });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -24,8 +22,7 @@ async function handlePOST(request: NextRequest) {
       status: 201,
     });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -37,8 +34,7 @@ async function handleTest(request: NextRequest) {
   try {
     return NextResponse.json(await sources.test(await createApiContext(), parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

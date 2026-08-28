@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { aiOptimizationInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { createTextOptimization } from '@/server/services/ai-optimization';
 
 /** @openapi @summary Optimize selected Wiki Markdown @tag AI @auth bearer */
@@ -16,7 +15,6 @@ export async function POST(request: NextRequest) {
       instruction: parsed.data.instruction ?? 'improve_clarity',
     }), { status: 202 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

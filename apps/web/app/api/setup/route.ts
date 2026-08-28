@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { handleApiError } from '@/server/api/errors';
 import * as setupService from '@/server/services/setup';
 import { reconcileSetupAi } from '@/server/services/setup-ai';
 
@@ -24,7 +23,6 @@ export async function GET() {
     await reconcileSetupAi(ctx.actor).catch(() => undefined);
     return NextResponse.json(await setupService.getSetupState(ctx.actor));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { listPublications, publishNow } from '@/server/services/static-site';
 
@@ -14,8 +13,7 @@ async function handleGET(request: NextRequest) {
     );
     return NextResponse.json({ items });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -34,8 +32,7 @@ async function handlePOST() {
     // Publishing is background work: this returns the queued run, not a site.
     return NextResponse.json(await publishNow(await createApiContext()), { status: 202 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

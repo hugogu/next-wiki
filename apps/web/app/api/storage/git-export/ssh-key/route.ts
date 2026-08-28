@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { generateGitSshKey } from '@/server/services/git-export';
 
@@ -9,8 +8,7 @@ async function handlePOST() {
   try {
     return NextResponse.json(await generateGitSshKey(await createApiContext()));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

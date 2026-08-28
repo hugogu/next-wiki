@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { applyProposal } from '@/server/services/ai-tool-proposals';
 
 const idSchema = z.string().uuid();
@@ -15,7 +14,6 @@ export async function POST(_request: NextRequest, { params }: Params) {
   try {
     return NextResponse.json(await applyProposal(await createApiContext(), id));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

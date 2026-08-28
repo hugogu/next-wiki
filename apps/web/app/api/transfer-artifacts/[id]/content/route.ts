@@ -1,7 +1,7 @@
 import { Readable } from 'node:stream';
 import { NextResponse, type NextRequest } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { DomainError } from '@/server/errors';
 import { uuidSchema } from '@/server/api/validate';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
@@ -39,8 +39,7 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
       headers,
     });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -58,8 +57,7 @@ async function handlePUT(request: NextRequest, { params }: { params: Promise<{ i
       ),
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

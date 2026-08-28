@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseParams, uuidSchema } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { listAdminTagPages } from '@/server/services/pages';
 
 type RouteContext = { params: Promise<{ tagId: string }> };
@@ -17,7 +16,6 @@ export async function GET(request: Request, { params }: RouteContext) {
     const items = await listAdminTagPages(await createApiContext(), { tagId: parsedTagId.data, space });
     return NextResponse.json({ items });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

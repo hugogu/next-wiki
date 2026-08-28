@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as migrationService from '@/server/services/migration';
 
@@ -17,8 +16,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
     if (!view) return apiError('NOT_FOUND', 'Migration not found', 404);
     return NextResponse.json(view);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -30,8 +28,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
     const view = await migrationService.requestAbort(ctx, id);
     return NextResponse.json(view, { status: 202 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

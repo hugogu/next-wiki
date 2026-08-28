@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { contentDataSourceUpdateSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { updateDataSource } from '@/server/services/content-data-sources';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +29,6 @@ export async function PATCH(request: Request, { params }: Params) {
     const item = await updateDataSource(ctx, sourceKey, parsed.data);
     return NextResponse.json(item);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

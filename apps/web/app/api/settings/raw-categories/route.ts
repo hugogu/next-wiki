@@ -1,9 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { createCategory, listCategories } from '@/server/services/raw-categories';
 
 export const dynamic = 'force-dynamic';
@@ -14,8 +13,7 @@ export async function GET() {
     const ctx = await createApiContext();
     return NextResponse.json({ items: await listCategories(ctx) });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -33,7 +31,6 @@ export async function POST(request: Request) {
     const ctx = await createApiContext();
     return NextResponse.json(await createCategory(ctx, parsed.data), { status: 201 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

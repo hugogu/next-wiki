@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import * as actions from '@/server/services/ai-actions';
 import { getAnonymousAiAccessToken } from '@/server/services/auth';
 
@@ -16,8 +15,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   try {
     return NextResponse.json(await actions.getAction(ctx, id, await getAnonymousAiAccessToken()));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -29,7 +27,6 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
   try {
     return NextResponse.json(await actions.requestActionCancellation(ctx, id, await getAnonymousAiAccessToken()), { status: 202 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

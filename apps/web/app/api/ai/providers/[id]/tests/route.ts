@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { handleApiError } from '@/server/api/errors';
 import { createProviderAction } from '@/server/services/ai-admin';
 
 /** @openapi @summary Test AI provider @tag AI Admin @auth bearer */
@@ -12,7 +11,6 @@ export async function POST(_request: NextRequest, { params }: { params: Promise<
       { status: 202 },
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

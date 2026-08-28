@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { gitExportUpsertSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { configureGitExport, getGitExport } from '@/server/services/git-export';
 
@@ -11,8 +10,7 @@ async function handleGET() {
   try {
     return NextResponse.json(await getGitExport(await createApiContext()));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -38,8 +36,7 @@ async function handlePUT(request: NextRequest) {
       { status: parsed.data.enabled ? 202 : 200 },
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

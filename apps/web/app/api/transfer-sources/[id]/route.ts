@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { transferSourceUpdateSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, uuidSchema } from '@/server/api/validate';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as sources from '@/server/services/transfer-sources';
@@ -19,8 +18,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
     const view = await sources.get(await createApiContext(), id);
     return view ? NextResponse.json(view) : apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -32,8 +30,7 @@ async function handlePATCH(request: NextRequest, { params }: { params: Promise<{
   try {
     return NextResponse.json(await sources.update(await createApiContext(), id, parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -44,8 +41,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
     await sources.remove(await createApiContext(), id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

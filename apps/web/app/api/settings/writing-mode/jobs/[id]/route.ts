@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { getWritingModeSwitchJob } from '@/server/services/writing-mode';
 
 const idSchema = z.string().uuid();
@@ -26,7 +25,6 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     if (!view) return apiError('NOT_FOUND', 'Writing-mode switch not found', 404);
     return NextResponse.json(view);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

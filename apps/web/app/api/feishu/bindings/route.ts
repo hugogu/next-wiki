@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { feishuBindingConfirmInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
 import { DomainError } from '@/server/errors';
 import { getActorUserId } from '@/server/permissions';
@@ -39,13 +39,12 @@ export async function POST(request: NextRequest) {
           feishuCopy.bindWelcome(result.displayName),
         );
       }
-    } catch {
-      logger.error('feishu welcome send failed', { bindingId: result.bindingId });
+    } catch (error) {
+      logger.exception('feishu welcome send failed', error, { bindingId: result.bindingId });
     }
     return NextResponse.json({ ok: true, displayName: result.displayName });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -60,7 +59,6 @@ export async function DELETE() {
     const unbound = await unbindOwn(userId);
     return NextResponse.json({ ok: true, unbound });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

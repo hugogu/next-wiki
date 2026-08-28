@@ -5,6 +5,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
 import { internalError } from '@/server/api/errors';
+import { logger } from '@/server/logger';
 
 /**
  * Get current user.
@@ -39,7 +40,8 @@ export async function GET() {
     });
 
     return NextResponse.json(output);
-  } catch {
+  } catch (error) {
+    logger.exception('get current user failed', error);
     return internalError();
   }
 }

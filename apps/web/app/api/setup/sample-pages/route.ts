@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { setupSamplePagesInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
-import { apiError, mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { generateSamplePages, skipSamplePages } from '@/server/services/setup-sample-pages';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +33,6 @@ export async function PUT(request: NextRequest) {
         : await generateSamplePages(ctx.actor);
     return NextResponse.json(result);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

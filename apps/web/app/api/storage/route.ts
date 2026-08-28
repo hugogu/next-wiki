@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { storageBackendUpsertSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { parseJson, formatZodError } from '@/server/api/validate';
-import { apiError, mapDomainError, internalError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as storageConfig from '@/server/services/storage-config';
 
@@ -14,8 +13,7 @@ async function handleGET() {
     if (!overview) return apiError('NOT_FOUND', 'Not found', 404);
     return NextResponse.json(overview);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -31,8 +29,7 @@ async function handlePUT(request: NextRequest) {
     const view = await storageConfig.upsertBackend(ctx, parsed.data);
     return NextResponse.json(view);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

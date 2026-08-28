@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { aiModelUpdateSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { deleteModel, updateModel } from '@/server/services/ai-admin';
 
 const idSchema = z.string().uuid();
@@ -16,8 +15,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   try {
     return NextResponse.json(await updateModel(await createApiContext(), (await params).id, parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -29,7 +27,6 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     await deleteModel(await createApiContext(), id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

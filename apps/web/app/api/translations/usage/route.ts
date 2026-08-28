@@ -2,8 +2,7 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { translationUsageQuerySchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseQuery } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import * as translations from '@/server/services/translations';
 
@@ -13,8 +12,7 @@ async function handleGET(request: NextRequest) {
   try {
     return NextResponse.json(await translations.getUsage(await createApiContext(), parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

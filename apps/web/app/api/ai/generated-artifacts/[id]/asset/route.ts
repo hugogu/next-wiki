@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { aiArtifactPromotionSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { promoteGeneratedArtifact } from '@/server/services/ai-artifacts';
 
 const idSchema = z.string().uuid();
@@ -18,7 +17,6 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   try {
     return NextResponse.json(await promoteGeneratedArtifact(await createApiContext(), id, parsed.data.pageId));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

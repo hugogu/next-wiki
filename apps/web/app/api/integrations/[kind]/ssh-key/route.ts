@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { integrationKindSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { withApiAudit, type RouteHandler } from '@/server/api/audit-wrapper';
 import { generateSshKey } from '@/server/services/integrations';
 
@@ -16,8 +15,7 @@ async function handlePOST(
     const result = await generateSshKey(await createApiContext(), parsed.data);
     return NextResponse.json(result, { status: 201 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 

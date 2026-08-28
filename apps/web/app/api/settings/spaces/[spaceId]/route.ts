@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { updateSpaceConfiguration } from '@/server/services/spaces';
 
 export const dynamic = 'force-dynamic';
@@ -22,7 +21,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ spac
     const space = await updateSpaceConfiguration(await createApiContext(), parsedParams.data.spaceId, parsedInput.data);
     return NextResponse.json(space);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

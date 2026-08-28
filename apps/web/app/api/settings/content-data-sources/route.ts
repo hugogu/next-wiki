@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { handleApiError } from '@/server/api/errors';
 import { listDataSources } from '@/server/services/content-data-sources';
 
 export const dynamic = 'force-dynamic';
@@ -21,7 +20,6 @@ export async function GET() {
     const ctx = await createApiContext();
     return NextResponse.json({ items: await listDataSources(ctx) });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

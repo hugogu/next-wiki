@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { handleApiError } from '@/server/api/errors';
 import {
   cancelFeishuAppRegistration,
   checkFeishuAppRegistration,
@@ -22,8 +21,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
       await checkFeishuAppRegistration(await createApiContext(), registrationId),
     );
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -40,7 +38,6 @@ export async function DELETE(_request: Request, { params }: RouteContext) {
     await cancelFeishuAppRegistration(await createApiContext(), registrationId);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

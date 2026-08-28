@@ -1,7 +1,6 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { deleteConversation, getConversationDetail } from '@/server/services/ai-actions';
 import { getLatestConversationSnapshot } from '@/server/services/raw-conversations';
 import { getAnonymousAiAccessToken } from '@/server/services/auth';
@@ -35,8 +34,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     }
     return NextResponse.json(detail);
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -54,7 +52,6 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     await deleteConversation(ctx, id);
     return new NextResponse(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

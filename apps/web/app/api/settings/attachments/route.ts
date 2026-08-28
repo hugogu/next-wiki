@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { attachmentSettingsUpsertSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { DomainError } from '@/server/errors';
 import { getAttachmentSettings, updateAttachmentSettings } from '@/server/services/attachment-settings';
 import { assertCanManageStorage } from '@/server/services/storage-config';
 
@@ -13,8 +12,7 @@ export async function GET() {
     assertCanManageStorage(await createApiContext());
     return NextResponse.json(await getAttachmentSettings());
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -25,7 +23,6 @@ export async function PATCH(request: NextRequest) {
   try {
     return NextResponse.json(await updateAttachmentSettings(await createApiContext(), parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

@@ -96,7 +96,7 @@ export async function runMigration(migrationId: string): Promise<void> {
     await cutover(migrationId, source.id, target.id);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.error('content-migration failed', { migrationId, error: message });
+    logger.exception('content-migration failed', error, { migrationId });
     await markFailed(migrationId, message);
   }
 }

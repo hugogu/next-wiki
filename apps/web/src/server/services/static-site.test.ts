@@ -403,7 +403,7 @@ describe('validateTarget', () => {
     const result = await validateTarget(adminCtx);
     expect(result.ok).toBe(false);
     expect(result.message).not.toContain(TOKEN);
-    expect(result.message).toContain('[redacted]');
+    expect(result.message).toContain('[REDACTED]');
   });
 
   it('redacts URL userinfo that git surfaces on auth failures', async () => {
@@ -419,7 +419,7 @@ describe('validateTarget', () => {
     const result = await validateTarget(adminCtx);
     expect(result.ok).toBe(false);
     expect(result.message).not.toContain('hunter2');
-    expect(result.message).toContain('[redacted]@');
+    expect(result.message).toContain('[REDACTED]@');
   });
 
   it('falls back to plain BAD_REQUEST when the connectivity probe itself fails', async () => {

@@ -1,8 +1,7 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { createApiContext } from '@/server/api/session';
-import { internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { handleApiError } from '@/server/api/errors';
 import { getIndex } from '@/server/services/ai-index';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -28,7 +27,6 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       .where(eq(schema.aiPageIndexStates.generationId, id));
     return NextResponse.json({ items });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

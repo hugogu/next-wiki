@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { publicJson, withPublicApi } from '../../../_shared/route';
 import { publicApiError } from '@/server/api/public-errors';
 import * as publicContent from '@/server/services/public-content';
+import { logger } from '@/server/logger';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
 
@@ -36,7 +37,8 @@ export const POST = withPublicApi<{ id: string }>(async (request, { params }, ct
     // number (plain text/Markdown/CSV) — sniffed bytes always take
     // precedence for every other type (attachment-validation.ts).
     declaredContentType = file.type || undefined;
-  } catch {
+  } catch (error) {
+    logger.warnException('invalid multipart form data', error);
     return publicApiError('VALIDATION_FAILED', 'Invalid multipart form data', 422);
   }
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { DomainError } from '@/server/errors';
+import { logger } from '@/server/logger';
 
 export type ApiErrorCode = DomainError['code'];
 
@@ -197,4 +198,17 @@ export function internalError(message = 'Internal server error') {
     { code: 'INTERNAL_ERROR', message },
     { status: 500, headers: { 'cache-control': 'no-store' } },
   );
+}
+
+/**
+ * Route-handler catch-all: map an expected `DomainError` to its status code,
+ * or log an unexpected exception with its full stack before falling back to
+ * a generic 500. Centralizing this is what makes the "every unexpected
+ * exception gets logged" guarantee hold across every route that catches its
+ * own errors instead of letting them reach `withApiAudit`'s outer catch.
+ */
+export function handleApiError(error: unknown): NextResponse {
+  if (error instanceof DomainError) return mapDomainError(error);
+  logger.exception('Unhandled API handler error', error);
+  return internalError();
 }

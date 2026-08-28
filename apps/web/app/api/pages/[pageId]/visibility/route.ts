@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import * as pages from '@/server/services/pages';
 
 export const dynamic = 'force-dynamic';
@@ -20,7 +19,6 @@ export async function PUT(request: Request, { params }: { params: Promise<{ page
     const visibility = await pages.setVisibility(await createApiContext(), parsedParams.data.pageId, parsedBody.data.visibility);
     return NextResponse.json({ visibility });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

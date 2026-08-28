@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { writingModeSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { formatZodError, parseJson } from '@/server/api/validate';
 import { DomainError } from '@/server/errors';
 import { getSwitchState, switchMode } from '@/server/services/writing-mode';
@@ -25,8 +25,7 @@ export async function GET() {
     }
     return NextResponse.json(await getSwitchState());
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -58,7 +57,6 @@ export async function PUT(request: Request) {
     if (result.status === 'pending') return NextResponse.json({ jobId: result.jobId }, { status: 202 });
     return NextResponse.json({ mode: result.mode });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

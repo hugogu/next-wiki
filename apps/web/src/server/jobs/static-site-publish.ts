@@ -14,7 +14,7 @@ import { buildSnapshot } from '@/server/static-site/snapshot';
 import { preflightSnapshot } from '@/server/static-site/preflight';
 import { readStaticSiteAssets, staticSiteAssetsDir } from '@/server/static-site/build-assets';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
-import { logger } from '@/server/logger';
+import { logger, redactSensitiveText } from '@/server/logger';
 
 const execFileAsync = promisify(execFile);
 
@@ -55,12 +55,7 @@ async function enqueueFollowUp(targetId: string): Promise<void> {
  * durable.
  */
 export function redactCredentials(message: string, secret?: string | null): string {
-  let output = message;
-  if (secret && secret.length >= 8) {
-    output = output.split(secret).join('[redacted]');
-  }
-  output = output.replace(/(\w+:\/\/)[^/\s@]*@/g, '$1[redacted]@');
-  return output;
+  return redactSensitiveText(message, secret);
 }
 
 async function markRunning(publicationId: string, targetId: string): Promise<void> {

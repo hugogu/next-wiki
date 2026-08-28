@@ -132,6 +132,6 @@ async function deliver(taskId: string): Promise<void> {
         .set({ replicaState: 'degraded', lastError: message, updatedAt: new Date() })
         .where(eq(schema.storageBackends.id, backend.id));
     });
-    logger.error('storage replication failed', { taskId, backendId: backend.id, error: message });
+    logger.exception('storage replication failed', error, { taskId, backendId: backend.id });
   }
 }

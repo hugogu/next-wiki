@@ -3,8 +3,7 @@ import { z } from 'zod';
 import { aiToolProposalDecisionInputSchema } from '@next-wiki/shared';
 import { createApiContext } from '@/server/api/session';
 import { formatZodError, parseJson } from '@/server/api/validate';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { rejectProposal } from '@/server/services/ai-tool-proposals';
 
 const idSchema = z.string().uuid();
@@ -19,7 +18,6 @@ export async function POST(request: NextRequest, { params }: Params) {
   try {
     return NextResponse.json(await rejectProposal(await createApiContext(), id, parsed.data));
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

@@ -1,8 +1,7 @@
 import type { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { createApiContext } from '@/server/api/session';
-import { apiError, internalError, mapDomainError } from '@/server/api/errors';
-import { DomainError } from '@/server/errors';
+import { apiError, handleApiError } from '@/server/api/errors';
 import { discardGeneratedArtifact, getGeneratedArtifact } from '@/server/services/ai-artifacts';
 
 const idSchema = z.string().uuid();
@@ -21,8 +20,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       },
     });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }
 
@@ -34,7 +32,6 @@ export async function DELETE(_request: NextRequest, { params }: { params: Promis
     await discardGeneratedArtifact(await createApiContext(), id);
     return new Response(null, { status: 204 });
   } catch (error) {
-    if (error instanceof DomainError) return mapDomainError(error);
-    return internalError();
+    return handleApiError(error);
   }
 }

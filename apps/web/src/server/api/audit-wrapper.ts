@@ -4,6 +4,7 @@ import { resolveActor } from '@/server/services/auth';
 import { apiContextStore, type ApiContext } from './api-context-store';
 import * as audit from '@/server/services/audit';
 import { apiError, internalError } from './errors';
+import { logger } from '@/server/logger';
 import type { AuthStatus } from '@next-wiki/shared';
 
 // Generic shape for any wrapped route. Concrete handlers have a narrower
@@ -93,7 +94,7 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
       try {
         response = await handler(request, context);
       } catch (error) {
-        console.error('Unhandled API handler error:', error);
+        logger.exception('Unhandled API handler error', error, { method, path });
         response = internalError();
       }
 

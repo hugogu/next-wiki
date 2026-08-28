@@ -44,6 +44,7 @@ import type {
 import { decodePublicCursor, nextPublicCursor } from '@/server/api/public-pagination';
 import { buildAnonymousCtx, can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
+import { logger } from '@/server/logger';
 import { mapPublicDomainErrorCode } from '@/server/api/public-errors';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { renderMarkdown } from '@/server/pipeline';
@@ -1414,7 +1415,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
     // A telemetry outage must never turn readable lexical results into a
     // failed search. Without a durable record semantic work cannot safely
     // resume, so it is reported as generic reduced coverage instead.
-    console.error('Failed to create hybrid search analytics:', error);
+    logger.exception('Failed to create hybrid search analytics', error);
   }
 
   // An accepted attempt keeps the capability set it was created with, even if
@@ -1451,7 +1452,7 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
         semanticActionId: result.semanticContinuationRef,
       });
     } catch (error) {
-      console.error('Failed to update hybrid search analytics:', error);
+      logger.exception('Failed to update hybrid search analytics', error);
     }
   }
 
