@@ -58,6 +58,9 @@ During initial setup choose **Generate example pages**. Verify that:
    the marker-owned `help/agent-memory` page is moved to
    `integrations/hermes` without creating a duplicate; a user-authored legacy
    page remains untouched.
+6. The Wiki space's Admin → Spaces reinitialize action restores soft-deleted
+   marker-owned examples and refreshes their current content without reopening
+   setup; user-authored pages remain untouched.
 
 The public reader document must remain static/ISR under the normal Wiki
 delivery path. It must not include any logged-in provider configuration,

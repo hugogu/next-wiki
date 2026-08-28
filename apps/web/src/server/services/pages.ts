@@ -1396,6 +1396,36 @@ export async function canCreate(ctx: PermCtx, spaceSlug?: string): Promise<boole
   return can(ctx, 'create', { kind: 'page_list' }, spacePermissionOptions(space));
 }
 
+/** Restore a soft-deleted page for an explicit administrator maintenance action. */
+export async function restoreDeletedPage(ctx: PermCtx, path: string, spaceSlug?: string): Promise<void> {
+  assertAdmin(ctx);
+
+  const space = await resolveSpace(spaceSlug);
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
+
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, path),
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!page) throw new DomainError('NOT_FOUND', 'Deleted page not found');
+  if (!page.deletedAt) return;
+
+  await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+    await tx
+      .update(schema.pages)
+      .set({ deletedAt: null, updatedAt: new Date() })
+      .where(eq(schema.pages.id, page.id));
+  });
+  invalidatePublicContentCache();
+  await notifyPublicContentChanged('publish');
+  await reconcilePageAcrossIndexes(page.id, ctx);
+}
+
 export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Promise<void> {
   const userId = getUserId(ctx);
   if (!userId) {

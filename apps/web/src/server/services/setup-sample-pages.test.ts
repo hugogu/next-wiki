@@ -189,6 +189,38 @@ describe('sample page writer (US3)', () => {
     expect(refreshed.at(-1)!.contentSource).toBe(definitions.AGENT_MEMORY_PAGE_SOURCE);
   });
 
+  it('restores a deleted marker-owned page instead of failing its unique path', async () => {
+    const { actor } = await openSetupAtSampleStep();
+    await samplePages.generateSamplePages(actor);
+    await pagesService.remove({ actor }, 'integrations/hermes');
+
+    expect((await findPageByPath('integrations/hermes'))?.deletedAt).toBeInstanceOf(Date);
+
+    const wikiSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    const result = await samplePages.reinitializeSamplePages(actor, wikiSpace!.id);
+
+    expect(result.pages.find((item) => item.path === 'integrations/hermes')).toMatchObject({ status: 'updated' });
+    expect(await findPageByPath('integrations/hermes')).toBeDefined();
+    expect(await db.query.pages.findMany({ where: eq(schema.pages.path, 'integrations/hermes') })).toHaveLength(1);
+  });
+
+  it('does not restore a deleted user-authored page at a sample path', async () => {
+    const { actor } = await openSetupAtSampleStep();
+    await pagesService.create({ actor }, {
+      path: 'help/markdown-syntax',
+      title: 'My notes',
+      contentSource: '# My notes\n\nKeep this deleted.\n',
+    });
+    await revisionsService.publish({ actor }, { path: 'help/markdown-syntax', version: 1 });
+    await pagesService.remove({ actor }, 'help/markdown-syntax');
+
+    const wikiSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    const result = await samplePages.reinitializeSamplePages(actor, wikiSpace!.id);
+
+    expect(result.pages.find((item) => item.path === 'help/markdown-syntax')).toMatchObject({ status: 'collision' });
+    expect((await findPageByPath('help/markdown-syntax'))?.deletedAt).toBeInstanceOf(Date);
+  });
+
   it('rejects reinitialization for non-Wiki spaces', async () => {
     await resetSetupOnboardingState();
     const { userId } = await createAdminUser();

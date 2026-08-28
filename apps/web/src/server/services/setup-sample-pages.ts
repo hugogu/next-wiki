@@ -1,4 +1,4 @@
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull } from 'drizzle-orm';
 import type {
   SetupSamplePageResult,
   SetupSamplePagesResponse,
@@ -50,6 +50,19 @@ async function findPage(path: string) {
       eq(schema.pages.spaceId, defaultSpace.id),
       eq(schema.pages.path, path),
       isNull(schema.pages.deletedAt),
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+}
+
+async function findDeletedPage(path: string) {
+  const defaultSpace = await resolveSpace();
+  if (!defaultSpace) return null;
+  return db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, defaultSpace.id),
+      eq(schema.pages.path, path),
+      isNotNull(schema.pages.deletedAt),
       isNull(schema.pages.translationGroupId),
     ),
   });
@@ -118,6 +131,7 @@ async function writeSamplePage(
 ): Promise<SetupSamplePageResult> {
   let existing = await findPage(input.path);
   let movedLegacy = false;
+  let restoredDeleted = false;
   if (!existing && input.legacyPath) {
     const legacy = await findPage(input.legacyPath);
     const legacySource = legacy
@@ -137,6 +151,20 @@ async function writeSamplePage(
     }
   }
   if (!existing) {
+    const deleted = await findDeletedPage(input.path);
+    const deletedSource = deleted
+      ? await publishedSource(deleted.id, deleted.currentPublishedVersionId)
+      : null;
+    if (deleted && refreshManaged && deletedSource?.includes(SAMPLE_PAGE_MARKER)) {
+      await pagesService.restoreDeletedPage(ctx, input.path);
+      existing = await findPage(input.path);
+      restoredDeleted = true;
+    }
+    if (!existing && deleted) {
+      return { path: input.path, status: 'collision', reason: 'A deleted page already reserves this path' };
+    }
+  }
+  if (!existing) {
     const pageId = await createPublishedPage(ctx, input);
     return { path: input.path, status: 'created', pageId };
   }
@@ -150,7 +178,7 @@ async function writeSamplePage(
       await revisionsService.publish(ctx, { path: input.path, version: versionNumber });
       return { path: input.path, status: 'updated', pageId: existing.id };
     }
-    return { path: input.path, status: movedLegacy ? 'updated' : 'skipped', pageId: existing.id };
+    return { path: input.path, status: movedLegacy || restoredDeleted ? 'updated' : 'skipped', pageId: existing.id };
   }
   // A user-authored page at a canonical sample path is never overwritten.
   return { path: input.path, status: 'collision', reason: 'A user-authored page already exists at this path' };
@@ -179,8 +207,8 @@ function assertAdmin(actor: Actor): void {
 /**
  * Re-run managed sample-page initialization from Admin → Spaces after
  * first-run setup has closed. Only the built-in Wiki space is valid; missing
- * pages are created and marker-owned pages are refreshed without touching
- * user-authored collisions.
+ * or soft-deleted marker-owned pages are restored, current marker-owned pages
+ * are refreshed, and user-authored collisions are left untouched.
  */
 export async function reinitializeSamplePages(actor: Actor, spaceId: string): Promise<SetupSamplePagesResponse> {
   assertAdmin(actor);
