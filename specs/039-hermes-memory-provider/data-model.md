@@ -151,6 +151,24 @@ never performs that mutation.
 | `payload_digest` | Digest of normalized capture input | Required for idempotency conflict detection; never stores evidence text. |
 | `status`, `job_id`, `failure_code` | Queue/retry projection | Row-locked claims and conditional terminal updates prevent overlapping workers from regressing a durable capture. |
 
+Constraints and indexes:
+
+- Unique `(namespace_id, agent_identity, idempotency_key)` reserves one capture
+  for a shared destination/agent namespace. This is intentionally destination-
+  scoped rather than API-key-scoped: two owner-provisioned keys that share a
+  destination must observe the same retry result instead of creating duplicate
+  evidence.
+- Index `(api_key_id)` supports binding/revocation checks, and index
+  `(status, updated_at)` supports bounded worker retry/claim scans. The row lock
+  and conditional status updates provide the concurrency guard in addition to
+  the unique reservation.
+
+`shared_by_owner` is an audit/UI marker only. `true` means the owner explicitly
+  bound another dedicated key to an existing namespace; it does not grant a
+  different user access, bypass the owner-role requirement, or allow a client to
+  select a namespace. `false` is the default for a newly created private
+  destination.
+
 ## Derived Retrieval State
 
 The namespace-aware lexical recall adapter uses active `agent_memory_records`

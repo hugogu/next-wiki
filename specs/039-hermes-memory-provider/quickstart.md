@@ -161,7 +161,8 @@ the detected contract.
 | Use incompatible provider version | Connection/diagnostics return `AGENT_MEMORY_INCOMPATIBLE_CLIENT` with upgrade guidance only. |
 | Redirect, timeout, invalid URL, or container-loopback address | Bootstrap/doctor report a specific repair action and do not print secret or response bodies. |
 
-Inspect API Audit entries for each scenario. Entries must show origin `hermes`,
+Inspect API Audit entries for each scenario. Entries must show the generic
+origin `agent_memory`, the client integration in bounded operation metadata,
 safe endpoint/outcome/correlation metadata, and never reveal content, query,
 profile labels, or secrets.
 
