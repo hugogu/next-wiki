@@ -93,7 +93,9 @@ hermes memory status
 
 Choose `next-wiki`, enter the non-secret versioned API base URL, and enter the
 key only in Hermes's secret prompt. Confirm the generated configuration contains
-the base URL and `capture_enabled: false` but no API key.
+the base URL and `capture_enabled: false` but no API key. The setup field is
+deliberately off by default; selecting **yes** enables asynchronous capture of
+eligible user/assistant evidence after each completed turn.
 
 Validate without changing configuration:
 
@@ -130,8 +132,9 @@ Expected results:
 
 ## 6. Validate Opt-In Capture and Checkpoints
 
-Enable `capture_enabled` through the documented non-secret config path and
-restart/reload Hermes. Hold a conversation containing only disposable text.
+Enable `capture_enabled` through the documented non-secret config path (or the
+setup prompt), restart/reload Hermes, and start a new session. Hold a
+conversation containing only disposable text.
 
 1. Complete a turn and verify the turn finishes without waiting for the Wiki.
 2. Poll the provider/job status until a restricted Evidence Record and
@@ -140,7 +143,10 @@ restart/reload Hermes. Hold a conversation containing only disposable text.
 3. Repeat the same request or simulate a retry. The same destination and
    idempotency digest must return one capture/result, not duplicate evidence.
 4. Confirm system messages, assistant tool calls, tool result payloads, API
-   secrets, and raw session IDs were not captured by default.
+   secrets, delegated contexts, and raw session IDs were not captured. The
+   provider's `status` command reports the capture preference but does not prove
+   that a worker has persisted a capture; use the Raw entry and Admin Access Log
+   for that verification.
 
 For a Hermes host that advertises v2 checkpoint capability, explicitly enable
 the strict checkpoint option and Hermes's required-checkpoint configuration.

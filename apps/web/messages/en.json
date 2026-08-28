@@ -1282,7 +1282,11 @@
       "entryType": "Type",
       "all": "All",
       "page": "Page",
-      "api": "API"
+      "api": "API",
+      "originWeb": "Web",
+      "originApi": "API",
+      "originFeishu": "Feishu",
+      "originAgentMemory": "Agent memory"
     },
     "requestLog": {
       "metadataTitle": "Request Log",
@@ -2406,10 +2410,10 @@
       "memoryProviderPreset": "Memory provider",
       "memoryProviderPresetHint": "Creates a dedicated, isolated memory destination for this API key. Hermes is the first supported client integration.",
       "agentIdentityLabel": "Agent identity",
-      "memoryDestinationHint": "This key is limited to its dedicated memory destination. It cannot access regular Wiki pages.",
+      "memoryDestinationHint": "This key is limited to its dedicated Raw-space memory destination. It cannot access regular Wiki pages.",
       "memoryProviderNewDestination": "Create a new isolated destination for this key",
       "memoryProviderSharedDestination": "Use existing destination: {name}",
-      "memoryDestination": "Memory destination",
+      "memoryDestination": "Memory destination (Raw space)",
       "spaceAccessLabel": "Space access",
       "spaceAccessHint": "Which content spaces this key may read. Wiki is always included and cannot be changed later.",
       "spaceAccessAdminOnly": "Requires an admin account",

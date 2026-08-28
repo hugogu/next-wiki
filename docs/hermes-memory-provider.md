@@ -70,6 +70,13 @@ Hermes package. The generic Agent Memory API is versioned at
 `/api/v1/memory/*`; an incompatible provider or server fails with an actionable
 426 response instead of falling back to generic page endpoints.
 
+This is a native Hermes MemoryProvider, not an MCP server or MCP client. The
+provider calls the Wiki REST endpoints directly. Hermes uses a generic “Tool
+Call” display for both native provider functions and MCP functions, so the
+display label alone is not an MCP diagnostic. Native provider tools are named
+`next_wiki_memory_*`; an `mcp__`-prefixed name or an entry under `mcp_servers`
+indicates that the separate `@next-wiki/mcp-server` integration is active.
+
 Checkpoint API v2 support is runtime-dependent rather than assumed from this
 minimum. Keep strict checkpointing disabled until `hermes next-wiki check` and
 your Hermes runtime documentation confirm the relevant lifecycle hook.
@@ -86,12 +93,43 @@ your Hermes runtime documentation confirm the relevant lifecycle hook.
 another service. Add DNS/reverse-proxy routing deliberately; do not enable host
 networking just for this provider.
 
+The provider sends a `next-wiki-memory/<provider-version>` User-Agent on every
+request. If Cloudflare or another edge proxy returns `Error 1010`
+(`browser_signature_banned`), this is a transport/WAF block, not a missing
+`memory.*` scope. The provider classifies it as `transport_blocked` and omits
+the edge response body. Allow the `next-wiki-memory/*` User-Agent or use a
+trusted reverse-proxy route; only investigate key scopes after the edge permits
+the request through to the Wiki API.
+
 ## Capture and checkpoint policy
 
 Explicit saves and recalls are available as namespaced Hermes tools. Automatic
-turn capture is off by default. When enabled, only user and assistant text is
-submitted; tool results, tool calls, and system text are omitted. Capture is
-also skipped for non-primary/delegated contexts.
+turn capture is off by default, so installing and activating the provider alone
+does not archive conversations. Explicit saves remain model-directed and are
+available even while capture is disabled.
+
+To enable automatic capture, re-run `hermes memory setup`, select `next-wiki`,
+and answer yes to the `capture_enabled` / conversation-capture field. For an
+already configured profile, edit only the boolean in
+`$HERMES_HOME/next-wiki-memory.json` (inside a container, use the value of
+`$HERMES_HOME` in that container; do not assume a host path such as
+`/opt/data`). Never put the API key in this JSON file. Restart the Hermes
+process or gateway and start a new session, then confirm:
+
+```text
+hermes next-wiki status
+Capture enabled: yes
+```
+
+Each completed eligible turn is queued asynchronously at
+`POST /api/v1/memory/evidence`; the response turn is not blocked on the Wiki
+worker. Only user and assistant text is submitted. Tool results, tool calls,
+system text, and delegated/non-primary contexts are excluded. Verify a test
+conversation by checking for the immutable Evidence/Raw entry in the
+owner-authorized **Agent Memory** category and an `agent_memory` row in Admin →
+Access Log after the worker reports `durable`. `hermes next-wiki check` checks
+connectivity and authorization only; it does not prove that a capture was
+written.
 
 Strict pre-compression checkpointing is a separate opt-in. Enable it only when
 your Hermes runtime supports checkpoint API v2 and your operator accepts that a

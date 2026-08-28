@@ -1282,7 +1282,11 @@
       "entryType": "类型",
       "all": "全部",
       "page": "页面",
-      "api": "API"
+      "api": "API",
+      "originWeb": "网页",
+      "originApi": "API",
+      "originFeishu": "飞书",
+      "originAgentMemory": "智能体记忆"
     },
     "requestLog": {
       "metadataTitle": "请求日志",
@@ -2406,10 +2410,10 @@
       "memoryProviderPreset": "记忆提供方",
       "memoryProviderPresetHint": "为此 API 密钥创建专属、隔离的记忆目标。目前首个支持的客户端集成为 Hermes。",
       "agentIdentityLabel": "Agent 身份",
-      "memoryDestinationHint": "此密钥只能访问专属记忆目标，不能访问普通 Wiki 页面。",
+      "memoryDestinationHint": "此密钥只能访问 Raw 空间中的专属记忆目标，不能访问普通 Wiki 页面。",
       "memoryProviderNewDestination": "为此密钥创建新的隔离记忆目标",
       "memoryProviderSharedDestination": "使用已有记忆目标：{name}",
-      "memoryDestination": "记忆目标",
+      "memoryDestination": "记忆目标（Raw 空间）",
       "spaceAccessLabel": "空间访问范围",
       "spaceAccessHint": "该密钥可以读取哪些内容空间。Wiki 空间始终包含,创建后无法修改。",
       "spaceAccessAdminOnly": "需要管理员账号",

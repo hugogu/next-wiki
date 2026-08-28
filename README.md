@@ -306,7 +306,9 @@ Hermes `MemoryProvider`, not an MCP wrapper). It creates a dedicated,
 server-enforced memory destination and `agent_identity` binding for each key and
 exposes safe recall, save, and forget tools. Memory is stored as immutable,
 restricted Raw entries through the shared page/revision/content-store and index
-pipeline; forgetting changes only the Agent Memory recall projection. See the
+pipeline; forgetting changes only the Agent Memory recall projection. Automatic
+conversation capture is deliberately off by default and must be enabled in the
+provider profile after setup. See the
 [Hermes memory deployment guide](docs/hermes-memory-provider.md) for key
 creation, installation, capture/checkpoint policy, and reverse-proxy guidance.
 

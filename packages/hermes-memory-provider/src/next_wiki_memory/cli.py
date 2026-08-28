@@ -77,7 +77,10 @@ def _init(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="next-wiki-hermes-memory", description="Prepare or diagnose next-wiki Hermes memory")
+    parser = argparse.ArgumentParser(
+        prog="next-wiki-hermes-memory",
+        description="Prepare or diagnose the native REST-backed next-wiki Hermes memory provider (not an MCP server)",
+    )
     subparsers = parser.add_subparsers(dest="command", required=True)
     init = subparsers.add_parser("init", help="write non-secret provider configuration")
     init.add_argument("--wiki-url", help="versioned next-wiki API URL; no credential arguments are accepted")

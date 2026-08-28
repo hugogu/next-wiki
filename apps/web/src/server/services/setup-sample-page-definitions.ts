@@ -251,7 +251,7 @@ hermes memory setup
 hermes memory status
 ~~~
 
-Select **next-wiki**, enter this Wiki's versioned API URL ending in **/api/v1**, and enter the key only when Hermes asks for a secret. The provider stores non-secret settings below the active Hermes home directory and keeps capture disabled by default.
+Select **next-wiki**, enter this Wiki's versioned API URL ending in **/api/v1**, and enter the key only when Hermes asks for a secret. The provider stores non-secret settings below the active Hermes home directory and keeps capture disabled by default. If you want every eligible user/assistant turn archived as evidence, answer **yes** to the **capture_enabled** conversation-capture field, then restart Hermes and start a new session. Verify **Capture enabled: yes** with **hermes next-wiki status**; **hermes next-wiki check** only checks connectivity and authorization.
 
 For a preview before activation:
 
@@ -266,7 +266,7 @@ hermes next-wiki status
 hermes next-wiki check
 ~~~
 
-**status** never contacts the Wiki and never prints a key. **check** validates reachability, API version, the key binding, and granted scopes without returning Wiki content. Remote deployments need HTTPS; a Docker-hosted Hermes process must use an address reachable from its own network, not its host-only loopback address.
+**status** never contacts the Wiki and never prints a key. **check** validates reachability, API version, the key binding, and granted scopes without returning Wiki content. Automatic capture is asynchronous and excludes tool calls/results, system text, and delegated contexts; inspect the Agent Memory Raw entry and Admin Access Log after the worker reports **durable**. Remote deployments need HTTPS; a Docker-hosted Hermes process must use an address reachable from its own network, not its host-only loopback address.
 
 ## 4. Recall, save, capture, and revoke
 

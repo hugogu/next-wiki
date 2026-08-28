@@ -16,12 +16,12 @@ API_KEY_ENV_VAR = "NEXT_WIKI_MEMORY_API_KEY"
 FIELD_DEFINITIONS: tuple[dict[str, object], ...] = (
     {
         "key": "wiki_api_base_url",
-        "description": "Versioned next-wiki API URL, for example https://wiki.example.com/api/v1",
+        "description": "Versioned next-wiki REST API URL (not MCP), for example https://wiki.example.com/api/v1",
         "required": True,
     },
     {
         "key": "api_key",
-        "description": "Hermes memory API key",
+        "description": "Memory provider API key for the direct REST API (do not configure it as an MCP server)",
         "required": True,
         "secret": True,
         "env_var": API_KEY_ENV_VAR,

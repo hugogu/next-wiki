@@ -32,6 +32,17 @@ latter needs `HERMES_ENABLE_PROJECT_PLUGINS=1`). Do not install two providers
 with the `next-wiki` slug: Hermes uses discovery precedence and reports the
 first matching provider.
 
+This provider calls the versioned REST endpoints under `/api/v1/memory/*`.
+`/api/v1/mcp` is not a Memory endpoint; the separate
+`@next-wiki/mcp-server` package is a stdio MCP adapter for generic Wiki tools.
+Hermes renders every model-selected function in the same generic “Tool Call”
+panel, so seeing `next_wiki_memory_*` there is expected and does not mean MCP
+is being used. Native provider calls are routed by Hermes's `MemoryManager`;
+they do not have an `mcp__` prefix and do not require an MCP server entry.
+If the tool name has an `mcp__` prefix or the configuration is under
+`mcp_servers`, a separate MCP integration is being used instead of this
+provider.
+
 ## Safe configuration and checks
 
 The provider writes only non-secret settings (including `agent_identity`) to
@@ -61,6 +72,14 @@ Remote URLs must use HTTPS. A loopback URL is valid only when Hermes runs in
 the same network namespace as the Wiki; Docker containers generally cannot use
 the host's `127.0.0.1`.
 
+Every request identifies itself with the stable
+`next-wiki-memory/<provider-version>` User-Agent. If a reverse proxy or
+Cloudflare returns `Error 1010` or
+`browser_signature_banned`, the provider reports `transport_blocked` rather
+than a misleading memory-scope error. Allow the `next-wiki-memory/*` User-Agent
+at the edge (or route the provider through a trusted proxy); do not broaden API
+key scopes until the edge returns the Wiki's normal JSON response.
+
 ## Memory behavior and privacy
 
 Hermes receives three namespaced tools:
@@ -72,9 +91,29 @@ Hermes receives three namespaced tools:
   recall in that same destination. The original Raw entry is never changed.
 
 Recall results contain a canonical Wiki revision citation. Automatic turn
-capture is disabled by default. If it is enabled, the provider preserves only
-user and assistant text, excludes tool calls/results and system content, and
-does not capture delegated/non-primary agent contexts.
+capture is disabled by default. Explicit `next_wiki_memory_save` calls still
+work when capture is off; the model must choose that tool itself. To capture
+eligible conversation turns automatically:
+
+1. Re-run `hermes memory setup`, select `next-wiki`, and answer **yes** to the
+   `capture_enabled` / conversation-capture field. For an existing profile,
+   you may instead edit `$HERMES_HOME/next-wiki-memory.json` and change only
+   `"capture_enabled": false` to `true`. Preserve the existing URL, identity,
+   and version fields, and never add the API key to this file.
+2. Restart the Hermes process (or gateway/container) and start a new session;
+   the provider reads this policy during initialization.
+3. Run `hermes next-wiki status` and confirm `Capture enabled: yes`. `check`
+   validates connectivity and authorization, but does not itself enable or
+   prove a capture.
+
+When enabled, each completed eligible turn is submitted asynchronously to
+`/api/v1/memory/evidence`. The provider keeps only user and assistant text,
+excluding tool calls/results and system content, and skips delegated or other
+non-primary contexts. The Wiki worker then writes an immutable Evidence Record
+and Raw revision; inspect the **Agent Memory** category or the `agent_memory`
+filter in Admin → Access Log after the worker reaches `durable`. A normal turn
+does not wait for this write, so allow the worker time to process it and use a
+disposable conversation when testing.
 
 Strict pre-compression checkpoints are opt-in and require a Hermes runtime that
 supports checkpoint API v2. When enabled, compression must not treat a

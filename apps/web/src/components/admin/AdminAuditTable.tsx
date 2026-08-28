@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useId, useRef } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useTranslation } from '@/i18n/client';
-import type { AuditEntry, AuditListResponse } from '@next-wiki/shared';
+import type { AuditEntry, AuditListResponse, AuditOrigin } from '@next-wiki/shared';
 import { apiGet } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
@@ -58,8 +58,23 @@ const ENTRY_TYPE_OPTIONS: { value: '' | 'page' | 'api'; key: 'admin.apiAudit.all
   { value: 'api', key: 'admin.apiAudit.api' },
 ];
 
+const ORIGIN_OPTIONS: { value: '' | AuditOrigin; key: 'admin.apiAudit.all' | 'admin.apiAudit.originWeb' | 'admin.apiAudit.originApi' | 'admin.apiAudit.originFeishu' | 'admin.apiAudit.originAgentMemory' }[] = [
+  { value: '', key: 'admin.apiAudit.all' },
+  { value: 'web', key: 'admin.apiAudit.originWeb' },
+  { value: 'api', key: 'admin.apiAudit.originApi' },
+  { value: 'feishu', key: 'admin.apiAudit.originFeishu' },
+  { value: 'agent_memory', key: 'admin.apiAudit.originAgentMemory' },
+];
+
+const ORIGIN_LABEL_KEYS: Record<AuditOrigin, (typeof ORIGIN_OPTIONS)[number]['key']> = {
+  web: 'admin.apiAudit.originWeb',
+  api: 'admin.apiAudit.originApi',
+  feishu: 'admin.apiAudit.originFeishu',
+  agent_memory: 'admin.apiAudit.originAgentMemory',
+};
+
 function buildAuditParams(
-  source: { userId: string; status: string; method: string; entryType: string; path: string; startTime: string; endTime: string },
+  source: { userId: string; status: string; method: string; entryType: string; origin: string; path: string; startTime: string; endTime: string },
   targetPage: number,
   pageSize: number,
 ): URLSearchParams {
@@ -70,6 +85,7 @@ function buildAuditParams(
   if (source.status) params.set('status', source.status);
   if (source.method) params.set('method', source.method);
   if (source.entryType) params.set('entryType', source.entryType);
+  if (source.origin) params.set('origin', source.origin);
   if (source.path) params.set('path', source.path);
   const startTime = parseDateTimeLocal(source.startTime);
   const endTime = parseDateTimeLocal(source.endTime);
@@ -102,6 +118,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
   const pathId = useId();
   const startTimeId = useId();
   const endTimeId = useId();
+  const originId = useId();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -116,6 +133,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
     status: searchParams.get('status') ?? '',
     method: searchParams.get('method') ?? '',
     entryType: searchParams.get('entryType') ?? '',
+    origin: searchParams.get('origin') ?? '',
     path: searchParams.get('path') ?? '',
     startTime: formatDateTimeLocal(searchParams.get('startTime')),
     endTime: formatDateTimeLocal(searchParams.get('endTime')),
@@ -135,6 +153,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
           status: searchParams.get('status') ?? '',
           method: searchParams.get('method') ?? '',
           entryType: searchParams.get('entryType') ?? '',
+          origin: searchParams.get('origin') ?? '',
           path: searchParams.get('path') ?? '',
           startTime: formatDateTimeLocal(searchParams.get('startTime')),
           endTime: formatDateTimeLocal(searchParams.get('endTime')),
@@ -182,6 +201,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
       status: searchParams.get('status') ?? '',
       method: searchParams.get('method') ?? '',
       entryType: searchParams.get('entryType') ?? '',
+      origin: searchParams.get('origin') ?? '',
       path: searchParams.get('path') ?? '',
       startTime: formatDateTimeLocal(searchParams.get('startTime')),
       endTime: formatDateTimeLocal(searchParams.get('endTime')),
@@ -207,7 +227,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
 
   return (
     <div className="space-y-md">
-      <div className="grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1.15fr)_9rem_8rem_8rem_minmax(0,1.25fr)_11rem_11rem_auto]">
+      <div className="grid grid-cols-1 gap-sm md:grid-cols-2 xl:grid-cols-[minmax(0,1.15fr)_9rem_8rem_8rem_10rem_minmax(0,1.25fr)_11rem_11rem_auto]">
         <div>
           <label htmlFor={userIdId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.filterByUser')}</label>
           <input
@@ -257,6 +277,20 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
                   {t(option.key)}
                 </option>
               ))}
+          </Select>
+        </div>
+        <div>
+          <label htmlFor={originId} className="mb-xs block text-sm font-medium">{t('admin.apiAudit.origin')}</label>
+          <Select
+            id={originId}
+            value={filters.origin}
+            onChange={(e) => applyFilter('origin', e.target.value)}
+          >
+            {ORIGIN_OPTIONS.map((option) => (
+              <option key={option.value || 'all'} value={option.value}>
+                {t(option.key)}
+              </option>
+            ))}
           </Select>
         </div>
         <div>
@@ -328,7 +362,7 @@ export function AdminAuditTable({ initialData }: AdminAuditTableProps) {
                   <DataTableRow key={entry.id}>
                     <DataTableCell>{entry.userEmail ?? entry.userId ?? '—'}</DataTableCell>
                     <DataTableCell>{entry.keyName ?? '—'}</DataTableCell>
-                    <DataTableCell className="font-mono text-xs">{entry.origin}</DataTableCell>
+                    <DataTableCell className="font-mono text-xs">{t(ORIGIN_LABEL_KEYS[entry.origin])}</DataTableCell>
                     <DataTableCell className="font-mono">{entry.method}</DataTableCell>
                     <DataTableCell className="max-w-xs truncate font-mono text-xs">{entry.path}</DataTableCell>
                     <DataTableCell className={`font-medium ${statusColor(entry.statusCode)}`}>{entry.statusCode}</DataTableCell>
