@@ -150,6 +150,8 @@ export const publicRevisionResourceSchema = publicRevisionSummarySchema.extend({
       sessionId: z.string().optional(),
       command: z.string().optional(),
       occurredAt: z.string().datetime().optional(),
+      // Server-attributed API key label, exposed only on admin Raw provenance.
+      apiKeyName: z.string().min(1).max(200).optional(),
     })
     .nullable()
     .optional(),

@@ -248,7 +248,12 @@ export async function reconcilePageAcrossIndexes(pageId: string, ctx?: PermCtx):
           updatedAt: new Date(),
         },
       });
-    if (aiEnabled && ctx?.actor.kind === 'user') {
+    // API-key writes (public REST/MCP and agent-memory providers) have already
+    // passed the page/raw-entry write permission checks before reaching this
+    // internal reconciliation hook. They must dispatch the same incremental
+    // rebuild as session users; otherwise their durable pending state is never
+    // consumed and machine-created pages remain absent from semantic search.
+    if (aiEnabled && (ctx?.actor.kind === 'user' || ctx?.actor.kind === 'api_key')) {
       // Coalesce incremental reconciles: one queued rebuild job scans and
       // (re)indexes every pending page-state for the generation, so a single
       // job in flight is enough. Without this, a bulk import (one reconcile per

@@ -5,6 +5,14 @@ export const formats = {
       month: 'short',
       day: 'numeric',
     },
+    shortWithSeconds: {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      second: '2-digit',
+    },
     long: {
       year: 'numeric',
       month: 'long',

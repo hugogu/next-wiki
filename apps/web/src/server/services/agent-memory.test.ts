@@ -5,6 +5,7 @@ import * as schema from '@/server/db/schema';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as apiKeyService from '@/server/services/api-keys';
 import * as agentMemory from '@/server/services/agent-memory';
+import * as publicContent from '@/server/services/public-content';
 import { setBoss } from '@/server/jobs/runtime';
 import { resetSetupOnboardingState, createAdminUser } from '../../../test/setup-onboarding-fixtures';
 import { ensureRawSpaceForConversations } from '../../../test/ai-fixtures';
@@ -52,7 +53,7 @@ describe('Agent memory service', () => {
   });
 
   it('writes immutable Raw memory, recalls it with a citation, and hides it on forget', async () => {
-    const { ctx } = await createMemoryActor('personal');
+    const { ctx, userId } = await createMemoryActor('personal');
     const saved = await agentMemory.save(ctx, {
       idempotencyKey: 'decision-1',
       title: 'Architecture decision',
@@ -81,7 +82,9 @@ describe('Agent memory service', () => {
     expect(page?.rawCategoryId).toBeTruthy();
     const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, record!.currentRevisionId) });
     expect(revision?.contentSource).toBe('Use a dedicated next-wiki Agent memory destination.');
-    expect(revision?.sourceMetadata).toMatchObject({ inputKind: 'manual-note', provider: 'agent-memory', agentIdentity: 'hermes', tags: ['architecture', 'memory'] });
+    expect(revision?.sourceMetadata).toMatchObject({ inputKind: 'manual-note', provider: 'agent-memory', agentIdentity: 'hermes', apiKeyName: 'personal', tags: ['architecture', 'memory'] });
+    expect(page?.path).toMatch(/^agent-memory\/hermes\/memory\/[a-f0-9]{64}$/);
+    await expect(publicContent.getRevision(buildUserCtx(userId, 'admin'), page!.id, 1)).resolves.toMatchObject({ source: { apiKeyName: 'personal' } });
 
     await expect(agentMemory.recall(ctx, 'dedicated Wiki destination', 5)).resolves.toEqual([
       expect.objectContaining({ memoryId: saved.record.memoryId, citation: expect.objectContaining({ revisionId: expect.any(String) }) }),
@@ -112,7 +115,7 @@ describe('Agent memory service', () => {
     await expect(agentMemory.recall(ctx, 'captured retry policy', 5)).resolves.toEqual([
       expect.objectContaining({
         type: 'evidence',
-        title: 'Agent conversation evidence',
+        title: expect.stringMatching(/^Agent conversation · \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC · Remember the captured retry policy\.$/),
         excerpt: expect.stringContaining('captured retry policy'),
       }),
     ]);

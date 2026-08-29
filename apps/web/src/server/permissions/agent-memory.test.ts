@@ -37,6 +37,7 @@ describe('Agent memory permissions', () => {
     );
     expect(access.namespaceId).toBe(created.memoryDestination?.id);
     expect(access.agentIdentity).toBe('hermes');
+    expect(access.keyName).toBe('memory');
 
     const diagnosticsAccess = await requireAgentMemoryAccess(
       buildApiKeyCtx(userId, 'admin', ['memory.delete'], created.id),
