@@ -13,6 +13,69 @@ export const agentMemoryRecordTypeSchema = z.enum(['memory', 'evidence']);
 export const agentMemoryRecordStateSchema = z.enum(['active', 'forgotten']);
 export const agentMemoryCaptureStatusSchema = z.enum(['queued', 'running', 'durable', 'failed', 'cancelled']);
 
+// 040: product-neutral connection identity, shared-destination role, and
+// closed provenance/capture vocabularies. Additive to the 039 contract above.
+export const AGENT_MEMORY_BOUNDS = {
+  outboxMaxEntriesPerConnection: 500,
+  outboxMaxEntryBytes: 256 * 1024,
+  outboxEntryTtlDays: 7,
+  localDeliveryBudgetMs: 200,
+  outboxRetryBackoffMinMs: 5_000,
+  outboxRetryBackoffMaxMs: 10 * 60 * 1000,
+  captureEnvelopeMaxBytes: 1024 * 1024,
+  captureEnvelopeTtlHours: 24,
+} as const;
+
+export const agentMemoryConnectionStateSchema = z.enum(['active', 'disabled', 'revoked']);
+export const agentMemoryDestinationRoleSchema = z.enum(['private', 'shared']);
+export const agentMemoryGrantCapabilitySchema = z.enum(['read']);
+export const agentMemoryGrantStateSchema = z.enum(['active', 'revoked', 'expired']);
+export const agentMemoryOriginSchema = z.enum(['explicit_save', 'automatic_capture', 'checkpoint', 'import', 'promotion']);
+export const agentMemoryContentKindSchema = z.enum(['original', 'generated']);
+export const agentMemoryCaptureKindSchema = z.enum(['turn', 'checkpoint', 'compaction', 'session_end']);
+export const agentMemoryRecallScopeSchema = z.enum(['own', 'granted', 'own_and_granted']);
+
+export const agentMemoryConnectionSummarySchema = z.object({
+  connectionId: z.string().uuid(),
+  displayName: z.string(),
+  agentIdentity: z.string(),
+  state: agentMemoryConnectionStateSchema,
+  createdAt: z.string().datetime(),
+  disabledAt: z.string().datetime().nullable(),
+  revokedAt: z.string().datetime().nullable(),
+});
+
+export const agentMemoryCreateConnectionInputSchema = z.object({
+  displayName: z.string().trim().min(1).max(160),
+  agentIdentity: z.string().trim().min(1).max(100).optional(),
+});
+
+export const agentMemoryDestinationGrantSchema = z.object({
+  grantId: z.string().uuid(),
+  granteeConnectionId: z.string().uuid(),
+  destinationId: z.string().uuid(),
+  capability: agentMemoryGrantCapabilitySchema,
+  state: agentMemoryGrantStateSchema,
+  createdAt: z.string().datetime(),
+  expiresAt: z.string().datetime().nullable(),
+  revokedAt: z.string().datetime().nullable(),
+});
+
+export const agentMemoryCreateGrantInputSchema = z.object({
+  granteeConnectionId: z.string().uuid(),
+  expiresAt: z.string().datetime().optional(),
+});
+
+export const agentMemoryPromotionInputSchema = z.object({
+  sourceRecordId: z.string().uuid(),
+  destinationId: z.string().uuid(),
+  title: z.string().trim().min(1).max(160).optional(),
+});
+
+export const agentMemoryCreateSharedDestinationInputSchema = z.object({
+  displayName: z.string().trim().min(1).max(160),
+});
+
 export const agentMemoryCitationSchema = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
@@ -29,9 +92,11 @@ export const agentMemoryRecordSchema = z.object({
   title: z.string(),
   excerpt: z.string(),
   citation: agentMemoryCitationSchema,
+  origin: agentMemoryOriginSchema.optional(),
+  contentKind: agentMemoryContentKindSchema.optional(),
   evidence: z.array(z.object({
     evidenceId: z.string().uuid(),
-    relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint']),
+    relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint', 'promotion', 'import']),
     citation: agentMemoryCitationSchema,
   })).default([]),
 });
@@ -39,6 +104,7 @@ export const agentMemoryRecordSchema = z.object({
 export const agentMemoryRecallInputSchema = z.object({
   query: z.string().trim().min(1).max(AGENT_MEMORY_LIMITS.maxRecallQueryCharacters),
   limit: z.number().int().min(1).max(AGENT_MEMORY_LIMITS.maxRecallResults).optional(),
+  scope: agentMemoryRecallScopeSchema.optional(),
 });
 
 export const agentMemorySaveInputSchema = z.object({
@@ -57,6 +123,7 @@ export const agentMemoryEvidenceInputSchema = z.object({
   idempotencyKey: z.string().trim().min(1).max(128),
   sessionDigest: z.string().regex(/^[a-f0-9]{32,128}$/),
   checkpoint: z.boolean(),
+  captureKind: agentMemoryCaptureKindSchema.optional(),
   messages: z
     .array(z.object({
       role: z.enum(['user', 'assistant']),
@@ -76,3 +143,13 @@ export type AgentMemoryRecallInput = z.infer<typeof agentMemoryRecallInputSchema
 export type AgentMemorySaveInput = z.infer<typeof agentMemorySaveInputSchema>;
 export type AgentMemoryEvidenceInput = z.infer<typeof agentMemoryEvidenceInputSchema>;
 export type AgentMemoryRecord = z.infer<typeof agentMemoryRecordSchema>;
+export type AgentMemoryConnectionSummary = z.infer<typeof agentMemoryConnectionSummarySchema>;
+export type AgentMemoryCreateConnectionInput = z.infer<typeof agentMemoryCreateConnectionInputSchema>;
+export type AgentMemoryDestinationGrant = z.infer<typeof agentMemoryDestinationGrantSchema>;
+export type AgentMemoryCreateGrantInput = z.infer<typeof agentMemoryCreateGrantInputSchema>;
+export type AgentMemoryPromotionInput = z.infer<typeof agentMemoryPromotionInputSchema>;
+export type AgentMemoryCreateSharedDestinationInput = z.infer<typeof agentMemoryCreateSharedDestinationInputSchema>;
+export type AgentMemoryRecallScope = z.infer<typeof agentMemoryRecallScopeSchema>;
+export type AgentMemoryCaptureKind = z.infer<typeof agentMemoryCaptureKindSchema>;
+export type AgentMemoryOrigin = z.infer<typeof agentMemoryOriginSchema>;
+export type AgentMemoryContentKind = z.infer<typeof agentMemoryContentKindSchema>;

@@ -85,6 +85,11 @@
               "next-wiki"
             ]
           },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "The stable 040 connection identity, absent for a legacy 039 key binding."
+          },
           "namespace": {
             "type": "object",
             "properties": {
@@ -135,6 +140,10 @@
                 "enum": [
                   false
                 ]
+              },
+              "sharedRecall": {
+                "type": "boolean",
+                "description": "Whether this connection has at least one active granted shared destination."
               }
             },
             "required": [
@@ -143,7 +152,8 @@
               "forget",
               "asynchronousEvidenceCapture",
               "strictCheckpoint",
-              "semanticRecall"
+              "semanticRecall",
+              "sharedRecall"
             ]
           },
           "limits": {
@@ -179,6 +189,123 @@
         ],
         "description": "Authenticated Agent memory provider connection and its dedicated destination."
       },
+      "AgentMemoryConnectionCreated": {
+        "type": "object",
+        "properties": {
+          "connection": {
+            "$ref": "#/components/schemas/AgentMemoryConnectionSummary"
+          },
+          "keyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "keySecret": {
+            "type": "string",
+            "description": "Full credential secret value. Shown only once, at creation time."
+          }
+        },
+        "required": [
+          "connection",
+          "keyId",
+          "keySecret"
+        ],
+        "description": "A newly created Agent memory connection and its one-time credential secret."
+      },
+      "AgentMemoryConnectionList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/AgentMemoryConnectionSummary"
+        },
+        "description": "List of the owner's Agent memory connections."
+      },
+      "AgentMemoryConnectionSummary": {
+        "type": "object",
+        "properties": {
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "agentIdentity": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled",
+              "revoked"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "disabledAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "connectionId",
+          "displayName",
+          "agentIdentity",
+          "state",
+          "createdAt",
+          "disabledAt",
+          "revokedAt"
+        ],
+        "description": "A stable, product-neutral Agent memory connection identity, independent of its rotatable credentials."
+      },
+      "AgentMemoryCreateConnectionInput": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "agentIdentity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          }
+        },
+        "required": [
+          "displayName"
+        ],
+        "description": "Create a new Agent memory connection with its own private destination."
+      },
+      "AgentMemoryCredentialRotated": {
+        "type": "object",
+        "properties": {
+          "keyId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "keySecret": {
+            "type": "string",
+            "description": "Full credential secret value. Shown only once, at rotation time."
+          }
+        },
+        "required": [
+          "keyId",
+          "keySecret"
+        ],
+        "description": "A newly issued credential bound to an existing Agent memory connection."
+      },
       "AgentMemoryDiagnostics": {
         "type": "object",
         "properties": {
@@ -193,6 +320,10 @@
             "enum": [
               "v1"
             ]
+          },
+          "connectionId": {
+            "type": "string",
+            "format": "uuid"
           },
           "namespaceState": {
             "type": "string",
@@ -220,6 +351,21 @@
         ],
         "description": "Safe non-secret Agent memory diagnostics."
       },
+      "AgentMemoryDisableConnectionInput": {
+        "type": "object",
+        "properties": {
+          "state": {
+            "type": "string",
+            "enum": [
+              "disabled"
+            ]
+          }
+        },
+        "required": [
+          "state"
+        ],
+        "description": "Temporarily disable an Agent memory connection."
+      },
       "AgentMemoryEvidenceInput": {
         "type": "object",
         "properties": {
@@ -234,6 +380,15 @@
           },
           "checkpoint": {
             "type": "boolean"
+          },
+          "captureKind": {
+            "type": "string",
+            "enum": [
+              "turn",
+              "checkpoint",
+              "compaction",
+              "session_end"
+            ]
           },
           "messages": {
             "type": "array",
@@ -394,6 +549,14 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 10
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "own",
+              "granted",
+              "own_and_granted"
+            ]
           }
         },
         "required": [
@@ -470,6 +633,23 @@
           "citation": {
             "$ref": "#/components/schemas/AgentMemoryCitation"
           },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "explicit_save",
+              "automatic_capture",
+              "checkpoint",
+              "import",
+              "promotion"
+            ]
+          },
+          "contentKind": {
+            "type": "string",
+            "enum": [
+              "original",
+              "generated"
+            ]
+          },
           "evidence": {
             "type": "array",
             "items": {
@@ -484,7 +664,9 @@
                   "enum": [
                     "explicit_save",
                     "automatic_capture",
-                    "checkpoint"
+                    "checkpoint",
+                    "promotion",
+                    "import"
                   ]
                 },
                 "citation": {
@@ -21439,159 +21621,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "status": {
-                      "oneOf": [
-                        {
-                          "type": "string",
-                          "enum": [
-                            "completed"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "failed"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "skipped"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "not_started"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "partial"
-                          ]
-                        }
-                      ]
-                    },
-                    "pages": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "status": {
-                            "oneOf": [
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "failed"
-                                ]
-                              },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "skipped"
-                                ]
-                              },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "created"
-                                ]
-                              },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "updated"
-                                ]
-                              },
-                              {
-                                "type": "string",
-                                "enum": [
-                                  "collision"
-                                ]
-                              }
-                            ]
-                          },
-                          "path": {
-                            "type": "string"
-                          },
-                          "pageId": {
-                            "oneOf": [
-                              {
-                                "type": "object"
-                              },
-                              {
-                                "type": "string"
-                              }
-                            ]
-                          },
-                          "reason": {
-                            "oneOf": [
-                              {
-                                "type": "object"
-                              },
-                              {
-                                "type": "string"
-                              }
-                            ]
-                          }
-                        },
-                        "required": [
-                          "status",
-                          "path"
-                        ]
-                      }
-                    },
-                    "nextStep": {
-                      "oneOf": [
-                        {
-                          "type": "object"
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "writing_mode"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "summary"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "account"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "ai"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "sample_pages"
-                          ]
-                        },
-                        {
-                          "type": "string",
-                          "enum": [
-                            "closed"
-                          ]
-                        }
-                      ]
-                    }
-                  },
-                  "required": [
-                    "status",
-                    "pages"
-                  ]
+                  "type": "object"
                 }
               }
             }
@@ -25086,6 +25116,161 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ApiKeyReveal"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-keys/agent-memory/connections": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-connections",
+        "summary": "List Agent memory connections",
+        "description": "Returns the current owner's Agent memory connections (product-neutral, stable identities). Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryConnectionList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-api-keys-agent-memory-connections",
+        "summary": "Create an Agent memory connection",
+        "description": "Creates a new connection with its own private destination and a dedicated credential. Session-only; not callable with a Bearer key. The full credential secret is returned only once.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryCreateConnectionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryConnectionCreated"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}": {
+      "patch": {
+        "operationId": "patch-api-keys-agent-memory-connections-{connectionId}",
+        "summary": "Disable an Agent memory connection",
+        "description": "Temporarily denies operations for a connection without revoking it. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryDisableConnectionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryConnectionSummary"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-api-keys-agent-memory-connections-{connectionId}",
+        "summary": "Revoke an Agent memory connection",
+        "description": "Permanently denies operations for a connection. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
+          }
+        }
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}/rotate": {
+      "post": {
+        "operationId": "post-api-keys-agent-memory-connections-{connectionId}-rotate",
+        "summary": "Rotate an Agent memory connection credential",
+        "description": "Issues a new credential bound to the same connection without revoking the prior one. Session-only; not callable with a Bearer key. The full secret is returned only once.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryCredentialRotated"
                 }
               }
             }

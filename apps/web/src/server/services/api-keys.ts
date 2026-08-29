@@ -29,6 +29,24 @@ function extractPrefix(token: string): string {
 }
 
 /**
+ * Mints a unique key token and its encrypted-at-rest form. Shared by the
+ * generic key creation below and the 040 Agent Memory connection/rotation
+ * flows, which mint credentials without going through the generic `create()`
+ * validation (a connection is not a `memoryProvider`-shaped legacy key).
+ */
+export async function mintApiKeyMaterial(): Promise<{ key: string; prefix: string; encrypted: string }> {
+  for (let attempts = 0; attempts < PREFIX_COLLISION_RETRIES; attempts++) {
+    const candidate = generateKey();
+    const candidatePrefix = extractPrefix(candidate);
+    const existing = await db.query.apiKeys.findFirst({ where: eq(schema.apiKeys.keyPrefix, candidatePrefix) });
+    if (!existing) {
+      return { key: candidate, prefix: candidatePrefix, encrypted: encryptKey(candidate) };
+    }
+  }
+  throw new DomainError('CONFLICT', 'Could not generate a unique API key prefix. Please try again.');
+}
+
+/**
  * Account-management operations (list/create/reveal/revoke) are session-only.
  * An API-key actor must never read, mint, reveal, or revoke keys — that would
  * let a key escalate (mint a broader sibling) or exfiltrate other keys.

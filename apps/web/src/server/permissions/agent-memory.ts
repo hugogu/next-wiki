@@ -10,6 +10,9 @@ export type AgentMemoryAccess = {
   keyId: string;
   keyName: string;
   userId: string;
+  /** 040: stable connection identity, or null for a 039 legacy key binding. */
+  connectionId: string | null;
+  connectionState: 'active' | 'disabled' | 'revoked' | null;
   namespaceId: string;
   namespaceName: string;
   agentIdentity: string;
@@ -17,8 +20,11 @@ export type AgentMemoryAccess = {
 };
 
 /**
- * The client never supplies a namespace or profile. This resolver obtains the
- * single destination from the authenticated key on every operation.
+ * The client never supplies a namespace, connection, destination, or agent
+ * identity. This resolver obtains the connection (or, for a 039 credential
+ * that predates connections, the legacy namespace binding directly) from the
+ * authenticated key on every operation. A connection's private namespace is
+ * always the resolved destination for normal save/capture operations.
  */
 export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: AgentMemoryScope | 'any'): Promise<AgentMemoryAccess> {
   if (ctx.actor.kind !== 'api_key') {
@@ -36,11 +42,41 @@ export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: Agen
     with: {
       key: { columns: { name: true, userId: true } },
       namespace: true,
+      connection: true,
     },
   });
   if (!binding || !binding.key || binding.key.userId !== ctx.actor.userId || binding.namespace.ownerUserId !== ctx.actor.userId) {
     throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to an active Agent memory destination');
   }
+
+  // A connection-bound credential (every 040 credential) is authorized through
+  // the connection, not the legacy binding row: a disabled/revoked connection
+  // denies access even if its namespace row is still marked active.
+  if (binding.connection) {
+    if (binding.connection.ownerUserId !== ctx.actor.userId) {
+      throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to an active Agent memory destination');
+    }
+    if (binding.connection.state !== 'active') {
+      throw new DomainError('AGENT_MEMORY_NAMESPACE_UNAVAILABLE', 'The bound Agent memory connection is unavailable');
+    }
+    if (binding.namespace.state !== 'active') {
+      throw new DomainError('AGENT_MEMORY_NAMESPACE_UNAVAILABLE', 'The bound Agent memory destination is unavailable');
+    }
+    return {
+      keyId: ctx.actor.keyId,
+      keyName: binding.key.name,
+      userId: ctx.actor.userId,
+      connectionId: binding.connection.id,
+      connectionState: binding.connection.state,
+      namespaceId: binding.namespaceId,
+      namespaceName: binding.namespace.displayName,
+      agentIdentity: binding.connection.agentIdentity,
+      namespaceState: binding.namespace.state,
+    };
+  }
+
+  // 039 legacy binding: no connection row. Resolver compatibility keeps this
+  // path authorizing against the namespace directly.
   if (binding.namespace.state !== 'active') {
     throw new DomainError('AGENT_MEMORY_NAMESPACE_UNAVAILABLE', 'The bound Agent memory destination is unavailable');
   }
@@ -49,11 +85,32 @@ export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: Agen
     keyId: ctx.actor.keyId,
     keyName: binding.key.name,
     userId: ctx.actor.userId,
+    connectionId: null,
+    connectionState: null,
     namespaceId: binding.namespaceId,
     namespaceName: binding.namespace.displayName,
     agentIdentity: binding.agentIdentity,
     namespaceState: binding.namespace.state,
   };
+}
+
+/**
+ * Active, unexpired read grants for a connection, re-evaluated fresh on every
+ * call. Callers MUST call this again immediately before serializing a result
+ * that depends on it (FR-009) rather than caching it across the request.
+ */
+export async function listActiveGrantedDestinationIds(connectionId: string): Promise<string[]> {
+  const grants = await db.query.agentMemoryDestinationGrants.findMany({
+    where: and(
+      eq(schema.agentMemoryDestinationGrants.granteeConnectionId, connectionId),
+      eq(schema.agentMemoryDestinationGrants.state, 'active'),
+    ),
+    with: { destination: true },
+  });
+  const now = new Date();
+  return grants
+    .filter((grant) => (!grant.expiresAt || grant.expiresAt > now) && grant.destination.state === 'active' && grant.destination.role === 'shared')
+    .map((grant) => grant.destinationId);
 }
 
 export async function memoryRecordBelongsToDestination(namespaceId: string, recordId: string, agentIdentity?: string): Promise<boolean> {

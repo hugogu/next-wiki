@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 const capture = vi.hoisted(() => ({ runEvidenceCapture: vi.fn() }));
-vi.mock('@/server/services/agent-memory', () => capture);
+vi.mock('@/server/services/agent-memory-captures', () => capture);
 const log = vi.hoisted(() => ({ warn: vi.fn() }));
 vi.mock('@/server/logger', () => ({ logger: log }));
 vi.mock('@/server/cache/public-cache', () => ({
@@ -11,7 +11,7 @@ vi.mock('@/server/cache/public-cache', () => ({
 import { isCaptureJobData, runAgentMemoryCapture } from './agent-memory-capture';
 
 const captureId = '3d6f0a9b-6a2b-4a9d-9e3e-1ddc7f7a1c12';
-const validPayload = { captureId, messages: [{ role: 'user', content: 'Remember this decision.' }] };
+const validPayload = { captureId };
 
 describe('isCaptureJobData', () => {
   it('accepts a well-formed payload', () => {
@@ -22,10 +22,9 @@ describe('isCaptureJobData', () => {
     [null],
     [undefined],
     [{}],
-    [{ captureId: 'not-a-uuid', messages: validPayload.messages }],
-    [{ captureId, messages: [{ role: 'system', content: 'unexpected' }] }],
-    [{ captureId, messages: [{ role: 'assistant', content: 42 }] }],
-    [{ captureId, messages: [] }],
+    [{ captureId: 'not-a-uuid' }],
+    // The job payload is capture-ID-only; evidence content must never appear here.
+    [{ captureId, messages: [{ role: 'user', content: 'should not be here' }] }],
   ])('rejects malformed payload %j', (data) => {
     expect(isCaptureJobData(data)).toBe(false);
   });
@@ -33,7 +32,7 @@ describe('isCaptureJobData', () => {
 
 describe('runAgentMemoryCapture', () => {
   it('does not pass malformed queue data to the service', async () => {
-    await runAgentMemoryCapture({ captureId, messages: [{ role: 'tool', content: 'secret' }] });
+    await runAgentMemoryCapture({ captureId: 'not-a-uuid' });
     expect(capture.runEvidenceCapture).not.toHaveBeenCalled();
     expect(log.warn).toHaveBeenCalledWith(expect.stringContaining('malformed job payload'));
   });

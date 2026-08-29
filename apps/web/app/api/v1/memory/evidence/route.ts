@@ -1,7 +1,7 @@
 import { agentMemoryEvidenceInputSchema } from '@next-wiki/shared';
 import { assertSupportedProvider, publicJson, withPublicApi } from '../_shared';
 import { parsePublicJson } from '../../_shared/route';
-import { submitEvidenceCapture } from '@/server/services/agent-memory';
+import { submitEvidenceCapture } from '@/server/services/agent-memory-captures';
 
 /**
  * @openapi

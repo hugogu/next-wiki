@@ -319,6 +319,7 @@ export const ApiKeyReveal = z
 export const AgentMemoryConnection = z.object({
   apiVersion: z.literal('v1'),
   provider: z.literal('next-wiki'),
+  connectionId: z.string().uuid().optional().describe('The stable 040 connection identity, absent for a legacy 039 key binding.'),
   namespace: z.object({ id: z.string().uuid(), displayName: z.string(), state: z.literal('active'), agentIdentity: z.string() }),
   capabilities: z.object({
     recall: z.boolean(),
@@ -327,6 +328,7 @@ export const AgentMemoryConnection = z.object({
     asynchronousEvidenceCapture: z.boolean(),
     strictCheckpoint: z.boolean(),
     semanticRecall: z.literal(false),
+    sharedRecall: z.boolean().describe('Whether this connection has at least one active granted shared destination.'),
   }),
   limits: z.object({
     maxRecallResults: z.number().int(),
@@ -339,6 +341,7 @@ export const AgentMemoryConnection = z.object({
 export const AgentMemoryDiagnostics = z.object({
   status: z.literal('healthy'),
   apiVersion: z.literal('v1'),
+  connectionId: z.string().uuid().optional(),
   namespaceState: z.literal('active'),
   grantedScopes: z.array(z.enum(['memory.read', 'memory.write', 'memory.delete'])),
 }).describe('Safe non-secret Agent memory diagnostics.');
@@ -346,6 +349,7 @@ export const AgentMemoryDiagnostics = z.object({
 export const AgentMemoryRecallInput = z.object({
   query: z.string().min(1).max(4_000),
   limit: z.number().int().min(1).max(10).optional(),
+  scope: z.enum(['own', 'granted', 'own_and_granted']).optional(),
 }).describe('Recall query for the caller\'s bound Agent memory destination.');
 
 export const AgentMemoryCitation = z.object({
@@ -356,7 +360,9 @@ export const AgentMemoryCitation = z.object({
 export const AgentMemoryRecord = z.object({
   memoryId: z.string().uuid(), type: z.enum(['memory', 'evidence']), state: z.enum(['active', 'forgotten']),
   title: z.string(), excerpt: z.string(), citation: AgentMemoryCitation,
-  evidence: z.array(z.object({ evidenceId: z.string().uuid(), relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint']), citation: AgentMemoryCitation })).default([]),
+  origin: z.enum(['explicit_save', 'automatic_capture', 'checkpoint', 'import', 'promotion']).optional(),
+  contentKind: z.enum(['original', 'generated']).optional(),
+  evidence: z.array(z.object({ evidenceId: z.string().uuid(), relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint', 'promotion', 'import']), citation: AgentMemoryCitation })).default([]),
 });
 
 export const AgentMemoryRecallResponse = z.object({
@@ -380,6 +386,7 @@ export const AgentMemoryForgetResponse = z.object({
 
 export const AgentMemoryEvidenceInput = z.object({
   idempotencyKey: z.string().min(1).max(128), sessionDigest: z.string().regex(/^[a-f0-9]{32,128}$/), checkpoint: z.boolean(),
+  captureKind: z.enum(['turn', 'checkpoint', 'compaction', 'session_end']).optional(),
   messages: z.array(z.object({ role: z.enum(['user', 'assistant']), content: z.string().min(1).max(64_000) })).min(1).max(100),
 }).describe('Queue a durable, idempotent evidence capture for the caller\'s bound destination.');
 
@@ -394,6 +401,31 @@ export const AgentMemoryEvidenceStatus = z.object({
   evidence: z.object({ evidenceId: z.string().uuid(), citation: AgentMemoryCitation }).optional(),
   failureCode: z.string().optional(),
 });
+
+export const AgentMemoryConnectionSummary = z.object({
+  connectionId: z.string().uuid(), displayName: z.string(), agentIdentity: z.string(),
+  state: z.enum(['active', 'disabled', 'revoked']),
+  createdAt: z.string().datetime(), disabledAt: z.string().datetime().nullable(), revokedAt: z.string().datetime().nullable(),
+}).describe('A stable, product-neutral Agent memory connection identity, independent of its rotatable credentials.');
+
+export const AgentMemoryConnectionList = z.array(AgentMemoryConnectionSummary).describe('List of the owner\'s Agent memory connections.');
+
+export const AgentMemoryCreateConnectionInput = z.object({
+  displayName: z.string().min(1).max(160), agentIdentity: z.string().min(1).max(100).optional(),
+}).describe('Create a new Agent memory connection with its own private destination.');
+
+export const AgentMemoryConnectionCreated = z.object({
+  connection: AgentMemoryConnectionSummary, keyId: z.string().uuid(),
+  keySecret: z.string().describe('Full credential secret value. Shown only once, at creation time.'),
+}).describe('A newly created Agent memory connection and its one-time credential secret.');
+
+export const AgentMemoryDisableConnectionInput = z.object({ state: z.literal('disabled') })
+  .describe('Temporarily disable an Agent memory connection.');
+
+export const AgentMemoryCredentialRotated = z.object({
+  keyId: z.string().uuid(),
+  keySecret: z.string().describe('Full credential secret value. Shown only once, at rotation time.'),
+}).describe('A newly issued credential bound to an existing Agent memory connection.');
 
 export const AuditListResponse = z
   .object({

@@ -1,7 +1,7 @@
 import { z } from 'zod';
 import { assertSupportedProvider, publicJson, withPublicApi } from '../../_shared';
 import { validationError } from '@/server/api/public-errors';
-import { getEvidenceCapture } from '@/server/services/agent-memory';
+import { getEvidenceCapture } from '@/server/services/agent-memory-captures';
 
 const paramsSchema = z.object({ captureId: z.string().uuid() });
 

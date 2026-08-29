@@ -24,6 +24,14 @@ Memory tables. The second invocation must report no schema changes. Never
 write migration SQL, journal, or snapshots by hand. Existing 039 rows may stay
 legacy; the feature has no automatic historical-data migration.
 
+**Result (2026-08-29)**: `0022_tranquil_killraven.sql` generated cleanly on the
+first run — two `CREATE TABLE` statements (`agent_memory_connections`,
+`agent_memory_destination_grants`), additive columns on
+`agent_memory_namespaces`/`agent_memory_key_bindings`/`agent_memory_records`/
+`agent_memory_captures`, and two `ALTER TYPE ... ADD VALUE` statements on
+`agent_memory_evidence_relation`. No interactive rename prompt. The second
+`pnpm db:generate` reported `No schema changes, nothing to migrate`.
+
 ## Provision independent adapters
 
 1. As an owner, create a generic Agent Memory connection for each adapter.

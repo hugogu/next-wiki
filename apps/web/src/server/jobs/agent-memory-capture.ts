@@ -1,24 +1,21 @@
 import { z } from 'zod';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
-import { runEvidenceCapture } from '@/server/services/agent-memory';
+import { runEvidenceCapture } from '@/server/services/agent-memory-captures';
 import { logger } from '@/server/logger';
 
+// 040: capture-ID-only job payload. The worker fetches and decrypts the
+// bounded transient envelope from the capture row itself; the pg-boss job
+// never carries evidence content (data-model.md capture ledger invariant).
 type CaptureJobData = {
   captureId: string;
-  messages: Array<{ role: 'user' | 'assistant'; content: string }>;
 };
 
+// .strict() rejects any extra key (e.g. a legacy `messages` field from a job
+// enqueued before this deploy) rather than silently ignoring it, so evidence
+// content can never reach this schema even by accident.
 const captureJobDataSchema = z.object({
   captureId: z.string().uuid(),
-  messages: z.array(z.object({
-    role: z.enum(['user', 'assistant']),
-    content: z.string().min(1).max(64_000),
-  })).min(1).max(100),
-}).superRefine((payload, context) => {
-  if (payload.messages.reduce((total, message) => total + message.content.length, 0) > 64_000) {
-    context.addIssue({ code: z.ZodIssueCode.custom, message: 'evidence payload is too large' });
-  }
-});
+}).strict();
 
 export function isCaptureJobData(data: unknown): data is CaptureJobData {
   return captureJobDataSchema.safeParse(data).success;

@@ -8,7 +8,7 @@ vi.mock('../_shared', () => ({
   publicJson: (data: unknown, init?: ResponseInit) => NextResponse.json(data, init),
   withPublicApi: (handler: unknown) => handler,
 }));
-vi.mock('@/server/services/agent-memory', () => ({ submitEvidenceCapture }));
+vi.mock('@/server/services/agent-memory-captures', () => ({ submitEvidenceCapture }));
 
 import * as route from './route';
 

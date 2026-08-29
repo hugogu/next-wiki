@@ -5,36 +5,48 @@ import * as schema from '@/server/db/schema';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
 import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
-import { requireAgentMemoryAccess, type AgentMemoryAccess } from '@/server/permissions/agent-memory';
+import { listActiveGrantedDestinationIds, requireAgentMemoryAccess, type AgentMemoryAccess } from '@/server/permissions/agent-memory';
 import * as rawEntries from '@/server/services/raw-entries';
 import { ensureSystemCategory } from '@/server/services/raw-categories';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { resolveSpace } from '@/server/services/spaces';
 import { isLlmWikiMode } from '@/server/services/writing-mode';
 import { env } from '@/server/config';
-import { enqueue, QUEUES } from '@/server/jobs/runtime';
-import { agentMemoryEvidenceInputSchema } from '@next-wiki/shared';
-import type { ApiKeyScope, AgentMemoryEvidenceInput, AgentMemoryRecord, AgentMemorySaveInput } from '@next-wiki/shared';
+import type {
+  AgentMemoryContentKind,
+  AgentMemoryEvidenceInput,
+  AgentMemoryOrigin,
+  AgentMemoryRecallScope,
+  AgentMemoryRecord,
+  AgentMemorySaveInput,
+  ApiKeyScope,
+} from '@next-wiki/shared';
 
 const MEMORY_PAGE_PREFIX = 'agent-memory';
 const AGENT_MEMORY_CATEGORY_SYSTEM_KEY = 'agent-memory';
 const MAX_EXCERPT_LENGTH = 1_200;
 
-type MemoryRecordRow = typeof schema.agentMemoryRecords.$inferSelect;
-type EvidenceRelation = 'explicit_save' | 'automatic_capture' | 'checkpoint';
+export type MemoryRecordRow = typeof schema.agentMemoryRecords.$inferSelect;
+type EvidenceRelation = 'explicit_save' | 'automatic_capture' | 'checkpoint' | 'promotion' | 'import';
 
 function memoryRawContext(ctx: PermCtx): PermCtx {
-  if (ctx.actor.kind !== 'api_key') {
-    throw new DomainError('UNAUTHORIZED', 'A dedicated Agent memory API key is required');
+  if (ctx.actor.kind === 'api_key') {
+    // The dedicated key never exposes generic page scopes. This internal
+    // adapter adds only the append-only Raw create capability after
+    // destination checks.
+    const scopes = Array.from(new Set<ApiKeyScope>([
+      ...ctx.actor.scopes,
+      'view',
+      'create',
+    ]));
+    return { actor: { ...ctx.actor, scopes } };
   }
-  // The dedicated key never exposes generic page scopes. This internal adapter
-  // adds only the append-only Raw create capability after destination checks.
-  const scopes = Array.from(new Set<ApiKeyScope>([
-    ...ctx.actor.scopes,
-    'view',
-    'create',
-  ]));
-  return { actor: { ...ctx.actor, scopes } };
+  if (ctx.actor.kind === 'user' && ctx.actor.role === 'admin') {
+    // Owner-triggered curation (promotion) runs in the admin's own session;
+    // an admin already has full restricted/raw-space access by role.
+    return ctx;
+  }
+  throw new DomainError('UNAUTHORIZED', 'A dedicated Agent memory API key or an administrator session is required');
 }
 
 function memoryPath(
@@ -59,7 +71,7 @@ function memoryPath(
   return `${MEMORY_PAGE_PREFIX}/${folder}/${type}/${keyDigest}`;
 }
 
-function evidencePayloadDigest(input: Pick<AgentMemoryEvidenceInput, 'sessionDigest' | 'checkpoint' | 'messages'>): string {
+export function evidencePayloadDigest(input: Pick<AgentMemoryEvidenceInput, 'sessionDigest' | 'checkpoint' | 'messages'>): string {
   return createHash('sha256').update(JSON.stringify({
     sessionDigest: input.sessionDigest,
     checkpoint: input.checkpoint,
@@ -108,7 +120,7 @@ function lexicalScore(query: string, content: string, title: string): number {
   return terms.reduce((score, term) => score + (haystack.includes(term) ? 1 : 0), 0) / terms.length;
 }
 
-async function recordToView(record: MemoryRecordRow): Promise<AgentMemoryRecord | null> {
+export async function recordToView(record: MemoryRecordRow): Promise<AgentMemoryRecord | null> {
   if (record.state !== 'active') return null;
   const [page, revision, space] = await Promise.all([
     db.query.pages.findFirst({ where: and(eq(schema.pages.id, record.pageId), isNull(schema.pages.deletedAt)) }),
@@ -146,6 +158,8 @@ async function recordToView(record: MemoryRecordRow): Promise<AgentMemoryRecord 
     title: page.title,
     excerpt: excerpt(source),
     citation: citation(page, revision, space),
+    origin: record.origin ?? undefined,
+    contentKind: record.contentKind,
     evidence,
   };
 }
@@ -213,7 +227,7 @@ async function assertEvidenceIds(namespaceId: string, agentIdentity: string, evi
   }
 }
 
-async function createRecord(
+export async function createRecord(
   ctx: PermCtx,
   access: AgentMemoryAccess,
   input: {
@@ -225,6 +239,8 @@ async function createRecord(
     sourceSessionDigest?: string;
     evidenceIds?: string[];
     relation?: EvidenceRelation;
+    origin: AgentMemoryOrigin;
+    contentKind?: AgentMemoryContentKind;
   },
 ): Promise<{ record: AgentMemoryRecord; idempotent: boolean }> {
   const existing = await existingByIdempotency(access.namespaceId, access.agentIdentity, input.idempotencyKey);
@@ -263,7 +279,10 @@ async function createRecord(
         id: recordId,
         namespaceId: access.namespaceId,
         agentIdentity: access.agentIdentity,
+        authorConnectionId: access.connectionId,
         recordType: input.type,
+        origin: input.origin,
+        contentKind: input.contentKind ?? 'original',
         pageId: page.pageId,
         currentRevisionId: page.versionId,
         idempotencyKey: input.idempotencyKey,
@@ -301,8 +320,9 @@ async function createRecord(
 export async function getConnection(ctx: PermCtx, options: { allowAnyMemoryScope?: boolean } = {}): Promise<{
   apiVersion: 'v1';
   provider: 'next-wiki';
+  connectionId?: string;
   namespace: { id: string; displayName: string; state: 'active'; agentIdentity: string };
-  capabilities: { recall: boolean; save: boolean; forget: boolean; asynchronousEvidenceCapture: boolean; strictCheckpoint: boolean; semanticRecall: false };
+  capabilities: { recall: boolean; save: boolean; forget: boolean; asynchronousEvidenceCapture: boolean; strictCheckpoint: boolean; semanticRecall: false; sharedRecall: boolean };
   limits: { maxRecallResults: number; maxSaveCharacters: number; maxEvidenceCharacters: number; maxEvidenceMessages: number };
 }> {
   const requiredScope = options.allowAnyMemoryScope
@@ -311,9 +331,11 @@ export async function getConnection(ctx: PermCtx, options: { allowAnyMemoryScope
   const access = await requireAgentMemoryAccess(ctx, requiredScope);
   await assertRawMemoryReady();
   const scopes = ctx.actor.kind === 'api_key' ? ctx.actor.scopes : [];
+  const grantedDestinationIds = access.connectionId ? await listActiveGrantedDestinationIds(access.connectionId) : [];
   return {
     apiVersion: 'v1',
     provider: 'next-wiki',
+    ...(access.connectionId ? { connectionId: access.connectionId } : {}),
     namespace: { id: access.namespaceId, displayName: access.namespaceName, state: 'active', agentIdentity: access.agentIdentity },
     capabilities: {
       recall: scopes.includes('memory.read'),
@@ -322,6 +344,7 @@ export async function getConnection(ctx: PermCtx, options: { allowAnyMemoryScope
       asynchronousEvidenceCapture: scopes.includes('memory.write'),
       strictCheckpoint: scopes.includes('memory.write'),
       semanticRecall: false,
+      sharedRecall: grantedDestinationIds.length > 0,
     },
     limits: { maxRecallResults: 10, maxSaveCharacters: 16_000, maxEvidenceCharacters: 64_000, maxEvidenceMessages: 100 },
   };
@@ -330,13 +353,15 @@ export async function getConnection(ctx: PermCtx, options: { allowAnyMemoryScope
 export async function getDiagnostics(ctx: PermCtx): Promise<{
   status: 'healthy';
   apiVersion: 'v1';
+  connectionId?: string;
   namespaceState: 'active';
   grantedScopes: ApiKeyScope[];
 }> {
-  await getConnection(ctx, { allowAnyMemoryScope: true });
+  const connection = await getConnection(ctx, { allowAnyMemoryScope: true });
   return {
     status: 'healthy',
     apiVersion: 'v1',
+    ...(connection.connectionId ? { connectionId: connection.connectionId } : {}),
     namespaceState: 'active',
     grantedScopes: ctx.actor.kind === 'api_key' ? ctx.actor.scopes.filter((scope) => scope.startsWith('memory.')) : [],
   };
@@ -353,34 +378,77 @@ export async function save(ctx: PermCtx, input: AgentMemorySaveInput): Promise<{
     tags: input.tags,
     evidenceIds: input.evidenceIds,
     relation: 'explicit_save',
+    origin: 'explicit_save',
   });
 }
 
-export async function recall(ctx: PermCtx, query: string, limit: number): Promise<AgentMemoryRecord[]> {
+/**
+ * Own-destination candidates plus, when requested and the caller is a
+ * connection, active granted-destination candidates. Grant eligibility is
+ * re-checked against fresh grant state right before the result is sliced and
+ * returned (FR-009) — a grant revoked mid-request drops its records silently
+ * rather than surfacing a distinguishable error.
+ */
+export async function recall(ctx: PermCtx, query: string, limit: number, scope: AgentMemoryRecallScope = 'own'): Promise<AgentMemoryRecord[]> {
   const access = await requireAgentMemoryAccess(ctx, 'memory.read');
-  const candidates = await db.query.agentMemoryRecords.findMany({
-    where: and(
-      eq(schema.agentMemoryRecords.namespaceId, access.namespaceId),
-      eq(schema.agentMemoryRecords.agentIdentity, access.agentIdentity),
-      // Durable automatic captures are first-class searchable evidence. They
-      // share the same namespace/identity boundary and Raw-backed revision
-      // checks as explicit memories, so filtering them out here makes the
-      // capture feature appear to succeed while recall can never observe it.
-      inArray(schema.agentMemoryRecords.recordType, ['memory', 'evidence']),
-      eq(schema.agentMemoryRecords.state, 'active'),
-    ),
-    orderBy: (records, { desc }) => [desc(records.updatedAt)],
-    limit: Math.max(limit * 4, limit),
-  });
-  const scored = await Promise.all(candidates.map(async (record) => {
+  const includeOwn = scope !== 'granted';
+  const includeGranted = scope !== 'own' && Boolean(access.connectionId);
+  const grantedDestinationIds = includeGranted ? await listActiveGrantedDestinationIds(access.connectionId!) : [];
+
+  const rows: Array<{ record: MemoryRecordRow; own: boolean }> = [];
+  if (includeOwn) {
+    const ownRecords = await db.query.agentMemoryRecords.findMany({
+      where: and(
+        eq(schema.agentMemoryRecords.namespaceId, access.namespaceId),
+        eq(schema.agentMemoryRecords.agentIdentity, access.agentIdentity),
+        // Durable automatic captures are first-class searchable evidence. They
+        // share the same namespace/identity boundary and Raw-backed revision
+        // checks as explicit memories, so filtering them out here makes the
+        // capture feature appear to succeed while recall can never observe it.
+        inArray(schema.agentMemoryRecords.recordType, ['memory', 'evidence']),
+        eq(schema.agentMemoryRecords.state, 'active'),
+      ),
+      orderBy: (records, { desc }) => [desc(records.updatedAt)],
+      limit: Math.max(limit * 4, limit),
+    });
+    rows.push(...ownRecords.map((record) => ({ record, own: true })));
+  }
+  if (grantedDestinationIds.length > 0) {
+    // Shared destinations hold only owner-curated `memory` records (never raw
+    // evidence or an agent-selected identity filter).
+    const grantedRecords = await db.query.agentMemoryRecords.findMany({
+      where: and(
+        inArray(schema.agentMemoryRecords.namespaceId, grantedDestinationIds),
+        eq(schema.agentMemoryRecords.recordType, 'memory'),
+        eq(schema.agentMemoryRecords.state, 'active'),
+      ),
+      orderBy: (records, { desc }) => [desc(records.updatedAt)],
+      limit: Math.max(limit * 4, limit),
+    });
+    rows.push(...grantedRecords.map((record) => ({ record, own: false })));
+  }
+
+  const scored = await Promise.all(rows.map(async ({ record, own }) => {
     const view = await recordToView(record);
-    return view ? { view, score: lexicalScore(query, view.excerpt, view.title) } : null;
+    if (!view) return null;
+    const score = lexicalScore(query, view.excerpt, view.title);
+    return score > 0 ? { view, score, own, namespaceId: record.namespaceId } : null;
   }));
-  return scored
-    .filter((result): result is { view: AgentMemoryRecord; score: number } => result !== null && result.score > 0)
-    .sort((left, right) => right.score - left.score)
-    .slice(0, limit)
-    .map(({ view }) => view);
+  const ranked = scored
+    .filter((result): result is { view: AgentMemoryRecord; score: number; own: boolean; namespaceId: string } => result !== null)
+    .sort((left, right) => right.score - left.score);
+
+  // Re-evaluate granted eligibility immediately before returning: a grant
+  // revoked or expired between candidate selection and now must silently drop
+  // its records rather than leak a distinguishable partial result.
+  const freshGrantedIds = includeGranted ? new Set(await listActiveGrantedDestinationIds(access.connectionId!)) : new Set<string>();
+  const results: AgentMemoryRecord[] = [];
+  for (const candidate of ranked) {
+    if (!candidate.own && !freshGrantedIds.has(candidate.namespaceId)) continue;
+    results.push(candidate.view);
+    if (results.length >= limit) break;
+  }
+  return results;
 }
 
 export async function forget(ctx: PermCtx, memoryId: string): Promise<{ memoryId: string; state: 'forgotten'; forgottenAt: string }> {
@@ -414,269 +482,6 @@ export async function createEvidenceRecord(
     title: evidenceTitle(input.checkpoint, input.messages),
     content,
     sourceSessionDigest: input.sessionDigest,
+    origin: input.checkpoint ? 'checkpoint' : 'automatic_capture',
   });
-}
-
-export type AgentMemoryCaptureSubmission = {
-  captureId: string;
-  status: 'queued' | 'running' | 'durable' | 'failed' | 'cancelled';
-  durable: boolean;
-  idempotent: boolean;
-};
-
-export async function submitEvidenceCapture(
-  ctx: PermCtx,
-  input: AgentMemoryEvidenceInput,
-): Promise<AgentMemoryCaptureSubmission> {
-  const parsedInput = agentMemoryEvidenceInputSchema.safeParse(input);
-  if (!parsedInput.success) {
-    throw new DomainError('AGENT_MEMORY_EVIDENCE_INVALID', 'Evidence capture payload is invalid or exceeds the configured limits');
-  }
-  const normalizedInput = parsedInput.data;
-  const access = await requireAgentMemoryAccess(ctx, 'memory.write');
-  const payloadDigest = evidencePayloadDigest(normalizedInput);
-  return db.transaction(async (tx) => {
-    let [capture] = await tx
-      .select()
-      .from(schema.agentMemoryCaptures)
-      .where(and(
-      eq(schema.agentMemoryCaptures.namespaceId, access.namespaceId),
-        eq(schema.agentMemoryCaptures.agentIdentity, access.agentIdentity),
-        eq(schema.agentMemoryCaptures.idempotencyKey, normalizedInput.idempotencyKey),
-      ))
-      .for('update')
-      .limit(1);
-    let idempotent = Boolean(capture);
-
-    if (capture && capture.payloadDigest !== 'legacy' && (
-      capture.payloadDigest !== payloadDigest
-      || capture.sessionDigest !== normalizedInput.sessionDigest
-      || capture.checkpoint !== normalizedInput.checkpoint
-    )) {
-      throw new DomainError('CONFLICT', 'The idempotency key is already associated with different evidence');
-    }
-
-    if (!capture) {
-      const captureId = randomUUID();
-      [capture] = await tx
-        .insert(schema.agentMemoryCaptures)
-        .values({
-          id: captureId,
-          namespaceId: access.namespaceId,
-          apiKeyId: access.keyId,
-          agentIdentity: access.agentIdentity,
-          idempotencyKey: normalizedInput.idempotencyKey,
-          payloadDigest,
-          sessionDigest: normalizedInput.sessionDigest,
-          checkpoint: normalizedInput.checkpoint,
-        })
-        .onConflictDoNothing({ target: [schema.agentMemoryCaptures.namespaceId, schema.agentMemoryCaptures.agentIdentity, schema.agentMemoryCaptures.idempotencyKey] })
-        .returning();
-      if (!capture) {
-        [capture] = await tx
-          .select()
-          .from(schema.agentMemoryCaptures)
-          .where(and(
-            eq(schema.agentMemoryCaptures.namespaceId, access.namespaceId),
-            eq(schema.agentMemoryCaptures.agentIdentity, access.agentIdentity),
-            eq(schema.agentMemoryCaptures.idempotencyKey, normalizedInput.idempotencyKey),
-          ))
-          .for('update')
-          .limit(1);
-        if (!capture) throw new Error('AGENT_MEMORY_CAPTURE_RESERVATION_FAILED');
-        idempotent = true;
-        if (capture.payloadDigest !== 'legacy' && (
-          capture.payloadDigest !== payloadDigest
-          || capture.sessionDigest !== normalizedInput.sessionDigest
-          || capture.checkpoint !== normalizedInput.checkpoint
-        )) {
-          throw new DomainError('CONFLICT', 'The idempotency key is already associated with different evidence');
-        }
-      }
-    }
-
-    if (capture.payloadDigest === 'legacy') {
-      await tx.update(schema.agentMemoryCaptures)
-        .set({ payloadDigest, updatedAt: new Date() })
-        .where(eq(schema.agentMemoryCaptures.id, capture.id));
-      capture = { ...capture, payloadDigest };
-    }
-
-    if (capture.status === 'durable' || capture.status === 'running' || (capture.status === 'queued' && capture.jobId)) {
-      return { captureId: capture.id, status: capture.status, durable: capture.status === 'durable', idempotent };
-    }
-
-    // Failed/cancelled captures, and legacy queued rows without a job id, may
-    // be retried with the same idempotency key. The row lock above ensures only
-    // one concurrent caller can transition and enqueue the retry.
-    await tx.update(schema.agentMemoryCaptures)
-      .set({ status: 'queued', jobId: null, failureCode: null, updatedAt: new Date() })
-      .where(eq(schema.agentMemoryCaptures.id, capture.id));
-
-    let jobId: string | null = null;
-    try {
-      jobId = await enqueue(QUEUES.agentMemoryCapture, {
-        captureId: capture.id,
-        messages: normalizedInput.messages,
-      }, {
-        singletonKey: capture.id,
-        singletonSeconds: 60,
-        retryLimit: 5,
-        retryDelay: 15,
-        retryBackoff: true,
-        retryDelayMax: 300,
-      });
-    } catch {
-      jobId = null;
-    }
-    if (!jobId) {
-      await tx.update(schema.agentMemoryCaptures)
-        .set({ status: 'failed', failureCode: 'JOB_QUEUE_UNAVAILABLE', updatedAt: new Date() })
-        .where(eq(schema.agentMemoryCaptures.id, capture.id));
-      return { captureId: capture.id, status: 'failed', durable: false, idempotent };
-    }
-    await tx.update(schema.agentMemoryCaptures)
-      .set({ status: 'queued', jobId, failureCode: null, updatedAt: new Date() })
-      .where(eq(schema.agentMemoryCaptures.id, capture.id));
-    return { captureId: capture.id, status: 'queued', durable: false, idempotent };
-  });
-}
-
-export async function getEvidenceCapture(ctx: PermCtx, captureId: string): Promise<{
-  captureId: string;
-  status: 'queued' | 'running' | 'durable' | 'failed' | 'cancelled';
-  durable: boolean;
-  evidence?: { evidenceId: string; citation: AgentMemoryRecord['citation'] };
-  failureCode?: string;
-}> {
-  const access = await requireAgentMemoryAccess(ctx, 'memory.write');
-  const capture = await db.query.agentMemoryCaptures.findFirst({
-    where: and(eq(schema.agentMemoryCaptures.id, captureId), eq(schema.agentMemoryCaptures.namespaceId, access.namespaceId), eq(schema.agentMemoryCaptures.agentIdentity, access.agentIdentity)),
-  });
-  if (!capture) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'Evidence capture not found');
-  if (capture.status !== 'durable' || !capture.evidenceRecordId) {
-    return {
-      captureId: capture.id,
-      status: capture.status,
-      durable: false,
-      ...(capture.failureCode ? { failureCode: capture.failureCode } : {}),
-    };
-  }
-  const record = await db.query.agentMemoryRecords.findFirst({
-    where: and(
-      eq(schema.agentMemoryRecords.id, capture.evidenceRecordId),
-      eq(schema.agentMemoryRecords.namespaceId, access.namespaceId),
-      eq(schema.agentMemoryRecords.agentIdentity, access.agentIdentity),
-    ),
-  });
-  const view = record ? await recordToView(record) : null;
-  if (!view) {
-    throw new DomainError('AGENT_MEMORY_CHECKPOINT_NOT_DURABLE', 'Evidence capture is no longer durable');
-  }
-  return { captureId: capture.id, status: 'durable', durable: true, evidence: { evidenceId: view.memoryId, citation: view.citation } };
-}
-
-export async function runEvidenceCapture(
-  data: { captureId: string; messages: AgentMemoryEvidenceInput['messages'] },
-): Promise<void> {
-  const capture = await db.query.agentMemoryCaptures.findFirst({ where: eq(schema.agentMemoryCaptures.id, data.captureId) });
-  // submitEvidenceCapture publishes the pg-boss job while its reservation
-  // transaction is still committing. A worker can therefore observe the job
-  // before the capture row is visible; throw so pg-boss retries instead of
-  // acknowledging a job that would otherwise be lost.
-  if (!capture) throw new Error('AGENT_MEMORY_CAPTURE_NOT_VISIBLE');
-  if (capture.status === 'durable' || capture.status === 'cancelled') return;
-  const parsedInput = agentMemoryEvidenceInputSchema.safeParse({
-    idempotencyKey: capture.idempotencyKey,
-    sessionDigest: capture.sessionDigest,
-    checkpoint: capture.checkpoint,
-    messages: data.messages,
-  });
-  if (!parsedInput.success) {
-    await db.update(schema.agentMemoryCaptures)
-      .set({ status: 'failed', failureCode: 'AGENT_MEMORY_EVIDENCE_INVALID', updatedAt: new Date() })
-      .where(and(eq(schema.agentMemoryCaptures.id, capture.id), inArray(schema.agentMemoryCaptures.status, ['queued', 'running', 'failed'])));
-    return;
-  }
-  const payloadDigest = evidencePayloadDigest({
-    sessionDigest: capture.sessionDigest,
-    checkpoint: capture.checkpoint,
-    messages: parsedInput.data.messages,
-  });
-  if (capture.payloadDigest !== 'legacy' && capture.payloadDigest !== payloadDigest) {
-    await db.update(schema.agentMemoryCaptures)
-      .set({ status: 'failed', failureCode: 'AGENT_MEMORY_EVIDENCE_INVALID', updatedAt: new Date() })
-      .where(and(eq(schema.agentMemoryCaptures.id, capture.id), inArray(schema.agentMemoryCaptures.status, ['queued', 'failed'])));
-    return;
-  }
-
-  // Claim under a row lock so overlapping deliveries cannot both transition a
-  // queued capture before the first worker has observed it. A second delivery
-  // may still resume a running row after a process crash; all writes below are
-  // idempotent and terminal updates are conditional.
-  const claimed = await db.transaction(async (tx) => {
-    const [row] = await tx.select().from(schema.agentMemoryCaptures)
-      .where(eq(schema.agentMemoryCaptures.id, capture.id))
-      .for('update')
-      .limit(1);
-    if (!row || row.status === 'durable' || row.status === 'cancelled') return null;
-    const [updated] = await tx.update(schema.agentMemoryCaptures)
-      .set({ status: 'running', payloadDigest: row.payloadDigest === 'legacy' ? payloadDigest : row.payloadDigest, updatedAt: new Date() })
-      .where(and(eq(schema.agentMemoryCaptures.id, row.id), inArray(schema.agentMemoryCaptures.status, ['queued', 'running', 'failed'])))
-      .returning();
-    return updated ?? null;
-  });
-  if (!claimed) return;
-
-  try {
-    const key = await db.query.apiKeys.findFirst({
-      where: and(eq(schema.apiKeys.id, capture.apiKeyId), isNull(schema.apiKeys.revokedAt)),
-      with: { user: true },
-    });
-    if (!key || key.user.status === 'disabled') {
-      throw new DomainError('UNAUTHORIZED', 'The Agent memory key is no longer active');
-    }
-    const workerCtx: PermCtx = {
-      actor: {
-        kind: 'api_key',
-        keyId: key.id,
-        userId: key.userId,
-        role: key.user.role,
-        scopes: key.scopes,
-        spaceAccess: key.spaceAccess,
-      },
-    };
-    const workerAccess = await requireAgentMemoryAccess(workerCtx, 'memory.write');
-    if (workerAccess.namespaceId !== capture.namespaceId || workerAccess.agentIdentity !== capture.agentIdentity) {
-      throw new DomainError('AGENT_MEMORY_EVIDENCE_INVALID', 'Evidence capture no longer matches its key binding');
-    }
-    const result = await createEvidenceRecord(workerCtx, {
-      idempotencyKey: capture.idempotencyKey,
-      sessionDigest: capture.sessionDigest,
-      checkpoint: capture.checkpoint,
-      messages: parsedInput.data.messages,
-    });
-    await db.update(schema.agentMemoryCaptures)
-      .set({ status: 'durable', evidenceRecordId: result.record.memoryId, failureCode: null, updatedAt: new Date() })
-      .where(and(eq(schema.agentMemoryCaptures.id, capture.id), eq(schema.agentMemoryCaptures.status, 'running')));
-  } catch (error) {
-    const failureCode = error instanceof DomainError ? error.code : 'AGENT_MEMORY_CAPTURE_FAILED';
-    await db.update(schema.agentMemoryCaptures)
-      .set({ status: 'failed', failureCode, updatedAt: new Date() })
-      .where(and(eq(schema.agentMemoryCaptures.id, capture.id), eq(schema.agentMemoryCaptures.status, 'running')));
-    // Permanent authorization/validation failures are represented by the
-    // durable failed state. Unexpected storage/queue failures must escape so
-    // pg-boss can retry the same idempotent capture automatically.
-    if (!(error instanceof DomainError) || ![
-      'UNAUTHORIZED',
-      'FORBIDDEN',
-      'AGENT_MEMORY_SCOPE_REQUIRED',
-      'AGENT_MEMORY_KEY_UNBOUND',
-      'AGENT_MEMORY_NAMESPACE_UNAVAILABLE',
-      'AGENT_MEMORY_RECORD_NOT_FOUND',
-      'AGENT_MEMORY_EVIDENCE_INVALID',
-    ].includes(error.code)) {
-      throw error;
-    }
-  }
 }

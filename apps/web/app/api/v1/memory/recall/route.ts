@@ -16,7 +16,8 @@ export const POST = withPublicApi(async (request, _context, ctx) => {
   const parsed = await parsePublicJson(request, agentMemoryRecallInputSchema);
   if (!parsed.ok) return parsed.response;
   const limit = parsed.data.limit ?? 5;
-  const results = await recall(ctx, parsed.data.query, limit);
+  const scope = parsed.data.scope ?? 'own';
+  const results = await recall(ctx, parsed.data.query, limit, scope);
   return publicJson({
     results,
     retrieval: { mode: 'lexical', complete: true, returned: results.length },

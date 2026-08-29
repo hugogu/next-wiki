@@ -414,6 +414,8 @@ export const agentMemoryEvidenceRelationEnum = pgEnum('agent_memory_evidence_rel
   'explicit_save',
   'automatic_capture',
   'checkpoint',
+  'promotion',
+  'import',
 ]);
 export const agentMemoryCaptureStatusEnum = pgEnum('agent_memory_capture_status', [
   'queued',
@@ -422,6 +424,22 @@ export const agentMemoryCaptureStatusEnum = pgEnum('agent_memory_capture_status'
   'failed',
   'cancelled',
 ]);
+
+// ---- 040: unified agent memory connections/grants --------------------------
+
+export const agentMemoryDestinationRoleEnum = pgEnum('agent_memory_destination_role', ['private', 'shared']);
+export const agentMemoryConnectionStateEnum = pgEnum('agent_memory_connection_state', ['active', 'disabled', 'revoked']);
+export const agentMemoryGrantCapabilityEnum = pgEnum('agent_memory_grant_capability', ['read']);
+export const agentMemoryGrantStateEnum = pgEnum('agent_memory_grant_state', ['active', 'revoked', 'expired']);
+export const agentMemoryOriginEnum = pgEnum('agent_memory_origin', [
+  'explicit_save',
+  'automatic_capture',
+  'checkpoint',
+  'import',
+  'promotion',
+]);
+export const agentMemoryContentKindEnum = pgEnum('agent_memory_content_kind', ['original', 'generated']);
+export const agentMemoryCaptureKindEnum = pgEnum('agent_memory_capture_kind', ['turn', 'checkpoint', 'compaction', 'session_end']);
 
 export const feishuConnectionModeEnum = pgEnum('feishu_connection_mode', ['webhook', 'websocket']);
 

@@ -1,4 +1,4 @@
-import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { and, eq, isNull } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -98,28 +98,6 @@ describe('Agent memory service', () => {
     expect(deleted).toBeDefined();
   });
 
-  it('recalls durable automatic-capture evidence without a synthesis step', async () => {
-    const { ctx } = await createMemoryActor('capture-recall');
-    const input = {
-      idempotencyKey: `capture-${crypto.randomUUID()}`,
-      sessionDigest: 'c'.repeat(64),
-      checkpoint: false,
-      messages: [{ role: 'user' as const, content: 'Remember the captured retry policy.' }],
-    };
-    const send = vi.fn().mockResolvedValue('job-capture-recall');
-    setBoss({ send } as never);
-
-    const submitted = await agentMemory.submitEvidenceCapture(ctx, input);
-    await agentMemory.runEvidenceCapture({ captureId: submitted.captureId, messages: input.messages });
-
-    await expect(agentMemory.recall(ctx, 'captured retry policy', 5)).resolves.toEqual([
-      expect.objectContaining({
-        type: 'evidence',
-        title: expect.stringMatching(/^Agent conversation · \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC · Remember the captured retry policy\.$/),
-        excerpt: expect.stringContaining('captured retry policy'),
-      }),
-    ]);
-  });
 
   it('does not expose a record across dedicated destinations', async () => {
     const first = await createMemoryActor('first');
@@ -130,7 +108,7 @@ describe('Agent memory service', () => {
     await expect(agentMemory.forget(second.ctx, saved.record.memoryId)).rejects.toMatchObject({ code: 'AGENT_MEMORY_RECORD_NOT_FOUND' });
   });
 
-  it('isolates records and captures by agent identity within a shared destination', async () => {
+  it('isolates records by agent identity within a shared destination', async () => {
     const hermes = await createMemoryActor('shared-hermes', undefined, { agentIdentity: 'hermes' });
     const mino = await createMemoryActor('shared-mino', undefined, {
       userId: hermes.userId,
@@ -150,29 +128,6 @@ describe('Agent memory service', () => {
     expect(minoRecord.record.memoryId).not.toBe(hermesRecord.record.memoryId);
     await expect(agentMemory.recall(hermes.ctx, 'Mino-only', 5)).resolves.toEqual([]);
     await expect(agentMemory.recall(mino.ctx, 'Hermes-only', 5)).resolves.toEqual([]);
-
-    const send = vi.fn()
-      .mockResolvedValueOnce('job-hermes')
-      .mockResolvedValueOnce('job-mino');
-    setBoss({ send } as never);
-    const evidence = {
-      idempotencyKey: 'shared-capture-key',
-      sessionDigest: 'c'.repeat(64),
-      checkpoint: false,
-      messages: [{ role: 'user' as const, content: 'shared evidence' }],
-    };
-    const hermesCapture = await agentMemory.submitEvidenceCapture(hermes.ctx, evidence);
-    const minoCapture = await agentMemory.submitEvidenceCapture(mino.ctx, evidence);
-    expect(hermesCapture.captureId).not.toBe(minoCapture.captureId);
-    expect(send).toHaveBeenCalledTimes(2);
-
-    const captures = await db.query.agentMemoryCaptures.findMany({
-      where: eq(schema.agentMemoryCaptures.namespaceId, hermes.created.memoryDestination!.id),
-    });
-    expect(captures).toEqual(expect.arrayContaining([
-      expect.objectContaining({ id: hermesCapture.captureId, agentIdentity: 'hermes' }),
-      expect.objectContaining({ id: minoCapture.captureId, agentIdentity: 'mino' }),
-    ]));
   });
 
   it('allows diagnostics with any dedicated memory scope', async () => {
@@ -182,51 +137,5 @@ describe('Agent memory service', () => {
       status: 'healthy',
       grantedScopes: ['memory.delete'],
     });
-  });
-
-  it('re-enqueues a failed capture with the same idempotency key', async () => {
-    const { ctx } = await createMemoryActor('capture-retry');
-    const input = {
-      idempotencyKey: `capture-${crypto.randomUUID()}`,
-      sessionDigest: 'a'.repeat(64),
-      checkpoint: false,
-      messages: [{ role: 'user' as const, content: 'Retry this evidence.' }],
-    };
-
-    const first = await agentMemory.submitEvidenceCapture(ctx, input);
-    expect(first).toMatchObject({ status: 'failed', idempotent: false });
-
-    const send = vi.fn().mockResolvedValue('job-retry-1');
-    setBoss({ send } as never);
-    const retry = await agentMemory.submitEvidenceCapture(ctx, input);
-    expect(retry).toMatchObject({ captureId: first.captureId, status: 'queued', idempotent: true });
-    expect(send).toHaveBeenCalledWith(
-      'agent-memory-capture',
-      { captureId: first.captureId, messages: input.messages },
-      {
-        singletonKey: first.captureId,
-        singletonSeconds: 60,
-        retryLimit: 5,
-        retryDelay: 15,
-        retryBackoff: true,
-        retryDelayMax: 300,
-      },
-    );
-  });
-
-  it('rejects idempotency-key reuse when the evidence payload changes', async () => {
-    const { ctx } = await createMemoryActor('capture-conflict');
-    const input = {
-      idempotencyKey: `capture-${crypto.randomUUID()}`,
-      sessionDigest: 'b'.repeat(64),
-      checkpoint: false,
-      messages: [{ role: 'user' as const, content: 'Original evidence.' }],
-    };
-    await agentMemory.submitEvidenceCapture(ctx, input);
-
-    await expect(agentMemory.submitEvidenceCapture(ctx, {
-      ...input,
-      messages: [{ role: 'user', content: 'Different evidence.' }],
-    })).rejects.toMatchObject({ code: 'CONFLICT' });
   });
 });

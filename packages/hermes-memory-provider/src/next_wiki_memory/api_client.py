@@ -11,7 +11,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .config import ProviderConfig, configured_api_key
 
-PROVIDER_VERSION = "0.1.4"
+PROVIDER_VERSION = "0.2.0"
 USER_AGENT = f"next-wiki-memory/{PROVIDER_VERSION}"
 MAX_RESPONSE_BYTES = 1_000_000
 MAX_ERROR_BODY_BYTES = 64_000

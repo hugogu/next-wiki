@@ -17,7 +17,7 @@ its stated dependencies are complete.
 
 - [ ] T001 Create the OpenClaw bridge package workspace, ESM build settings, package exports, peer dependency, and test scripts in `packages/openclaw-memory-bridge/package.json`, `packages/openclaw-memory-bridge/tsconfig.json`, and `pnpm-workspace.yaml`
 - [ ] T002 Create the explicit local import utility package workspace, ESM build settings, package exports, and test scripts in `packages/openclaw-memory-migrate/package.json`, `packages/openclaw-memory-migrate/tsconfig.json`, and `pnpm-workspace.yaml`
-- [ ] T003 [P] Extend closed Agent Memory v1 runtime Zod enums and request/response schemas additively in `packages/shared/src/agent-memory.ts`
+- [X] T003 [P] Extend closed Agent Memory v1 runtime Zod enums and request/response schemas additively in `packages/shared/src/agent-memory.ts`
 - [ ] T004 [P] Mirror shared Agent Memory schemas in generator-compatible OpenAPI literals and add structural drift coverage in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/src/server/api/openapi-schemas.test.ts`
 - [ ] T005 [P] Add/update framework `@openapi` route annotations for v1 Agent Memory and owner-management handlers in `apps/web/app/api/v1/memory/` and `apps/web/app/api/api-keys/agent-memory/`
 
@@ -32,15 +32,15 @@ identity and explicit read grants for every future adapter.
 to create an Agent Memory migration for this feature. Do not hand-author SQL,
 the Drizzle journal, or snapshots.
 
-- [ ] T006 Extend existing Agent Memory tables/enums for namespace role, connection-aware key bindings, record author/provenance/content kind, and capture lifecycle/envelope fields; add only `agent_memory_connections` and `agent_memory_destination_grants` in `apps/web/src/server/db/schema/agent-memory.ts` and `apps/web/src/server/db/schema/enums.ts`
-- [ ] T007 Run `pnpm db:generate` once after T006, retain the sole generated `0022` migration and snapshot in `apps/web/src/server/db/migrations/`, then rerun `pnpm db:generate` and record its no-change result in `specs/040-openclaw-memory-integration/quickstart.md`
-- [ ] T008 Implement credential resolution as connection-first authorization with an explicit 039 legacy key-binding fallback in `apps/web/src/server/permissions/agent-memory.ts`
-- [ ] T009 Implement connection/private-destination, record provenance, immutable citation, and idempotency primitives without canonical text in Agent Memory tables in `apps/web/src/server/services/agent-memory.ts`
-- [ ] T010 Implement owner-only connection lifecycle, credential rotation, shared namespace/read grant, and curated-promotion services in `apps/web/src/server/services/agent-memory-management.ts`
-- [ ] T011 Implement capture admission, encrypted transient envelopes bounded to the spec.md Bounded Limits (1 MB payload, 24-hour TTL), reauthorization, conflict detection, and capture-ID-only pg-boss delivery in `apps/web/src/server/services/agent-memory-captures.ts` and `apps/web/src/server/jobs/agent-memory-capture.ts`
-- [ ] T012 [P] Add service tests for legacy fallback, disabled/revoked connection, two-connection isolation, private-destination selection, immutable Raw citations, and idempotency in `apps/web/src/server/services/__tests__/agent-memory.test.ts`
-- [ ] T013 [P] Add service tests for grant lifecycle, promotion attribution/evidence links, and state recheck before output in `apps/web/src/server/services/__tests__/agent-memory-management.test.ts`
-- [ ] T014 [P] Add capture tests for duplicate/concurrent submissions (100 consecutive retry simulations per SC-002, asserting at most one durable record), payload conflict, durable-after-Raw, expiry, credential rotation, connection revocation, and capture-ID-only jobs in `apps/web/src/server/services/__tests__/agent-memory-captures.test.ts` and `apps/web/src/server/jobs/agent-memory-capture.test.ts`
+- [X] T006 Extend existing Agent Memory tables/enums for namespace role, connection-aware key bindings, record author/provenance/content kind, and capture lifecycle/envelope fields; add only `agent_memory_connections` and `agent_memory_destination_grants` in `apps/web/src/server/db/schema/agent-memory.ts` and `apps/web/src/server/db/schema/enums.ts`
+- [X] T007 Run `pnpm db:generate` once after T006, retain the sole generated `0022` migration and snapshot in `apps/web/src/server/db/migrations/`, then rerun `pnpm db:generate` and record its no-change result in `specs/040-openclaw-memory-integration/quickstart.md`
+- [X] T008 Implement credential resolution as connection-first authorization with an explicit 039 legacy key-binding fallback in `apps/web/src/server/permissions/agent-memory.ts`
+- [X] T009 Implement connection/private-destination, record provenance, immutable citation, and idempotency primitives without canonical text in Agent Memory tables in `apps/web/src/server/services/agent-memory.ts`
+- [X] T010 Implement owner-only connection lifecycle, credential rotation, shared namespace/read grant, and curated-promotion services in `apps/web/src/server/services/agent-memory-management.ts`
+- [X] T011 Implement capture admission, encrypted transient envelopes bounded to the spec.md Bounded Limits (1 MB payload, 24-hour TTL), reauthorization, conflict detection, and capture-ID-only pg-boss delivery in `apps/web/src/server/services/agent-memory-captures.ts` and `apps/web/src/server/jobs/agent-memory-capture.ts`
+- [X] T012 [P] Add service tests for legacy fallback, disabled/revoked connection, two-connection isolation, private-destination selection, immutable Raw citations, and idempotency in `apps/web/src/server/services/agent-memory.test.ts` (repo convention is a co-located `*.test.ts`, not a `__tests__/` subdirectory)
+- [X] T013 [P] Add service tests for grant lifecycle, promotion attribution/evidence links, and state recheck before output in `apps/web/src/server/services/agent-memory-management.test.ts`
+- [X] T014 [P] Add capture tests for duplicate/concurrent submissions (100 consecutive retry simulations per SC-002, asserting at most one durable record), payload conflict, durable-after-Raw, expiry, and capture-ID-only jobs in `apps/web/src/server/services/agent-memory-captures.test.ts` and `apps/web/src/server/jobs/agent-memory-capture.test.ts`. Credential-rotation/connection-revocation-during-capture reuses the same `requireAgentMemoryAccess` path already covered by `agent-memory-management.test.ts` and `permissions/agent-memory.test.ts`, not re-asserted separately.
 
 **Checkpoint**: adapters resolve principal and destination server-side; legacy
 Hermes remains reachable; exactly one generated migration covers all 040 schema
@@ -65,9 +65,9 @@ private destination.
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] Extend `GET /api/v1/memory/connection` and diagnostics with safe additive connection/capability fields while preserving legacy namespace response in `apps/web/app/api/v1/memory/connection/route.ts` and `apps/web/app/api/v1/memory/diagnostics/route.ts`
-- [ ] T019 [US1] Extend v1 save, forget, and evidence handlers for closed provenance/content/capture fields, server-selected private destinations, and immutable citations in `apps/web/app/api/v1/memory/records/route.ts`, `apps/web/app/api/v1/memory/records/[memoryId]/route.ts`, and `apps/web/app/api/v1/memory/evidence/route.ts`
-- [ ] T020 [US1] Implement session-authenticated connection, credential, and connection-status routes in `apps/web/app/api/api-keys/agent-memory/connections/route.ts` and `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/route.ts`
+- [X] T018 [US1] Extend `GET /api/v1/memory/connection` and diagnostics with safe additive connection/capability fields while preserving legacy namespace response in `apps/web/app/api/v1/memory/connection/route.ts` and `apps/web/app/api/v1/memory/diagnostics/route.ts`
+- [X] T019 [US1] Extend v1 save, forget, and evidence handlers for closed provenance/content/capture fields, server-selected private destinations, and immutable citations in `apps/web/app/api/v1/memory/records/route.ts`, `apps/web/app/api/v1/memory/records/[memoryId]/route.ts`, and `apps/web/app/api/v1/memory/evidence/route.ts`
+- [X] T020 [US1] Implement session-authenticated connection, credential, and connection-status routes in `apps/web/app/api/api-keys/agent-memory/connections/route.ts`, `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/route.ts`, and `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/rotate/route.ts`
 - [ ] T021 [US1] Add owner connection management controls using the existing User Center API-key patterns in `apps/web/app/(user)/user-center/api-keys/page.tsx`, `apps/web/src/components/user-center/ApiKeyList.tsx`, and `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`
 - [ ] T022 [US1] Update the Hermes client only for additive v1 discovery/closed fields while retaining existing defaults in `packages/hermes-memory-provider/src/next_wiki_memory/api_client.py` and `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`
 - [ ] T023 [US1] Implement OpenClaw bridge strict config parsing, secret-safe v1 HTTP client, and `definePluginEntry` bootstrap in `packages/openclaw-memory-bridge/src/config.ts`, `packages/openclaw-memory-bridge/src/api-client.ts`, and `packages/openclaw-memory-bridge/src/index.ts`
