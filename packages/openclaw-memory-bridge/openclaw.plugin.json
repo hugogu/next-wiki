@@ -1,0 +1,44 @@
+{
+  "id": "next-wiki-memory-bridge",
+  "name": "Next Wiki Agent Memory",
+  "description": "Bridges OpenClaw session lifecycle to the next-wiki generic Agent Memory service. Hook-only/non-capability: does not claim the OpenClaw memory slot and coexists with any local memory provider.",
+  "contracts": {
+    "tools": []
+  },
+  "activation": {
+    "onStartup": true
+  },
+  "configSchema": {
+    "type": "object",
+    "properties": {
+      "wikiApiBaseUrl": {
+        "type": "string",
+        "description": "Deployment API root ending in /api/v1. HTTPS required outside local development."
+      },
+      "credential": {
+        "type": "string",
+        "description": "Secret reference for one Agent memory connection credential. Never logged or returned in diagnostics."
+      },
+      "capture": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": false },
+          "modes": {
+            "type": "array",
+            "items": { "type": "string", "enum": ["turn", "checkpoint", "compaction", "session_end"] }
+          }
+        },
+        "additionalProperties": false
+      },
+      "promptEnrichment": {
+        "type": "object",
+        "properties": {
+          "enabled": { "type": "boolean", "default": false }
+        },
+        "additionalProperties": false
+      }
+    },
+    "required": ["wikiApiBaseUrl", "credential"],
+    "additionalProperties": false
+  }
+}
