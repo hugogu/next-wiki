@@ -1,6 +1,8 @@
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { ApiKeyList } from '@/components/user-center/ApiKeyList';
+import { AgentMemoryConnections } from '@/components/user-center/AgentMemoryConnections';
+import { AgentMemorySharing } from '@/components/user-center/AgentMemorySharing';
 import { getCurrentActor } from '@/server/services/auth';
 import * as apiKeyService from '@/server/services/api-keys';
 import { getLocale, getDictionary } from '@/i18n/server';
@@ -24,6 +26,12 @@ export default async function ApiKeysPage() {
   return (
     <div className="w-full min-w-0">
       <ApiKeyList initialKeys={keys} currentUserIsAdmin={currentUserIsAdmin} />
+      {currentUserIsAdmin && (
+        <>
+          <AgentMemoryConnections />
+          <AgentMemorySharing />
+        </>
+      )}
     </div>
   );
 }

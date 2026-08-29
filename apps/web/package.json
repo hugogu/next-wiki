@@ -12,6 +12,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "i18n:validate": "node scripts/validate-i18n.mjs",
+    "i18n:generate-keys": "node scripts/generate-i18n-keys.mjs",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "db:generate": "drizzle-kit generate",

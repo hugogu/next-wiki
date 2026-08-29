@@ -13,6 +13,8 @@ describe('parseBridgeConfig', () => {
       wikiApiBaseUrl: 'https://wiki.example.com/api/v1',
       credential: 'nwk_secret_value',
       capture: { enabled: false, modes: [] },
+      tools: { enabled: false },
+      sharedRecall: { enabled: false },
       promptEnrichment: { enabled: false },
     });
   });

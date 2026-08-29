@@ -7,6 +7,22 @@ export type BridgeConfig = {
     enabled: boolean;
     modes: CaptureMode[];
   };
+  /** Optional static agent_memory_search/save/forget/status tools (T039). Disabled by default. */
+  tools: {
+    enabled: boolean;
+  };
+  /**
+   * Whether the search tool and prompt enrichment may request the owner's
+   * granted shared destinations, in addition to this connection's own
+   * private destination. An operator who leaves this disabled still gets
+   * `own`-scope recall from both surfaces — this flag only gates the
+   * *cross-connection* sharing intent (data-model.md: "OpenClaw's external-
+   * memory tool requests granted recall explicitly; its own destination is
+   * included only when the operator enables that intent").
+   */
+  sharedRecall: {
+    enabled: boolean;
+  };
   promptEnrichment: {
     enabled: boolean;
   };
@@ -98,10 +114,40 @@ export function parseBridgeConfig(raw: unknown): BridgeConfig {
     }
   }
 
+  const toolsRaw = raw.tools;
+  let toolsEnabled = false;
+  if (toolsRaw !== undefined) {
+    if (!isRecord(toolsRaw)) {
+      throw new ConfigError('tools must be an object');
+    }
+    if (toolsRaw.enabled !== undefined) {
+      if (typeof toolsRaw.enabled !== 'boolean') {
+        throw new ConfigError('tools.enabled must be a boolean');
+      }
+      toolsEnabled = toolsRaw.enabled;
+    }
+  }
+
+  const sharedRecallRaw = raw.sharedRecall;
+  let sharedRecallEnabled = false;
+  if (sharedRecallRaw !== undefined) {
+    if (!isRecord(sharedRecallRaw)) {
+      throw new ConfigError('sharedRecall must be an object');
+    }
+    if (sharedRecallRaw.enabled !== undefined) {
+      if (typeof sharedRecallRaw.enabled !== 'boolean') {
+        throw new ConfigError('sharedRecall.enabled must be a boolean');
+      }
+      sharedRecallEnabled = sharedRecallRaw.enabled;
+    }
+  }
+
   return {
     wikiApiBaseUrl: wikiApiBaseUrl.replace(/\/$/, ''),
     credential,
     capture: { enabled, modes },
+    tools: { enabled: toolsEnabled },
+    sharedRecall: { enabled: sharedRecallEnabled },
     promptEnrichment: { enabled: promptEnrichmentEnabled },
   };
 }

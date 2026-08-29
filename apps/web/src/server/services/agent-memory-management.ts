@@ -16,6 +16,7 @@ import type {
   AgentMemoryDestinationGrant,
   AgentMemoryPromotionInput,
   AgentMemoryRecord,
+  AgentMemorySharedDestination,
   ApiKeyScope,
 } from '@next-wiki/shared';
 
@@ -182,10 +183,14 @@ export async function rotateCredential(ctx: PermCtx, connectionId: string): Prom
   return { keyId: apiKey.id, keySecret: key };
 }
 
+function sharedDestinationView(row: { id: string; displayName: string; state: 'active' | 'disabled' }): AgentMemorySharedDestination {
+  return { id: row.id, displayName: row.displayName, role: 'shared', state: row.state };
+}
+
 export async function createSharedDestination(
   ctx: PermCtx,
   input: AgentMemoryCreateSharedDestinationInput,
-): Promise<{ id: string; displayName: string; role: 'shared'; state: 'active' | 'disabled' }> {
+): Promise<AgentMemorySharedDestination> {
   const userId = requireOwnerId(ctx);
   const [namespace] = await db.insert(schema.agentMemoryNamespaces).values({
     ownerUserId: userId,
@@ -193,7 +198,28 @@ export async function createSharedDestination(
     role: 'shared',
   }).returning();
   if (!namespace) throw new Error('AGENT_MEMORY_NAMESPACE_INSERT_FAILED');
-  return { id: namespace.id, displayName: namespace.displayName, role: 'shared', state: namespace.state };
+  return sharedDestinationView(namespace);
+}
+
+export async function listSharedDestinations(ctx: PermCtx): Promise<AgentMemorySharedDestination[]> {
+  const userId = requireOwnerId(ctx);
+  const rows = await db.query.agentMemoryNamespaces.findMany({
+    where: and(
+      eq(schema.agentMemoryNamespaces.ownerUserId, userId),
+      eq(schema.agentMemoryNamespaces.role, 'shared'),
+    ),
+    orderBy: (namespaces, { desc }) => [desc(namespaces.createdAt)],
+  });
+  return rows.map(sharedDestinationView);
+}
+
+export async function listGrants(ctx: PermCtx): Promise<AgentMemoryDestinationGrant[]> {
+  const userId = requireOwnerId(ctx);
+  const rows = await db.query.agentMemoryDestinationGrants.findMany({
+    where: eq(schema.agentMemoryDestinationGrants.grantedByUserId, userId),
+    orderBy: (grants, { desc }) => [desc(grants.createdAt)],
+  });
+  return rows.map(grantView);
 }
 
 /**

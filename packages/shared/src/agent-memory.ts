@@ -76,6 +76,13 @@ export const agentMemoryCreateSharedDestinationInputSchema = z.object({
   displayName: z.string().trim().min(1).max(160),
 });
 
+export const agentMemorySharedDestinationSchema = z.object({
+  id: z.string().uuid(),
+  displayName: z.string(),
+  role: z.literal('shared'),
+  state: agentMemoryNamespaceStateSchema,
+});
+
 export const agentMemoryCitationSchema = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
@@ -149,6 +156,7 @@ export type AgentMemoryDestinationGrant = z.infer<typeof agentMemoryDestinationG
 export type AgentMemoryCreateGrantInput = z.infer<typeof agentMemoryCreateGrantInputSchema>;
 export type AgentMemoryPromotionInput = z.infer<typeof agentMemoryPromotionInputSchema>;
 export type AgentMemoryCreateSharedDestinationInput = z.infer<typeof agentMemoryCreateSharedDestinationInputSchema>;
+export type AgentMemorySharedDestination = z.infer<typeof agentMemorySharedDestinationSchema>;
 export type AgentMemoryRecallScope = z.infer<typeof agentMemoryRecallScopeSchema>;
 export type AgentMemoryCaptureKind = z.infer<typeof agentMemoryCaptureKindSchema>;
 export type AgentMemoryOrigin = z.infer<typeof agentMemoryOriginSchema>;

@@ -4,6 +4,7 @@ import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as authService from '@/server/services/auth';
 import * as apiKeyService from '@/server/services/api-keys';
+import * as agentMemoryManagement from '@/server/services/agent-memory-management';
 import { DomainError } from '@/server/errors';
 import { buildUserCtx, buildAnonymousCtx, buildApiKeyCtx } from '@/server/permissions';
 
@@ -186,6 +187,19 @@ describe('api-keys service', () => {
       expect(list).toHaveLength(1);
       expect(list[0]!.id).toBe(keyA.id);
       expect(list[0]!).not.toHaveProperty('keySecret');
+    });
+
+    it('excludes connection-backed credentials managed via Agent memory connections', async () => {
+      const user = await createTestUser('apikey-list-agent-memory@example.com');
+      const ctx = buildUserCtx(user.id, user.role);
+      const adminCtx = buildUserCtx(user.id, 'admin');
+
+      await apiKeyService.create(ctx, 'plain-key', ['view']);
+      await agentMemoryManagement.createConnection(adminCtx, { displayName: 'agent connection' });
+
+      const list = await apiKeyService.list(ctx);
+      expect(list).toHaveLength(1);
+      expect(list[0]!.name).toBe('plain-key');
     });
   });
 

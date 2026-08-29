@@ -288,6 +288,37 @@
         ],
         "description": "Create a new Agent memory connection with its own private destination."
       },
+      "AgentMemoryCreateReadGrantInput": {
+        "type": "object",
+        "properties": {
+          "destinationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "expiresAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "destinationId"
+        ],
+        "description": "Grant the connection in the path read access to this shared destination."
+      },
+      "AgentMemoryCreateSharedDestinationInput": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "displayName"
+        ],
+        "description": "Create a new owner-curated shared Agent memory destination."
+      },
       "AgentMemoryCredentialRotated": {
         "type": "object",
         "properties": {
@@ -305,6 +336,73 @@
           "keySecret"
         ],
         "description": "A newly issued credential bound to an existing Agent memory connection."
+      },
+      "AgentMemoryDestinationGrant": {
+        "type": "object",
+        "properties": {
+          "grantId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "granteeConnectionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "destinationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "capability": {
+            "type": "string",
+            "enum": [
+              "read"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "revoked",
+              "expired"
+            ]
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "expiresAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "grantId",
+          "granteeConnectionId",
+          "destinationId",
+          "capability",
+          "state",
+          "createdAt",
+          "expiresAt",
+          "revokedAt"
+        ],
+        "description": "An owner-created, revocable read grant from a connection to a shared destination."
+      },
+      "AgentMemoryDestinationGrantList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/AgentMemoryDestinationGrant"
+        },
+        "description": "List of the owner's Agent memory read grants."
       },
       "AgentMemoryDiagnostics": {
         "type": "object",
@@ -537,6 +635,41 @@
           "forgottenAt"
         ]
       },
+      "AgentMemoryPromotionInput": {
+        "type": "object",
+        "properties": {
+          "sourceRecordId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "destinationId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          }
+        },
+        "required": [
+          "sourceRecordId",
+          "destinationId"
+        ],
+        "description": "Promote an existing memory record into a shared destination as a new, separately attributable curated record."
+      },
+      "AgentMemoryPromotionResult": {
+        "type": "object",
+        "properties": {
+          "record": {
+            "$ref": "#/components/schemas/AgentMemoryRecord"
+          }
+        },
+        "required": [
+          "record"
+        ],
+        "description": "The newly created curated shared record."
+      },
       "AgentMemoryRecallInput": {
         "type": "object",
         "properties": {
@@ -747,6 +880,45 @@
           "record",
           "idempotent"
         ]
+      },
+      "AgentMemorySharedDestination": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "shared"
+            ]
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "active",
+              "disabled"
+            ]
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "role",
+          "state"
+        ],
+        "description": "An owner-curated shared Agent memory destination."
+      },
+      "AgentMemorySharedDestinationList": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/AgentMemorySharedDestination"
+        },
+        "description": "List of the owner's shared Agent memory destinations."
       },
       "AiActionView": {
         "type": "object",
@@ -25334,6 +25506,114 @@
         }
       }
     },
+    "/api-keys/agent-memory/promotions": {
+      "post": {
+        "operationId": "post-api-keys-agent-memory-promotions",
+        "summary": "Promote an Agent memory record to a shared destination",
+        "description": "Owner-only curation: copies an existing record into a new, separately attributable shared record. The source record and its original destination's access are unchanged. Session-only; not callable with a Bearer key — an agent capture never publishes or shares a record automatically.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryPromotionInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryPromotionResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-keys/agent-memory/read-grants": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-read-grants",
+        "summary": "List Agent memory read grants",
+        "description": "Returns every read grant the current owner has created, across all connections and shared destinations. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryDestinationGrantList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api-keys/agent-memory/shared-destinations": {
+      "get": {
+        "operationId": "get-api-keys-agent-memory-shared-destinations",
+        "summary": "List shared Agent memory destinations",
+        "description": "Returns the owner's shared destinations available for read grants and promotion. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemorySharedDestinationList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-api-keys-agent-memory-shared-destinations",
+        "summary": "Create a shared Agent memory destination",
+        "description": "Creates a new owner-curated shared destination. Never written to directly by an agent credential. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryCreateSharedDestinationInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemorySharedDestination"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api-keys/agent-memory/connections/{connectionId}": {
       "patch": {
         "operationId": "patch-api-keys-agent-memory-connections-{connectionId}",
@@ -25402,6 +25682,49 @@
         }
       }
     },
+    "/api-keys/agent-memory/connections/{connectionId}/read-grants": {
+      "post": {
+        "operationId": "post-api-keys-agent-memory-connections-{connectionId}-read-grants",
+        "summary": "Create an Agent memory read grant",
+        "description": "Grants the connection in the path read access to the shared destination in the request body. Session-only; not callable with a Bearer key — an agent credential can never create its own grant.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemoryCreateReadGrantInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryDestinationGrant"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api-keys/agent-memory/connections/{connectionId}/rotate": {
       "post": {
         "operationId": "post-api-keys-agent-memory-connections-{connectionId}-rotate",
@@ -25432,6 +25755,43 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api-keys/agent-memory/connections/{connectionId}/read-grants/{grantId}": {
+      "delete": {
+        "operationId": "delete-api-keys-agent-memory-connections-{connectionId}-read-grants-{grantId}",
+        "summary": "Revoke an Agent memory read grant",
+        "description": "Immediately revokes a connection's read access to a shared destination. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "name": "connectionId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: connectionId"
+          },
+          {
+            "name": "grantId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: grantId"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "No Content"
           }
         }
       }

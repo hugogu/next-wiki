@@ -427,6 +427,35 @@ export const AgentMemoryCredentialRotated = z.object({
   keySecret: z.string().describe('Full credential secret value. Shown only once, at rotation time.'),
 }).describe('A newly issued credential bound to an existing Agent memory connection.');
 
+export const AgentMemoryCreateSharedDestinationInput = z.object({
+  displayName: z.string().min(1).max(160),
+}).describe('Create a new owner-curated shared Agent memory destination.');
+
+export const AgentMemorySharedDestination = z.object({
+  id: z.string().uuid(), displayName: z.string(), role: z.literal('shared'), state: z.enum(['active', 'disabled']),
+}).describe('An owner-curated shared Agent memory destination.');
+
+export const AgentMemorySharedDestinationList = z.array(AgentMemorySharedDestination).describe('List of the owner\'s shared Agent memory destinations.');
+
+export const AgentMemoryCreateReadGrantInput = z.object({
+  destinationId: z.string().uuid(), expiresAt: z.string().datetime().optional(),
+}).describe('Grant the connection in the path read access to this shared destination.');
+
+export const AgentMemoryDestinationGrant = z.object({
+  grantId: z.string().uuid(), granteeConnectionId: z.string().uuid(), destinationId: z.string().uuid(),
+  capability: z.enum(['read']), state: z.enum(['active', 'revoked', 'expired']),
+  createdAt: z.string().datetime(), expiresAt: z.string().datetime().nullable(), revokedAt: z.string().datetime().nullable(),
+}).describe('An owner-created, revocable read grant from a connection to a shared destination.');
+
+export const AgentMemoryDestinationGrantList = z.array(AgentMemoryDestinationGrant).describe('List of the owner\'s Agent memory read grants.');
+
+export const AgentMemoryPromotionInput = z.object({
+  sourceRecordId: z.string().uuid(), destinationId: z.string().uuid(), title: z.string().min(1).max(160).optional(),
+}).describe('Promote an existing memory record into a shared destination as a new, separately attributable curated record.');
+
+export const AgentMemoryPromotionResult = z.object({ record: AgentMemoryRecord })
+  .describe('The newly created curated shared record.');
+
 export const AuditListResponse = z
   .object({
     entries: z

@@ -1,8 +1,11 @@
-import { afterAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { eq } from 'drizzle-orm';
 import * as agentMemory from '@/server/services/agent-memory';
 import * as management from '@/server/services/agent-memory-management';
+import * as permissions from '@/server/permissions/agent-memory';
 import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
-import { closeDb } from '@/server/db';
+import { db, closeDb } from '@/server/db';
+import * as schema from '@/server/db/schema';
 import { resetSetupOnboardingState, createAdminUser } from '../../../test/setup-onboarding-fixtures';
 import { ensureRawSpaceForConversations } from '../../../test/ai-fixtures';
 import { setModeInternal } from '@/server/services/writing-mode';
@@ -28,6 +31,10 @@ describe('Agent memory management service', () => {
   afterAll(async () => {
     await resetSetupOnboardingState();
     await closeDb();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('provisions an isolated connection whose credential can save and recall privately', async () => {
@@ -100,6 +107,77 @@ describe('Agent memory management service', () => {
     await expect(agentMemory.recall(readerCtx, 'decision worth sharing', 5, 'granted')).resolves.toEqual([]);
   });
 
+  it('omits a result without disclosure when its grant is revoked between candidate selection and output (FR-009)', async () => {
+    const { userId, ctx } = await ownerCtx(`owner-${crypto.randomUUID()}@example.com`);
+    const source = await management.createConnection(ctx, { displayName: 'source' });
+    const reader = await management.createConnection(ctx, { displayName: 'reader' });
+    const sourceCtx = await connectionCtx(userId, source.keyId);
+    const readerCtx = await connectionCtx(userId, reader.keyId);
+
+    const saved = await agentMemory.save(sourceCtx, { idempotencyKey: 'k1', content: 'mid-flight revocation target' });
+    const shared = await management.createSharedDestination(ctx, { displayName: 'Team knowledge' });
+    await management.promote(ctx, { sourceRecordId: saved.record.memoryId, destinationId: shared.id });
+    const grant = await management.createGrant(ctx, shared.id, { granteeConnectionId: reader.connection.connectionId });
+
+    // recall() calls listActiveGrantedDestinationIds once to expand candidates
+    // and again immediately before returning (FR-009). Revoke the grant after
+    // the first call resolves, simulating a revocation that lands in the
+    // window between candidate selection and output.
+    const original = permissions.listActiveGrantedDestinationIds;
+    let calls = 0;
+    vi.spyOn(permissions, 'listActiveGrantedDestinationIds').mockImplementation(async (connectionId: string) => {
+      const result = await original(connectionId);
+      calls += 1;
+      if (calls === 1) {
+        await management.revokeGrant(ctx, grant.grantId);
+      }
+      return result;
+    });
+
+    await expect(agentMemory.recall(readerCtx, 'mid-flight revocation', 5, 'granted')).resolves.toEqual([]);
+    expect(calls).toBeGreaterThanOrEqual(2);
+  });
+
+  it('never surfaces a result from an expired grant', async () => {
+    const { userId, ctx } = await ownerCtx(`owner-${crypto.randomUUID()}@example.com`);
+    const source = await management.createConnection(ctx, { displayName: 'source' });
+    const reader = await management.createConnection(ctx, { displayName: 'reader' });
+    const sourceCtx = await connectionCtx(userId, source.keyId);
+    const readerCtx = await connectionCtx(userId, reader.keyId);
+
+    const saved = await agentMemory.save(sourceCtx, { idempotencyKey: 'k1', content: 'expired grant target' });
+    const shared = await management.createSharedDestination(ctx, { displayName: 'Team knowledge' });
+    await management.promote(ctx, { sourceRecordId: saved.record.memoryId, destinationId: shared.id });
+    await management.createGrant(ctx, shared.id, {
+      granteeConnectionId: reader.connection.connectionId,
+      expiresAt: new Date(Date.now() - 60_000).toISOString(),
+    });
+
+    await expect(agentMemory.recall(readerCtx, 'expired grant', 5, 'granted')).resolves.toEqual([]);
+  });
+
+  it('omits a granted result whose backing page has been deleted, without a distinguishable error', async () => {
+    const { userId, ctx } = await ownerCtx(`owner-${crypto.randomUUID()}@example.com`);
+    const source = await management.createConnection(ctx, { displayName: 'source' });
+    const reader = await management.createConnection(ctx, { displayName: 'reader' });
+    const sourceCtx = await connectionCtx(userId, source.keyId);
+    const readerCtx = await connectionCtx(userId, reader.keyId);
+
+    const saved = await agentMemory.save(sourceCtx, { idempotencyKey: 'k1', content: 'soon to be deleted' });
+    const shared = await management.createSharedDestination(ctx, { displayName: 'Team knowledge' });
+    const promoted = await management.promote(ctx, { sourceRecordId: saved.record.memoryId, destinationId: shared.id });
+    await management.createGrant(ctx, shared.id, { granteeConnectionId: reader.connection.connectionId });
+
+    await expect(agentMemory.recall(readerCtx, 'soon to be deleted', 5, 'granted')).resolves.toEqual([
+      expect.objectContaining({ memoryId: promoted.record.memoryId }),
+    ]);
+
+    const record = await db.query.agentMemoryRecords.findFirst({ where: eq(schema.agentMemoryRecords.id, promoted.record.memoryId) });
+    await db.update(schema.pages).set({ deletedAt: new Date() }).where(eq(schema.pages.id, record!.pageId));
+
+    await expect(agentMemory.recall(readerCtx, 'soon to be deleted', 5, 'granted')).resolves.toEqual([]);
+  });
+
   it('rejects grant and promotion attempts from a non-owner (agent) actor', async () => {
     const { userId, ctx } = await ownerCtx(`owner-${crypto.randomUUID()}@example.com`);
     const created = await management.createConnection(ctx, { displayName: 'agent' });
@@ -108,6 +186,10 @@ describe('Agent memory management service', () => {
     await expect(management.createSharedDestination(agentCtx, { displayName: 'sneaky' }))
       .rejects.toMatchObject({ code: 'FORBIDDEN' });
     await expect(management.createGrant(agentCtx, created.connection.connectionId, { granteeConnectionId: created.connection.connectionId }))
+      .rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    const saved = await agentMemory.save(agentCtx, { idempotencyKey: 'k1', content: 'agent-authored note' });
+    await expect(management.promote(agentCtx, { sourceRecordId: saved.record.memoryId, destinationId: created.connection.connectionId }))
       .rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 });

@@ -10,10 +10,13 @@ interface ApiKeyRevealProps {
   secret: string;
   name?: string;
   created?: boolean;
+  /** Overrides the default "created"/"reveal" copy for callers whose secret has different reveal semantics (e.g. an Agent memory connection credential, which can never be revealed again — only rotated). */
+  warningText?: string;
+  copyHintText?: string;
   onClose: () => void;
 }
 
-export function ApiKeyReveal({ title, secret, name, created = false, onClose }: ApiKeyRevealProps) {
+export function ApiKeyReveal({ title, secret, name, created = false, warningText, copyHintText, onClose }: ApiKeyRevealProps) {
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
 
@@ -48,7 +51,7 @@ export function ApiKeyReveal({ title, secret, name, created = false, onClose }: 
           <div className="pr-12">
             <h3 className="font-display text-xl font-semibold">{title}</h3>
             <p className="mt-xs text-sm text-muted">
-              {created ? t('userCenter.apiKeys.createdWarning') : t('userCenter.apiKeys.revealWarning')}
+              {warningText ?? (created ? t('userCenter.apiKeys.createdWarning') : t('userCenter.apiKeys.revealWarning'))}
             </p>
           </div>
 
@@ -78,7 +81,11 @@ export function ApiKeyReveal({ title, secret, name, created = false, onClose }: 
             </div>
           </div>
 
-          {created ? <p className="text-xs text-muted">{t('userCenter.apiKeys.createdCopyHint')}</p> : null}
+          {copyHintText ? (
+            <p className="text-xs text-muted">{copyHintText}</p>
+          ) : created ? (
+            <p className="text-xs text-muted">{t('userCenter.apiKeys.createdCopyHint')}</p>
+          ) : null}
         </div>
       </div>
     </div>

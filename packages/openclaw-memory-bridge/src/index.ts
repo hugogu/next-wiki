@@ -5,12 +5,16 @@ import { redact } from './redaction';
 import { Outbox, OUTBOX_BOUNDS, type OutboxEntry } from './outbox';
 import { CaptureDeliveryService } from './service';
 import { registerCaptureHooks } from './hooks';
+import { registerAgentMemoryTools } from './tools';
+import { registerPromptEnrichment } from './prompt-enrichment';
 
 export { parseBridgeConfig, ConfigError, type BridgeConfig } from './config';
 export { WikiApiClient, ApiClientError, type RecallScope } from './api-client';
 export { redact } from './redaction';
 export { Outbox, OUTBOX_BOUNDS } from './outbox';
 export { CaptureDeliveryService } from './service';
+export { registerAgentMemoryTools } from './tools';
+export { registerPromptEnrichment } from './prompt-enrichment';
 
 const PLUGIN_ID = 'next-wiki-memory-bridge';
 
@@ -39,6 +43,11 @@ export default definePluginEntry({
 
     const client = new WikiApiClient(config);
     api.logger.info(`Agent memory bridge activated (capture ${config.capture.enabled ? 'enabled' : 'disabled'}).`);
+
+    // Tools and prompt enrichment are independent of capture: an operator may
+    // want read-only recall without ever enabling automatic capture.
+    registerAgentMemoryTools(api, config, client);
+    registerPromptEnrichment(api, config, client);
 
     if (!config.capture.enabled) return;
 

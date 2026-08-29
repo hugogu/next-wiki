@@ -214,18 +214,24 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
     state: binding.namespace.state,
     agentIdentity: binding.agentIdentity,
   }]));
+  // 040: a connection-backed credential is a single feature entry point
+  // managed exclusively through Agent memory connections; it must not also
+  // appear in this legacy key list (P11: no duplicate feature entry points).
+  const connectionBackedKeyIds = new Set(bindings.filter((binding) => binding.connectionId).map((binding) => binding.apiKeyId));
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    scopes: row.scopes,
-    spaceAccess: row.spaceAccess,
-    keyPrefix: row.keyPrefix,
-    createdAt: row.createdAt.toISOString(),
-    revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
-    lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
-    memoryDestination: destinations.get(row.id) ?? null,
-  }));
+  return rows
+    .filter((row) => !connectionBackedKeyIds.has(row.id))
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      scopes: row.scopes,
+      spaceAccess: row.spaceAccess,
+      keyPrefix: row.keyPrefix,
+      createdAt: row.createdAt.toISOString(),
+      revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
+      lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
+      memoryDestination: destinations.get(row.id) ?? null,
+    }));
 }
 
 export async function listMemoryDestinations(ctx: PermCtx): Promise<MemoryDestination[]> {
