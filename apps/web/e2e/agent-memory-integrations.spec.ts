@@ -31,6 +31,58 @@ async function setWritingMode(mode: 'copilot' | 'llm-wiki') {
   }
 }
 
+/**
+ * Agent Memory records are durable by design — revoking a connection never
+ * deletes the underlying Raw page/revision it backs (see agent-memory.ts).
+ * Several other e2e specs (raw-content, ai-chat-conversation-url,
+ * raw-conversation-search) clean up after themselves with a blanket
+ * `DELETE FROM pages WHERE space_id = raw`, which fails on the FK from
+ * `agent_memory_records` if this spec's rows are still present. Clean up
+ * everything this spec created, identified by the shared `stamp` marker in
+ * every display name, so those other specs' cleanup keeps working.
+ */
+async function clearAgentMemoryTestData(stamp: number) {
+  const sql = database();
+  try {
+    const marker = `%${stamp}%`;
+    const namespaces = await sql<{ id: string }[]>`SELECT id FROM agent_memory_namespaces WHERE display_name LIKE ${marker}`;
+    const namespaceIds = namespaces.map((row) => row.id);
+    const connections = await sql<{ id: string }[]>`SELECT id FROM agent_memory_connections WHERE display_name LIKE ${marker}`;
+    const connectionIds = connections.map((row) => row.id);
+    const records = namespaceIds.length
+      ? await sql<{ id: string; page_id: string }[]>`SELECT id, page_id FROM agent_memory_records WHERE namespace_id = ANY(${namespaceIds})`
+      : [];
+    const recordIds = records.map((row) => row.id);
+    const pageIds = records.map((row) => row.page_id);
+
+    if (namespaceIds.length || connectionIds.length) {
+      await sql`DELETE FROM agent_memory_destination_grants WHERE destination_id = ANY(${namespaceIds}) OR grantee_connection_id = ANY(${connectionIds})`;
+    }
+    if (recordIds.length) {
+      // Promotion emits an immutable evidence link between the source and
+      // promoted record; both FK columns must clear before either record can.
+      await sql`DELETE FROM agent_memory_evidence_links WHERE memory_record_id = ANY(${recordIds}) OR evidence_record_id = ANY(${recordIds})`;
+      await sql`DELETE FROM agent_memory_records WHERE id = ANY(${recordIds})`;
+    }
+    if (connectionIds.length) {
+      // Deletes agent_memory_key_bindings via ON DELETE CASCADE from api_keys,
+      // which otherwise (ON DELETE RESTRICT) blocks deleting the connection.
+      await sql`DELETE FROM api_keys WHERE id IN (SELECT api_key_id FROM agent_memory_key_bindings WHERE connection_id = ANY(${connectionIds}))`;
+      await sql`DELETE FROM agent_memory_connections WHERE id = ANY(${connectionIds})`;
+    }
+    if (namespaceIds.length) {
+      await sql`DELETE FROM agent_memory_namespaces WHERE id = ANY(${namespaceIds})`;
+    }
+    if (pageIds.length) {
+      await sql`DELETE FROM page_addresses WHERE page_id = ANY(${pageIds})`;
+      await sql`DELETE FROM page_revisions WHERE page_id = ANY(${pageIds})`;
+      await sql`DELETE FROM pages WHERE id = ANY(${pageIds})`;
+    }
+  } finally {
+    await sql.end({ timeout: 5 });
+  }
+}
+
 async function loginAsAdmin(page: Page) {
   await page.goto('/auth/login');
   await page.getByLabel('Email', { exact: true }).fill(ADMIN_EMAIL);
@@ -84,17 +136,20 @@ async function recall(
 }
 
 test.describe('agent memory integrations (040)', () => {
+  let stamp: number;
+
   test.beforeAll(async () => {
     await setWritingMode('llm-wiki');
   });
 
   test.afterAll(async () => {
+    await clearAgentMemoryTestData(stamp);
     await setWritingMode('copilot');
   });
 
   test('owner provisions three independent connections with private isolation, deliberate sharing, and OpenAPI visibility', async ({ page }) => {
     await loginAsAdmin(page);
-    const stamp = Date.now();
+    stamp = Date.now();
 
     // --- Owner provisioning: three independent adapter credentials. ---
     const hermes = await createConnection(page.request, `Hermes ${stamp}`);
