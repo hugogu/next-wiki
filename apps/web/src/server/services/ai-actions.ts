@@ -120,11 +120,10 @@ export async function assertAiEnabled(): Promise<void> {
 }
 
 export async function createAction(ctx: PermCtx, input: CreateActionInput): Promise<AiActionAccepted> {
-  // An api_key actor may reach here only for features whose `can()` gate
-  // already passed (currently just 'search', via the new ai.read scope);
-  // every other feature stays blocked upstream by the api-key hard-deny list
-  // in permissions/index.ts, so accepting any authenticated actor with a
-  // userId here does not widen what an api_key can actually do.
+  // An api_key actor may reach here after a feature's `can()` gate passed (for
+  // example search), or from an internal post-write index reconciliation. The
+  // latter only schedules indexing for content the key has already written;
+  // no new generation-management capability is exposed by this helper.
   const userId = getActorUserId(ctx);
   if (!userId && !(ctx.actor.kind === 'anonymous' && input.allowAnonymous)) {
     throw new DomainError('UNAUTHORIZED', 'A signed-in user session is required');

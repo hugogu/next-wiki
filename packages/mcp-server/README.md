@@ -195,7 +195,10 @@ use `append_raw_entry`. Raw content cannot be changed with `save_draft`,
 `update_page_properties`, or `delete_page`.
 
 Semantic search (`submit_semantic_search`) covers raw and generated content too,
-but raw/generated results are returned to Admin-scoped callers only.
+but raw/generated results are returned to Admin-scoped callers only. A normal
+`create_page` call creates a draft, so publish it with `publish_page` before it
+can enter the published-page semantic index; raw entries are published on
+creation and queued for indexing automatically.
 
 Use `create_page` with `kind: "link"` and `linkTargetPageId` to publish a
 generated page at a wiki path. Page and revision results include provenance:

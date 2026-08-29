@@ -3,7 +3,7 @@ import { vi } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
+import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { createIndexRebuild, cancelIndexGeneration, deleteIndexGeneration, reconcilePageAcrossIndexes, refreshIndexCounters, retryIndexPages } from './ai-index';
@@ -311,5 +311,34 @@ describe('AI index lifecycle', () => {
     expect(await db.query.aiActions.findFirst({
       where: eq(schema.aiActions.feature, 'index_rebuild'),
     })).toBeUndefined();
+  });
+
+  it('dispatches incremental rebuilds for API-key page writes', async () => {
+    const userCtx = buildUserCtx(adminId, 'admin');
+    const created = await createIndexRebuild(userCtx, 'test');
+    const generationId = created.generation.id;
+    await db.update(schema.aiIndexGenerations)
+      .set({ status: 'ready', isActive: true, readyAt: new Date() })
+      .where(eq(schema.aiIndexGenerations.id, generationId));
+    // The full-build action is not relevant to this incremental reconciliation.
+    await db.delete(schema.aiActions);
+
+    const apiKeyCtx = buildApiKeyCtx(adminId, 'admin', ['create'], 'mcp-key', ['wiki', 'raw', 'generated']);
+    await expect(reconcilePageAcrossIndexes(pageId, apiKeyCtx)).resolves.toBeUndefined();
+
+    expect(await db.query.aiPageIndexStates.findFirst({
+      where: and(
+        eq(schema.aiPageIndexStates.generationId, generationId),
+        eq(schema.aiPageIndexStates.pageId, pageId),
+      ),
+    })).toMatchObject({ status: 'pending' });
+    expect(await db.query.aiActions.findFirst({
+      where: and(
+        eq(schema.aiActions.feature, 'index_rebuild'),
+        eq(schema.aiActions.indexGenerationId, generationId),
+        eq(schema.aiActions.pageId, pageId),
+        eq(schema.aiActions.status, 'queued'),
+      ),
+    })).toMatchObject({ actorUserId: adminId });
   });
 });
