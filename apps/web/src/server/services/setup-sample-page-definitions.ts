@@ -18,6 +18,7 @@ export const SAMPLE_PAGE_PATHS = {
   markdownSyntax: 'help/markdown-syntax',
   mainFeatures: 'help/main-features',
   agentMemory: 'integrations/hermes',
+  openclaw: 'integrations/openclaw',
 } as const;
 
 /** Previous setup-owned location, retained only for an idempotent first-run migration. */
@@ -27,6 +28,7 @@ export const WELCOME_PAGE_TITLE = 'Welcome to next-wiki';
 export const MARKDOWN_SYNTAX_PAGE_TITLE = 'Markdown Syntax Guide';
 export const MAIN_FEATURES_PAGE_TITLE = 'Main Features Guide';
 export const AGENT_MEMORY_PAGE_TITLE = 'Hermes Integration Guide';
+export const OPENCLAW_PAGE_TITLE = 'OpenClaw Bridge Guide';
 
 export const WELCOME_PAGE_SOURCE = `# Welcome to next-wiki
 
@@ -90,7 +92,7 @@ ${ONBOARDING_LINKS_MARKER}
 
 - Learn the syntax in the [Markdown Syntax Guide](/help/markdown-syntax).
 - Tour the product in the [Main Features Guide](/help/main-features).
-- Connect Hermes securely in the [Hermes Integration Guide](/integrations/hermes).
+- Connect Hermes securely in the [Hermes Integration Guide](/integrations/hermes), or OpenClaw in the [OpenClaw Bridge Guide](/integrations/openclaw).
 `;
 
 /** Welcome content used when onboarding creates the welcome page itself. */
@@ -224,8 +226,8 @@ Administrators manage users, AI providers and models, storage backends, site ide
 
 ## Agent memory (optional)
 
-- Use the [Hermes Integration Guide](/integrations/hermes) to connect an agent identity to the shared Raw-space memory destination. Memory entries are immutable and indexed through the same Wiki content pipeline.
-- The integration uses a dedicated API key with only memory scopes; it does not need a Wiki AI provider.
+- Use the [Hermes Integration Guide](/integrations/hermes) or [OpenClaw Bridge Guide](/integrations/openclaw) to connect an agent identity to a Raw-space memory destination. Memory entries are immutable and indexed through the same Wiki content pipeline.
+- Each integration uses a dedicated API key with only memory scopes; it does not need a Wiki AI provider.
 
 > **Tip:** You can edit or delete this page at any time — it is a normal wiki page created during first-run setup.
 `;
@@ -242,7 +244,7 @@ The Hermes Plugins screen should show **next-wiki** as **ready** and **active** 
 
 ## 1. Create a dedicated key
 
-Open **User Center → API Keys** and choose the **Memory provider** option. Set a stable **Agent identity** (use hermes for Hermes). Create a new private destination unless you deliberately want to share a destination with another client identity. Grant only the memory scopes you need:
+Open **User Center → API Keys** and choose the **Memory provider** option. Set a stable **Agent identity** (use hermes for Hermes). Create a new private destination, or choose **use shared destination** and pick another key's destination. Sharing a destination alone only groups keys for administration — recall still stays isolated per agent identity, so give both keys the *same* Agent identity if you also want them to see each other's memory. Grant only the memory scopes you need:
 
 - **memory.read** for recall
 - **memory.write** for explicit saves and optional evidence capture
@@ -282,4 +284,55 @@ Hermes can use the **next_wiki_memory_search**, **next_wiki_memory_save**, and *
 Rotate a key by creating a new dedicated key and re-running setup, then revoke the old key here in User Center. Revocation stops future access immediately; immutable Raw entries retain their original revisions under the Wiki's Raw retention policy, while Hermes forget only changes provider recall state.
 
 For the complete integration reference, see the [provider README](https://github.com/hugogu/next-wiki/blob/main/packages/hermes-memory-provider/README.md). The [general deployment guide](https://github.com/hugogu/next-wiki/blob/main/docs/deployment.md) covers shared backups and reverse-proxy operations.
+`;
+
+export const OPENCLAW_PAGE_SOURCE = `# OpenClaw Bridge Guide
+
+${SAMPLE_PAGE_MARKER}
+
+Use this optional integration to make this Wiki the durable, inspectable memory for one configured OpenClaw agent identity. The bridge is a hook-only, non-capability OpenClaw plugin: it never claims OpenClaw's exclusive memory slot and coexists with any local memory provider you already run. Enable **LLM Wiki** writing mode so the shared **Raw** space is available. Memory records and opted-in conversation evidence are restricted, immutable Raw entries with published revisions and common Wiki indexing/provenance; forgetting only hides a logical record from provider recall and does not change the Raw source.
+
+## 1. Create a dedicated key
+
+Open **User Center → API Keys** and choose the **Memory provider** option. Set a stable **Agent identity** (e.g. openclaw). Create a new private destination, or choose **use shared destination** and pick an existing key's destination (for example an existing Hermes key) if you want this OpenClaw installation to draw from the same pool. Recall still stays isolated per agent identity even in a shared destination — give both keys the *same* Agent identity if you want them to actually see each other's memory, not just share the same destination row. Grant only the memory scopes you need:
+
+- **memory.read** for recall
+- **memory.write** for explicit saves and optional evidence capture
+- **memory.delete** for reversible forgetting
+
+Copy the shown secret into your OpenClaw secret store immediately — it can never be shown again after this dialog closes. Never put it in a committed plugin config file, a command-line argument, or shell history.
+
+## 2. Install and configure
+
+~~~bash
+npm install @next-wiki/openclaw-memory-bridge
+~~~
+
+Configure the plugin with a secret reference, not a literal credential:
+
+~~~json
+{
+  "wikiApiBaseUrl": "https://wiki.example.com/api/v1",
+  "credential": "\${NEXT_WIKI_AGENT_MEMORY_CREDENTIAL}",
+  "capture": { "enabled": false, "modes": ["session_end"] },
+  "tools": { "enabled": false },
+  "promptEnrichment": { "enabled": false }
+}
+~~~
+
+\`wikiApiBaseUrl\` must end in **/api/v1** and use HTTPS outside local development. Every feature below defaults to **off**; enable only what you need.
+
+## 3. Verify safely
+
+With \`tools.enabled: true\`, ask the agent to check status, or call the **agent_memory_status** tool directly — it never contacts the Wiki and never returns the credential, only whether the bridge is configured and its outbox depth. The bridge never logs a raw memory payload; local outbox entries are capped at 500 per key (256 KB each) with a 7-day TTL and exponential retry backoff between 5 seconds and 10 minutes.
+
+## 4. Recall, save, capture, and forget
+
+With \`tools.enabled: true\`, the agent can use **agent_memory_search**, **agent_memory_save**, and **agent_memory_forget**; every recalled item includes a bounded, escaped Wiki revision citation. With \`promptEnrichment.enabled: true\`, a second-phase prompt hook injects a few of the most relevant cited memories automatically, without the agent having to call a tool. With \`capture.enabled: true\` and one or more \`capture.modes\` selected, eligible lifecycle turns are captured as evidence automatically and asynchronously — this never blocks the conversation on Wiki availability, and a duplicated or restarted delivery produces at most one durable record.
+
+## 5. Rotate and revoke
+
+Rotate the key from **User Center → API Keys**: create a new dedicated key, update the plugin's secret reference, and restart the Gateway. Revoke the old key once you confirm the new one works — revocation stops future access immediately; immutable Raw entries retain their original revisions under the Wiki's Raw retention policy.
+
+For the complete integration reference, see the [plugin README](https://github.com/hugogu/next-wiki/blob/main/packages/openclaw-memory-bridge/README.md).
 `;

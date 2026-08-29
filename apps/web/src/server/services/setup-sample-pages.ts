@@ -22,6 +22,8 @@ import {
   ONBOARDING_LINKS_MARKER,
   ONBOARDING_WELCOME_LINKS_BLOCK,
   ONBOARDING_WELCOME_PAGE_SOURCE,
+  OPENCLAW_PAGE_SOURCE,
+  OPENCLAW_PAGE_TITLE,
   SAMPLE_PAGE_MARKER,
   SAMPLE_PAGE_PATHS,
   WELCOME_PAGE_TITLE,
@@ -293,6 +295,7 @@ async function generateSamplePagesInternal(
       contentSource: AGENT_MEMORY_PAGE_SOURCE,
       legacyPath: LEGACY_AGENT_MEMORY_PAGE_PATH,
     },
+    { path: SAMPLE_PAGE_PATHS.openclaw, title: OPENCLAW_PAGE_TITLE, contentSource: OPENCLAW_PAGE_SOURCE },
   ]) {
     try {
       results.push(await writeSamplePage(ctx, definition, refreshManaged));
