@@ -247,10 +247,11 @@ to the correct account while cross-account and revoked attempts fail safely.
   authored, and make the source-relative path available with each mirrored
   document so link resolution or repair remains possible.
 - **FR-007**: The system MUST use the existing Agent Memory service boundary
-  for persistence, provenance, retries, and access control; if the existing
-  contract lacks a required path-aware synchronization capability, the system
-  MUST extend that documented boundary rather than bypassing it with direct
-  storage access.
+  and its existing Page/Revision relationship for persistence, provenance,
+  retries, and access control. If a required source-document snapshot
+  capability is absent, the system MUST add it as a generic Agent Memory
+  extension rather than bypassing it with direct storage access or introducing
+  an OpenClaw-only page-mapping entity.
 - **FR-008**: The persistence boundary MUST accept an unambiguous source
   identity and version or content digest, making retries idempotent and
   creating a new immutable history entry only when the source document has
