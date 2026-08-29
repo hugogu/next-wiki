@@ -3,6 +3,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
+import type { AgentMemoryBindingPurpose } from '@next-wiki/shared';
 
 export type AgentMemoryScope = 'memory.read' | 'memory.write' | 'memory.delete';
 
@@ -13,6 +14,7 @@ export type AgentMemoryAccess = {
   namespaceId: string;
   namespaceName: string;
   agentIdentity: string;
+  bindingPurpose: AgentMemoryBindingPurpose;
   namespaceState: 'active' | 'disabled';
 };
 
@@ -20,7 +22,11 @@ export type AgentMemoryAccess = {
  * The client never supplies a namespace or profile. This resolver obtains the
  * single destination from the authenticated key on every operation.
  */
-export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: AgentMemoryScope | 'any'): Promise<AgentMemoryAccess> {
+export async function requireAgentMemoryAccess(
+  ctx: PermCtx,
+  requiredScope: AgentMemoryScope | 'view' | 'any',
+  requiredPurpose: AgentMemoryBindingPurpose = 'memory_provider',
+): Promise<AgentMemoryAccess> {
   if (ctx.actor.kind !== 'api_key') {
     throw new DomainError('UNAUTHORIZED', 'A dedicated Agent memory API key is required');
   }
@@ -38,7 +44,7 @@ export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: Agen
       namespace: true,
     },
   });
-  if (!binding || !binding.key || binding.key.userId !== ctx.actor.userId || binding.namespace.ownerUserId !== ctx.actor.userId) {
+  if (!binding || !binding.key || binding.key.userId !== ctx.actor.userId || binding.namespace.ownerUserId !== ctx.actor.userId || binding.bindingPurpose !== requiredPurpose) {
     throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to an active Agent memory destination');
   }
   if (binding.namespace.state !== 'active') {
@@ -52,6 +58,7 @@ export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: Agen
     namespaceId: binding.namespaceId,
     namespaceName: binding.namespace.displayName,
     agentIdentity: binding.agentIdentity,
+    bindingPurpose: binding.bindingPurpose,
     namespaceState: binding.namespace.state,
   };
 }

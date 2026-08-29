@@ -67,6 +67,11 @@ Add to `opencode.json`:
 
 ### OpenClaw
 
+For native Memory Wiki mirroring and the bundled retrieval Skill, prefer the
+[`@next-wiki/openclaw-memory-wiki`](../openclaw-memory-wiki/README.md) plugin.
+The MCP setup below remains useful for general page tools and does not perform
+the account-bound Memory Wiki capture mirror.
+
 Add to `~/.openclaw/openclaw.json` (JSON5, comments and trailing commas allowed):
 
 ```json5

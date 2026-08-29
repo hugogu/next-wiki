@@ -17,10 +17,11 @@ README.md
 ```
 
 `package.json` is ESM, declares a supported OpenClaw peer range and Node
-22.22.3+ engine, points the OpenClaw extension metadata at `dist/index.js`, and
-includes every runtime dependency in `dependencies`. It must not retain a
-`workspace:*` runtime dependency after packing. The manifest is strict,
-declares the four owned tools, enables on startup, and registers `./skills`.
+22.22.3+ engine, points source discovery at `src/index.ts` and the compiled
+runtime at `dist/index.js`, and includes every runtime dependency in
+`dependencies`. It must not retain a `workspace:*` runtime dependency after
+packing. The manifest is strict, declares the four owned tools, enables on
+startup, and registers `./skills`.
 
 ## Configuration
 
@@ -28,14 +29,14 @@ declares the four owned tools, enables on startup, and registers `./skills`.
 {
   plugins: {
     entries: {
-      "next-wiki": {
+      "next-wiki-memory-wiki": {
         enabled: true,
         config: {
-          apiBaseUrl: "https://wiki.example.com/api/v1",
-          mirrorApiKey: { "$secret": "openclaw/next-wiki/mirror" },
-          knowledgeSearchApiKey: { "$secret": "openclaw/next-wiki/search" },
-          vault: { path: "~/.openclaw/wiki/main" },
-          sync: { intervalSeconds: 60, maxConcurrent: 1, maxRetries: 8 }
+          baseUrl: "https://wiki.example.com",
+          mirrorApiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_MIRROR_KEY" },
+          knowledgeApiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_SEARCH_KEY" },
+          vaultPath: "~/.openclaw/wiki/main",
+          syncIntervalMinutes: 1
         }
       }
     }
@@ -45,13 +46,11 @@ declares the four owned tools, enables on startup, and registers `./skills`.
 
 | Field | Rules |
 | --- | --- |
-| `apiBaseUrl` | Required HTTPS API base for a remote service; local HTTP is accepted only for loopback/local development. It ends in `/api/v1`. |
-| `mirrorApiKey` | Required OpenClaw SecretRef. Resolves only at runtime and is used only for connection/snapshot endpoints. |
-| `knowledgeSearchApiKey` | Required OpenClaw SecretRef. Resolves only at runtime and is used only for search/source read endpoints. |
-| `vault.path` | Required absolute or home-relative local vault root. One plugin connection maps to one vault; agent-scoped Memory Wiki deployments configure a separate connection per child vault. |
-| `sync.intervalSeconds` | Optional bounded interval, default 60 seconds. `0` means manual scans only. |
-| `sync.maxConcurrent` | Fixed v1 value of 1, retained in schema for explicit validation and future compatibility. |
-| `sync.maxRetries` | Optional bounded retry budget, default 8. Failures use full jitter and a capped delay. |
+| `baseUrl` | Required HTTPS service origin; local HTTP is accepted only for loopback/local development. |
+| `mirrorApiKeyRef` | Required OpenClaw SecretRef. Resolves only at runtime and is used only for connection/snapshot endpoints. |
+| `knowledgeApiKeyRef` | Required OpenClaw SecretRef. Resolves only at runtime and is used only for search/source read endpoints. |
+| `vaultPath` | Required local vault root. One plugin connection maps to one vault; agent-scoped Memory Wiki deployments configure a separate connection per child vault. |
+| `syncIntervalMinutes` | Optional bounded interval, default 5 minutes. |
 
 The manifest declares both key paths in `configContracts.secretInputs` and
 marks them sensitive in UI hints. The normal configuration schema validates
@@ -130,8 +129,8 @@ The README and in-product guide use the normal OpenClaw package flow:
 
 ```bash
 openclaw plugins install clawhub:@next-wiki/openclaw-memory-wiki
-openclaw plugins enable next-wiki
-openclaw plugins inspect next-wiki --runtime --json
+openclaw plugins enable next-wiki-memory-wiki
+openclaw plugins inspect next-wiki-memory-wiki --runtime --json
 openclaw skills list
 ```
 

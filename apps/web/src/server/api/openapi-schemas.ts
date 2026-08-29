@@ -256,6 +256,7 @@ export const CreateApiKeyInput = z
       displayName: z.string().min(1).max(100).optional(),
       sharedNamespaceId: z.string().uuid().optional(),
       agentIdentity: z.string().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
+      purpose: z.enum(['memory_provider', 'mirror', 'knowledge_search']).default('memory_provider'),
     }).optional().describe('Creates or binds the key to an isolated memory destination and agent identity. It can only be used with memory scopes.'),
   })
   .describe('Create an API key.');
@@ -316,6 +317,19 @@ export const ApiKeyReveal = z
   })
   .describe('API key secret reveal response.');
 
+export const OpenClawPairedKeyInput = z.object({
+  displayName: z.string().min(1).max(100).optional(),
+  agentIdentity: z.string().min(1).max(100).default('openclaw'),
+  includeRaw: z.boolean().default(false),
+  includeGenerated: z.boolean().default(false),
+}).describe('Owner-session-only OpenClaw paired-key preset.');
+
+export const OpenClawPairedKeyCreated = z.object({
+  namespace: z.object({ id: z.string().uuid(), displayName: z.string(), agentIdentity: z.string() }),
+  mirror: ApiKeyCreated,
+  knowledgeSearch: ApiKeyCreated,
+}).describe('Two one-time secrets for the OpenClaw mirror and knowledge-search bindings.');
+
 export const AgentMemoryConnection = z.object({
   apiVersion: z.literal('v1'),
   provider: z.literal('next-wiki'),
@@ -354,7 +368,7 @@ export const AgentMemoryCitation = z.object({
 });
 
 export const AgentMemoryRecord = z.object({
-  memoryId: z.string().uuid(), type: z.enum(['memory', 'evidence']), state: z.enum(['active', 'forgotten']),
+  memoryId: z.string().uuid(), type: z.enum(['memory', 'evidence', 'source_document']), state: z.enum(['active', 'forgotten']),
   title: z.string(), excerpt: z.string(), citation: AgentMemoryCitation,
   evidence: z.array(z.object({ evidenceId: z.string().uuid(), relation: z.enum(['explicit_save', 'automatic_capture', 'checkpoint']), citation: AgentMemoryCitation })).default([]),
 });
@@ -393,6 +407,40 @@ export const AgentMemoryEvidenceStatus = z.object({
   durable: z.boolean(),
   evidence: z.object({ evidenceId: z.string().uuid(), citation: AgentMemoryCitation }).optional(),
   failureCode: z.string().optional(),
+});
+
+export const AgentMemoryWikiConnection = z.object({
+  apiVersion: z.literal('v1'),
+  provider: z.literal('next-wiki'),
+  bindingPurpose: z.literal('mirror'),
+  namespace: z.object({ id: z.string().uuid(), displayName: z.string(), state: z.literal('active'), agentIdentity: z.string() }),
+  capabilities: z.object({ mirror: z.literal(true), immutableRevisions: z.literal(true), currentOnly: z.literal(true) }),
+  limits: z.object({ maxPathCharacters: z.number().int(), maxContentCharacters: z.number().int() }),
+});
+
+export const AgentMemorySourceDocumentInput = z.object({
+  sourcePath: z.string().min(1).max(400).regex(/^(?!\/)(?!.*[\\\\])(?!.*(?:^|\/)\.\.?\/?)(?!.*\/\/)[^\u0000-\u001f\u007f]+\.md$/u),
+  content: z.string().min(1).max(512_000),
+  sourceDigest: z.string().regex(/^[a-f0-9]{64}$/),
+  sourceVersion: z.string().min(1).max(200).optional(),
+  idempotencyKey: z.string().min(1).max(200),
+});
+
+export const AgentMemorySourceDocument = z.object({
+  memoryRecordId: z.string().uuid(), pageId: z.string().uuid(), revisionId: z.string().uuid(),
+  sourcePath: z.string(), storagePath: z.string(), title: z.string(), revisionHash: z.string(),
+  outcome: z.enum(['created', 'updated', 'unchanged']),
+  citation: z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), title: z.string(), canonicalUrl: z.string().url(), createdAt: z.string().datetime(), sourcePath: z.string(), storagePath: z.string() }),
+});
+
+export const AgentMemoryWikiSearchQuery = z.object({ q: z.string().min(1).max(4_000), limit: z.coerce.number().int().min(1).max(20).default(10) });
+export const AgentMemoryWikiSearchResponse = z.object({
+  results: z.array(z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), space: z.enum(['wiki', 'raw', 'generated']), title: z.string(), path: z.string(), excerpt: z.string(), score: z.number(), canonicalUrl: z.string().url() })),
+  coverage: z.object({ wiki: z.boolean(), raw: z.boolean(), generated: z.boolean(), complete: z.boolean() }),
+});
+export const AgentMemoryWikiPageReadQuery = z.object({ maxChars: z.coerce.number().int().min(1).max(20_000).default(8_000) });
+export const AgentMemoryWikiPage = z.object({
+  pageId: z.string().uuid(), space: z.enum(['wiki', 'raw', 'generated']), path: z.string(), title: z.string(), content: z.string(), truncated: z.boolean(), canonicalUrl: z.string().url(), revisionId: z.string().uuid().nullable(), revisionHash: z.string().nullable(),
 });
 
 export const AuditListResponse = z

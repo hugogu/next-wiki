@@ -162,6 +162,13 @@
       "when": 1787976523021,
       "tag": "0022_slow_red_skull",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1788008074658,
+      "tag": "0023_brief_warbound",
+      "breakpoints": true
     }
   ]
 }

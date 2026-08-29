@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { encryptKey, decryptKey, constantTimeCompare } from '@/server/crypto/key-encryption';
 import type { PermCtx } from '@/server/permissions';
-import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, SpaceKind } from '@next-wiki/shared';
+import type { AgentMemoryBindingPurpose, ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, OpenClawPairedKeyInput, OpenClawPairedKeyCreated, SpaceKind } from '@next-wiki/shared';
 
 const ADMIN_ONLY_SPACE_KINDS: readonly SpaceKind[] = ['raw', 'generated'];
 
@@ -15,7 +15,9 @@ const KEY_PREFIX_LENGTH = 12;
 const MAX_KEYS_PER_USER = 10;
 const PREFIX_COLLISION_RETRIES = 3;
 
-type MemoryProviderKeyOptions = NonNullable<CreateApiKeyInput['memoryProvider']>;
+type MemoryProviderKeyOptions = Omit<NonNullable<CreateApiKeyInput['memoryProvider']>, 'purpose'> & {
+  purpose?: AgentMemoryBindingPurpose;
+};
 type MemoryDestination = NonNullable<ApiKeyView['memoryDestination']>;
 
 function generateKey(): string {
@@ -55,11 +57,15 @@ export async function create(
   if (memoryProvider && (!memoryAgentIdentity || memoryAgentIdentity.length > 100 || !/^[^\u0000-\u001f\u007f]+$/u.test(memoryAgentIdentity))) {
     throw new DomainError('BAD_REQUEST', 'Agent identity must be a non-empty value no longer than 100 characters');
   }
+  const bindingPurpose: AgentMemoryBindingPurpose = memoryProvider?.purpose ?? 'memory_provider';
   if (memoryScopes.length > 0 && !memoryProvider) {
     throw new DomainError('BAD_REQUEST', 'Agent memory scopes require a bound Agent memory destination');
   }
-  if (memoryProvider && (memoryScopes.length === 0 || memoryScopes.length !== scopes.length)) {
+  if (memoryProvider && bindingPurpose !== 'knowledge_search' && (memoryScopes.length === 0 || memoryScopes.length !== scopes.length)) {
     throw new DomainError('BAD_REQUEST', 'An Agent memory key may contain only dedicated memory scopes');
+  }
+  if (memoryProvider && bindingPurpose === 'knowledge_search' && (memoryScopes.length > 0 || !scopes.includes('view'))) {
+    throw new DomainError('BAD_REQUEST', 'A knowledge-search key must include view and no memory scopes');
   }
   if (memoryProvider && (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin')) {
     throw new DomainError('FORBIDDEN', 'Only administrators may create an Agent memory API key');
@@ -73,7 +79,7 @@ export async function create(
   if (grantsAdminOnlySpace && !(ctx.actor.kind === 'user' && ctx.actor.role === 'admin')) {
     throw new DomainError('FORBIDDEN', 'Only admins may grant raw/generated space access to an API key');
   }
-  if (memoryProvider && spaceAccess.some((kind) => kind !== 'wiki')) {
+  if (memoryProvider && bindingPurpose !== 'knowledge_search' && spaceAccess.some((kind) => kind !== 'wiki')) {
     throw new DomainError('BAD_REQUEST', 'Agent memory API keys cannot access Raw or Generated spaces');
   }
 
@@ -152,6 +158,7 @@ export async function create(
         apiKeyId: row.id,
         namespaceId: namespace.id,
         agentIdentity: memoryAgentIdentity!,
+        bindingPurpose,
         sharedByOwner: Boolean(memoryProvider.sharedNamespaceId),
       });
       destination = { id: namespace.id, displayName: namespace.displayName, state: namespace.state, agentIdentity: memoryAgentIdentity! };
@@ -174,6 +181,46 @@ export async function create(
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
     memoryDestination: destination,
   };
+}
+
+/** Provision the two least-privilege credentials used by the OpenClaw
+ * integration. The mirror key can only write Agent Memory; the search key can
+ * only read the explicitly granted content spaces. */
+export async function createOpenClawPair(ctx: PermCtx, input: OpenClawPairedKeyInput): Promise<OpenClawPairedKeyCreated> {
+  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'Only administrators may create an OpenClaw connection');
+  }
+  const agentIdentity = input.agentIdentity.trim();
+  const mirror = await create(
+    ctx,
+    `${input.displayName?.trim() || 'OpenClaw'} mirror`,
+    ['memory.read', 'memory.write'],
+    ['wiki'],
+    { displayName: input.displayName?.trim() || 'OpenClaw Memory Wiki', agentIdentity, purpose: 'mirror' },
+  );
+  const namespaceId = mirror.memoryDestination?.id;
+  if (!namespaceId) throw new Error('OPENCLAW_NAMESPACE_NOT_CREATED');
+  try {
+    const knowledgeSearch = await create(
+      ctx,
+      `${input.displayName?.trim() || 'OpenClaw'} knowledge search`,
+      ['view'],
+      [
+        'wiki',
+        ...(input.includeRaw ? ['raw' as const] : []),
+        ...(input.includeGenerated ? ['generated' as const] : []),
+      ],
+      { sharedNamespaceId: namespaceId, displayName: input.displayName?.trim() || 'OpenClaw Memory Wiki', agentIdentity, purpose: 'knowledge_search' },
+    );
+    return {
+      namespace: { id: namespaceId, displayName: mirror.memoryDestination!.displayName, agentIdentity },
+      mirror,
+      knowledgeSearch,
+    };
+  } catch (error) {
+    await revoke(ctx, mirror.id).catch(() => undefined);
+    throw error;
+  }
 }
 
 export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {

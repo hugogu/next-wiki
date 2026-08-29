@@ -62,6 +62,7 @@ describe('sample page definitions (US3)', () => {
       markdownSyntax: 'help/markdown-syntax',
       mainFeatures: 'help/main-features',
       agentMemory: 'integrations/hermes',
+      openClaw: 'integrations/openclaw',
     });
   });
 
@@ -69,6 +70,7 @@ describe('sample page definitions (US3)', () => {
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/markdown-syntax)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/main-features)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/integrations/hermes)');
+    expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/integrations/openclaw)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.ONBOARDING_LINKS_MARKER);
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
@@ -103,24 +105,25 @@ describe('sample page definitions (US3)', () => {
     }
     expect(source).toContain('](/help/markdown-syntax)');
     expect(source).toContain('](/integrations/hermes)');
+    expect(source).toContain('](/integrations/openclaw)');
     expect(source).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
 });
 
 describe('sample page writer (US3)', () => {
-  it('creates all four pages as published revisions attributed to the admin', async () => {
+  it('creates all sample pages as published revisions attributed to the admin', async () => {
     const { actor, userId } = await openSetupAtSampleStep();
     const result = await samplePages.generateSamplePages(actor);
 
     expect(result.status).toBe('completed');
     expect(result.nextStep).toBe('summary');
-    expect(result.pages).toHaveLength(4);
+    expect(result.pages).toHaveLength(5);
     for (const page of result.pages) {
       expect(page.status).toBe('created');
       expect(page.pageId).toBeDefined();
     }
 
-    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features', 'integrations/hermes']) {
+    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features', 'integrations/hermes', 'integrations/openclaw']) {
       const page = await findPageByPath(path);
       expect(page).toBeDefined();
       expect(page?.authorId).toBe(userId);
@@ -160,7 +163,7 @@ describe('sample page writer (US3)', () => {
     const result = await samplePages.reinitializeSamplePages(adminActor(userId), wikiSpace!.id);
 
     expect(result.status).toBe('completed');
-    expect(result.pages).toHaveLength(4);
+    expect(result.pages).toHaveLength(5);
     expect(await readSetupProgress()).toBeUndefined();
     expect(await findPageByPath('integrations/hermes')).toBeDefined();
   });
@@ -208,7 +211,7 @@ describe('sample page writer (US3)', () => {
   it('restores every deleted managed example and publishes the current content', async () => {
     const { actor } = await openSetupAtSampleStep();
     await samplePages.generateSamplePages(actor);
-    const paths = ['welcome', 'help/markdown-syntax', 'help/main-features', 'integrations/hermes'];
+    const paths = ['welcome', 'help/markdown-syntax', 'help/main-features', 'integrations/hermes', 'integrations/openclaw'];
     for (const path of paths) await pagesService.remove({ actor }, path);
 
     const wikiSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
@@ -386,8 +389,8 @@ describe('sample page cache invalidation (US3)', () => {
     cache.invalidatePublicContentCache.mockClear();
     const { actor } = await openSetupAtSampleStep();
     await samplePages.generateSamplePages(actor);
-    // One invalidation per published revision (welcome + 3 help pages).
-    expect(cache.invalidatePublicContentCache).toHaveBeenCalledTimes(4);
+    // One invalidation per published revision (welcome + 4 help pages).
+    expect(cache.invalidatePublicContentCache).toHaveBeenCalledTimes(5);
   });
 
   it('does not invalidate when nothing is created (skip)', async () => {
