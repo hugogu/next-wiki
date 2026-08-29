@@ -70,7 +70,7 @@ describe('Agent memory capture service', () => {
     await expect(agentMemory.recall(ctx, 'captured retry policy', 5)).resolves.toEqual([
       expect.objectContaining({
         type: 'evidence',
-        title: 'Agent conversation evidence',
+        title: expect.stringMatching(/^Agent conversation · \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC · Remember the captured retry policy\.$/),
         excerpt: expect.stringContaining('captured retry policy'),
       }),
     ]);

@@ -21621,7 +21621,159 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "completed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "failed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "skipped"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_started"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "partial"
+                          ]
+                        }
+                      ]
+                    },
+                    "pages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "failed"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "skipped"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "created"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "updated"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "collision"
+                                ]
+                              }
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "pageId": {
+                            "oneOf": [
+                              {
+                                "type": "object"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "reason": {
+                            "oneOf": [
+                              {
+                                "type": "object"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "path"
+                        ]
+                      }
+                    },
+                    "nextStep": {
+                      "oneOf": [
+                        {
+                          "type": "object"
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "writing_mode"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "summary"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "account"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "ai"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "sample_pages"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "closed"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "pages"
+                  ]
                 }
               }
             }

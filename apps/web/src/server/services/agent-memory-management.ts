@@ -298,6 +298,7 @@ export async function promote(ctx: PermCtx, input: AgentMemoryPromotionInput): P
 
   const promotionAccess: AgentMemoryAccess = {
     keyId: 'owner-promotion',
+    keyName: 'Owner promotion',
     userId,
     connectionId: null,
     connectionState: null,
