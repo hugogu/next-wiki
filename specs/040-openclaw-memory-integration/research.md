@@ -1,261 +1,159 @@
-# Research: OpenClaw Shared Memory Bridge
+# Research: Unified Agent Memory Integrations
 
-**Feature**: [OpenClaw Shared Memory Bridge](./spec.md)
+**Feature**: [Unified Agent Memory Integrations](./spec.md)
 
-**Date**: 2026-08-28
+## Decision 1: Extend one Agent Memory API; do not create an OpenClaw API version
 
-## D1: Add a generic v2 contract; retain v1 for Hermes
+**Decision**: Keep `/api/v1/memory/*` as the one public, product-neutral Agent
+Memory interface. Extend it additively for stable connections, granted recall,
+capture provenance, and capability discovery. Hermes and OpenClaw both call
+this interface; neither receives a client-specific route family.
 
-**Decision**: Preserve `/api/v1/memory/*` and its Hermes behavior. Publish the
-connection/grant and cross-agent changes only under `/api/v2/memory/*`, with
-schemas in `packages/shared` and generated OpenAPI documentation.
-
-**Rationale**: The existing v1 routes already power an installed external
-adapter. A request whose recall scope can include owner-controlled grants is a
-semantic API change, while the architecture requires a major version prefix for
-public API changes. V2 remains client-neutral; neither its URLs nor persistent
-objects name OpenClaw.
-
-**Alternatives considered**:
-
-- Change v1 in place: rejected because existing Hermes clients could receive
-  changed discovery/recall semantics without opting in.
-- Add OpenClaw routes beside v1: rejected because it would bake one adapter
-  into the generic server and force later clients onto another path.
-
-**Local evidence**: Current v1 routes are in
-`apps/web/app/api/v1/memory/`; OpenAPI rules are in
-`docs/architecture/mandates.md`.
-
-## D2: Connection identity is distinct from a credential
-
-**Decision**: Introduce a stable, owner-managed Agent Memory Connection with a
-private destination. Associate credentials with that connection and evolve
-existing key bindings through a repeatable compatibility/backfill service.
-
-**Rationale**: The current binding's primary key is the API key, so rotation
-changes the effective identity. A connection makes agent identity, destination,
-history, grants, and pending capture attribution stable across credential
-rotation without trusting OpenClaw hook fields.
+**Rationale**: 039 already provides a generic API with save, recall, evidence,
+capture status, forget, connection, and diagnostics. OpenClaw needs additional
+connection and sharing semantics, not a different content store or transport.
+Keeping one path prevents backend behavior from diverging and lets an existing
+Hermes client retain its default own-destination behavior. New optional fields
+and routes are capability-discoverable; clients that do not need them ignore
+them.
 
 **Alternatives considered**:
 
-- Continue to use the API-key binding as connection identity: rejected because
-  key rotation and agent recreation become new identities, and background
-  capture cannot be safely attributed.
-- Let the plugin supply an agent ID/path each call: rejected because it makes
-  client data the authorization boundary.
+- Create `/api/v2/memory/*` for OpenClaw: rejected because it duplicates the
+  same domain surface and makes adapter choice part of server routing. A new
+  major API is justified only by a breaking public semantic change, not by the
+  arrival of another adapter.
+- Let OpenClaw call generic page APIs: rejected because page scopes cannot
+  safely select an Agent Memory destination or prevent a client from choosing a
+  path.
+- Make Hermes call an OpenClaw-shaped endpoint: rejected because the server
+  contract must stay product-neutral and Hermes has different lifecycle
+  behavior.
 
-**Local evidence**: `agent_memory_key_bindings` maps one API key to one
-namespace in `apps/web/src/server/db/schema/agent-memory.ts`; access resolution
-currently derives that namespace per request in
-`apps/web/src/server/permissions/agent-memory.ts`.
+## Decision 2: Separate stable connections from rotatable credentials
 
-## D3: Explicit grants are the cross-agent boundary
+**Decision**: Add a generic `agent_memory_connections` entity. Evolve the
+existing `agent_memory_key_bindings` row into a credential-to-connection link
+while preserving its legacy namespace/identity fields for existing Hermes
+bindings.
 
-**Decision**: Keep a connection's private destination implicit, and model every
-other read/write right as an owner-created active destination grant. V2 recall
-accepts a closed `own`, `granted`, or `own_and_granted` intent, never a
-destination ID or agent name.
+**Rationale**: In 039, an API key is the practical identity. Rotating it makes
+an agent look new and makes pending delivery, grants, audit attribution, and
+record provenance depend on a credential that is expected to change. A
+connection is the durable owner-authorized identity; a credential only
+authenticates that connection. The server therefore never trusts hook fields,
+agent names, paths, or destination values supplied by either adapter.
 
-**Rationale**: Current `sharedNamespaceId` reuses a destination for a new key
-but cannot distinguish read sharing from write sharing. Server-expanded grants
-make cross-agent reads possible while preserving non-disclosure and make shared
-write a separate intentional owner action.
+**Compatibility**: No historical backfill is required. Existing Hermes keys
+continue through the legacy binding resolver. New connections and newly issued
+credentials set `connection_id`; owner tooling can later attach or replace a
+legacy credential deliberately.
 
-**Alternatives considered**:
+## Decision 3: Use the existing namespace table as the destination table
 
-- Query by an `agents[]` or `destinationIds` filter: rejected because callers
-  could probe destination existence and authorization would be path-based.
-- One common namespace for every agent: rejected because it removes private
-  defaults and makes revocation unbounded.
+**Decision**: Keep `agent_memory_namespaces` as the physical table and use it
+as the logical Memory Destination. Add a closed `private/shared` role; do not
+create `agent_memory_destinations`.
 
-**Local evidence**: Existing recall filters by both namespace and
-`agentIdentity`; no grant entity exists. See
-`apps/web/src/server/services/agent-memory.ts` and `services/api-keys.ts`.
+**Rationale**: The 039 namespace already owns the collection, state, owner,
+record relationships, and key binding. Its role is a semantic extension, not a
+new aggregate. A connection owns one private destination. A shared destination
+is owner-controlled and is never chosen by an adapter request.
 
-## D4: Raw revisions are canonical; asynchronous input is encrypted and transient
+## Decision 4: Model cross-agent retrieval as explicit read grants
 
-**Decision**: Continue writing canonical records through the restricted Raw
-writer. Store asynchronous capture input in an encrypted, TTL-bound ingest
-envelope; enqueue only a capture ID, delete the envelope after durable Raw
-write, and never expose it to recall/audit/public surfaces.
+**Decision**: Add `agent_memory_destination_grants` for owner-created,
+revocable, expiring read grants from a connection to a shared destination.
+Normal agent writes and captures always use the caller's private destination.
+Shared knowledge is created by an owner-side curation/promotion action, not by
+an adapter choosing a shared destination.
 
-**Rationale**: Capture may exceed the request budget, but raw message bodies in
-pg-boss job data create an uncontrolled transient copy. Existing AES-GCM helper
-and encrypted action-payload patterns provide a project-native protection
-mechanism while the Raw page/revision remains the only durable source body.
-
-**Alternatives considered**:
-
-- Keep raw messages in the job payload: rejected because queue inspection,
-  retries, and retention make sensitive content harder to control.
-- Write the Raw page synchronously: rejected because it violates the
-  asynchronous-heavy-operation mandate and delays a bridge's capture path.
-- Add an unencrypted transcript table: rejected because it becomes a second,
-  less-governed source of truth.
-
-**Local evidence**: `submitEvidenceCapture` currently queues messages;
-`apps/web/src/server/crypto/key-encryption.ts` and encrypted AI payloads show
-the supported encrypted-at-rest pattern.
-
-## D5: OpenClaw is a non-capability companion bridge
-
-**Decision**: Publish the continuous adapter as a native ESM non-capability
-plugin with hooks, optional tools, and a plugin-owned service. It will not take
-`plugins.slots.memory`, register an exclusive memory provider, or call another
-memory plugin's private API.
-
-**Rationale**: OpenClaw supports non-capability plugins and requires published
-packages to declare manifest ownership. The memory slot is exclusive, whereas
-the bridge must coexist with local `memory_search` and preserve its fast local
-working-memory behavior.
+**Rationale**: The 039 `shared_by_owner` flag and shared namespace bindings
+cannot express “B may read this destination but may not write it”, expiry, or
+per-grantee revocation. Keeping agent writes private removes ambiguous target
+selection and prevents automatic capture from becoming publication. The owner
+can create an attributable curated copy, then grant selected connections read
+access.
 
 **Alternatives considered**:
 
-- Replace the memory slot: rejected because it disables or competes with local
-  memory and makes next-wiki an OpenClaw-specific service dependency.
-- Implement an operator `HOOK.md`: rejected because the integration needs
-  typed lifecycle semantics, manifest-owned tools, service lifecycle, and
-  package distribution.
+- Reuse `shared_by_owner` as an access grant: rejected; it is an audit/UI
+  marker, not an access-control list.
+- Accept a destination ID in recall or save: rejected; a compromised adapter
+  could enumerate or write arbitrary destinations.
+- Add generic shared writes now: deferred. Without a server-selected write
+  target it conflicts with the no-client-selected-destination invariant.
 
-**Sources**: [OpenClaw plugin architecture](https://raw.githubusercontent.com/openclaw/openclaw/main/docs/plugins/architecture.md), [Building plugins](https://docs.openclaw.ai/plugins/building-plugins), [Memory Wiki](https://docs.openclaw.ai/plugins/memory-wiki).
+## Decision 5: Preserve canonical content in Raw revisions; bound transient data
 
-## D6: Hooks enqueue; they never prove durability or veto compaction
+**Decision**: Continue to write every durable record through the restricted Raw
+writer and retain only locators, provenance, authorization state, and
+idempotency projections in Agent Memory tables. Add an encrypted,
+time-limited capture envelope to the existing capture row; pg-boss receives a
+capture identifier only. The OpenClaw bridge owns a bounded local outbox.
 
-**Decision**: Persist a deterministic capture request to the bridge outbox at
-supported compaction/session/turn boundaries, then deliver asynchronously.
-Use Gateway start to recover the outbox and Gateway stop only for an abortable,
-bounded best-effort flush. Treat `before_compaction` and `after_compaction` as
-observe-only and defer an enforced strict checkpoint to a future supported host
-capability.
+**Rationale**: Hermes checkpoints and OpenClaw lifecycle capture both need an
+idempotent durable outcome. Raw pages and immutable revisions provide the one
+canonical body and citation. The capture row can retain temporary encrypted
+input until the worker writes that source, then delete it. This protects
+privacy, supports restart, and avoids a second transcript store.
 
-**Rationale**: OpenClaw documents compaction hooks as observe-only and notes
-that observation hooks can overlap. Session shutdown has a shared two-second
-drain and Gateway stop a short timeout, so remote I/O in those handlers can be
-interrupted. A durable local queue plus server idempotency is the correct
-at-least-once boundary.
+**Retention boundary**: This feature requires TTL/capacity limits for
+transient envelopes and local outbox entries. It does not add a
+per-destination long-term retention-policy table. Canonical source retention
+continues to use the Wiki's existing Raw-content policy.
 
-**Alternatives considered**:
+## Decision 6: Keep adapter behavior out of the server
 
-- Post to next-wiki directly inside every hook: rejected because an outage
-  delays or loses lifecycle work and hook timeout does not cancel I/O.
-- Claim successful pre-compaction preservation after callback execution:
-  rejected because the current OpenClaw contract provides no veto/durable
-  acknowledgement mechanism.
+**Decision**: Retain the Hermes Python provider as an optional adapter and ship
+OpenClaw as a separately installable, ESM, non-capability plugin. The bridge
+uses documented hooks, optional tools, a service-owned local outbox, and—only
+when explicitly enabled—authorized prompt enrichment. It does not claim the
+exclusive OpenClaw memory slot or call another memory plugin's private API.
 
-**Sources**: [OpenClaw plugin hooks](https://docs.openclaw.ai/plugins/hooks).
+**Rationale**: Hermes has native provider setup and strict checkpoint behavior;
+OpenClaw has Gateway hooks, explicit prompt/tool permissions, and a local
+memory system that must remain independent. Those differences belong in the
+adapters. OpenClaw documents hook-only and non-capability plugins as supported,
+and advises external plugins to use narrow documented surfaces rather than
+private reach-ins. See [building plugins](https://docs.openclaw.ai/plugins/building-plugins),
+[plugin architecture](https://github.com/openclaw/openclaw/blob/main/docs/plugins/architecture.md),
+and [plugin hooks](https://docs.openclaw.ai/plugins/hooks).
 
-## D7: External package uses a portable private outbox
+## Decision 7: Treat compaction hooks as observations, not durability gates
 
-**Decision**: The bridge service owns a bounded durable outbox under the
-OpenClaw state directory resolved by the public runtime helper. It uses atomic
-files, Gateway-user-only permissions, payload/age/count caps, retry with
-jitter, dead-letter diagnostics, and no body logging.
+**Decision**: On an OpenClaw lifecycle event, synchronously persist only the
+local outbox intent. Delivery happens asynchronously. `before_compaction` can
+report pending protection but cannot promise a remote durable write or veto
+compaction unless OpenClaw later provides a documented capability for that
+behavior.
 
-**Rationale**: OpenClaw's durable runtime stores/queues are restricted to
-bundled or trusted-official plugins; an independently published ClawHub package
-cannot depend on them. The local outbox retains only not-yet-acknowledged
-capture payloads and documents the host filesystem trust boundary.
+**Rationale**: External hook callbacks are at-least-once, concurrent, and may
+be interrupted at shutdown. Server idempotency plus a restart-safe outbox is
+the delivery boundary. Hermes strict checkpoints remain adapter-specific: they
+may wait for the common capture-status result when the Hermes runtime supports
+that contract.
 
-**Alternatives considered**:
+## Decision 8: API documentation is generated from the implementation contract
 
-- Use an in-memory queue: rejected because a restart loses unacknowledged
-  captures.
-- Use privileged OpenClaw queue/state APIs: rejected because they are not
-  portable to third-party installations.
-- Add a second server queue service: rejected by the default-deployment
-  constraint.
+**Decision**: Runtime Zod schemas remain in `packages/shared`. Literal Zod
+schemas in `apps/web/src/server/api/openapi-schemas.ts` mirror them because the
+current OpenAPI scanner cannot follow workspace aliases; structural tests guard
+that mirror. Route annotations reference those schemas. Every API change runs
+the existing OpenAPI generator and commits the regenerated document.
 
-**Sources**: [OpenClaw SDK runtime](https://docs.openclaw.ai/plugins/sdk-runtime), [OpenClaw plugin hooks](https://docs.openclaw.ai/plugins/hooks).
+**Rationale**: The public API is an integration boundary. Manually edited JSON
+or prose cannot remain authoritative. The existing generator and sync tests
+are the project mechanism for detecting drift.
 
-## D8: Tool authority gates optional prompt enrichment
+## Decision 9: Publish generic and OpenClaw guides safely
 
-**Decision**: Register uniquely named external-memory tools as optional and
-declare them in the manifest. Prompt enrichment runs only in the authorized
-second `before_prompt_build` phase after the tool authority permits
-`next_wiki_memory_search`; it returns bounded, escaped, cited context and fails
-open. Save and forget require an additional per-call plugin approval; server
-authorization remains final.
+**Decision**: Keep generic Agent Memory guidance product-neutral and add one
+managed OpenClaw bridge guide. Both are marker-owned published pages with
+placeholder configuration only. Add page/help-navigation cache tags and
+invalidate them only after a successful guide mutation.
 
-**Rationale**: Optional tools prevent model exposure before operator opt-in.
-The post-policy hook has an ephemeral authority that OpenClaw rechecks after
-awaited work, which prevents external recall from bypassing an agent's final
-tool policy. A local approval makes model-triggered persistence intentional but
-cannot replace server ACL.
-
-**Alternatives considered**:
-
-- Call local `memory_search` from the plugin: rejected because it is a
-  model-facing tool, not a plugin API, and would collapse separate local and
-  external memory layers.
-- Use ordinary prompt build before policy finalization: rejected because it
-  could retrieve context for a tool surface the turn cannot use.
-- Enable all bridge tools by default: rejected because it exposes side effects
-  and sensitive retrieval before operator review.
-
-**Sources**: [OpenClaw plugin hooks](https://docs.openclaw.ai/plugins/hooks), [Tool plugins](https://docs.openclaw.ai/plugins/tool-plugins), [Plugin permission requests](https://docs.openclaw.ai/plugins/plugin-permission-requests).
-
-## D9: One-time migration is separate from the bridge
-
-**Decision**: Deliver a separately published OpenClaw migration-provider
-package with preview, explicit approval, a resumable local fingerprint ledger,
-and generic v2 import provenance. It will not run continuously or remove local
-memory/session source files.
-
-**Rationale**: Historical import has a wider privacy scope and different retry
-semantics from routine lifecycle capture. A separate package lets operators
-review it independently and keeps the production bridge small.
-
-**Alternatives considered**:
-
-- Add import scanning to Gateway startup: rejected because it silently expands
-  capture scope and may import history without review.
-- Use a shell script: rejected because it lacks OpenClaw-native discovery,
-  packaged compatibility, preview, and resumable state.
-
-**Sources**: [OpenClaw plugin architecture](https://raw.githubusercontent.com/openclaw/openclaw/main/docs/plugins/architecture.md), [Mino Externalized Memory Architecture](https://kb.hugogu.cn/wiki/reflections/meta/2026-08-27-mino-externalized-memory-architecture).
-
-## D10: Public guides require targeted invalidation
-
-**Decision**: Convert the existing Hermes-specific Agent Memory guide into a
-generic guide and add `help/openclaw-memory-bridge`. Introduce targeted public
-page and navigation cache tags for managed-guide updates; do not invalidate on
-collision, skip, or failure.
-
-**Rationale**: Existing first-run pages already use normal published revisions
-and collision protection, but their broad public cache tag cannot prove the
-specification's targeted invalidation outcome. Adding scoped tags preserves
-static/ISR delivery while narrowing only this mutation path.
-
-**Alternatives considered**:
-
-- Replace `help/agent-memory` with OpenClaw-only instructions: rejected because
-  the server supports Hermes and future adapters too.
-- Add a dynamic integration dashboard to the public page: rejected because it
-  would mix credentials and user state into static public content.
-- Reuse the global public cache tag: rejected because it invalidates unrelated
-  published pages.
-
-**Local evidence**: `setup-sample-page-definitions.ts`,
-`setup-sample-pages.ts`, and `PUBLIC_CONTENT_CACHE_TAG` usage in
-`apps/web/src/server/cache/public-cache.ts`.
-
-## D11: Publish only built, tested package artifacts
-
-**Decision**: Build each package to JavaScript, pack it, install it using
-OpenClaw's managed package path, inspect the active runtime, and test the
-recorded minimum and current OpenClaw versions before a ClawHub release.
-
-**Rationale**: Source-checkout tests can hide missing runtime dependencies or
-manifest/runtime mismatch. OpenClaw uses manifest contracts during discovery,
-and compatibility fields must start at the first API used by the bridge.
-
-**Alternatives considered**:
-
-- Publish TypeScript source entries: rejected because external package runtime
-  entries must point at built JavaScript.
-- Validate only mocked plugin API calls: rejected because loader/package
-  failures are an important part of the user installation path.
-
-**Sources**: [Building plugins](https://docs.openclaw.ai/plugins/building-plugins), [OpenClaw plugin manifest](https://docs.openclaw.ai/plugins/manifest).
+**Rationale**: Operators need installation and recovery guidance, but endpoint
+values, connection IDs, agent labels, grants, and credentials are private.
+Targeted invalidation satisfies the public static-delivery rule without
+invalidating unrelated pages.

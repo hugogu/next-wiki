@@ -1,274 +1,213 @@
-# Tasks: OpenClaw Shared Memory Bridge
+# Tasks: Unified Agent Memory Integrations
 
 **Input**: Design documents from `/specs/040-openclaw-memory-integration/`
+**Prerequisites**: `plan.md`, `spec.md`, `research.md`, `data-model.md`, `contracts/`, and `quickstart.md`
 
-**Prerequisites**: [plan.md](./plan.md), [spec.md](./spec.md), [research.md](./research.md), [data-model.md](./data-model.md), [contracts/](./contracts/), and [quickstart.md](./quickstart.md)
+**Tests**: Every behavioural change includes automated tests. API changes also
+require generated OpenAPI output and the existing schema-sync test. External
+plugin changes require package and loader-backed smoke tests.
 
-**Tests**: Required. The specification defines independent acceptance tests and the plan requires unit, service, route, package-loader, UI, and Compose verification.
+**Organization**: Tasks are grouped by user story. Foundation and the one
+database migration precede adapter delivery. `[P]` means parallelizable after
+its stated dependencies are complete.
 
-**Organization**: Tasks are grouped by user story. Complete the foundation before story work; retain the documented checkpoints so each completed story can be verified without enabling later optional capabilities.
+## Phase 1: Shared contract and package setup
 
-## Format: `[ID] [P?] [Story] Description`
+**Purpose**: Establish the reusable contract source and adapter package layout.
 
-- `[P]` indicates a task can proceed in parallel once its listed prerequisites exist and it does not modify the same files.
-- `[US#]` maps a task to a user story in [spec.md](./spec.md).
-- Every API schema is defined in `packages/shared` before its route; every database change starts from Drizzle schema source and uses generated migrations.
-
-## Phase 1: Setup (Shared Package Boundaries)
-
-**Purpose**: Establish the two independently publishable OpenClaw packages without adding an OpenClaw dependency to the Wiki server.
-
-- [ ] T001 [P] Create the ESM workspace package metadata, TypeScript/Vitest configuration, and peer-dependency compatibility floor in `packages/openclaw-memory-bridge/package.json`, `packages/openclaw-memory-bridge/tsconfig.json`, and `packages/openclaw-memory-bridge/vitest.config.ts`
-- [ ] T002 [P] Create the ESM workspace package metadata, TypeScript/Vitest configuration, and non-continuous-package boundary in `packages/openclaw-memory-migrate/package.json`, `packages/openclaw-memory-migrate/tsconfig.json`, and `packages/openclaw-memory-migrate/vitest.config.ts`
-- [ ] T003 [P] Add package scripts and workspace inclusion needed to build and test both packages in `package.json` and `pnpm-workspace.yaml`
-- [ ] T004 [P] Add non-secret development fixtures for two connections, a restricted Raw source revision, and an active/revoked grant in `apps/web/src/server/test/fixtures/agent-memory.ts`
+- [ ] T001 Create the OpenClaw bridge package workspace, ESM build settings, package exports, peer dependency, and test scripts in `packages/openclaw-memory-bridge/package.json`, `packages/openclaw-memory-bridge/tsconfig.json`, and `pnpm-workspace.yaml`
+- [ ] T002 Create the explicit local import utility package workspace, ESM build settings, package exports, and test scripts in `packages/openclaw-memory-migrate/package.json`, `packages/openclaw-memory-migrate/tsconfig.json`, and `pnpm-workspace.yaml`
+- [ ] T003 [P] Extend closed Agent Memory v1 runtime Zod enums and request/response schemas additively in `packages/shared/src/agent-memory.ts`
+- [ ] T004 [P] Mirror shared Agent Memory schemas in generator-compatible OpenAPI literals and add structural drift coverage in `apps/web/src/server/api/openapi-schemas.ts` and `apps/web/src/server/api/openapi-schemas.test.ts`
+- [ ] T005 [P] Add/update framework `@openapi` route annotations for v1 Agent Memory and owner-management handlers in `apps/web/app/api/v1/memory/` and `apps/web/app/api/api-keys/agent-memory/`
 
 ---
 
-## Phase 2: Foundational (Generic v2 Service and Authorization)
+## Phase 2: Generic server foundation and one database migration
 
-**Purpose**: Build the client-neutral primitives that block all stories: stable server connections, destinations, grants, immutable provenance, encrypted transient capture input, and v2 common API behavior.
+**Purpose**: Reuse 039 data/storage concepts while adding stable connection
+identity and explicit read grants for every future adapter.
 
-**⚠️ CRITICAL**: Do not begin user-story delivery until this phase is complete. Do not hand-author a migration SQL file or Drizzle journal entry.
+**⚠️ Critical rule**: Complete T006 before T007. T007 is the only task allowed
+to create an Agent Memory migration for this feature. Do not hand-author SQL,
+the Drizzle journal, or snapshots.
 
-- [ ] T005 Define v2 closed enums and Zod/OpenAPI schemas for connections, destinations, grants, record provenance, recall scope, capture states, and safe diagnostics in `packages/shared/src/agent-memory.ts`
-- [ ] T006 [P] Define owner/session resource schemas for connection lifecycle, credential rotation, and read/write grant management in `packages/shared/src/api-keys.ts`
-- [ ] T007 Extend the Agent Memory Drizzle schema with connection, destination role, credential binding, destination grant, immutable record provenance, evidence link, encrypted capture-envelope, and retention fields in `apps/web/src/server/db/schema/agent-memory.ts`
-- [ ] T008 Generate and review the Drizzle migration/snapshot from `apps/web/src/server/db/schema/agent-memory.ts` using `pnpm db:generate`, then run `pnpm db:generate` again and record that no additional schema change remains in `specs/040-openclaw-memory-integration/quickstart.md`
-- [ ] T009 Implement stable connection resolution, legacy v1 binding backfill compatibility, and credential-rotation lookup in `apps/web/src/server/permissions/agent-memory.ts`
-- [ ] T010 [P] Implement server-owned destination and active read/write-grant evaluation with no client-selected source/destination input in `apps/web/src/server/services/agent-memory-grants.ts`
-- [ ] T011 Implement common v2 record, immutable citation, evidence-link, retention, and idempotency primitives while preserving v1 behavior in `apps/web/src/server/services/agent-memory.ts`
-- [ ] T012 [P] Add encrypted transient-capture envelope helpers with authenticated decryption, digest comparison, expiry, and redaction-safe failure handling in `apps/web/src/server/services/agent-memory-captures.ts`
-- [ ] T013 Create v2 bearer authentication, no-store response helpers, bounded public-error mapping, and `audit_origin=agent_memory` attribution in `apps/web/app/api/v2/memory/_shared.ts`
-- [ ] T014 Register generated v2 API schemas and route documentation in `apps/web/src/server/api/openapi.ts` and `apps/web/app/api/v2/memory/_shared.ts`
+- [ ] T006 Extend existing Agent Memory tables/enums for namespace role, connection-aware key bindings, record author/provenance/content kind, and capture lifecycle/envelope fields; add only `agent_memory_connections` and `agent_memory_destination_grants` in `apps/web/src/server/db/schema/agent-memory.ts` and `apps/web/src/server/db/schema/enums.ts`
+- [ ] T007 Run `pnpm db:generate` once after T006, retain the sole generated `0022` migration and snapshot in `apps/web/src/server/db/migrations/`, then rerun `pnpm db:generate` and record its no-change result in `specs/040-openclaw-memory-integration/quickstart.md`
+- [ ] T008 Implement credential resolution as connection-first authorization with an explicit 039 legacy key-binding fallback in `apps/web/src/server/permissions/agent-memory.ts`
+- [ ] T009 Implement connection/private-destination, record provenance, immutable citation, and idempotency primitives without canonical text in Agent Memory tables in `apps/web/src/server/services/agent-memory.ts`
+- [ ] T010 Implement owner-only connection lifecycle, credential rotation, shared namespace/read grant, and curated-promotion services in `apps/web/src/server/services/agent-memory-management.ts`
+- [ ] T011 Implement capture admission, encrypted bounded transient envelopes, reauthorization, conflict detection, and capture-ID-only pg-boss delivery in `apps/web/src/server/services/agent-memory-captures.ts` and `apps/web/src/server/jobs/agent-memory-capture.ts`
+- [ ] T012 [P] Add service tests for legacy fallback, disabled/revoked connection, two-connection isolation, private-destination selection, immutable Raw citations, and idempotency in `apps/web/src/server/services/__tests__/agent-memory.test.ts`
+- [ ] T013 [P] Add service tests for grant lifecycle, promotion attribution/evidence links, and state recheck before output in `apps/web/src/server/services/__tests__/agent-memory-management.test.ts`
+- [ ] T014 [P] Add capture tests for duplicate/concurrent submissions, payload conflict, durable-after-Raw, expiry, credential rotation, connection revocation, and capture-ID-only jobs in `apps/web/src/server/services/__tests__/agent-memory-captures.test.ts` and `apps/web/src/server/jobs/agent-memory-capture.test.ts`
 
-**Checkpoint**: A connection and all subsequent operation authorization resolve only on the server; v1 Hermes behavior remains reachable, and no v2 route or background job has yet received a raw content body through generic job data.
+**Checkpoint**: adapters resolve principal and destination server-side; legacy
+Hermes remains reachable; exactly one generated migration covers all 040 schema
+changes; no retention-policy table is introduced.
 
 ---
 
-## Phase 3: User Story 1 - Connect an OpenClaw Agent to Shared Durable Memory (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 — One API for independent agents (Priority: P1) 🎯 MVP
 
-**Goal**: An owner can provision separate stable connections for two agents; each adapter uses the generic v2 service and writes only to its own private destination.
+**Goal**: Hermes and OpenClaw use the same documented v1 API while independent
+connections stay private and owner-manageable.
 
-**Independent Test**: Create two owner-managed connections, save one record from each one through separate bridge configurations, and verify both canonical Raw citations exist while neither caller can choose or write to the other's destination.
+**Independent Test**: Provision two connections and one legacy Hermes binding;
+save/recall through each and prove no request can select or view another
+private destination.
 
 ### Tests for User Story 1
 
-- [ ] T015 [P] [US1] Add schema and service tests for immutable connection identity, private-destination isolation, legacy v1 binding compatibility, and idempotent record creation in `apps/web/src/server/services/__tests__/agent-memory.test.ts`
-- [ ] T016 [P] [US1] Add route contract tests proving `GET /api/v2/memory/connection` and `POST /api/v2/memory/records` ignore client-supplied identity/destination fields in `apps/web/app/api/v2/memory/__tests__/connection-and-records.test.ts`
-- [ ] T017 [P] [US1] Add bridge configuration and HTTP-client tests for SecretRef redaction, v2 connection discovery, and credential-safe failures in `packages/openclaw-memory-bridge/tests/config-and-api-client.test.ts`
+- [ ] T015 [P] [US1] Add route tests for safe connection discovery, private record creation, legacy request compatibility, rejected destination/identity fields, and no-store headers in `apps/web/app/api/v1/memory/__tests__/connection-and-records.test.ts`
+- [ ] T016 [P] [US1] Add management route tests for connection creation/disable and credential rotation access control in `apps/web/app/api/api-keys/agent-memory/__tests__/connections.test.ts`
+- [ ] T017 [P] [US1] Add Hermes regressions for unchanged v1 save/recall/evidence semantics and additive capability discovery in `packages/hermes-memory-provider/tests/test_provider.py`, `packages/hermes-memory-provider/tests/test_api_client.py`, and `packages/hermes-memory-provider/tests/test_capture_lifecycle.py`
 
 ### Implementation for User Story 1
 
-- [ ] T018 [US1] Implement owner-session connection creation, disable/re-enable, and primary-private-destination initialization in `apps/web/src/server/services/agent-memory-connections.ts`
-- [ ] T019 [US1] Implement owner-session credential issue, list-safe metadata, rotation, and revocation operations in `apps/web/src/server/services/agent-memory-connections.ts`
-- [ ] T020 [US1] Implement RESTful owner connection and credential resource routes in `apps/web/app/api/api-keys/agent-memory/connections/route.ts` and `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/credentials/route.ts`
-- [ ] T021 [US1] Implement authenticated `GET /api/v2/memory/connection` using resolved connection capabilities without exposing grant inventories or destination labels in `apps/web/app/api/v2/memory/connection/route.ts`
-- [ ] T022 [US1] Implement v2 explicit-save validation, server-selected private destination, canonical Raw revision creation, immutable citation return, and idempotency disposition in `apps/web/app/api/v2/memory/records/route.ts` and `apps/web/src/server/services/agent-memory.ts`
-- [ ] T023 [US1] Implement v2 evidence creation with source revision/provenance validation in `apps/web/app/api/v2/memory/evidence/route.ts` and `apps/web/src/server/services/agent-memory.ts`
-- [ ] T024 [US1] Build the User Center Agent Memory connection list, create dialog, status control, and credential-rotation dialog in `apps/web/src/components/user-center/agent-memory-connections.tsx` and `apps/web/app/(user)/user-center/api-keys/page.tsx`
-- [ ] T025 [US1] Implement bridge strict configuration parsing, endpoint validation, SecretRef resolution boundary, and diagnostic redaction in `packages/openclaw-memory-bridge/src/config.ts`, `packages/openclaw-memory-bridge/src/api-client.ts`, and `packages/openclaw-memory-bridge/src/redaction.ts`
-- [ ] T026 [US1] Implement the native non-capability plugin manifest and synchronous entry registration without a memory-slot claim in `packages/openclaw-memory-bridge/openclaw.plugin.json` and `packages/openclaw-memory-bridge/src/index.ts`
-- [ ] T027 [US1] Implement the bridge startup service connection check and safe status categories in `packages/openclaw-memory-bridge/src/service.ts` and `packages/openclaw-memory-bridge/src/diagnostics.ts`
-- [ ] T028 [US1] Add a two-connection bridge-to-v2 integration test and retain the Hermes v1 regression suite in `packages/openclaw-memory-bridge/tests/connection.integration.test.ts` and `packages/hermes-memory-provider/src/__tests__/provider.test.ts`
+- [ ] T018 [US1] Extend `GET /api/v1/memory/connection` and diagnostics with safe additive connection/capability fields while preserving legacy namespace response in `apps/web/app/api/v1/memory/connection/route.ts` and `apps/web/app/api/v1/memory/diagnostics/route.ts`
+- [ ] T019 [US1] Extend v1 save, forget, and evidence handlers for closed provenance/content/capture fields, server-selected private destinations, and immutable citations in `apps/web/app/api/v1/memory/records/route.ts`, `apps/web/app/api/v1/memory/records/[memoryId]/route.ts`, and `apps/web/app/api/v1/memory/evidence/route.ts`
+- [ ] T020 [US1] Implement session-authenticated connection, credential, and connection-status routes in `apps/web/app/api/api-keys/agent-memory/connections/route.ts` and `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/route.ts`
+- [ ] T021 [US1] Add owner connection management controls using the existing User Center API-key patterns in `apps/web/app/(user)/user-center/api-keys/page.tsx`, `apps/web/src/components/user-center/ApiKeyList.tsx`, and `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`
+- [ ] T022 [US1] Update the Hermes client only for additive v1 discovery/closed fields while retaining existing defaults in `packages/hermes-memory-provider/src/next_wiki_memory/api_client.py` and `packages/hermes-memory-provider/src/next_wiki_memory/__init__.py`
+- [ ] T023 [US1] Implement OpenClaw bridge strict config parsing, secret-safe v1 HTTP client, and `definePluginEntry` bootstrap in `packages/openclaw-memory-bridge/src/config.ts`, `packages/openclaw-memory-bridge/src/api-client.ts`, and `packages/openclaw-memory-bridge/src/index.ts`
+- [ ] T024 [US1] Add the bridge manifest with matching startup/tool metadata and compatibility declaration in `packages/openclaw-memory-bridge/openclaw.plugin.json`
 
-**Checkpoint**: Two independently installed bridge instances can save private, cited records to one generic Wiki service. The Wiki has no OpenClaw runtime dependency and Hermes v1 remains compatible.
+**Checkpoint**: either adapter works without the other; the server carries no
+adapter product name; the generated API reflects actual v1 behaviour.
 
 ---
 
-## Phase 4: User Story 2 - Preserve Reliable Session Evidence (Priority: P1)
+## Phase 4: User Story 2 — Reliable non-blocking OpenClaw capture (Priority: P1)
 
-**Goal**: Opted-in lifecycle capture is durable, at-most-once, provenance-preserving, restart-safe, and never delays the completed OpenClaw turn.
+**Goal**: OpenClaw preserves enabled lifecycle evidence with a bounded,
+restart-safe local outbox without blocking a turn or claiming premature
+durability.
 
-**Independent Test**: Enable one capture mode, make the Wiki temporarily unavailable across compaction and session end, restart the Gateway, and verify exactly one durable cited evidence record per event after retry with no turn wait.
+**Independent Test**: Take the API offline, trigger an enabled lifecycle event,
+restart Gateway/API, and verify exactly one cited durable capture.
 
 ### Tests for User Story 2
 
-- [ ] T029 [P] [US2] Add capture API and worker tests for idempotency conflicts, encrypted-envelope expiry, durable citation completion, and capture-status redaction in `apps/web/src/server/services/__tests__/agent-memory-captures.test.ts`
-- [ ] T030 [P] [US2] Add concurrent duplicate, timeout, restart, cancellation, retry/backoff, and dead-letter outbox tests in `packages/openclaw-memory-bridge/tests/outbox.test.ts`
-- [ ] T031 [P] [US2] Add lifecycle-hook tests for disabled capture, missing correlation, compaction observation, session-end enqueueing, and bounded shutdown in `packages/openclaw-memory-bridge/tests/hooks.test.ts`
+- [ ] T025 [P] [US2] Add local outbox tests for deterministic IDs, encryption/permission checks, retry/backoff, expiry/capacity, recovery, cancellation, and acknowledgement in `packages/openclaw-memory-bridge/tests/outbox.test.ts`
+- [ ] T026 [P] [US2] Add hook/service tests proving observation hooks enqueue without network waits and start/stop recovery remains bounded in `packages/openclaw-memory-bridge/tests/capture-lifecycle.test.ts`
+- [ ] T027 [P] [US2] Add server route tests for capture status isolation, durable citations, safe diagnostics, and audit redaction in `apps/web/app/api/v1/memory/__tests__/evidence-and-diagnostics.test.ts`
 
 ### Implementation for User Story 2
 
-- [ ] T032 [US2] Implement v2 capture admission with payload-digest conflict detection, encrypted transient storage, and capture-ID-only enqueueing in `apps/web/app/api/v2/memory/captures/route.ts` and `apps/web/src/server/services/agent-memory-captures.ts`
-- [ ] T033 [US2] Implement connection-restricted capture status retrieval with durable source-page/revision citations only after canonical persistence in `apps/web/app/api/v2/memory/captures/[captureId]/route.ts`
-- [ ] T034 [US2] Replace raw pg-boss capture payloads with capture identifiers and keep background data-cache bypassing in `apps/web/src/server/jobs/agent-memory-capture.ts` and `apps/web/src/server/jobs/index.ts`
-- [ ] T035 [US2] Implement worker decryption, active-connection/destination reauthorization, restricted Raw revision creation, transactional durable state, envelope deletion, and TTL cleanup in `apps/web/src/server/jobs/agent-memory-capture.ts` and `apps/web/src/server/services/agent-memory-captures.ts`
-- [ ] T036 [US2] Implement private atomic outbox persistence, file permissions, capacity/age limits, deterministic event keys, and recoverable state transitions in `packages/openclaw-memory-bridge/src/outbox.ts`
-- [ ] T037 [US2] Implement selected-content validation, original-versus-generated capture metadata, and idempotent capture request construction in `packages/openclaw-memory-bridge/src/capture.ts`
-- [ ] T038 [US2] Register only supported observation hooks for before/after compaction, agent end, session end, Gateway start, and Gateway stop in `packages/openclaw-memory-bridge/src/hooks.ts`
-- [ ] T039 [US2] Implement the service-owned delivery worker, jittered retry, recovery, health reporting, abortable stop, and short best-effort flush in `packages/openclaw-memory-bridge/src/service.ts`
-- [ ] T040 [US2] Surface pending/retry/terminal/durable status without payload, query, title, session-digest, or credential disclosure in `packages/openclaw-memory-bridge/src/diagnostics.ts` and `apps/web/app/api/v2/memory/diagnostics/route.ts`
-- [ ] T041 [US2] Add a loader-backed OpenClaw smoke test that proves hooks are registered without claiming compaction veto/durable-before-return semantics in `packages/openclaw-memory-bridge/tests/plugin-loader.test.ts`
-
-**Checkpoint**: Capture remains opt-in and non-blocking. A hook records intent locally, but only a server response with an immutable citation changes its state to durable.
+- [ ] T028 [US2] Extend v1 evidence admission/status routes for safe idempotent capture lifecycle in `apps/web/app/api/v1/memory/evidence/route.ts` and `apps/web/app/api/v1/memory/evidence/[captureId]/route.ts`
+- [ ] T029 [US2] Implement portable encrypted bounded local outbox and deterministic capture-event construction in `packages/openclaw-memory-bridge/src/outbox.ts` and `packages/openclaw-memory-bridge/src/capture.ts`
+- [ ] T030 [US2] Implement registered service start/recovery/stop, cancellation, health reporting, and no-payload logging in `packages/openclaw-memory-bridge/src/service.ts`
+- [ ] T031 [US2] Register opt-in `before_compaction`, `after_compaction`, `agent_end`, `session_end`, gateway start, and shutdown hooks that only enqueue/reconcile state in `packages/openclaw-memory-bridge/src/hooks.ts`
+- [ ] T032 [US2] Wire bridge service and hook lifecycle in `packages/openclaw-memory-bridge/src/index.ts`
 
 ---
 
-## Phase 5: User Story 3 - Retrieve Cross-Agent Context Without Replacing Local Memory (Priority: P2)
+## Phase 5: User Story 3 — Deliberate shared external context (Priority: P2)
 
-**Goal**: Operators can enable a bounded external-memory capability for entitled cross-agent recall while OpenClaw's local memory remains an independent provider.
+**Goal**: Owners promote selected evidence into a shared destination and grant
+read access without agents creating grants or selecting shared writes.
 
-**Independent Test**: Save a cited decision using A, grant B read access in a fixture, search through B, and confirm B gets only the bounded citation while a local-memory search is neither replaced nor invoked by the bridge.
+**Independent Test**: Grant a second connection access to one curated record,
+recall its immutable citation, revoke the grant during output, and observe
+omission without disclosure.
 
 ### Tests for User Story 3
 
-- [ ] T042 [P] [US3] Add v2 recall tests for own/granted scopes, post-selection grant revocation, forgotten/archived records, and indistinguishable unauthorized omission in `apps/web/src/server/services/__tests__/agent-memory-recall.test.ts`
-- [ ] T043 [P] [US3] Add bridge tool and prompt-context tests for output bounds, citation rendering, prompt escaping, tool authority, fail-open retrieval, and no local-memory delegation in `packages/openclaw-memory-bridge/tests/tools-and-prompt-context.test.ts`
+- [ ] T033 [P] [US3] Add recall tests for `own`, `granted`, and `own_and_granted`, post-selection revocation, expired grants, and indistinguishable omissions in `apps/web/app/api/v1/memory/__tests__/recall-grants.test.ts`
+- [ ] T034 [P] [US3] Add management tests proving bearer keys cannot create grants/promotions and direct shared writes fail in `apps/web/app/api/api-keys/agent-memory/__tests__/grants-and-promotions.test.ts`
+- [ ] T035 [P] [US3] Add bridge tool/prompt tests for authority checks, bounded escaped citations, and denied save/forget approvals in `packages/openclaw-memory-bridge/tests/tools-and-prompt.test.ts`
 
 ### Implementation for User Story 3
 
-- [ ] T044 [US3] Implement server-derived own, granted, and own-and-granted candidate expansion with immediate pre-serialization authorization and backing-revision recheck in `apps/web/src/server/services/agent-memory.ts`
-- [ ] T045 [US3] Implement bounded v2 recall request/response handling that never accepts destination, grant, or agent filters in `apps/web/app/api/v2/memory/recall/route.ts`
-- [ ] T046 [US3] Declare static optional `next_wiki_memory_search`, `next_wiki_memory_save`, `next_wiki_memory_forget`, and `next_wiki_memory_status` tool contracts with manifest parity in `packages/openclaw-memory-bridge/openclaw.plugin.json` and `packages/openclaw-memory-bridge/src/index.ts`
-- [ ] T047 [US3] Implement optional external search and status tools with v2 scope defaults, safe schemas, bounded output, and immutable citations in `packages/openclaw-memory-bridge/src/tools.ts`
-- [ ] T048 [US3] Implement per-call allow-once/deny approval interception for model-initiated save and forget, preserving final server authorization, in `packages/openclaw-memory-bridge/src/hooks.ts` and `packages/openclaw-memory-bridge/src/tools.ts`
-- [ ] T049 [US3] Implement authorized second-phase prompt enrichment with tool-authority verification, post-await activity assertion, strict size/result budget, citation labels, and fail-open behavior in `packages/openclaw-memory-bridge/src/prompt-context.ts`
-- [ ] T050 [US3] Register prompt enrichment only when explicit conversation and prompt permissions are configured in `packages/openclaw-memory-bridge/src/hooks.ts` and `packages/openclaw-memory-bridge/src/config.ts`
-- [ ] T051 [US3] Add an integration test proving bridge search remains a separate tool and leaves a configured local OpenClaw memory provider untouched in `packages/openclaw-memory-bridge/tests/local-memory-coexistence.integration.test.ts`
-
-**Checkpoint**: External retrieval is a clearly labelled optional capability. It cannot leak a source through result shape and cannot become a hidden replacement for local memory.
+- [ ] T036 [US3] Extend `POST /api/v1/memory/recall` to derive sources from private destination plus active grants and recheck each output in `apps/web/app/api/v1/memory/recall/route.ts` and `apps/web/src/server/services/agent-memory.ts`
+- [ ] T037 [US3] Implement owner-only shared namespace/read-grant and curated-promotion routes in `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/read-grants/route.ts` and `apps/web/app/api/api-keys/agent-memory/promotions/route.ts`
+- [ ] T038 [US3] Add sharing/promotion controls to the existing User Center API-key management surface in `apps/web/src/components/user-center/ApiKeyList.tsx`, `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`, and `apps/web/src/components/user-center/AgentMemorySharing.tsx`
+- [ ] T039 [US3] Implement optional static OpenClaw tools, mutation approvals, and authorized second-phase prompt enrichment in `packages/openclaw-memory-bridge/src/tools.ts` and `packages/openclaw-memory-bridge/src/prompt-enrichment.ts`
 
 ---
 
-## Phase 6: User Story 4 - Govern Sharing, Privacy, and Recovery (Priority: P2)
+## Phase 6: User Story 4 — Keep local memory and migrate deliberately (Priority: P2)
 
-**Goal**: The owner deliberately manages connections, grants, retention, promotion, credential recovery, and audit, while bridge keys remain unable to alter policy.
+**Goal**: The bridge coexists with local memory; selected local data can be
+previewed/imported without deletion or server coupling to local paths.
 
-**Independent Test**: Grant B read access to one A destination, verify cited retrieval, revoke it before serialization, attempt an ungranted shared write, rotate/revoke credentials, and inspect redacted audit outcomes.
+**Independent Test**: Preview, approve a subset, interrupt/restart, and confirm
+the protected local ledger prevents duplicate imports while source files remain
+unchanged.
 
 ### Tests for User Story 4
 
-- [ ] T052 [P] [US4] Add service tests for active/expired/revoked read and write grants, destination disablement, rotation during pending delivery, and denied shared writes in `apps/web/src/server/services/__tests__/agent-memory-grants.test.ts`
-- [ ] T053 [P] [US4] Add owner management route tests for connection/credential/grant authorization and audit redaction in `apps/web/app/api/api-keys/agent-memory/__tests__/connections-and-grants.test.ts`
-- [ ] T054 [P] [US4] Add Playwright coverage for connection creation, confirmation-required revocation, grant management, and generic repair guidance in `apps/web/e2e/agent-memory-management.spec.ts`
+- [ ] T040 [P] [US4] Add bridge loader smoke coverage proving it is not a memory-slot owner and coexists with an independent provider in `packages/openclaw-memory-bridge/tests/plugin-loader.test.ts`
+- [ ] T041 [P] [US4] Add import preview, approval, ledger, resume, duplicate, and source-preservation tests in `packages/openclaw-memory-migrate/tests/migration-run.test.ts`
+- [ ] T042 [P] [US4] Add import package manifest/build/clean-install smoke coverage in `packages/openclaw-memory-migrate/tests/plugin-loader.test.ts`
 
 ### Implementation for User Story 4
 
-- [ ] T055 [US4] Implement owner-only read/write grant creation, listing, expiry, revocation, and same-owner enforcement in `apps/web/src/server/services/agent-memory-grants.ts`
-- [ ] T056 [US4] Implement RESTful owner grant sub-resources in `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/read-grants/route.ts` and `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/write-grants/route.ts`
-- [ ] T057 [US4] Implement owner connection, credential, and grant resource discovery for User Center in `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/route.ts` and `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/credentials/route.ts`
-- [ ] T058 [US4] Implement read/write grant dialogs, expiry/revocation controls, and explicit destructive-action confirmation in `apps/web/src/components/user-center/agent-memory-grants.tsx` and `apps/web/src/components/user-center/agent-memory-connections.tsx`
-- [ ] T059 [US4] Reauthorize active pending captures by connection/destination at delivery time and cancel/deny work for disabled or revoked connections in `apps/web/src/server/services/agent-memory-captures.ts` and `apps/web/src/server/jobs/agent-memory-capture.ts`
-- [ ] T060 [US4] Implement reversible forget/archive recall-state changes without source deletion in `apps/web/app/api/v2/memory/records/[memoryId]/route.ts` and `apps/web/src/server/services/agent-memory.ts`
-- [ ] T061 [US4] Implement owner-authorized promotion from supporting evidence to a newly attributable curated record and immutable evidence link in `apps/web/src/server/services/agent-memory.ts` and `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/promotions/route.ts`
-- [ ] T062 [US4] Implement retention/archival policy updates that preserve citations for recallable records and never create/expand grants in `apps/web/src/server/services/agent-memory-retention.ts` and `apps/web/app/api/api-keys/agent-memory/connections/[connectionId]/retention/route.ts`
-- [ ] T063 [US4] Add bounded connection/destination/correlation/operation/outcome audit writes and enforce audit/diagnostic field redaction in `apps/web/src/server/services/agent-memory-audit.ts` and `apps/web/src/server/services/agent-memory.ts`
-- [ ] T064 [US4] Add bridge credential-unavailable, connection-disabled, destination-disabled, and grant-revoked repair categories in `packages/openclaw-memory-bridge/src/diagnostics.ts` and `packages/openclaw-memory-bridge/src/api-client.ts`
-
-**Checkpoint**: Only the owner/session management surface changes sharing or recovery policy. Revocation races omit protected content, and every inspection surface is content- and secret-safe.
+- [ ] T043 [US4] Implement supported local-source discovery and preview-only reporting in `packages/openclaw-memory-migrate/src/discovery.ts` and `packages/openclaw-memory-migrate/src/preview.ts`
+- [ ] T044 [US4] Implement encrypted local import ledger, deterministic fingerprints/idempotency keys, approval state, restart resume, and no source deletion in `packages/openclaw-memory-migrate/src/ledger.ts` and `packages/openclaw-memory-migrate/src/run.ts`
+- [ ] T045 [US4] Implement generic private `origin=import` writes with no source-path metadata in `packages/openclaw-memory-migrate/src/api-client.ts` and `packages/openclaw-memory-migrate/src/index.ts`
+- [ ] T046 [US4] Add strict import utility manifest/configuration and one-time entry registration in `packages/openclaw-memory-migrate/openclaw.plugin.json` and `packages/openclaw-memory-migrate/src/config.ts`
 
 ---
 
-## Phase 7: User Story 5 - Migrate and Operate the Integration Safely (Priority: P3)
+## Phase 7: Guides, generated API docs, and release verification
 
-**Goal**: Operators can preview, explicitly approve, resume, and audit a one-time local-memory import without turning the continuous bridge into a synchronizer or modifying source files.
+**Purpose**: Publish safe setup guidance and prove packages, cache behaviour,
+and framework-generated API docs are complete.
 
-**Independent Test**: Preview selected local sources with no writes, approve an import, interrupt and resume it, then verify attributable idempotent records and reversible recall exclusion while original files remain unchanged.
-
-### Tests for User Story 5
-
-- [ ] T065 [P] [US5] Add source discovery/parser tests for duplicate, malformed, private, oversized, and excluded candidates in `packages/openclaw-memory-migrate/tests/source-discovery.test.ts`
-- [ ] T066 [P] [US5] Add preview, approval, interruption/resume, encrypted-ledger, and idempotent-import tests in `packages/openclaw-memory-migrate/tests/migration-run.test.ts`
-- [ ] T067 [P] [US5] Add package manifest and clean Gateway installation smoke coverage for the migration utility in `packages/openclaw-memory-migrate/tests/plugin-loader.test.ts`
-
-### Implementation for User Story 5
-
-- [ ] T068 [US5] Implement explicit source-selection, normalization, privacy classification, size limits, and preview-only discovery in `packages/openclaw-memory-migrate/src/source-discovery.ts` and `packages/openclaw-memory-migrate/src/preview.ts`
-- [ ] T069 [US5] Implement a local permission-protected encrypted import ledger with preview, approved, running, completed, failed, and cancelled state transitions in `packages/openclaw-memory-migrate/src/ledger.ts`
-- [ ] T070 [US5] Implement explicit approval, deterministic source fingerprint/idempotency key generation, resumable import, and no-source-delete guarantees in `packages/openclaw-memory-migrate/src/import-runner.ts`
-- [ ] T071 [US5] Implement generic v2 import writes with closed `origin=import` provenance and no arbitrary source-path metadata in `packages/openclaw-memory-migrate/src/api-client.ts` and `apps/web/src/server/services/agent-memory.ts`
-- [ ] T072 [US5] Implement the separate migration package manifest, strict configuration, and one-time command/entry registration in `packages/openclaw-memory-migrate/openclaw.plugin.json`, `packages/openclaw-memory-migrate/src/config.ts`, and `packages/openclaw-memory-migrate/src/index.ts`
-- [ ] T073 [US5] Document install, secret-reference configuration, preview, approval, resume, upgrade, rotation, disablement, incident recovery, and Gateway-process trust boundary in `docs/openclaw-memory-bridge.md`
-
-**Checkpoint**: Historical import is reviewable and resumable but not continuous; no secret appears in normal commands or examples, and no source file is changed.
-
----
-
-## Phase 8: Polish and Cross-Cutting Verification
-
-**Purpose**: Complete managed public documentation, targeted public-cache behavior, OpenAPI publication, package release gates, and whole-system validation.
-
-- [ ] T074 [P] Add a marker-owned `integrations/openclaw-memory-bridge` guidance page to the sample Wiki beside `integrations/hermes`, link it from the generic Agent Memory/help onboarding content, and use placeholders only in `apps/web/src/server/services/setup-sample-page-definitions.ts` and `apps/web/src/server/services/setup-sample-pages.ts`
-- [ ] T075 Implement per-page and help-navigation public cache tags plus successful-mutation-only invalidation in `apps/web/src/server/cache/public-cache.ts`, `apps/web/src/server/services/pages.ts`, and `apps/web/src/server/services/public-content.ts`
-- [ ] T076 [P] Add managed-guide collision, rerun, disabled/failed-update, targeted-invalidation, static/ISR, and help-navigation tests in `apps/web/src/server/services/__tests__/setup-sample-pages.test.ts` and `apps/web/e2e/openclaw-memory-guide.spec.ts`
-- [ ] T077 Regenerate and verify public API documentation from route schemas in `apps/web/public/openapi.json` and `docs/openapi.md`
-- [ ] T078 [P] Add bridge package build, archive, clean install, manifest validation, runtime inspection, minimum-version, and current-beta release gates in `.github/workflows/publish-openclaw-memory-bridge.yml`
-- [ ] T079 [P] Add migration package build, archive, clean install, manifest validation, runtime inspection, minimum-version, and current-beta release gates in `.github/workflows/publish-openclaw-memory-migrate.yml`
-- [ ] T080 Run focused server, Hermes regression, bridge, and migration test suites from `apps/web/package.json`, `packages/hermes-memory-provider/package.json`, `packages/openclaw-memory-bridge/package.json`, and `packages/openclaw-memory-migrate/package.json`
-- [ ] T081 Run lint, typecheck, and generated-OpenAPI validation; correct only feature-related failures using `package.json`
-- [ ] T082 Run `docker compose up -d --build` and execute the two-connection, grant/revocation, capture/restart, guide-cache, and migration-preview flows in `specs/040-openclaw-memory-integration/quickstart.md`
-- [ ] T083 Review all new logging, audits, diagnostics, fixtures, and package examples for credentials, raw memory bodies, prompts, tool output, query text, titles, and session-digest leakage in `apps/web/src/server/services/agent-memory-audit.ts` and `packages/openclaw-memory-bridge/src/redaction.ts`
+- [ ] T047 Create/rename the managed generic Agent Memory guide and add the managed OpenClaw bridge guide without live configuration in `apps/web/src/server/services/setup-sample-pages.ts`
+- [ ] T048 Add page-specific/help-navigation public cache tags and targeted invalidation for changed managed guide representations in `apps/web/src/server/cache/public-cache.ts`, `apps/web/src/server/services/pages.ts`, and `apps/web/src/server/services/setup-sample-pages.ts`
+- [ ] T049 [P] Add collision/rerun/disabled-update and targeted-cache-invalidation tests in `apps/web/src/server/services/setup-sample-pages.test.ts` and `apps/web/src/server/cache/public-cache.test.ts`
+- [ ] T050 Update managed help pages and adapter documentation for unified API, Hermes compatibility, OpenClaw permission/outbox boundary, sharing, import, and no retention configuration in `apps/web/src/server/services/setup-sample-pages.ts`, `packages/hermes-memory-provider/README.md`, `packages/openclaw-memory-bridge/README.md`, and `specs/040-openclaw-memory-integration/quickstart.md`
+- [ ] T051 Update shared schemas, literal schemas, and every affected route annotation; run `pnpm --filter @next-wiki/web openapi:generate` and commit generated output in `packages/shared/src/agent-memory.ts`, `apps/web/src/server/api/openapi-schemas.ts`, `apps/web/app/api/v1/memory/`, `apps/web/app/api/api-keys/agent-memory/`, and `apps/web/public/openapi.json`
+- [ ] T052 [P] Add bridge/importer build, archive, clean-install, manifest-validation, and runtime-inspection gates in `.github/workflows/publish-openclaw-memory-bridge.yml` and `.github/workflows/publish-openclaw-memory-migrate.yml`
+- [ ] T053 Add a browser/API end-to-end scenario for owner provisioning, three independent adapter credentials, private isolation, shared-promotion grant/revocation, and OpenAPI visibility in `apps/web/e2e/agent-memory-integrations.spec.ts`
+- [ ] T054 Run focused web/OpenAPI, Hermes, bridge/importer tests and `docker compose up -d --build`; record two-connection, capture-recovery, grant-revocation, guide-cache, and import-preview outcomes in `specs/040-openclaw-memory-integration/quickstart.md`
 
 ---
 
 ## Dependencies and Execution Order
 
-### Phase Dependencies
-
-- **Phase 1** has no dependency and its package/test setup tasks can run in parallel.
-- **Phase 2** depends on Phase 1. It blocks all user stories because it establishes the generic server contract, migration, authorization, and capture storage boundary.
-- **US1** depends on Phase 2 and is the MVP. It produces separately provisioned, private v2 connections.
-- **US2** depends on US1 because captures are attributed to an established connection and canonical Raw record service.
-- **US4** depends on Phase 2 and integrates with US1 connection resources. It can be worked in parallel with US2 after the shared service boundary is stable.
-- **US3** depends on US1 and the grant service from US4; it can develop bridge-only tool/prompt tests in parallel but must merge after v2 recall/grant semantics are available.
-- **US5** depends on US1's generic record/import contract, but its package and local-ledger work can proceed in parallel with US2/US4.
-- **Phase 8** depends on the desired stories and releaseable package artifacts.
-
-### User Story Dependencies
-
 ```text
-Setup
-  -> Foundation
-     -> US1 (private generic connection MVP)
-        -> US2 (asynchronous capture)
-        -> US4 (owner governance)
-             -> US3 (granted external recall)
-        -> US5 (separate migration)
-             \-> Polish and release verification
+Phase 1 (schemas/package layout)
+  -> Phase 2 (authorization + exactly one generated migration)
+    -> US1 (common private API)
+      -> US2 (non-blocking capture)
+      -> US3 (shared recall/promotion)
+      -> US4 (coexistence/import)
+    -> Phase 7 (guides, generated docs, release verification)
 ```
 
-### Parallel Opportunities
+- T006–T014 are mandatory before story implementation: an adapter cannot
+  compensate for missing server authorization or a second migration.
+- US2 starts after US1's evidence/API client are stable; US3 needs the Phase 2
+  grant/promotion primitives; US4 only needs the generic private write contract.
+- T051 is repeated whenever a route/schema changes and must pass before release.
 
-- T001–T004 can be split across package and test-fixture work.
-- After T005–T014, the test tasks for US1 (T015–T017) are independent; T018/T019 and T024/T025 are different-file implementation tracks.
-- After US1, server capture work (T029/T032–T035) and bridge outbox/hook work (T030/T031/T036–T041) can proceed in parallel.
-- After grant semantics are available, US3 server recall (T042/T044–T045) and bridge tools/prompt enrichment (T043/T046–T050) can proceed in parallel.
-- Within US4, management routes/services (T055–T057), UI (T058), retention/promotion (T060–T062), and audit diagnostics (T063–T064) can be split after their shared APIs stabilize.
-- Within US5, source discovery/preview (T065/T068), ledger/run state (T066/T069–T070), and package loader work (T067/T072) can be parallelized.
-- T074, T076, T078, and T079 modify independent guide/release files and can proceed in parallel after their prerequisites.
+## Parallel Opportunities
 
-## Parallel Example: User Story 2
-
-```text
-Task: "Add capture API and worker tests in apps/web/src/server/services/__tests__/agent-memory-captures.test.ts"
-Task: "Add outbox state-machine tests in packages/openclaw-memory-bridge/tests/outbox.test.ts"
-Task: "Add lifecycle-hook tests in packages/openclaw-memory-bridge/tests/hooks.test.ts"
-
-After the capture contract is fixed:
-Task: "Implement capture-ID-only server worker in apps/web/src/server/jobs/agent-memory-capture.ts"
-Task: "Implement private bridge outbox in packages/openclaw-memory-bridge/src/outbox.ts"
-```
+- T003–T005, T012–T014, and every `[P]` task may run concurrently once their
+  interfaces are stable.
+- Hermes regression, OpenClaw configuration, and owner-management route work
+  can proceed in parallel after Phase 2.
+- Guide/cache and package-release work can begin once public contracts settle;
+  T054 is the final verification step.
 
 ## Implementation Strategy
 
-### MVP First
+1. Complete Phases 1–2, including the single generated migration and one
+   generated OpenAPI/sync pass.
+2. Deliver US1 as the MVP: prove Hermes and OpenClaw use the same v1 API and
+   private server-selected destinations.
+3. Add capture, deliberate sharing, and local migration in order, with each
+   independently testable.
+4. Finish guides, targeted cache invalidation, OpenAPI generation, package
+   release checks, and Docker verification.
 
-1. Complete Phase 1 and Phase 2, including generated Drizzle migration verification.
-2. Complete US1 through T028.
-3. Validate two private connections, v2 record citations, no client-selected destinations, bridge status, and Hermes v1 compatibility.
-4. Demonstrate the MVP before enabling lifecycle capture, grants, prompt enrichment, or migration.
+## Notes
 
-### Incremental Delivery
-
-1. Add US2 to make selected lifecycle evidence resilient and non-blocking.
-2. Add US4 so owner-managed sharing, recovery, audit, retention, and promotion are explicit.
-3. Add US3 only after grant semantics exist; enable optional tools first, then authorized prompt enrichment.
-4. Add US5 as a deliberately separate one-time migration capability.
-5. Finish Phase 8 before publishing either package.
-
-## Format Validation
-
-- All 83 tasks use the required unchecked checkbox, sequential `T001`–`T083` identifiers, and an exact target path.
-- Every user-story task is labelled `[US1]` through `[US5]`; setup, foundational, and polish tasks have no story label.
-- `[P]` appears only on tasks deliberately designed for independent files or test tracks.
+- No task creates a retention-policy table or endpoint. Existing Wiki policy
+  governs canonical Raw content; only transient payloads have fixed bounds.
+- No task creates `/api/v2/memory`; v1 is extended additively for all adapters.
+- T007 produces the only migration after every schema edit is complete.

@@ -1,180 +1,200 @@
-# Data Model: OpenClaw Shared Memory Bridge
+# Data Model: Unified Agent Memory Integrations
 
-**Feature**: [OpenClaw Shared Memory Bridge](./spec.md)
-
-**Related contracts**: [v2 REST API](./contracts/agent-memory-v2-rest-api.md), [Owner Management](./contracts/agent-memory-management.md), and [OpenClaw Bridge](./contracts/openclaw-bridge-plugin.md)
+**Feature**: [Unified Agent Memory Integrations](./spec.md)
 
 ## Model Principles
 
-- Physical database names remain agent_memory_*. No table, enum, route, or audit origin is named for OpenClaw.
-- Restricted Raw pages and immutable page revisions are the only canonical bodies. Relational body-like fields are prohibited except an encrypted, TTL-bound capture envelope before an asynchronous Raw write.
-- A connection, not an API key, is the durable client identity. Credential rotation cannot change its destination, grants, records, or audit history.
-- Requests cannot select connection, destination, source destination, grant, or agent identity. Services resolve them from the authenticated key and server-side grant graph.
-- Existing v1 key bindings and records remain readable for Hermes. V2 connections are backfilled by an idempotent application service; all DDL is generated only by pnpm db:generate.
+- Physical names remain `agent_memory_*`; no persistent object is named for
+  Hermes or OpenClaw.
+- Restricted Raw pages and their immutable revisions are the sole canonical
+  bodies. Agent Memory rows are authorization, provenance, locator, and retry
+  projections only.
+- A connection is the durable identity. API keys are rotatable credentials and
+  adapter-supplied identity, path, destination, and share values are never
+  authorization inputs.
+- The 039 namespace, binding, record, evidence-link, and capture tables are
+  extended in place. No automatic conversion of existing data is required.
+- This feature introduces exactly one generated database migration after every
+  schema change below has been made. It does not introduce a long-term
+  retention-policy table.
 
 ## Existing Entities Reused
 
-### API Key
+### API Key and Audit Entry
 
-api_keys retains encrypted secret material, owner, role, scopes, revocation, and last-used time. Dedicated memory.read, memory.write, and memory.delete scopes remain necessary but do not select a destination. Browser sessions are never accepted by v2 agent routes.
+`api_keys` continues to hold encrypted credential material, ownership, scopes,
+revocation, and last-used time. Dedicated `memory.read`, `memory.write`, and
+`memory.delete` scopes remain the agent interface gate. Audit entries retain
+the generic `agent_memory` origin and only bounded operation, connection,
+destination, correlation, and outcome data—never source bodies, titles,
+queries, session/event digests, grants, or credentials.
 
 ### Raw Page and Page Revision
 
-Every memory, evidence, synthesis, and promotion record uses a restricted Raw page and the immutable revision created by the normal Raw writer. The stored reference is the source revision actually written, never a mutable latest revision. Citation construction verifies page, exact revision, Raw space, restricted visibility, and non-deleted state before returning anything.
+Every memory, evidence, and curated record is written through the normal Raw
+writer as a restricted page and immutable published revision. The record stores
+the exact source page and revision written. A missing, deleted, non-Raw,
+unpublished, or inaccessible source is unavailable; it never resolves to a
+different current page body.
 
-### API Audit Entry
+## Reused and Evolved Agent Memory Tables
 
-The existing agent_memory audit origin is retained. Its bounded metadata contains generic operation, outcome, connection ID, destination ID, and safe correlation ID. It never contains query text, body/title/excerpt, source or session digest, grant labels, credentials, HTTP error body, or transient input.
+### `agent_memory_namespaces` — Memory Destination
 
-## New and Evolved Persistent Entities
+Keep the existing table as the physical destination collection.
 
-### Agent Memory Destination
+| Field | Meaning after this feature | Invariant |
+|---|---|---|
+| `id` | Destination ID | Server-generated and never accepted from an adapter. |
+| `owner_user_id` | Destination owner | Must match every attached connection and grant in the initial release. |
+| `display_name` | Owner-visible label | Not returned as a source inventory to an agent. |
+| `role` (new) | `private` or `shared` | `shared` alone does not grant access. |
+| `state` | `active` or `disabled` | Disabled destinations reject operation and are omitted from recall. |
+| lifecycle timestamps | Destination state | Disabled state has a disabled timestamp. |
 
-The existing physical agent_memory_namespaces table is the logical destination collection. It gains a closed role and optional retention policy.
+Each connection has one private destination. Shared destinations contain only
+owner-curated records in this release; adapters do not choose them as a write
+target.
+
+### `agent_memory_key_bindings` — Connection Credential
+
+Keep the existing API-key primary key and legacy fields. Add nullable
+`connection_id`.
+
+| Field | Meaning | Invariant |
+|---|---|---|
+| `api_key_id` | Dedicated credential | One binding per key. |
+| `connection_id` (new) | Stable connection for new credentials | Required by application logic for a new connection; nullable only for 039 compatibility. |
+| `namespace_id`, `agent_identity` | Legacy resolver data | Existing Hermes bindings may use these unchanged; new calls resolve the connection first. |
+| `shared_by_owner` | Legacy audit/UI marker | Never treated as an authorization grant. |
+
+Credential rotation issues another binding for the same connection. Revoking one
+credential does not change record provenance, grants, or pending-capture
+identity.
+
+### `agent_memory_records` — Durable Record Projection
+
+Keep the table and canonical Raw references. Add connection and provenance
+fields rather than a second record table.
+
+| Field | Meaning | Invariant |
+|---|---|---|
+| `namespace_id` | Destination ID | Physical name remains for compatibility. |
+| `author_connection_id` (new) | Producing connection | Required for newly created connection-backed records. |
+| `agent_identity` | Legacy diagnostic identity | Retained for old rows and safe diagnostics; not an authorization selector. |
+| `record_type` | `memory` or `evidence` | Evidence is original selected source; memory is a durable assertion or curated copy. |
+| `origin` (new) | `explicit_save`, `automatic_capture`, `checkpoint`, `import`, or `promotion` | Closed provenance value chosen by the service path. |
+| `content_kind` (new) | `original` or `generated` | Lets recall/audit distinguish source material from synthesis. |
+| `page_id`, `current_revision_id` | Immutable Raw locator | `current_revision_id` keeps its physical name but is semantically the immutable source revision and is never updated. |
+| `idempotency_key` | Request/event identity | New records are unique by destination, connection, and key; legacy uniqueness stays for legacy rows. |
+| `state` | `active` or `forgotten` | Forget affects recall only; it does not delete the Raw source. |
+
+The generated migration may add a connection-scoped unique index alongside the
+existing legacy `(namespace_id, agent_identity, idempotency_key)` constraint.
+Existing rows are not backfilled; their existing unique constraint remains their
+idempotency boundary.
+
+### `agent_memory_evidence_links` — Provenance Link
+
+Reuse the existing source relationship. Preserve its physical columns
+`memory_record_id` and `evidence_record_id` for compatibility; conceptually it
+means derived record to supporting source. Extend the closed relation set for
+`promotion` and `import` when those flows create a link.
+
+Links are immutable. The service validates that both records are eligible and
+that curation does not itself expand read access to the source destination.
+
+### `agent_memory_captures` — Capture Delivery Ledger
+
+Reuse the existing capture table; it remains operational state, never a second
+canonical transcript store.
+
+| Field | Meaning | Invariant |
+|---|---|---|
+| `connection_id` (new) | Resolved producer connection | Worker authorization and retry identity use this value, not the original API key. |
+| `namespace_id` | Resolved private destination | The adapter never supplies it. |
+| `api_key_id` | Original/legacy credential attribution | Retained for legacy requests and audit; rotation does not decide replay authorization. |
+| `idempotency_key`, `payload_digest` | Retry identity | Same key with different normalized content is a safe conflict. |
+| `capture_kind` (new) | `turn`, `checkpoint`, `compaction`, or `session_end` | Supports both adapters without product-named columns. Imports create normal private records rather than capture deliveries. |
+| `payload_encrypted`, `payload_expires_at` (new) | Worker-only transient selected content | Deleted after durable completion, cancellation, or expiry. |
+| `session_digest` | One-way correlation | Never returned in a view or audit entry. |
+| `status`, `evidence_record_id`, `job_id`, `failure_code` | Delivery state | `durable` only after Raw revision and record mapping commit. |
+
+The background job contains the capture ID only. Row locks and conditional
+states serialize duplicate workers. A disabled/revoked connection or disabled
+destination stops a replay before a new canonical write.
+
+## New Tables
+
+### `agent_memory_connections`
+
+This is the stable product-neutral identity of an external agent installation.
 
 | Field | Description | Invariant |
 |---|---|---|
-| id | Stable destination ID | Server-generated UUID; never client input. |
-| owner_user_id | Owning Wiki user | Required; all connected/granted entities have this owner in v1. |
-| display_name | Owner-visible label | Bounded non-secret; never returned as agent source inventory. |
-| role | private or shared | Shared role alone grants nothing. |
-| state | active or disabled | Disabled hides records from recall and rejects operations. |
-| retention_policy_version | Owner-selected rule reference | Cannot create a grant or delete canonical evidence. |
-| timestamps | Creation/update/disable | disabled_at required when disabled. |
+| `id` | Stable connection ID | Server-generated; never adapter input. |
+| `owner_user_id` | Owner | Matches the private destination. |
+| `private_namespace_id` | Primary private destination | Required, unique for the initial release, and has `private` role. |
+| `agent_identity` | Bounded immutable diagnostic label | Never used to authorize a request. |
+| `display_name` | Owner-facing mutable label | Never used for routing. |
+| `state` | `active`, `disabled`, or `revoked` | Inactive connections deny agent API operations and pending replay. |
+| timestamps | Lifecycle | Preserve auditable creation/disable/revoke timing. |
 
-### Agent Memory Connection
+One connection can have multiple credentials over time. It has implicit access
+to its private destination and gains no other destination access unless a grant
+exists.
 
-agent_memory_connections becomes the stable provider-neutral identity of an external agent installation.
+### `agent_memory_destination_grants`
 
-| Field | Description | Invariant |
-|---|---|---|
-| id | Stable connection ID | Server-generated UUID, never bridge input. |
-| owner_user_id | Connection owner | Required; matches private destination and v1 grants. |
-| agent_identity | Immutable diagnostic identity | Normalized non-secret label, never an authorization parameter. |
-| display_name | Owner-facing name | Bounded/editable; never used for routing. |
-| private_destination_id | Primary private destination | Required and owned; has private role. |
-| state | active, disabled, or revoked | Inactive states deny agent API access. |
-| timestamps | Lifecycle | Terminal timestamps match state. |
-
-One connection has one primary private destination. It may receive grants to other destinations but cannot create or alter them itself.
-
-### Agent Memory Connection Credential
-
-Evolve agent_memory_key_bindings, or add a normalized successor with a compatibility adapter, so each dedicated API key maps to exactly one connection. The existing binding remains the v1 source until a v2 connection exists.
+This models deliberate cross-agent read access.
 
 | Field | Description | Invariant |
 |---|---|---|
-| api_key_id | Dedicated encrypted API key | One active connection binding per key. |
-| connection_id | Resolved stable connection | Required for v2; legacy rows are backfilled idempotently. |
-| issued_at, retired_at | Credential lifecycle | Rotation does not change connection identity. |
-| legacy namespace/identity | v1 compatibility fields | Never trusted by v2 after connection resolution. |
+| `id` | Grant ID | Server-generated. |
+| `grantee_connection_id` | Reader | Active connection owned by the same owner in this release. |
+| `destination_id` | Shared source destination | Never supplied by the agent request. |
+| `capability` | `read` | The initial release grants reads only; shared writes remain owner-side curation. |
+| `state` | `active`, `revoked`, or `expired` | Only active, unexpired grants expand recall. |
+| `granted_by_user_id` | Owner actor | Required provenance. |
+| `expires_at`, `created_at`, `revoked_at` | Grant lifecycle | Revocation is retained for audit. |
 
-### Agent Memory Destination Grant
+Unique `(grantee_connection_id, destination_id, capability)` prevents competing
+active grant state. The primary private destination is not represented as a
+grant.
 
-agent_memory_destination_grants represents every non-primary permission between a connection and destination.
+## Explicitly Not Added
 
-| Field | Description | Invariant |
-|---|---|---|
-| id | Stable grant ID | Server-generated UUID. |
-| connection_id | Grantee connection | Required; owner-aligned in v1. |
-| destination_id | Source/target destination | Never selected by an agent request. |
-| capability | read or write | Write is never inferred from read. |
-| state | active, revoked, or expired | Only active grants expand access. |
-| granted_by_user_id | Owner actor | Required audit/provenance link. |
-| timestamps | Lifecycle | Revoked/expired rows remain auditable. |
-
-Unique active capability grants prevent duplicate state. The primary private destination is implicit rather than represented as a grant.
-
-### Agent Memory Record
-
-Evolve agent_memory_records from namespace/agent-identity ownership to connection/destination ownership. Current v1 fields remain only during the compatibility period.
-
-| Field | Description | Invariant |
-|---|---|---|
-| id | Logical memory ID | Stable UUID; visible only through resolved access. |
-| destination_id | Containing destination | Derived write destination. |
-| author_connection_id | Producing connection | Required for v2 provenance and idempotency. |
-| source_page_id, source_revision_id | Canonical Raw locator | Required and immutable; never resolve a later body. |
-| record_role | evidence, synthesis, or curated | Curated requires owner promotion. |
-| nature | original or generated | Closed enum; sources remain attributable. |
-| origin | explicit_save, automatic_capture, checkpoint, import, or promotion | Bridge cannot use promotion. |
-| idempotency_key | Client event/request identity | Unique with destination and author connection. |
-| source/event digests | One-way correlation | Never returned or audited. |
-| recall_state | active, forgotten, or archived | State never deletes the Raw source. |
-| timestamps | Lifecycle | Every transition is attributable. |
-
-Current_revision_id becomes conceptually source_revision_id. Implementation must never overwrite it because Agent Memory bodies are append-only.
-
-### Agent Memory Provenance Link
-
-Evolve agent_memory_evidence_links into source-to-derived links while keeping a compatibility reader for v1 rows.
-
-| Field | Description | Invariant |
-|---|---|---|
-| source_record_id | Supporting evidence/record | Must be active and permitted. |
-| derived_record_id | Memory, synthesis, or curated record | Written atomically when required. |
-| relation | explicit_save, automatic_capture, checkpoint, import, or promotion | Immutable closed enum. |
-| created_at | Link creation time | Cannot mutate source content. |
-
-Cross-destination links are allowed only by owner-authorized promotion and do not expand recall access. A returned citation still undergoes its own recheck.
-
-### Agent Memory Capture Delivery
-
-Evolve agent_memory_captures into a capture ledger with protected transient input. It is not canonical memory content.
-
-| Field | Description | Invariant |
-|---|---|---|
-| id | Capture ID | Stable UUID returned to bridge. |
-| connection/destination IDs | Resolved producer/target | Derived server-side. |
-| idempotency key/payload digest | Retry identity | Mismatch is a safe conflict. |
-| session/event digest | One-way correlation | Excluded from views/audit. |
-| capture_kind | pre/post compaction, session end, or import | Determines allowed original/generated nature. |
-| payload_encrypted | Temporary normalized content | Worker-only AES-GCM; erased on durability/expiry. |
-| status | queued, running, durable, failed, or cancelled | Durable only after Raw revision and record commit. |
-| record/job/failure fields | Safe references | Job data contains no body. |
-| timestamps | Retry/TTL lifecycle | Cleanup removes only transient content. |
-
-~~~
-queued -> running -> durable
-   |        |          \
-   |        -> failed     -> terminal
-   -> cancelled
-failed -> queued          (same key and payload, within retry policy)
-~~~
-
-Row locking plus payload-digest comparison serializes duplicates. Credential rotation changes authentication, not capture identity; disabled/revoked connections deny replay.
-
-## Non-Persistent Bridge State
-
-### Continuous Bridge Outbox Entry
-
-The OpenClaw package stores a pending capture below the public OpenClaw state root. It is local operational state, not Wiki data and not a server schema.
-
-| Field | Purpose |
-|---|---|
-| idempotency key/payload digest | Duplicate detection and server replay. |
-| capture kind and correlation | Attribution without server identity selection. |
-| normalized selected content | Pending delivery only; never logged; retention bounded. |
-| state/attempt/next retry/safe error | Recovery, retry, and diagnostics. |
-
-Entries use atomic writes and Gateway-user-only file permissions. They are deleted after durable acknowledgement or terminal expiry; shutdown never deletes an unacknowledged entry.
-
-### Migration Ledger
-
-The separate migration package keeps a resumable local source-fingerprint ledger with preview, approved, running, completed, failed, and cancelled states. It records source digest and resulting generic record/capture ID, never deletes or changes OpenClaw source material.
+`agent_memory_retention_policies` is not part of this feature. The initial
+release relies on the existing Wiki retention policy for canonical Raw content,
+the record's reversible forget state for recall exclusion, and bounded cleanup
+of transient capture data. A future retention feature can add a separate policy
+aggregate only when it defines actual policy execution and history semantics.
 
 ## Authorization Resolution
 
-~~~
+```text
 Bearer API key
-  -> dedicated memory scope + active key
-  -> active Agent Memory Connection
-  -> implicit private destination + active read/write grants
-  -> operation-specific destination set
-  -> record/page/revision re-check
-  -> safe response or indistinguishable non-disclosure
-~~~
+  -> active memory scope + key binding
+  -> connection (or legacy 039 binding)
+  -> own private destination
+  -> active read grants when requested
+  -> record/source-revision recheck
+  -> bounded response or indistinguishable omission
+```
 
-- Recall own uses the private destination; granted uses active read grants; own_and_granted unions both. Input never contains a destination/key/agent filter.
-- Save, ordinary capture, and import target the private destination. Shared write requires a separate active server grant; no bridge option can select it.
-- Owner management owns connections, credentials, grants, retention, and promotion. Bearer keys can only use their scoped v2 memory resources.
+- Save and capture always use the resolved private destination.
+- Hermes uses own-destination recall by default.
+- OpenClaw's external-memory tool requests granted recall explicitly; its own
+  destination is included only when the operator enables that intent.
+- Browser/session owner routes create connections, credentials, shared
+  destinations, grants, and curation. Agent credentials cannot administer
+  those resources.
+
+## Single Migration Boundary
+
+All changes above are made together in
+`apps/web/src/server/db/schema/agent-memory.ts`, then generated once from the
+039 `0021` schema baseline by `pnpm db:generate`. The resulting single `0022`
+migration includes all enums, new tables, columns, constraints, and indexes.
+No SQL, journal entry, or snapshot is hand-written. It is acceptable for old
+039 rows to remain legacy rows rather than be data-migrated automatically.

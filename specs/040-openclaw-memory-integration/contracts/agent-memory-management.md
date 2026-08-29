@@ -1,51 +1,52 @@
-# Agent Memory Connection Management Contract
+# Agent Memory Owner Management Contract
 
-**Audience**: Authenticated next-wiki owners in User Center.
+**Feature**: 040-openclaw-memory-integration
+**Audience**: authenticated Wiki owners and administrators
 
-This is the canonical owner-management hierarchy. It is session-authenticated, owner-scoped, non-public, and distinct from the bearer-agent contract in [Agent Memory v2 REST API](./agent-memory-v2-rest-api.md).
+This management surface provisions generic memory connections for any adapter.
+It is deliberately separate from the bearer-agent API in
+[Unified Agent Memory REST Contract](./agent-memory-rest-api.md).
 
-## Resources
+## Connections and credentials
 
-~~~
-/api/api-keys/agent-memory/connections
-/api/api-keys/agent-memory/connections/{connectionId}
-/api/api-keys/agent-memory/connections/{connectionId}/credentials
-/api/api-keys/agent-memory/connections/{connectionId}/read-grants
-/api/api-keys/agent-memory/connections/{connectionId}/write-grants
-~~~
+A connection is an immutable server-generated identity with one owner, stable
+agent identity/display label, state (`active`, `disabled`, or `revoked`), and
+one private namespace. Credentials bind to a connection and may be rotated
+without changing it. The management UI/API may:
 
-All identifiers are UUIDs. Every route confirms the owner before reading/changing it. The agent bearer key cannot call these routes.
+- create a connection and its private namespace;
+- issue, rotate, or revoke credential bindings;
+- disable or revoke the connection; and
+- show safe activity/status metadata.
 
-## Connections
+It never asks the adapter to choose a namespace. A legacy 039 key binding can
+continue using its namespace while the owner provisions a connection-backed
+credential; no automatic conversion of existing records is required.
 
-GET connections returns owner-visible summaries: ID, display name, immutable agent identity, state, private destination label, active credential presence, and grant counts. It never returns a secret.
+## Shared recall
 
-POST connections creates one active connection and a new private destination. Input has bounded display name, immutable agent identity, and selected least-privilege scopes. The credential secret is revealed exactly once through the existing API-key reveal flow; it never appears in a URL, log, or audit body.
+Owners may create a namespace whose role is `shared`. A read grant connects one
+active shared namespace to one active connection and has state `active`,
+`revoked`, or `expired`, a grantor, and optional expiry. The management surface
+may create, enumerate for the owner, expire, or revoke a grant.
 
-PATCH connection may change owner-visible label or disable the connection. It cannot change immutable identity or silently rehome existing records. Disabled/revoked connections reject bearer operations and pending capture replay.
+Grant creation/revocation is owner/session-only. The agent API does not accept
+a destination/grant identifier. At recall time the service derives eligible
+sources from the caller's active grants and rechecks them before output. A
+revoked or unavailable source is omitted indistinguishably from a non-match.
 
-DELETE connection is a soft/revocation operation, not data deletion. It revokes active credentials and grants while retaining Raw records, revisions, and audit history.
+## Curated promotion
 
-## Credentials
+Private captures and explicit saves remain private. To share information, an
+owner chooses eligible private evidence and invokes promotion. The service
+creates a new, owner-attributed `curated` record in an owner-selected shared
+namespace and immutable links to supporting evidence. It does not mutate or
+automatically promote the original capture.
 
-POST credentials creates a credential resource bound to the same stable connection and may retire the prior credential after successful creation. This is rotation through a nested resource rather than an action-style URL. Pending client outbox deliveries retain their connection identity/idempotency key and are reauthorized by the replacement credential.
+## Excluded policy surface
 
-The endpoint accepts only memory scopes. It cannot widen generic page/Raw/admin permissions or bind the credential to another connection/destination.
-
-## Read and Write Grants
-
-GET read-grants and GET write-grants return owner-visible summaries for the connection. They may include destination labels because this is an owner session, never an agent response.
-
-POST read-grants creates an active read grant for an owner-owned source destination. POST write-grants is a separately reviewed action that creates a shared-write right. Inputs contain only a destination ID selected from the owner's eligible destinations and an optional bounded expiry. Neither grant creates a path prefix, public visibility, or arbitrary federation.
-
-DELETE an individual grant revokes it. Subsequent recall/writes are denied; already stored Raw evidence remains unchanged. The v2 service rechecks immediately before response serialization, making revocation races safe.
-
-## Owner Promotion and Retention
-
-Owner promotion from private evidence/synthesis to curated shared knowledge is an explicit authenticated resource operation. It creates a new attributable record/revision and immutable provenance link; it does not alter source text, automatically publish a page, or create a grant. Retention changes update recall eligibility/archival policy only and cannot remove source-revision citations from active recallable material.
-
-## UI Contract
-
-The User Center API Keys page presents one Agent Memory connections section: connection status, credential rotation, private destination, and dedicated read/write grant management. It uses existing modal/dialog primitives and server-backed URLs; no duplicate management page or browser alert is introduced. Destructive/revocation/share actions need an explicit confirmation dialog with generic non-secret copy.
-
-Every mutation emits safe agent_memory audit metadata and refreshes only authenticated views. It never affects public cache content.
+This feature adds no per-destination retention-policy management. Source
+content uses the Wiki's existing retention policy; expired local/temporary
+capture data is handled by fixed bounded TTL/capacity controls. Management
+operations and audit records must never store raw prompt, transcript, query,
+title, secret, or session digest.
