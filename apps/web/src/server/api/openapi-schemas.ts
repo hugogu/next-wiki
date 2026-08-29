@@ -1007,6 +1007,7 @@ export const PublicRevisionResource = PublicRevisionSummary.extend({
       sessionId: z.string().optional().describe('Ingestion session identifier of a raw chunk.'),
       command: z.string().optional().describe('Ingestion command of a raw chunk.'),
       occurredAt: z.string().datetime().optional().describe('Timestamp when the raw chunk was captured (ISO 8601).'),
+      apiKeyName: z.string().min(1).max(200).optional().describe('Server-attributed API key label, exposed only on admin Raw provenance.'),
     })
     .nullable()
     .optional()
