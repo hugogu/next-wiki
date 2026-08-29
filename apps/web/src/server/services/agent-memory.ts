@@ -50,7 +50,7 @@ function memoryPath(
   // UUID namespace folder or allowing path separators into the Raw tree.
   const pathSegment = (value: string): string => value
     .normalize('NFKC')
-    .toLocaleLowerCase()
+    .toLowerCase()
     .replace(/[^a-z0-9_-]+/gu, '-')
     .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gu, '')
     .slice(0, 80);

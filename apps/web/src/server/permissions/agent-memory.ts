@@ -33,19 +33,12 @@ export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: Agen
 
   const binding = await db.query.agentMemoryKeyBindings.findFirst({
     where: eq(schema.agentMemoryKeyBindings.apiKeyId, ctx.actor.keyId),
-    with: { namespace: true },
+    with: {
+      key: { columns: { name: true, userId: true } },
+      namespace: true,
+    },
   });
-  if (!binding || binding.namespace.ownerUserId !== ctx.actor.userId) {
-    throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to an active Agent memory destination');
-  }
-  const key = await db.query.apiKeys.findFirst({
-    where: and(
-      eq(schema.apiKeys.id, ctx.actor.keyId),
-      eq(schema.apiKeys.userId, ctx.actor.userId),
-    ),
-    columns: { name: true },
-  });
-  if (!key) {
+  if (!binding || !binding.key || binding.key.userId !== ctx.actor.userId || binding.namespace.ownerUserId !== ctx.actor.userId) {
     throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to an active Agent memory destination');
   }
   if (binding.namespace.state !== 'active') {
@@ -54,7 +47,7 @@ export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: Agen
 
   return {
     keyId: ctx.actor.keyId,
-    keyName: key.name,
+    keyName: binding.key.name,
     userId: ctx.actor.userId,
     namespaceId: binding.namespaceId,
     namespaceName: binding.namespace.displayName,
