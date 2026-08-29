@@ -111,7 +111,7 @@ archive shape:
 pnpm --filter @next-wiki/openclaw-memory-wiki build
 npm pack --pack-destination /tmp --workspace @next-wiki/openclaw-memory-wiki
 openclaw plugins install npm-pack:/tmp/<packed-plugin>.tgz --force
-openclaw plugins inspect next-wiki --runtime --json
+openclaw plugins inspect next-wiki-memory-wiki --runtime --json
 openclaw skills list
 ```
 
@@ -129,14 +129,14 @@ placeholder references, not literal key values:
 {
   plugins: {
     entries: {
-      "next-wiki": {
+      "next-wiki-memory-wiki": {
         enabled: true,
         config: {
-          apiBaseUrl: "https://wiki.example.test/api/v1",
-          mirrorApiKey: { "$secret": "openclaw/next-wiki/mirror" },
-          knowledgeSearchApiKey: { "$secret": "openclaw/next-wiki/search" },
-          vault: { path: "/absolute/path/to/fixture-vault" },
-          sync: { intervalSeconds: 60, maxConcurrent: 1, maxRetries: 8 }
+          baseUrl: "https://wiki.example.test",
+          mirrorApiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_MIRROR_KEY" },
+          knowledgeApiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_SEARCH_KEY" },
+          vaultPath: "/absolute/path/to/fixture-vault",
+          syncIntervalMinutes: 1
         }
       }
     }
@@ -148,7 +148,7 @@ Restart or reload the Gateway as required by the selected OpenClaw release,
 then run:
 
 ```bash
-openclaw plugins inspect next-wiki --runtime --json
+openclaw plugins inspect next-wiki-memory-wiki --runtime --json
 openclaw agent --message "Use next-wiki status and report only its safe state."
 ```
 

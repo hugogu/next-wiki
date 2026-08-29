@@ -2,6 +2,7 @@ import { relations } from 'drizzle-orm';
 import { boolean, index, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 import {
   agentMemoryCaptureStatusEnum,
+  agentMemoryBindingPurposeEnum,
   agentMemoryEvidenceRelationEnum,
   agentMemoryNamespaceStateEnum,
   agentMemoryRecordStateEnum,
@@ -31,6 +32,7 @@ export const agentMemoryKeyBindings = pgTable(
     apiKeyId: uuid('api_key_id').primaryKey().references(() => apiKeys.id, { onDelete: 'cascade' }),
     namespaceId: uuid('namespace_id').notNull().references(() => agentMemoryNamespaces.id, { onDelete: 'restrict' }),
     agentIdentity: text('agent_identity').notNull().default('hermes'),
+    bindingPurpose: agentMemoryBindingPurposeEnum('binding_purpose').notNull().default('memory_provider'),
     sharedByOwner: boolean('shared_by_owner').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },

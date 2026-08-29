@@ -1,0 +1,9 @@
+src/
+tests/
+coverage/
+*.ts
+*.map
+*.log
+.env*
+.gitignore
+.npmignore

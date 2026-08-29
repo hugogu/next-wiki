@@ -100,7 +100,11 @@ export function withApiAudit(handler: RouteHandler): RouteHandler {
 
       const duration = Date.now() - start;
       const status = response.status;
-      const errorMessage = status >= 400 ? await extractErrorMessage(response) : null;
+      // Agent Memory requests may carry Markdown, source paths, queries, and
+      // other user-controlled knowledge identifiers. Keep their audit entry
+      // operational only; endpoint/status/key/timing are enough for tracing
+      // and avoid copying protected request-derived text into the audit log.
+      const errorMessage = status >= 400 && origin !== 'agent_memory' ? await extractErrorMessage(response) : null;
 
       try {
         await audit.writeEntry({
