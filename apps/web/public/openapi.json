@@ -5934,6 +5934,12 @@
                 "type": "string",
                 "format": "date-time",
                 "description": "Timestamp when the raw chunk was captured (ISO 8601)."
+              },
+              "apiKeyName": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "description": "Server-attributed API key label, exposed only on admin Raw provenance."
               }
             },
             "description": "Immutable raw-source metadata of a raw create/append chunk."
