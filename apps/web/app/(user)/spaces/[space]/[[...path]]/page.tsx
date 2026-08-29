@@ -78,12 +78,15 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
 
   const bodyHtml = injectHeadingIds(renderMarkdown(page.contentSource ?? '').html);
   const headings = extractHeadings(bodyHtml);
-  const createdAt = new Date(page.createdAt);
   const latestRevision = page.latestRevision;
   // Raw entries dispatch their renderer by content type from the current
   // revision (which also carries the original-bytes reference for viewers).
   const rawRevision = space.kind === 'raw'
     ? await publicContent.getRevision({ actor }, page.id, latestRevision?.version ?? page.publishedRevision?.version ?? 1)
+    : null;
+  const createdAt = new Date(rawRevision?.createdAt ?? page.createdAt);
+  const rawAuthorName = rawRevision?.source && typeof rawRevision.source.apiKeyName === 'string'
+    ? rawRevision.source.apiKeyName
     : null;
   // 023: dispatch to the shared conversation view for the built-in
   // Conversation category. The snapshot is read from the current published
@@ -178,8 +181,8 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
               <AttachmentsPanel pageId={page.id} canManage={pageContext.canEdit} />
             </div>
             <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
-              {t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
-              {t('page.read.authorSuffix', { name: page.author.displayName ?? t('common.unknownAuthor') })}
+              {t('page.read.createdOn', { date: formatter.dateTime(createdAt, space.kind === 'raw' ? 'shortWithSeconds' : 'short') })}
+              {t('page.read.authorSuffix', { name: rawAuthorName ?? page.author.displayName ?? t('common.unknownAuthor') })}
             </footer>
           </article>
           <PageSidebar

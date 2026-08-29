@@ -8,6 +8,7 @@ export type AgentMemoryScope = 'memory.read' | 'memory.write' | 'memory.delete';
 
 export type AgentMemoryAccess = {
   keyId: string;
+  keyName: string;
   userId: string;
   namespaceId: string;
   namespaceName: string;
@@ -37,12 +38,23 @@ export async function requireAgentMemoryAccess(ctx: PermCtx, requiredScope: Agen
   if (!binding || binding.namespace.ownerUserId !== ctx.actor.userId) {
     throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to an active Agent memory destination');
   }
+  const key = await db.query.apiKeys.findFirst({
+    where: and(
+      eq(schema.apiKeys.id, ctx.actor.keyId),
+      eq(schema.apiKeys.userId, ctx.actor.userId),
+    ),
+    columns: { name: true },
+  });
+  if (!key) {
+    throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to an active Agent memory destination');
+  }
   if (binding.namespace.state !== 'active') {
     throw new DomainError('AGENT_MEMORY_NAMESPACE_UNAVAILABLE', 'The bound Agent memory destination is unavailable');
   }
 
   return {
     keyId: ctx.actor.keyId,
+    keyName: key.name,
     userId: ctx.actor.userId,
     namespaceId: binding.namespaceId,
     namespaceName: binding.namespace.displayName,

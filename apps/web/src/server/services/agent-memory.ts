@@ -37,9 +37,26 @@ function memoryRawContext(ctx: PermCtx): PermCtx {
   return { actor: { ...ctx.actor, scopes } };
 }
 
-function memoryPath(namespaceId: string, agentIdentity: string, type: 'memory' | 'evidence', idempotencyKey: string): string {
-  const keyDigest = createHash('sha256').update(`${agentIdentity}:${type}:${idempotencyKey}`).digest('hex');
-  return `${MEMORY_PAGE_PREFIX}/${namespaceId}/${type}/${keyDigest}`;
+function memoryPath(
+  namespaceId: string,
+  agentIdentity: string,
+  keyName: string,
+  type: 'memory' | 'evidence',
+  idempotencyKey: string,
+): string {
+  // Keep the tree useful to humans while retaining namespace isolation in the
+  // deterministic leaf digest. Agent identities are user-configured strings,
+  // so normalize them to the lowercase path grammar instead of exposing a
+  // UUID namespace folder or allowing path separators into the Raw tree.
+  const pathSegment = (value: string): string => value
+    .normalize('NFKC')
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9_-]+/gu, '-')
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gu, '')
+    .slice(0, 80);
+  const folder = pathSegment(agentIdentity) || pathSegment(keyName) || 'agent';
+  const keyDigest = createHash('sha256').update(`${namespaceId}:${agentIdentity}:${type}:${idempotencyKey}`).digest('hex');
+  return `${MEMORY_PAGE_PREFIX}/${folder}/${type}/${keyDigest}`;
 }
 
 function evidencePayloadDigest(input: Pick<AgentMemoryEvidenceInput, 'sessionDigest' | 'checkpoint' | 'messages'>): string {
@@ -71,6 +88,17 @@ async function assertRawMemoryReady(): Promise<void> {
 
 function excerpt(content: string): string {
   return content.replace(/^---[\s\S]*?---\s*/u, '').replace(/\s+/gu, ' ').trim().slice(0, MAX_EXCERPT_LENGTH);
+}
+
+function evidenceTitle(checkpoint: boolean, messages: AgentMemoryEvidenceInput['messages'], createdAt = new Date()): string {
+  const prefix = checkpoint ? 'Agent checkpoint' : 'Agent conversation';
+  const firstMessage = messages.find((message) => message.role === 'user') ?? messages[0];
+  const topic = firstMessage?.content
+    .replace(/[\u0000-\u001f\u007f]/gu, ' ')
+    .replace(/\s+/gu, ' ')
+    .trim();
+  const timestamp = createdAt.toISOString().slice(0, 19).replace('T', ' ');
+  return `${prefix} · ${timestamp} UTC${topic ? ` · ${topic}` : ''}`.slice(0, 160);
 }
 
 function lexicalScore(query: string, content: string, title: string): number {
@@ -156,7 +184,10 @@ async function assertMatchingIdempotentRecord(
     db.query.pages.findFirst({ where: eq(schema.pages.id, existing.pageId) }),
     db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, existing.currentRevisionId) }),
   ]);
-  if (!page || !revision || existing.recordType !== input.type || page.title !== input.title) {
+  // Evidence titles are server-generated presentation metadata. A retry can
+  // legitimately arrive at a different second, so content/type remain the
+  // idempotency contract while the original winner's title is preserved.
+  if (!page || !revision || existing.recordType !== input.type || (input.type === 'memory' && page.title !== input.title)) {
     throw new DomainError('CONFLICT', 'The idempotency key is already associated with different memory content');
   }
   const source = await readMarkdownWithFallback(revision);
@@ -210,7 +241,7 @@ async function createRecord(
   try {
     const categoryId = await ensureAgentMemoryCategory();
     const page = await rawEntries.createEntry(memoryRawContext(ctx), {
-      path: memoryPath(access.namespaceId, access.agentIdentity, input.type, input.idempotencyKey),
+      path: memoryPath(access.namespaceId, access.agentIdentity, access.keyName, input.type, input.idempotencyKey),
       title: input.title,
       inputKind: input.type === 'evidence' ? 'chat-transcript' : 'manual-note',
       source: {
@@ -219,6 +250,7 @@ async function createRecord(
       },
       additionalSourceMetadata: {
         agentIdentity: access.agentIdentity,
+        apiKeyName: access.keyName,
         ...(input.tags?.length ? { tags: input.tags } : {}),
       },
       content: input.content,
@@ -379,7 +411,7 @@ export async function createEvidenceRecord(
   return createRecord(ctx, access, {
     type: 'evidence',
     idempotencyKey: input.idempotencyKey,
-    title: input.checkpoint ? 'Agent checkpoint evidence' : 'Agent conversation evidence',
+    title: evidenceTitle(input.checkpoint, input.messages),
     content,
     sourceSessionDigest: input.sessionDigest,
   });

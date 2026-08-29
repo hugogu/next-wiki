@@ -8,6 +8,7 @@ describe('registered i18n formats', () => {
     const chinese = createAppFormatter('zh');
 
     expect(english.dateTime(date, 'short')).toContain('Jan');
+    expect(english.dateTime(new Date('2026-01-02T03:04:05.000Z'), 'shortWithSeconds')).toContain('05');
     expect(chinese.dateTime(date, 'short')).not.toBe(english.dateTime(date, 'short'));
     expect(english.number(12345, 'integer')).toContain('12');
     expect(english.relativeTime(new Date(Date.now() - 60_000), { now: new Date() })).toMatch(/minute|second/);

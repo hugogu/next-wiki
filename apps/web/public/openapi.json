@@ -21413,6 +21413,192 @@
         }
       }
     },
+    "/settings/spaces/{spaceId}/sample-pages": {
+      "post": {
+        "operationId": "post-settings-spaces-{spaceId}-sample-pages",
+        "summary": "Re-run managed example-page initialization for the built-in Wiki space.",
+        "description": "",
+        "tags": [
+          "Settings"
+        ],
+        "parameters": [
+          {
+            "name": "spaceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: spaceId"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "oneOf": [
+                        {
+                          "type": "string",
+                          "enum": [
+                            "completed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "failed"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "skipped"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "not_started"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "partial"
+                          ]
+                        }
+                      ]
+                    },
+                    "pages": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "status": {
+                            "oneOf": [
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "failed"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "skipped"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "created"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "updated"
+                                ]
+                              },
+                              {
+                                "type": "string",
+                                "enum": [
+                                  "collision"
+                                ]
+                              }
+                            ]
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "pageId": {
+                            "oneOf": [
+                              {
+                                "type": "object"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          },
+                          "reason": {
+                            "oneOf": [
+                              {
+                                "type": "object"
+                              },
+                              {
+                                "type": "string"
+                              }
+                            ]
+                          }
+                        },
+                        "required": [
+                          "status",
+                          "path"
+                        ]
+                      }
+                    },
+                    "nextStep": {
+                      "oneOf": [
+                        {
+                          "type": "object"
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "writing_mode"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "summary"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "account"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "ai"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "sample_pages"
+                          ]
+                        },
+                        {
+                          "type": "string",
+                          "enum": [
+                            "closed"
+                          ]
+                        }
+                      ]
+                    }
+                  },
+                  "required": [
+                    "status",
+                    "pages"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/settings/writing-mode/jobs/{id}": {
       "get": {
         "operationId": "get-settings-writing-mode-jobs-{id}",
