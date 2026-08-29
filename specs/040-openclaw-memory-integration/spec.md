@@ -206,12 +206,14 @@ file or Wiki record changes until approval.
   clearly labelled, explicitly enabled, bounded, and safe to omit.
 - **FR-014**: Automatic OpenClaw capture MUST be disabled by default. When
   enabled, it MUST use only supported lifecycle observations, retain pending
-  content locally only within bounded recovery limits, and perform a bounded
-  best-effort shutdown flush.
-- **FR-015**: The system MUST apply bounded lifetime and access controls to
-  transient capture payloads and local delivery state. Destination-specific
-  long-term retention or archival policy management is out of scope for this
-  feature; canonical content follows the Wiki's existing retention rules.
+  content locally only within the recovery limits defined in Bounded Limits,
+  and perform a best-effort shutdown flush within the same local delivery
+  budget.
+- **FR-015**: The system MUST apply the lifetime and access controls defined
+  in Bounded Limits to transient capture payloads and local delivery state.
+  Destination-specific long-term retention or archival policy management is
+  out of scope for this feature; canonical content follows the Wiki's
+  existing retention rules.
 - **FR-016**: A local-memory import capability, if enabled, MUST be separate
   from continuous capture, require explicit source selection and approval,
   support safe resume, preserve provenance, and never remove or alter source
@@ -224,6 +226,21 @@ file or Wiki record changes until approval.
   for OpenClaw alongside generic Agent Memory guidance. Guidance MUST contain
   placeholders and safe operating instructions only; live connection state,
   destinations, agent names, and credentials remain authenticated.
+
+### Bounded Limits
+
+- **Local outbox** (OpenClaw bridge): at most 500 pending entries per
+  connection, each at most 256 KB; an entry not durably delivered within 7
+  days is dropped and only its count is logged, never its content.
+- **Local delivery budget**: a lifecycle hook MUST persist its local outbox
+  entry within 200 ms so a conversation turn or compaction is never
+  network-bound.
+- **Delivery retry**: failed delivery attempts back off exponentially,
+  starting at 5 seconds and capped at 10 minutes between attempts, until the
+  7-day outbox TTL above is reached.
+- **Server-side transient capture envelope**: at most 1 MB encrypted payload,
+  expiring 24 hours after admission; deleted immediately on durable
+  completion, cancellation, or expiry.
 
 ### Public Content Delivery
 
@@ -265,8 +282,8 @@ file or Wiki record changes until approval.
   produces no protected record metadata in the caller's response in all
   authorization regression tests.
 - **SC-004**: A normal OpenClaw completed turn remains independent of remote
-  Wiki availability; its capture intent is recorded locally within the
-  configured bounded delivery budget.
+  Wiki availability; its capture intent is recorded locally within the 200 ms
+  local delivery budget defined in Bounded Limits.
 - **SC-005**: Generated API documentation contains every Agent Memory route
   and its request/response schemas, and the documentation-sync test passes in
   continuous integration.

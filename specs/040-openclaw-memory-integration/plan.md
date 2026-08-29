@@ -25,8 +25,8 @@ framework OpenAPI annotations, and generated OpenAPI documentation together.
 **Testing**: Vitest/route and service tests, Drizzle generation verification, Hermes regression tests, OpenClaw loader-backed package smoke tests, Docker Compose integration flows
 **Target Platform**: Next Wiki server and separately installed OpenClaw Gateway plugin
 **Project Type**: Monorepo web application with shared packages and adapter packages
-**Performance Goals**: bounded recall returns within 2 seconds under normal service conditions; hooks enqueue locally without conversation-path network waits; server capture reports durable only after canonical persistence
-**Constraints**: existing `/api/v1/memory` remains the only agent API base; backend API responses are no-store; no agent-selected destination/grant; no raw payload in audit/job metadata; all schema changes result in exactly one generated migration; no automatic legacy-row migration
+**Performance Goals**: bounded recall returns within 2 seconds under normal service conditions; hooks persist a local outbox entry within the 200 ms local delivery budget (spec.md Bounded Limits) without conversation-path network waits; server capture reports durable only after canonical persistence
+**Constraints**: existing `/api/v1/memory` remains the only agent API base; backend API responses are no-store; no agent-selected destination/grant; no raw payload in audit/job metadata; all schema changes result in exactly one generated migration; no automatic legacy-row migration; local outbox capped at 500 entries/256 KB each with a 7-day TTL and exponential backoff (5s–10min); server-side capture envelope capped at 1 MB with a 24-hour TTL (spec.md Bounded Limits is authoritative for all numeric values)
 **Scale/Scope**: multiple independently provisioned agents per Wiki owner; private memory by default; owner-created shared recall and promotion; one optional Hermes adapter and one optional OpenClaw bridge
 
 ## Constitution Check

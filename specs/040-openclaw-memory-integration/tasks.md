@@ -37,10 +37,10 @@ the Drizzle journal, or snapshots.
 - [ ] T008 Implement credential resolution as connection-first authorization with an explicit 039 legacy key-binding fallback in `apps/web/src/server/permissions/agent-memory.ts`
 - [ ] T009 Implement connection/private-destination, record provenance, immutable citation, and idempotency primitives without canonical text in Agent Memory tables in `apps/web/src/server/services/agent-memory.ts`
 - [ ] T010 Implement owner-only connection lifecycle, credential rotation, shared namespace/read grant, and curated-promotion services in `apps/web/src/server/services/agent-memory-management.ts`
-- [ ] T011 Implement capture admission, encrypted bounded transient envelopes, reauthorization, conflict detection, and capture-ID-only pg-boss delivery in `apps/web/src/server/services/agent-memory-captures.ts` and `apps/web/src/server/jobs/agent-memory-capture.ts`
+- [ ] T011 Implement capture admission, encrypted transient envelopes bounded to the spec.md Bounded Limits (1 MB payload, 24-hour TTL), reauthorization, conflict detection, and capture-ID-only pg-boss delivery in `apps/web/src/server/services/agent-memory-captures.ts` and `apps/web/src/server/jobs/agent-memory-capture.ts`
 - [ ] T012 [P] Add service tests for legacy fallback, disabled/revoked connection, two-connection isolation, private-destination selection, immutable Raw citations, and idempotency in `apps/web/src/server/services/__tests__/agent-memory.test.ts`
 - [ ] T013 [P] Add service tests for grant lifecycle, promotion attribution/evidence links, and state recheck before output in `apps/web/src/server/services/__tests__/agent-memory-management.test.ts`
-- [ ] T014 [P] Add capture tests for duplicate/concurrent submissions, payload conflict, durable-after-Raw, expiry, credential rotation, connection revocation, and capture-ID-only jobs in `apps/web/src/server/services/__tests__/agent-memory-captures.test.ts` and `apps/web/src/server/jobs/agent-memory-capture.test.ts`
+- [ ] T014 [P] Add capture tests for duplicate/concurrent submissions (100 consecutive retry simulations per SC-002, asserting at most one durable record), payload conflict, durable-after-Raw, expiry, credential rotation, connection revocation, and capture-ID-only jobs in `apps/web/src/server/services/__tests__/agent-memory-captures.test.ts` and `apps/web/src/server/jobs/agent-memory-capture.test.ts`
 
 **Checkpoint**: adapters resolve principal and destination server-side; legacy
 Hermes remains reachable; exactly one generated migration covers all 040 schema
@@ -60,7 +60,7 @@ private destination.
 ### Tests for User Story 1
 
 - [ ] T015 [P] [US1] Add route tests for safe connection discovery, private record creation, legacy request compatibility, rejected destination/identity fields, and no-store headers in `apps/web/app/api/v1/memory/__tests__/connection-and-records.test.ts`
-- [ ] T016 [P] [US1] Add management route tests for connection creation/disable and credential rotation access control in `apps/web/app/api/api-keys/agent-memory/__tests__/connections.test.ts`
+- [ ] T016 [P] [US1] Add management route tests for connection creation/disable and credential rotation access control, asserting SC-006 that a rotated or disabled credential's plaintext value never reappears in a later response, in `apps/web/app/api/api-keys/agent-memory/__tests__/connections.test.ts`
 - [ ] T017 [P] [US1] Add Hermes regressions for unchanged v1 save/recall/evidence semantics and additive capability discovery in `packages/hermes-memory-provider/tests/test_provider.py`, `packages/hermes-memory-provider/tests/test_api_client.py`, and `packages/hermes-memory-provider/tests/test_capture_lifecycle.py`
 
 ### Implementation for User Story 1
@@ -89,14 +89,14 @@ restart Gateway/API, and verify exactly one cited durable capture.
 
 ### Tests for User Story 2
 
-- [ ] T025 [P] [US2] Add local outbox tests for deterministic IDs, encryption/permission checks, retry/backoff, expiry/capacity, recovery, cancellation, and acknowledgement in `packages/openclaw-memory-bridge/tests/outbox.test.ts`
-- [ ] T026 [P] [US2] Add hook/service tests proving observation hooks enqueue without network waits and start/stop recovery remains bounded in `packages/openclaw-memory-bridge/tests/capture-lifecycle.test.ts`
-- [ ] T027 [P] [US2] Add server route tests for capture status isolation, durable citations, safe diagnostics, and audit redaction in `apps/web/app/api/v1/memory/__tests__/evidence-and-diagnostics.test.ts`
+- [ ] T025 [P] [US2] Add local outbox tests for deterministic IDs, encryption/permission checks, retry/backoff (5s–10min exponential), the spec.md Bounded Limits (500 entries/256 KB per connection, 7-day TTL), recovery, cancellation, and acknowledgement in `packages/openclaw-memory-bridge/tests/outbox.test.ts`
+- [ ] T026 [P] [US2] Add hook/service tests proving observation hooks enqueue without network waits, safely skip a lifecycle event that lacks required content/correlation fields for the configured capture mode, and start/stop recovery remains bounded in `packages/openclaw-memory-bridge/tests/capture-lifecycle.test.ts`
+- [ ] T027 [P] [US2] Add server route tests for capture status isolation, durable citations, safe diagnostics, and audit redaction, including SC-006 coverage that a connection's diagnostics response never contains its own or another connection's credential value, in `apps/web/app/api/v1/memory/__tests__/evidence-and-diagnostics.test.ts`
 
 ### Implementation for User Story 2
 
 - [ ] T028 [US2] Extend v1 evidence admission/status routes for safe idempotent capture lifecycle in `apps/web/app/api/v1/memory/evidence/route.ts` and `apps/web/app/api/v1/memory/evidence/[captureId]/route.ts`
-- [ ] T029 [US2] Implement portable encrypted bounded local outbox and deterministic capture-event construction in `packages/openclaw-memory-bridge/src/outbox.ts` and `packages/openclaw-memory-bridge/src/capture.ts`
+- [ ] T029 [US2] Implement portable encrypted local outbox bounded to the spec.md Bounded Limits (500 entries/256 KB per connection, 7-day TTL, 5s–10min exponential backoff, 200 ms local delivery budget) and deterministic capture-event construction in `packages/openclaw-memory-bridge/src/outbox.ts` and `packages/openclaw-memory-bridge/src/capture.ts`
 - [ ] T030 [US2] Implement registered service start/recovery/stop, cancellation, health reporting, and no-payload logging in `packages/openclaw-memory-bridge/src/service.ts`
 - [ ] T031 [US2] Register opt-in `before_compaction`, `after_compaction`, `agent_end`, `session_end`, gateway start, and shutdown hooks that only enqueue/reconcile state in `packages/openclaw-memory-bridge/src/hooks.ts`
 - [ ] T032 [US2] Wire bridge service and hook lifecycle in `packages/openclaw-memory-bridge/src/index.ts`
@@ -114,7 +114,7 @@ omission without disclosure.
 
 ### Tests for User Story 3
 
-- [ ] T033 [P] [US3] Add recall tests for `own`, `granted`, and `own_and_granted`, post-selection revocation, expired grants, and indistinguishable omissions in `apps/web/app/api/v1/memory/__tests__/recall-grants.test.ts`
+- [ ] T033 [P] [US3] Add recall tests for `own`, `granted`, and `own_and_granted`, post-selection revocation, expired grants, a deleted/unavailable backing page or cited revision, and indistinguishable omissions in `apps/web/app/api/v1/memory/__tests__/recall-grants.test.ts`
 - [ ] T034 [P] [US3] Add management tests proving bearer keys cannot create grants/promotions and direct shared writes fail in `apps/web/app/api/api-keys/agent-memory/__tests__/grants-and-promotions.test.ts`
 - [ ] T035 [P] [US3] Add bridge tool/prompt tests for authority checks, bounded escaped citations, and denied save/forget approvals in `packages/openclaw-memory-bridge/tests/tools-and-prompt.test.ts`
 
@@ -139,7 +139,7 @@ unchanged.
 ### Tests for User Story 4
 
 - [ ] T040 [P] [US4] Add bridge loader smoke coverage proving it is not a memory-slot owner and coexists with an independent provider in `packages/openclaw-memory-bridge/tests/plugin-loader.test.ts`
-- [ ] T041 [P] [US4] Add import preview, approval, ledger, resume, duplicate, and source-preservation tests in `packages/openclaw-memory-migrate/tests/migration-run.test.ts`
+- [ ] T041 [P] [US4] Add import preview, approval, ledger, resume, duplicate, malformed-source, oversized-item, operator-excluded-item, and source-preservation tests in `packages/openclaw-memory-migrate/tests/migration-run.test.ts`
 - [ ] T042 [P] [US4] Add import package manifest/build/clean-install smoke coverage in `packages/openclaw-memory-migrate/tests/plugin-loader.test.ts`
 
 ### Implementation for User Story 4
@@ -163,7 +163,7 @@ and framework-generated API docs are complete.
 - [ ] T051 Update shared schemas, literal schemas, and every affected route annotation; run `pnpm --filter @next-wiki/web openapi:generate` and commit generated output in `packages/shared/src/agent-memory.ts`, `apps/web/src/server/api/openapi-schemas.ts`, `apps/web/app/api/v1/memory/`, `apps/web/app/api/api-keys/agent-memory/`, and `apps/web/public/openapi.json`
 - [ ] T052 [P] Add bridge/importer build, archive, clean-install, manifest-validation, and runtime-inspection gates in `.github/workflows/publish-openclaw-memory-bridge.yml` and `.github/workflows/publish-openclaw-memory-migrate.yml`
 - [ ] T053 Add a browser/API end-to-end scenario for owner provisioning, three independent adapter credentials, private isolation, shared-promotion grant/revocation, and OpenAPI visibility in `apps/web/e2e/agent-memory-integrations.spec.ts`
-- [ ] T054 Run focused web/OpenAPI, Hermes, bridge/importer tests and `docker compose up -d --build`; record two-connection, capture-recovery, grant-revocation, guide-cache, and import-preview outcomes in `specs/040-openclaw-memory-integration/quickstart.md`
+- [ ] T054 Run focused web/OpenAPI, Hermes, bridge/importer tests and `docker compose up -d --build`; confirm `apps/web`'s dependency graph carries no runtime dependency on `packages/hermes-memory-provider` or `packages/openclaw-memory-bridge` (FR-011/FR-012); record two-connection, capture-recovery, grant-revocation, guide-cache, and import-preview outcomes in `specs/040-openclaw-memory-integration/quickstart.md`
 
 ---
 

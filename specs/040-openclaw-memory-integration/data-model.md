@@ -116,7 +116,7 @@ canonical transcript store.
 | `api_key_id` | Original/legacy credential attribution | Retained for legacy requests and audit; rotation does not decide replay authorization. |
 | `idempotency_key`, `payload_digest` | Retry identity | Same key with different normalized content is a safe conflict. |
 | `capture_kind` (new) | `turn`, `checkpoint`, `compaction`, or `session_end` | Supports both adapters without product-named columns. Imports create normal private records rather than capture deliveries. |
-| `payload_encrypted`, `payload_expires_at` (new) | Worker-only transient selected content | Deleted after durable completion, cancellation, or expiry. |
+| `payload_encrypted`, `payload_expires_at` (new) | Worker-only transient selected content | At most 1 MB encrypted, expiring 24 hours after admission (see spec.md Bounded Limits). Deleted after durable completion, cancellation, or expiry. |
 | `session_digest` | One-way correlation | Never returned in a view or audit entry. |
 | `status`, `evidence_record_id`, `job_id`, `failure_code` | Delivery state | `durable` only after Raw revision and record mapping commit. |
 
