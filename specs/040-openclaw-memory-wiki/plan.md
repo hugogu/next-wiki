@@ -13,22 +13,26 @@ revisioned Raw source in next-wiki, and supplies a bundled agent Skill for
 on-demand retrieval of the account's permitted Wiki, Generated, and Raw
 content.
 
-The Wiki adds a path-aware extension to the existing Agent Memory boundary. A
-server-bound OpenClaw connection provisions two least-privilege keys for the
-same namespace: a mirror key that can write only approved Memory Wiki snapshots
-and a knowledge-search key that can read only the owner's granted content
-spaces. The service owns destination resolution, remote path projection,
-provenance, idempotency, and Raw revision creation; the plugin never receives
-database access or a generic write credential. Account-wide retrieval reuses
-the established page search and page-read services behind a narrow
-connection-bound facade, rather than creating a parallel search engine.
+The Wiki extends the existing Agent Memory boundary with a generic source-
+document snapshot capability. A server-bound OpenClaw connection provisions two
+least-privilege keys for the same namespace: a mirror key that can write only
+approved Memory Wiki snapshots and a knowledge-search key that can read only
+the owner's granted content spaces. Each source document uses the existing
+`agent_memory_records → pages → page_revisions` relationship: the Page owns its
+storage tree and reader address, and its current published Revision is the
+sole searchable version. The service owns destination resolution, storage-path
+derivation, provenance, idempotency, and Raw revision creation; the plugin
+never receives database access or a generic write credential. Account-wide
+retrieval reuses the established page search and page-read services behind a
+narrow connection-bound facade, rather than creating a parallel search engine.
 
 `memory-wiki` has no public "file compiled/written" notification contract, so
 the plugin's durable correctness mechanism is an initial scan followed by
 serialized hash-based reconciliation. OpenClaw hooks may request an earlier
 scan but are never the only source of synchronization. Markdown bodies are
-canonical next-wiki Raw revisions; relational rows and the plugin's local
-non-secret state contain locators, hashes, and retry information only.
+canonical next-wiki Raw revisions; the generic Agent Memory record, Page, and
+plugin local non-secret state contain only references, hashes, and retry
+information.
 
 ## Technical Context
 
@@ -42,11 +46,12 @@ services; OpenClaw Plugin SDK and TypeBox for the new external plugin; Node
 standard filesystem, crypto, and HTTP primitives for vault scanning and retry.
 
 **Storage**: PostgreSQL 16 `pages` and immutable `page_revisions` plus the
-existing content backend remain canonical for mirrored Markdown. New
-`agent_memory_*` locator/binding metadata records connection keys, source
-paths, digests, and current page/revision references without duplicating
-Markdown. The plugin persists non-secret scan/retry state only under its
-OpenClaw-managed data directory.
+existing content backend remain canonical for mirrored Markdown. Existing
+`agent_memory_records` gains the generic `source_document` record type and
+continues to bind a namespace/identity to its backing Page and current Revision;
+the Page's storage path and Revision source metadata retain the source-tree
+mapping without a second locator table. The plugin persists non-secret
+scan/retry state only under its OpenClaw-managed data directory.
 
 **Testing**: Vitest unit, service, route, and package tests; generated OpenAPI
 schema tests; Playwright onboarding/API-key coverage; installed-package smoke
@@ -90,7 +95,7 @@ automatic discovery of every agent-scoped vault.
 | P3 — portable, self-growing memory | Captured Markdown is stored verbatim as restricted Raw page revisions with citations and common indexing. The bundled Skill retrieves evidence on demand and instructs the agent to cite it. | Pass |
 | P5 — permissions first | Mirror and search keys are distinct and tied to one namespace and owner. The server derives the mirror root and rechecks page/space permissions for every search/read; plugin configuration cannot select another account. | Pass |
 | P7 — async-first heavy work | Vault scanning and retry run in a serialized background plugin service. One bounded document snapshot is synchronous only after stability checks; no chat turn or Memory Wiki compiler waits for it. | Pass |
-| P8 — source content and reversibility | Raw pages retain immutable full-file snapshots. Source-document locators contain no body; digest-equal retries are no-ops; removals never hard-delete Raw history. | Pass |
+| P8 — source content and reversibility | Raw pages retain immutable full-file snapshots. The common Agent Memory record points at the Page/current Revision, while Revision metadata retains exact source provenance; digest-equal retries are no-ops and removals never hard-delete Raw history. | Pass |
 | P9 — open standards | Integration uses versioned REST/JSON, OpenAPI, Markdown, a documented plugin manifest, and an independently installable package. | Pass |
 | P10 — explicit registration | The plugin manifest, two-key provisioner, route registrations, system category, OpenAPI schemas, sample-page definitions, package entry point, Skill, and release workflow are explicit. | Pass |
 | P12 — public reading static by default | The only public change is a marker-owned OpenClaw help page and links. It follows existing published static/ISR delivery and targeted invalidation; credentials and integration state remain authenticated. | Pass |
@@ -101,11 +106,13 @@ automatic discovery of every agent-scoped vault.
   revision. On a changed digest, the mirror writes a complete new file snapshot
   through the Raw writer; it does not concatenate historical file versions or
   overwrite an existing revision.
-- `agent_memory_wiki_documents` is a locator and provenance projection. It
-  records exact vault-relative source path, normalized collision key, digest,
-  projected remote path, and current page/revision pointers, never Markdown
-  content. Raw revision metadata identifies the machine writer and document
-  locator without exposing content in audit events.
+- `agent_memory_records` gains a generic `source_document` type rather than
+  introducing an OpenClaw-only locator entity. It points at one Raw Page and
+  its current Revision; its existing namespace/identity binding makes the
+  relationship reusable by Hermes and future agents. The Page supplies the
+  server-derived storage path and independent reader address. Each immutable
+  Raw Revision records the exact source path, delivery idempotency key, digest,
+  optional source version, and writer provenance in trusted source metadata.
 - The source vault is read-only from next-wiki's perspective. The plugin
   accepts only stable UTF-8 `.md` files under its configured root and excludes
   attachments, hidden runtime state, symlinks, traversal paths, secrets, and
@@ -171,8 +178,8 @@ apps/web/
 │   ├── db/schema/agent-memory.ts
 │   ├── permissions/agent-memory.ts
 │   └── services/
-│       ├── agent-memory.ts          # shared destination + raw integration
-│       ├── agent-memory-wiki.ts     # path-aware snapshot service
+│       ├── agent-memory.ts          # shared destination + generic record integration
+│       ├── agent-memory-documents.ts # generic source-document snapshot service
 │       ├── api-keys.ts              # paired-key provisioner
 │       ├── raw-entries.ts           # trusted full-snapshot revision helper
 │       └── setup-sample-page-*.ts
@@ -222,13 +229,14 @@ REST; it does not reuse the Node MCP process or direct server internals.
    - Document all new routes with route-level OpenAPI metadata and regenerate
      the public OpenAPI document.
 
-2. **Add the source-document projection and safe Raw snapshot writer**
-   - Extend Drizzle source schema with document locators and binding purpose;
-     generate the migration exclusively with `pnpm db:generate`, then rerun it
-     to confirm no pending schema changes.
-   - Implement a server-derived, reversible Raw path projection for the
-     documented vault hierarchy. Preserve exact source paths in provenance and
-     reject traversal, unsupported paths, case-fold collisions, invalid UTF-8,
+2. **Add the generic source-document record and safe Raw snapshot writer**
+   - Extend Drizzle source schema with the `source_document` Agent Memory
+     record type and binding purpose; generate the migration exclusively with
+     `pnpm db:generate`, then rerun it to confirm no pending schema changes.
+   - Implement a server-derived storage-path projection for the documented
+     vault hierarchy, using the Page's independent storage path and address.
+     Preserve exact source paths in immutable Revision provenance and reject
+     traversal, unsupported paths, case-fold collisions, invalid UTF-8,
      non-Markdown inputs, and changed-idempotency replay.
    - Add an internal full-snapshot Raw revision operation that uses the shared
      content lifecycle. Existing `appendEntry` stays for append-only evidence;

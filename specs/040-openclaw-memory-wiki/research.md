@@ -89,26 +89,35 @@ bodies in a local queue.
 **Sources**: [Memory Wiki vault layout](https://docs.openclaw.ai/plugins/memory-wiki)
 and `packages/shared/src/pages.ts` path grammar.
 
-## 4. Extend Agent Memory with a Path-Aware Snapshot Service
+## 4. Extend the Existing Agent Memory Record with Generic Source Documents
 
-**Decision**: Add a generic, path-aware Agent Memory document-mirror service
-under `/api/v1/memory/wiki/`. It persists one full Markdown snapshot through a
-trusted Raw writer and records only a locator/provenance projection. The route
+**Decision**: Add `source_document` as a generic `agent_memory_records` type
+and expose a bounded snapshot upsert under `/api/v1/memory/wiki/`. A source
+document continues to use the existing
+`agent_memory_records → pages → page_revisions` relationship; it does not get
+an OpenClaw-specific locator table. The route writes one full Markdown snapshot
+through a trusted Raw writer and advances both the record's
+`current_revision_id` and the Page's `current_published_version_id`. The route
 is synchronous per bounded document; the OpenClaw background service controls
 scan concurrency and retry.
 
-**Rationale**: Existing `records` and `evidence` operations model explicit
-memories and append-only conversations. Their server-derived hashed paths and
-`appendEntry` behavior cannot faithfully represent the latest full contents of
-a named file. A bounded upsert permits a complete latest-file revision while
-retaining every prior Raw revision. It adds no new deployment component and
-keeps network retry at the client boundary where the source vault exists.
+**Rationale**: `pages.path` is already the internal storage tree and is
+independent of the Page's reader-facing `slug` and aliases. `page_revisions`
+already supplies immutable history, while the current published Revision is
+what the normal search/index queries join. The existing Agent Memory record is
+already the generic namespace/identity-to-Page relation used by Hermes, so
+extending its record type avoids a parallel OpenClaw relationship and makes the
+same source-document mechanism available to future agents. What is genuinely
+missing is a complete-snapshot Raw write: `appendEntry` concatenates evidence
+and cannot represent the current contents of a mutable external file.
 
 **Alternatives considered**:
 
-- Put every file into `POST /memory/records`: rejected because it overloads
-  explicit-memory semantics, cannot preserve source paths, and pollutes memory
-  recall.
+- Put every file through the existing `POST /memory/records` behavior without
+  extension: rejected because it models explicit semantic memories and
+  idempotent creates, not named source-document snapshots. The implementation
+  reuses its record/Page relationship but adds the distinct generic
+  `source_document` lifecycle, excluded from normal memory recall by default.
 - Use append-only Raw entries: rejected because a changed file would contain
   multiple concatenated snapshots instead of its original current Markdown.
 - Store files in a dedicated table/blob store: rejected because it duplicates
@@ -122,26 +131,33 @@ keeps network retry at the client boundary where the source vault exists.
 `apps/web/app/api/v1/memory/`, and
 `apps/web/src/server/jobs/agent-memory-capture.ts`.
 
-## 5. Preserve Source Paths Separately from Raw UI Paths
+## 5. Reuse Page Storage Paths and Independent Addresses
 
-**Decision**: Store the exact original vault-relative `.md` path in the mirror
-document projection and Raw provenance. Generate a separate stable, reversible
-Raw path from the server-bound namespace/identity plus normalized source
-segments; remove the `.md` presentation suffix where appropriate and retain the
-original path for display/citation.
+**Decision**: Use `pages.path` as the server-derived Raw **storage path** for
+the Memory Wiki hierarchy, and use the existing independent `pages.slug` /
+`page_addresses` model for reader addresses and aliases. Retain the exact
+original vault-relative `.md` path, source digest, delivery idempotency key,
+and optional source version in each immutable Revision's trusted
+`source_metadata`; do not duplicate them in a mirror table. Extend the generic
+Raw writer to accept a server-selected slug/address so nested source documents
+with equal leaf names do not collide.
 
-**Rationale**: next-wiki's page path grammar intentionally rejects uppercase
-letters and periods, whereas Memory Wiki includes files such as `AGENTS.md` and
-`WIKI.md`. Server projection preserves the logical tree without relying on a
-client-selected path or weakening common path validation. A normalized
-case-fold key detects ambiguous filesystem paths before they collide remotely.
+**Rationale**: next-wiki intentionally separates storage organization from
+public addressing. This lets a mirrored tree use the Page's normal storage
+model and lets a future rename retain a stable reader address rather than
+requiring another mapping model. The common path/address grammar still rejects
+uppercase letters and periods, whereas Memory Wiki includes files such as
+`AGENTS.md` and `WIKI.md`; therefore the storage path is normalized by the
+server while immutable provenance preserves the byte-exact source path. A
+normalized case-fold check rejects ambiguous filesystem paths before they
+collide remotely.
 
 **Alternatives considered**:
 
 - Relax the global next-wiki path grammar: rejected because it changes all
   page routing and does not belong to this integration.
-- Use opaque hashes only: rejected because operators need a navigable remote
-  tree.
+- Use opaque hashes only: rejected because operators need a navigable Page
+  storage tree.
 - Trust a remote path supplied by the plugin: rejected because it would permit
   collisions and make the destination a client-side authorization boundary.
 
