@@ -1,4 +1,4 @@
-# Feature Specification: Unified Agent Memory Integrations
+# Feature Specification: OpenClaw Agent Memory Bridge
 
 **Feature Branch**: `040-openclaw-memory-integration`
 
@@ -6,301 +6,197 @@
 
 **Status**: Draft
 
-**Input**: Redesign the existing Agent Memory capability so Hermes Memory and
-OpenClaw Memory use one common, documented server interface. Keep the server
-generic, evolve the 039 data model with one database change, and keep public API
-documentation synchronized with the implementation.
+**Input**: Add OpenClaw as a second adapter to the existing 039 Agent Memory
+service, alongside Hermes. Ship a separately installable OpenClaw plugin that
+persists selected session material without ever blocking a conversation turn
+on the Wiki being reachable.
+
+## Scope
+
+The 039 Agent Memory service already provides everything a single-owner,
+single-Wiki deployment needs to connect multiple agent installations: a
+generic `/api/v1/memory/*` REST contract, a "Memory provider" API-key preset
+in User Center that binds a key to its own private destination, and an
+existing **share this destination with another key** option. Recall is
+isolated per `(destination, agent identity)`, so sharing a destination alone
+only groups keys for administration; an owner who wants two of their own
+agents to actually draw on the same memory also gives both keys the same
+agent identity. None of that needs to change.
+
+What's actually missing is an OpenClaw-side integration: nothing today lets
+an OpenClaw Gateway install persist session material into that existing
+service. This feature adds exactly that — a hook-only OpenClaw plugin
+(`@next-wiki/openclaw-memory-bridge`) — and nothing else. It deliberately does
+**not** introduce a new sharing/grant model, a separate "connection" identity
+distinct from the API key, or a local-memory import tool: the first two
+already exist in a simpler form, and the third has no real adopter yet to
+justify building it (tracked as a future addition, not in this feature).
 
 ## User Scenarios & Testing *(mandatory)*
 
-### User Story 1 - Connect Different Agent Products to One Memory Service (Priority: P1)
+### User Story 1 - Use the Same Memory Service OpenClaw Already Uses for Hermes (Priority: P1)
 
-As a Wiki owner who uses both Hermes and OpenClaw, I want each agent installation
-to use the same durable memory service and permission model, so that I do not
-have to operate or trust separate memory backends for each product.
+As a Wiki owner who uses both Hermes and OpenClaw, I want each agent
+installation to use the same durable memory service and permission model, so
+that I do not have to operate or trust separate memory backends for each
+product.
 
 **Why this priority**: A common service is the product boundary. Without it,
-records, permissions, provenance, and recovery behavior will diverge for every
-new agent integration.
+records, permissions, provenance, and recovery behavior diverge for every new
+agent integration.
 
-**Independent Test**: Provision one Hermes credential and one OpenClaw
-connection for the same owner. Save a record through each adapter and verify
-that both receive the same form of stable citation while neither can write to
-the other's private collection.
+**Independent Test**: Provision one Hermes-bound API key and one
+OpenClaw-bound API key for the same owner (as two independent destinations,
+or the same destination via the existing shared-destination option). Save a
+record through each adapter and verify each receives the same form of stable
+citation.
 
 **Acceptance Scenarios**:
 
 1. **Given** an owner has configured Hermes and OpenClaw, **When** either
    adapter connects, **Then** it uses the same documented Agent Memory
-   interface and receives only the capabilities granted to its credential.
-2. **Given** an owner creates two agent connections, **When** each adapter
-   saves content, **Then** the content is kept in separately assigned private
-   collections unless the owner later shares it deliberately.
-3. **Given** an existing Hermes configuration is still in use, **When** the
-   common service is extended for OpenClaw, **Then** its ordinary save, recall,
-   evidence, status, and forget flows keep working without a client-specific
-   server fork.
+   interface and receives only the capabilities granted to its key's scopes.
+2. **Given** an owner creates two separate memory-provider keys without
+   choosing to share a destination, **When** each adapter saves content,
+   **Then** the content stays in its own destination, invisible to the other
+   key's default recall.
+3. **Given** an existing Hermes configuration is in use, **When** OpenClaw is
+   added, **Then** Hermes's ordinary save, recall, evidence, status, and
+   forget flows keep working unchanged.
 
 ---
 
 ### User Story 2 - Preserve OpenClaw Session Evidence Reliably (Priority: P1)
 
-As an OpenClaw operator, I want selected session material to survive meaningful
-lifecycle boundaries and restarts, so that long-running work remains grounded
-without making normal conversations wait for the Wiki.
+As an OpenClaw operator, I want selected session material to survive
+meaningful lifecycle boundaries and restarts, so that long-running work
+remains grounded without making normal conversations wait for the Wiki.
 
 **Why this priority**: OpenClaw's lifecycle observations can be duplicated or
-interrupted. Durable external memory is useful only when retries do not create
-duplicates and an attempted delivery is not mistaken for a saved record.
+interrupted. Durable external memory is useful only when retries do not
+create duplicates and an attempted delivery is not mistaken for a saved
+record. This is the actual new capability this feature ships.
 
 **Independent Test**: Enable capture for an OpenClaw agent, temporarily make
-the Wiki unavailable across a compaction and restart, then verify that recovery
-creates one attributable evidence record per event and that the completed turn
-was never blocked.
+the Wiki unavailable across a compaction and restart, then verify that
+recovery creates one attributable evidence record per event and that the
+completed turn was never blocked.
 
 **Acceptance Scenarios**:
 
 1. **Given** capture is disabled, **When** an OpenClaw session ends or
    compacts, **Then** no session content is sent to the Wiki; explicit saves
-   remain available.
+   remain available through the optional tools.
 2. **Given** capture is enabled, **When** a supported lifecycle event occurs,
-   **Then** the bridge records a restart-safe delivery intent before returning
-   and later reports success only after the service confirms durable evidence.
-3. **Given** a capture is retried, duplicated, interrupted, or resumed after a
-   credential rotation, **When** the common service receives it, **Then** it
-   produces at most one durable record for that event and returns safe status
-   information.
-4. **Given** a runtime does not provide a reliable compaction veto, **When** a
-   pre-compaction observation occurs, **Then** the bridge reports its actual
-   preservation state and never claims that compaction was blocked or evidence
-   was durably stored before confirmation.
-
----
-
-### User Story 3 - Deliberately Share External Context (Priority: P2)
-
-As a Wiki owner, I want to permit one agent to retrieve selected knowledge from
-another agent while keeping both agents' private memory private by default, so
-that cross-agent continuity does not become a broad data leak.
-
-**Why this priority**: Sharing is valuable only when it is explicit,
-reversible, and does not weaken the private-by-default boundary established for
-the primary connection flow.
-
-**Independent Test**: Save a decision for agent A, place an owner-curated copy
-in a shared collection, grant agent B read access, and verify that B receives a
-bounded citation while an ungranted agent cannot distinguish that collection
-from an absent one.
-
-**Acceptance Scenarios**:
-
-1. **Given** no owner grant exists, **When** an agent retrieves external
-   memory, **Then** it receives only its own private records.
-2. **Given** the owner grants an agent access to a shared collection, **When**
-   the agent requests permitted external context, **Then** it receives only
-   bounded, cited records from that collection.
-3. **Given** the grant, source collection, connection, or record changes after
-   candidate selection, **When** a result is about to be returned, **Then** the
-   now-ineligible result is omitted without exposing its title, excerpt, count,
-   citation, or a grant-specific error.
-4. **Given** the owner wants to make a private record shared, **When** they
-   curate it, **Then** a separately attributable shared record is created; an
-   agent capture never publishes or shares a record automatically.
-
----
-
-### User Story 4 - Keep Local Agent Memory and Migrate Deliberately (Priority: P2)
-
-As an OpenClaw operator, I want external Wiki memory to coexist with native
-local memory and have a reviewed one-time import path, so that adopting the
-integration does not replace local behavior or silently ingest sensitive
-history.
-
-**Why this priority**: The Wiki is a durable shared layer, not a replacement
-for a product's local working-memory implementation. Historical material needs
-an explicit privacy decision.
-
-**Independent Test**: Enable the external-memory bridge next to a configured
-local memory provider, run an external search, and confirm the local provider
-is unchanged. Preview a selected local-memory import and verify that no source
-file or Wiki record changes until approval.
-
-**Acceptance Scenarios**:
-
-1. **Given** OpenClaw has a local memory provider, **When** the external bridge
-   is enabled, **Then** the local provider remains available and the bridge is
-   a separately labelled optional capability.
-2. **Given** an operator has selected legacy local-memory material, **When**
-   they preview an import, **Then** they see the proposed items and privacy
-   implications without creating or changing records.
-3. **Given** the operator explicitly approves an import, **When** it is
-   interrupted and resumed, **Then** every accepted item is attributable,
-   idempotent, and does not require changing the source files.
+   **Then** the bridge records a restart-safe delivery intent before
+   returning and later reports success only after the service confirms
+   durable evidence.
+3. **Given** a capture is retried, duplicated, or interrupted and resumed,
+   **When** the common service receives it, **Then** it produces at most one
+   durable record for that event and returns safe status information.
+4. **Given** a runtime does not provide a reliable compaction veto, **When**
+   a pre-compaction observation occurs, **Then** the bridge reports its
+   actual preservation state and never claims that compaction was blocked or
+   evidence was durably stored before confirmation.
 
 ### Edge Cases
 
-- A client credential is rotated, revoked, or no longer bound while a capture
-  is pending.
+- A client credential is rotated or revoked while a capture is pending.
 - An adapter retries the same request with a different body or source event.
-- An adapter omits or forges an agent, destination, share, page path, or local
-  session identifier.
-- A shared-read grant expires or is revoked while a result is being assembled.
-- A backing restricted page or its cited revision has been deleted or made
-  unavailable.
 - The Gateway stops before all local delivery entries can be sent.
-- An OpenClaw lifecycle event lacks the content or correlation fields required
-  by the configured capture mode.
-- A local-memory import is malformed, duplicated, oversized, or includes data
-  that the operator excludes.
+- An OpenClaw lifecycle event lacks the content or correlation fields
+  required by the configured capture mode.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
-- **FR-001**: The system MUST provide one product-neutral Agent Memory service
-  and one documented integration interface for Hermes, OpenClaw, and future
-  adapters. Server storage, authorization, audit terminology, and public
-  resources MUST NOT be named for a particular agent product.
-- **FR-002**: The common interface MUST extend the existing Hermes-compatible
-  behavior rather than require a second product-specific server interface.
-  Existing ordinary Hermes memory operations MUST remain usable during the
-  extension.
-- **FR-003**: The system MUST resolve an active connection, its owner, and its
-  private memory destination from the authenticated credential. An adapter MUST
-  NOT select an owner, destination, share, page path, or effective agent
-  identity through a request value.
-- **FR-004**: One owner MUST be able to create multiple isolated agent
-  connections. Normal save and capture operations MUST target only the calling
-  connection's private destination.
-- **FR-005**: The owner MUST be able to grant and revoke read access from a
-  connection to a shared destination. Shared status alone MUST NOT grant
-  access, and agents MUST NOT create, change, or select grants.
-- **FR-006**: Memory, source evidence, and owner-curated shared knowledge MUST
-  use the normal restricted content, immutable revision, provenance, indexing,
-  and audit lifecycle. Integration metadata MUST NOT become a second canonical
-  copy of a memory body.
-- **FR-007**: The common service MUST preserve source type, creation origin,
-  producing connection, stable source reference, and supporting evidence for
-  every durable item where applicable. Owner curation MUST create a new
-  attributable record rather than change an original source.
-- **FR-008**: The common interface MUST support bounded recall, explicit save,
-  evidence capture, capture-status inspection, and reversible forgetting.
-  Forgetting MUST remove a record from recall without deleting immutable source
-  evidence.
-- **FR-009**: The service MUST authorize every operation and re-evaluate
-  eligibility immediately before returning a recall result. Ineligible material
-  MUST NOT leak through result bodies, excerpts, titles, counts, citations, or
-  distinguishable errors.
-- **FR-010**: Evidence capture MUST be idempotent and asynchronous. A durable
-  result MAY be reported only after the canonical restricted revision and its
-  memory record are committed.
-- **FR-011**: Hermes-specific setup, tools, and checkpoint behavior MUST stay
-  in the Hermes adapter. The server MUST expose only the common service
-  contract and must not require Hermes at runtime.
-- **FR-012**: OpenClaw-specific lifecycle observation, configuration,
-  permission handling, local retry state, and prompt integration MUST stay in
-  a separately installable OpenClaw adapter. The server MUST not require an
-  OpenClaw runtime, plugin, local workspace, or Gateway state.
-- **FR-013**: The OpenClaw adapter MUST not replace or invoke OpenClaw's local
-  memory provider. External retrieval and optional context enrichment MUST be
-  clearly labelled, explicitly enabled, bounded, and safe to omit.
-- **FR-014**: Automatic OpenClaw capture MUST be disabled by default. When
+- **FR-001**: OpenClaw MUST use the same generic, already-documented
+  `/api/v1/memory/*` interface Hermes uses. No OpenClaw-specific server route,
+  table, or column is introduced.
+- **FR-002**: The existing per-key destination resolution (a credential
+  resolves to exactly one bound destination, optionally shared with another
+  key at creation time) is unchanged and sufficient; this feature adds no new
+  authorization concept.
+- **FR-003**: OpenClaw-specific lifecycle observation, configuration, local
+  retry state, and prompt integration MUST stay in a separately installable
+  OpenClaw plugin package. The server MUST NOT require an OpenClaw runtime,
+  plugin, local workspace, or Gateway state.
+- **FR-004**: The OpenClaw plugin MUST NOT replace or invoke OpenClaw's local
+  memory provider. It is a hook-only, non-capability plugin that never claims
+  the exclusive memory slot.
+- **FR-005**: Automatic OpenClaw capture MUST be disabled by default. When
   enabled, it MUST use only supported lifecycle observations, retain pending
   content locally only within the recovery limits defined in Bounded Limits,
   and perform a best-effort shutdown flush within the same local delivery
   budget.
-- **FR-015**: The system MUST apply the lifetime and access controls defined
-  in Bounded Limits to transient capture payloads and local delivery state.
-  Destination-specific long-term retention or archival policy management is
-  out of scope for this feature; canonical content follows the Wiki's
-  existing retention rules.
-- **FR-016**: A local-memory import capability, if enabled, MUST be separate
-  from continuous capture, require explicit source selection and approval,
-  support safe resume, preserve provenance, and never remove or alter source
-  files.
-- **FR-017**: Every public interface change MUST be described by the project's
-  generated API documentation. Runtime validation, route documentation, and
-  generated documentation MUST be verified together so they cannot silently
-  drift.
-- **FR-018**: The system MUST add collision-safe, idempotent public guidance
-  for OpenClaw alongside generic Agent Memory guidance. Guidance MUST contain
-  placeholders and safe operating instructions only; live connection state,
-  destinations, agent names, and credentials remain authenticated.
+- **FR-006**: Every public interface the plugin depends on is already
+  described by the project's generated API documentation; this feature adds
+  no new route requiring new documentation.
+- **FR-007**: The system MUST add one collision-safe, idempotent public guide
+  for OpenClaw, alongside the existing Hermes guide.
 
 ### Bounded Limits
 
-- **Local outbox** (OpenClaw bridge): at most 500 pending entries per
-  connection, each at most 256 KB; an entry not durably delivered within 7
-  days is dropped and only its count is logged, never its content.
+- **Local outbox** (OpenClaw bridge): at most 500 pending entries per key,
+  each at most 256 KB; an entry not durably delivered within 7 days is
+  dropped and only its count is logged, never its content.
 - **Local delivery budget**: a lifecycle hook MUST persist its local outbox
   entry within 200 ms so a conversation turn or compaction is never
   network-bound.
 - **Delivery retry**: failed delivery attempts back off exponentially,
   starting at 5 seconds and capped at 10 minutes between attempts, until the
   7-day outbox TTL above is reached.
-- **Server-side transient capture envelope**: at most 1 MB encrypted payload,
-  expiring 24 hours after admission; deleted immediately on durable
-  completion, cancellation, or expiry.
-
-### Public Content Delivery
-
-- The feature changes only the managed generic Agent Memory guide and adds an
-  OpenClaw integration guide. Both are normal published Wiki documents with
-  static/ISR public representations.
-- A successful creation or update invalidates only the affected guide and its
-  help-navigation representation. Collision, disabled, or failed updates do
-  not invalidate public content. Connection, grant, capture, audit, and memory
-  data are authenticated and never part of a public representation.
 
 ### Key Entities
 
-- **Memory destination**: An owner-controlled private or shared collection of
-  Agent Memory records. It is a permission boundary, not a separate content
-  store.
-- **Agent connection**: A stable, revocable identity for one external agent
-  installation, independent of credentials that may be rotated.
-- **Connection credential**: A dedicated credential bound to one connection;
-  it grants operations but does not itself define the durable agent identity.
-- **Read grant**: An owner-created, revocable permission allowing one
-  connection to retrieve from one shared destination.
-- **Memory record**: A recallable projection pointing to one immutable,
-  restricted source revision, with origin and producer attribution.
-- **Evidence capture**: An idempotent delivery record for transient selected
-  evidence until it becomes a durable Memory record.
+No new entities. This feature reuses the existing 039 model unchanged:
+
+- **Memory destination** (`agent_memory_namespaces`): an owner-controlled
+  collection of Agent Memory records, optionally bound to more than one API
+  key when the owner chooses to share it at key-creation time.
+- **Key binding** (`agent_memory_key_bindings`): resolves one API key to its
+  destination and agent identity.
+- **Memory record** (`agent_memory_records`): a recallable projection
+  pointing to one immutable, restricted source revision.
+- **Evidence capture** (`agent_memory_captures`): an idempotent delivery
+  record for transient selected evidence until it becomes a durable memory
+  record.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: An owner can connect one Hermes installation and two OpenClaw
-  installations to one Wiki, save through each, and verify private-destination
-  isolation in an end-to-end test.
-- **SC-002**: A duplicated or restarted OpenClaw capture produces no more than
-  one durable cited evidence record for the same capture identity in 100
-  consecutive retry simulations.
-- **SC-003**: Revoking a shared-read permission before response serialization
-  produces no protected record metadata in the caller's response in all
-  authorization regression tests.
-- **SC-004**: A normal OpenClaw completed turn remains independent of remote
-  Wiki availability; its capture intent is recorded locally within the 200 ms
-  local delivery budget defined in Bounded Limits.
-- **SC-005**: Generated API documentation contains every Agent Memory route
-  and its request/response schemas, and the documentation-sync test passes in
-  continuous integration.
-- **SC-006**: An operator can install, configure, diagnose, rotate, and disable
-  the OpenClaw bridge without placing a credential in a command line, ordinary
-  configuration output, or published guide.
+- **SC-001**: An owner can connect one Hermes installation and one OpenClaw
+  installation to one Wiki, save through each, and verify destination
+  isolation (or intentional sharing, if configured) in an end-to-end test.
+- **SC-002**: A duplicated or restarted OpenClaw capture produces no more
+  than one durable cited evidence record for the same capture identity in
+  100 consecutive retry simulations.
+- **SC-003**: A normal OpenClaw completed turn remains independent of remote
+  Wiki availability; its capture intent is recorded locally within the
+  200 ms local delivery budget defined in Bounded Limits.
+- **SC-004**: An operator can install, configure, diagnose, and rotate the
+  OpenClaw bridge's key without placing a credential in a command line,
+  ordinary configuration output, or published guide.
 
 ## Assumptions
 
-- The existing 039 Agent Memory tables and Hermes adapter are the starting
-  point. Existing rows do not require automatic data migration when their
-  semantics cannot be safely converted.
-- The existing versioned Agent Memory interface remains the common interface;
-  extensions are additive and capability-discoverable.
-- The default deployment continues to use its existing database, content
-  storage, and background-job facilities; no new required service is added.
-- OpenClaw lifecycle hooks are observational and at-least-once. They cannot be
-  treated as a compaction veto or as proof of remote durability.
-- Per-destination long-term retention policy is deliberately deferred. Bounded
-  cleanup of transient capture material remains mandatory.
+- The existing 039 Agent Memory tables, routes, and Hermes adapter are the
+  unmodified starting point. No schema migration is part of this feature.
+- OpenClaw lifecycle hooks are observational and at-least-once. They cannot
+  be treated as a compaction veto or as proof of remote durability.
+- A local-memory import tool (importing an operator's pre-existing local
+  OpenClaw memory) is explicitly out of scope. Revisit only once the bridge
+  has real adopters who need it — see the "Not building yet" note below.
+
+## Not building yet
+
+An earlier draft of this feature added a full multi-tenant sharing model
+(separate connection identity from credential, owner-granted/revocable read
+grants, curated promotion into a shared destination) and a local-memory
+import utility. Both were removed after review: the sharing problem they
+solved was already solved more simply by the existing shared-destination
+option on key creation, and the import tool has no current adopter to build
+it for. If either becomes genuinely needed later, design it against the
+concrete need at that time rather than speculatively now.
