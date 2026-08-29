@@ -2,8 +2,9 @@
 
 Use a [next-wiki](https://github.com/hugogu/next-wiki) instance as the durable,
 inspectable memory destination for one configured agent identity. Hermes is the
-first client integration. Records are stored as immutable, append-only Raw
-entries with published revisions. Each memory-provider API key is bound
+first client integration. Explicit records are stored as immutable Raw entries;
+conversation evidence uses one append-only Raw page with a new published
+revision for each accepted capture. Each memory-provider API key is bound
 server-side to one memory destination and identity, so a client cannot select
 another profile's namespace through a tool argument or URL.
 
@@ -128,13 +129,15 @@ eligible conversation turns automatically:
 When enabled, each completed eligible turn is submitted asynchronously to
 `/api/v1/memory/evidence`. The provider keeps only user and assistant text,
 excluding tool calls/results and system content, and skips delegated or other
-non-primary contexts. The Wiki worker then writes an immutable Evidence Record
-and Raw revision. Once the capture reaches `durable`, it is directly searchable
-through `next_wiki_memory_search`; there is no separate memory-synthesis job to
-wait for. Inspect the **Agent Memory** category or the `agent_memory` filter in
-Admin → Access Log while testing. A normal turn does not wait for this write,
-so allow the worker time to process it and use a disposable conversation when
-testing.
+non-primary contexts. The Wiki worker derives one Raw conversation page from
+the destination, agent identity, and session digest. Later captures from that
+session append a new immutable revision to the same page; retries with the same
+idempotency key do not append again. Once a capture reaches `durable`, it is
+directly searchable through `next_wiki_memory_search`; its status citation
+identifies the exact revision created by that capture. Inspect the **Agent
+Memory** category or the `agent_memory` filter in Admin → Access Log while
+testing. A normal turn does not wait for this write, so allow the worker time
+to process it and use a disposable conversation when testing.
 
 Hermes 0.20 and later calls `sync_turn(user, assistant, session_id=...,
 messages=...)`; older releases may omit `messages`. The provider accepts both

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, eq, inArray, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
@@ -22,6 +22,15 @@ const MAX_EXCERPT_LENGTH = 1_200;
 
 type MemoryRecordRow = typeof schema.agentMemoryRecords.$inferSelect;
 type EvidenceRelation = 'explicit_save' | 'automatic_capture' | 'checkpoint';
+
+function pathSegment(value: string): string {
+  return value
+    .normalize('NFKC')
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/gu, '-')
+    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gu, '')
+    .slice(0, 80);
+}
 
 function memoryRawContext(ctx: PermCtx): PermCtx {
   if (ctx.actor.kind !== 'api_key') {
@@ -48,15 +57,22 @@ function memoryPath(
   // deterministic leaf digest. Agent identities are user-configured strings,
   // so normalize them to the lowercase path grammar instead of exposing a
   // UUID namespace folder or allowing path separators into the Raw tree.
-  const pathSegment = (value: string): string => value
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/gu, '-')
-    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gu, '')
-    .slice(0, 80);
   const folder = pathSegment(agentIdentity) || pathSegment(keyName) || 'agent';
   const keyDigest = createHash('sha256').update(`${namespaceId}:${agentIdentity}:${type}:${idempotencyKey}`).digest('hex');
   return `${MEMORY_PAGE_PREFIX}/${folder}/${type}/${keyDigest}`;
+}
+
+/**
+ * A conversation is an aggregate of capture events, not an individual event.
+ * The path is derived only from server-resolved destination/identity and the
+ * one-way session correlation value; clients never select a Raw page path.
+ */
+function conversationPath(namespaceId: string, agentIdentity: string, sessionDigest: string): string {
+  const folder = pathSegment(agentIdentity) || 'agent';
+  const conversationDigest = createHash('sha256')
+    .update(`${namespaceId}:${agentIdentity}:conversation:${sessionDigest}`)
+    .digest('hex');
+  return `${MEMORY_PAGE_PREFIX}/${folder}/conversation/${conversationDigest}`;
 }
 
 function evidencePayloadDigest(input: Pick<AgentMemoryEvidenceInput, 'sessionDigest' | 'checkpoint' | 'messages'>): string {
@@ -108,11 +124,11 @@ function lexicalScore(query: string, content: string, title: string): number {
   return terms.reduce((score, term) => score + (haystack.includes(term) ? 1 : 0), 0) / terms.length;
 }
 
-async function recordToView(record: MemoryRecordRow): Promise<AgentMemoryRecord | null> {
+async function recordToView(record: MemoryRecordRow, revisionId = record.currentRevisionId): Promise<AgentMemoryRecord | null> {
   if (record.state !== 'active') return null;
   const [page, revision, space] = await Promise.all([
     db.query.pages.findFirst({ where: and(eq(schema.pages.id, record.pageId), isNull(schema.pages.deletedAt)) }),
-    db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, record.currentRevisionId) }),
+    db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, revisionId) }),
     resolveSpace('raw'),
   ]);
   if (!page || !revision || revision.status !== 'published' || !space || space.kind !== 'raw' || page.spaceId !== space.id || page.visibility !== 'restricted') return null;
@@ -179,10 +195,11 @@ async function existingByIdempotency(namespaceId: string, agentIdentity: string,
 async function assertMatchingIdempotentRecord(
   existing: MemoryRecordRow,
   input: { type: 'memory' | 'evidence'; title: string; content: string },
+  revisionId = existing.currentRevisionId,
 ): Promise<void> {
   const [page, revision] = await Promise.all([
     db.query.pages.findFirst({ where: eq(schema.pages.id, existing.pageId) }),
-    db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, existing.currentRevisionId) }),
+    db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, revisionId) }),
   ]);
   // Evidence titles are server-generated presentation metadata. A retry can
   // legitimately arrive at a different second, so content/type remain the
@@ -211,6 +228,52 @@ async function assertEvidenceIds(namespaceId: string, agentIdentity: string, evi
   if (records.length !== new Set(evidenceIds).size) {
     throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'One or more evidence records are unavailable');
   }
+}
+
+async function findRawPageByPath(path: string): Promise<typeof schema.pages.$inferSelect | null> {
+  const space = await resolveSpace('raw');
+  if (!space || space.kind !== 'raw') return null;
+  return (await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.spaceId, space.id),
+      eq(schema.pages.path, path),
+      isNull(schema.pages.translationGroupId),
+      isNull(schema.pages.deletedAt),
+    ),
+  })) ?? null;
+}
+
+async function findCaptureRevision(pageId: string, captureId: string): Promise<typeof schema.pageRevisions.$inferSelect | null> {
+  return (await db.query.pageRevisions.findFirst({
+    where: and(
+      eq(schema.pageRevisions.pageId, pageId),
+      sql`${schema.pageRevisions.sourceMetadata}->>'sourceId' = ${captureId}`,
+    ),
+  })) ?? null;
+}
+
+async function findRecordByPage(pageId: string): Promise<MemoryRecordRow | null> {
+  return (await db.query.agentMemoryRecords.findFirst({ where: eq(schema.agentMemoryRecords.pageId, pageId) })) ?? null;
+}
+
+/** Advance the aggregate projection without allowing concurrent workers to move it backwards. */
+async function advanceEvidenceRecord(recordId: string, revisionId: string): Promise<MemoryRecordRow | null> {
+  await db.transaction(async (tx) => {
+    const [record] = await tx.select().from(schema.agentMemoryRecords)
+      .where(eq(schema.agentMemoryRecords.id, recordId))
+      .for('update')
+      .limit(1);
+    if (!record || record.recordType !== 'evidence') return;
+    const [currentRevision, nextRevision] = await Promise.all([
+      tx.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, record.currentRevisionId) }),
+      tx.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, revisionId) }),
+    ]);
+    if (!currentRevision || !nextRevision || nextRevision.versionNumber <= currentRevision.versionNumber) return;
+    await tx.update(schema.agentMemoryRecords)
+      .set({ currentRevisionId: nextRevision.id, updatedAt: new Date() })
+      .where(eq(schema.agentMemoryRecords.id, record.id));
+  });
+  return (await db.query.agentMemoryRecords.findFirst({ where: eq(schema.agentMemoryRecords.id, recordId) })) ?? null;
 }
 
 async function createRecord(
@@ -405,16 +468,99 @@ export async function forget(ctx: PermCtx, memoryId: string): Promise<{ memoryId
 export async function createEvidenceRecord(
   ctx: PermCtx,
   input: AgentMemoryEvidenceInput,
-): Promise<{ record: AgentMemoryRecord; idempotent: boolean }> {
+  options: { captureId?: string } = {},
+): Promise<{ record: AgentMemoryRecord; idempotent: boolean; revisionId: string }> {
   const access = await requireAgentMemoryAccess(ctx, 'memory.write');
   const content = input.messages.map((message) => `## ${message.role}\n\n${message.content}`).join('\n\n');
-  return createRecord(ctx, access, {
-    type: 'evidence',
-    idempotencyKey: input.idempotencyKey,
-    title: evidenceTitle(input.checkpoint, input.messages),
-    content,
-    sourceSessionDigest: input.sessionDigest,
-  });
+  const title = evidenceTitle(input.checkpoint, input.messages);
+  const existing = await existingByIdempotency(access.namespaceId, access.agentIdentity, input.idempotencyKey);
+  if (existing) {
+    const revision = options.captureId ? await findCaptureRevision(existing.pageId, options.captureId) : null;
+    await assertMatchingIdempotentRecord(existing, { type: 'evidence', title, content }, revision?.id);
+    const view = await recordToView(existing);
+    if (!view) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The existing evidence record is unavailable');
+    return { record: view, idempotent: true, revisionId: revision?.id ?? existing.currentRevisionId };
+  }
+
+  await assertRawMemoryReady();
+  const categoryId = await ensureAgentMemoryCategory();
+  const path = conversationPath(access.namespaceId, access.agentIdentity, input.sessionDigest);
+  const source = {
+    provider: 'agent-memory',
+    sessionId: input.sessionDigest,
+    ...(options.captureId ? { sourceId: options.captureId } : {}),
+  };
+
+  let page = await findRawPageByPath(path);
+  let revisionId: string;
+  if (page) {
+    const existingRevision = options.captureId ? await findCaptureRevision(page.id, options.captureId) : null;
+    if (existingRevision) {
+      revisionId = existingRevision.id;
+    } else {
+      const appended = await rawEntries.appendEntry(memoryRawContext(ctx), page.id, { content, source });
+      revisionId = appended.versionId;
+    }
+  } else {
+    try {
+      const created = await rawEntries.createEntry(memoryRawContext(ctx), {
+        path,
+        title,
+        inputKind: 'chat-transcript',
+        source,
+        additionalSourceMetadata: {
+          agentIdentity: access.agentIdentity,
+          apiKeyName: access.keyName,
+        },
+        content,
+        visibility: 'restricted',
+        categoryId,
+      });
+      revisionId = created.versionId;
+      page = await findRawPageByPath(path);
+    } catch (error) {
+      // Another capture for this same session may have won page creation. Use
+      // that page and append this event instead of creating a second page.
+      page = await findRawPageByPath(path);
+      if (!page) throw error;
+      const existingRevision = options.captureId ? await findCaptureRevision(page.id, options.captureId) : null;
+      if (existingRevision) {
+        revisionId = existingRevision.id;
+      } else {
+        const appended = await rawEntries.appendEntry(memoryRawContext(ctx), page.id, { content, source });
+        revisionId = appended.versionId;
+      }
+    }
+  }
+  if (!page) throw new Error('AGENT_MEMORY_CONVERSATION_PAGE_NOT_FOUND');
+
+  let record = await findRecordByPage(page.id);
+  if (!record) {
+    try {
+      const [inserted] = await db.insert(schema.agentMemoryRecords).values({
+        id: randomUUID(),
+        namespaceId: access.namespaceId,
+        agentIdentity: access.agentIdentity,
+        recordType: 'evidence',
+        pageId: page.id,
+        currentRevisionId: revisionId,
+        idempotencyKey: input.idempotencyKey,
+        sourceSessionDigest: input.sessionDigest,
+      }).returning();
+      record = inserted ?? null;
+    } catch (error) {
+      record = await findRecordByPage(page.id);
+      if (!record) throw error;
+    }
+  }
+  if (!record || record.recordType !== 'evidence' || record.namespaceId !== access.namespaceId || record.agentIdentity !== access.agentIdentity || record.sourceSessionDigest !== input.sessionDigest) {
+    throw new DomainError('CONFLICT', 'The conversation path is already associated with a different evidence record');
+  }
+  record = await advanceEvidenceRecord(record.id, revisionId);
+  if (!record) throw new Error('AGENT_MEMORY_RECORD_NOT_FOUND');
+  const view = await recordToView(record);
+  if (!view) throw new Error('AGENT_MEMORY_RECORD_NOT_VISIBLE');
+  return { record: view, idempotent: false, revisionId };
 }
 
 export type AgentMemoryCaptureSubmission = {
@@ -569,7 +715,7 @@ export async function getEvidenceCapture(ctx: PermCtx, captureId: string): Promi
       eq(schema.agentMemoryRecords.agentIdentity, access.agentIdentity),
     ),
   });
-  const view = record ? await recordToView(record) : null;
+  const view = record ? await recordToView(record, capture.evidenceRevisionId ?? record.currentRevisionId) : null;
   if (!view) {
     throw new DomainError('AGENT_MEMORY_CHECKPOINT_NOT_DURABLE', 'Evidence capture is no longer durable');
   }
@@ -655,9 +801,9 @@ export async function runEvidenceCapture(
       sessionDigest: capture.sessionDigest,
       checkpoint: capture.checkpoint,
       messages: parsedInput.data.messages,
-    });
+    }, { captureId: capture.id });
     await db.update(schema.agentMemoryCaptures)
-      .set({ status: 'durable', evidenceRecordId: result.record.memoryId, failureCode: null, updatedAt: new Date() })
+      .set({ status: 'durable', evidenceRecordId: result.record.memoryId, evidenceRevisionId: result.revisionId, failureCode: null, updatedAt: new Date() })
       .where(and(eq(schema.agentMemoryCaptures.id, capture.id), eq(schema.agentMemoryCaptures.status, 'running')));
   } catch (error) {
     const failureCode = error instanceof DomainError ? error.code : 'AGENT_MEMORY_CAPTURE_FAILED';

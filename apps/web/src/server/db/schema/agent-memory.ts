@@ -92,6 +92,8 @@ export const agentMemoryCaptures = pgTable(
     checkpoint: boolean('checkpoint').notNull().default(false),
     status: agentMemoryCaptureStatusEnum('status').notNull().default('queued'),
     evidenceRecordId: uuid('evidence_record_id').references(() => agentMemoryRecords.id, { onDelete: 'restrict' }),
+    /** The immutable Raw revision produced by this capture; a continuing conversation advances the record separately. */
+    evidenceRevisionId: uuid('evidence_revision_id').references(() => pageRevisions.id, { onDelete: 'restrict' }),
     jobId: text('job_id'),
     failureCode: text('failure_code'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -154,5 +156,9 @@ export const agentMemoryCapturesRelations = relations(agentMemoryCaptures, ({ on
   evidenceRecord: one(agentMemoryRecords, {
     fields: [agentMemoryCaptures.evidenceRecordId],
     references: [agentMemoryRecords.id],
+  }),
+  evidenceRevision: one(pageRevisions, {
+    fields: [agentMemoryCaptures.evidenceRevisionId],
+    references: [pageRevisions.id],
   }),
 }));

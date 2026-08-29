@@ -85,10 +85,10 @@ management remain out of scope.
 |---|---|---|
 | P1 — simple deployment | The provider is an optional, external Python package. The Wiki adds only PostgreSQL tables, routes, and existing pg-boss work; it introduces no container, cache, queue, model provider, or required service. | Pass |
 | P2 — AI-native, vendor-neutral | Hermes is an external reasoning client, not a required Wiki model provider. The integration uses a provider-specific adapter and standard REST rather than a proprietary Wiki-wide dependency. Wiki remains usable without Hermes and Hermes memory works without Wiki AI configuration. | Pass |
-| P3 — portable, grounded memory | Restricted immutable Raw entries/revisions hold canonical memory and original evidence. Memory metadata carries source revision links; the common recall/index projection is derived and rebuildable. No generated memory is public by default. | Pass |
+| P3 — portable, grounded memory | Restricted Raw pages and immutable revisions hold canonical memory and original evidence. Conversation evidence appends revisions to a server-derived session page; memory metadata carries source revision links and the common recall/index projection is derived and rebuildable. No generated memory is public by default. | Pass |
 | P5 — permissions first | A dedicated API key has explicit memory scopes and a server-side single destination binding. The REST service derives namespace from authentication, re-checks ownership/state/scopes on every request, and never trusts a provider-supplied profile or path. | Pass |
 | P7 — asynchronous heavy work | Normal post-turn capture creates a pg-boss job and returns immediately. The Python provider queues it in a daemon worker. A required compression checkpoint submits then polls the durable job state; it fails closed if it cannot finish. Workers call `runWithoutDataCache`. | Pass |
-| P8 — source content and reversible changes | Memory/evidence content is appended through the shared Raw/page-revision lifecycle and remains immutable. Forget changes only the Agent Memory projection state while retaining the Raw source and audit metadata; capture retries are idempotent by destination and digest. | Pass |
+| P8 — source content and reversible changes | Memory/evidence content is written through the shared Raw/page-revision lifecycle; every revision remains immutable and continuing evidence appends to its existing page. Forget changes only the Agent Memory projection state while retaining the Raw source and audit metadata; capture retries are idempotent by destination and digest. | Pass |
 | P9 — open standards | Hermes calls documented REST + JSON endpoints protected by Bearer API keys; routes use shared Zod schemas and appear in OpenAPI. MCP remains the general AI-client adapter, not this lifecycle-specific transport. | Pass |
 | P10 — explicit registration | API routes, permission scopes, job handler, audit origin, provider entry point, setup-page definitions, and publish workflow are explicit registries/files. No Wiki-side filesystem plugin discovery is added. | Pass |
 | P12 — public content delivery | Only the managed integration page and generated welcome/help links change public content. They use normal published-page cache representation and targeted invalidation; credentials, status, destinations, evidence, and controls stay authenticated. | Pass |
@@ -96,11 +96,12 @@ management remain out of scope.
 ### Source of Truth, Provenance, and Publication Boundary
 
 - A Memory Record's content is an immutable restricted Raw page revision. An
-  Evidence Record's original conversation text is likewise an immutable Raw
-  entry. The shared Raw writer stores the body verbatim, assigns the Agent Memory
-  system category/source metadata, publishes once, and invokes common index
-  reconciliation. Raw-space availability (currently LLM Wiki writing mode) is
-  an explicit prerequisite and is surfaced by diagnostics.
+  Evidence Record's conversation text is a restricted Raw page whose every
+  accepted capture creates an immutable revision. The shared Raw writer stores
+  the body verbatim, assigns the Agent Memory system category/source metadata,
+  publishes, and invokes common index reconciliation. Raw-space availability
+  (currently LLM Wiki writing mode) is an explicit prerequisite and is surfaced
+  by diagnostics.
 - `agent_memory_records` is a locator/provenance projection only. It never
   stores a second copy of content. `agent_memory_evidence_links` records which
   evidence revisions support an explicit memory, while page/revision history

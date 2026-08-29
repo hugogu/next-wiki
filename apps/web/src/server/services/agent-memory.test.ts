@@ -121,6 +121,73 @@ describe('Agent memory service', () => {
     ]);
   });
 
+  it('appends later captures from one session to the same Raw conversation page', async () => {
+    const { ctx } = await createMemoryActor('capture-continuity');
+    const sessionDigest = 'f'.repeat(64);
+    const send = vi.fn().mockResolvedValue('job-capture-continuity');
+    setBoss({ send } as never);
+
+    const firstInput = {
+      idempotencyKey: `capture-${crypto.randomUUID()}`,
+      sessionDigest,
+      checkpoint: false,
+      messages: [{ role: 'user' as const, content: 'We chose PostgreSQL for the memory index.' }],
+    };
+    const secondInput = {
+      idempotencyKey: `capture-${crypto.randomUUID()}`,
+      sessionDigest,
+      checkpoint: true,
+      messages: [{ role: 'assistant' as const, content: 'The next step is to document the migration.' }],
+    };
+
+    const first = await agentMemory.submitEvidenceCapture(ctx, firstInput);
+    await agentMemory.runEvidenceCapture({ captureId: first.captureId, messages: firstInput.messages });
+    const second = await agentMemory.submitEvidenceCapture(ctx, secondInput);
+    await agentMemory.runEvidenceCapture({ captureId: second.captureId, messages: secondInput.messages });
+
+    const records = await db.query.agentMemoryRecords.findMany({
+      where: eq(schema.agentMemoryRecords.sourceSessionDigest, sessionDigest),
+    });
+    expect(records).toHaveLength(1);
+    const record = records[0]!;
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, record.pageId) });
+    const revisions = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, record.pageId),
+      orderBy: (rows, { asc }) => [asc(rows.versionNumber)],
+    });
+    expect(page?.path).toMatch(/^agent-memory\/hermes\/conversation\/[a-f0-9]{64}$/);
+    expect(revisions).toHaveLength(2);
+    expect(revisions[1]?.contentSource).toContain('We chose PostgreSQL for the memory index.');
+    expect(revisions[1]?.contentSource).toContain('The next step is to document the migration.');
+    expect(record.currentRevisionId).toBe(revisions[1]?.id);
+
+    const firstCapture = await db.query.agentMemoryCaptures.findFirst({ where: eq(schema.agentMemoryCaptures.id, first.captureId) });
+    const secondCapture = await db.query.agentMemoryCaptures.findFirst({ where: eq(schema.agentMemoryCaptures.id, second.captureId) });
+    expect(firstCapture?.evidenceRevisionId).toBe(revisions[0]?.id);
+    expect(secondCapture?.evidenceRevisionId).toBe(revisions[1]?.id);
+
+    // A worker may restart after the Raw append but before the capture ledger
+    // becomes durable. The capture id in Raw provenance lets the retry recover
+    // the original revision without appending the same chunk again.
+    await db.update(schema.agentMemoryCaptures)
+      .set({ status: 'running' })
+      .where(eq(schema.agentMemoryCaptures.id, first.captureId));
+    await agentMemory.runEvidenceCapture({ captureId: first.captureId, messages: firstInput.messages });
+    const recoveredRevisions = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, record.pageId),
+    });
+    expect(recoveredRevisions).toHaveLength(2);
+
+    await expect(agentMemory.getEvidenceCapture(ctx, first.captureId)).resolves.toMatchObject({
+      status: 'durable',
+      evidence: { evidenceId: record.id, citation: { pageId: record.pageId, revisionId: revisions[0]?.id } },
+    });
+    await expect(agentMemory.getEvidenceCapture(ctx, second.captureId)).resolves.toMatchObject({
+      status: 'durable',
+      evidence: { evidenceId: record.id, citation: { pageId: record.pageId, revisionId: revisions[1]?.id } },
+    });
+  });
+
   it('does not expose a record across dedicated destinations', async () => {
     const first = await createMemoryActor('first');
     const second = await createMemoryActor('second');

@@ -24,7 +24,7 @@ describe('Agent memory schema', () => {
       'namespaceId', 'agentIdentity', 'pageId', 'currentRevisionId', 'idempotencyKey', 'state', 'forgottenAt',
     ]));
     expect(Object.keys(schema.agentMemoryCaptures)).toEqual(expect.arrayContaining([
-      'namespaceId', 'agentIdentity', 'idempotencyKey', 'payloadDigest', 'status',
+      'namespaceId', 'agentIdentity', 'idempotencyKey', 'payloadDigest', 'status', 'evidenceRevisionId',
     ]));
   });
 });

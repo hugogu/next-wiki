@@ -130,15 +130,17 @@ access.
 
 ## 5. Canonical Memory, Evidence, and Recall
 
-**Decision**: Store memory and captured evidence as immutable, restricted Raw
-entries through the existing Raw writer. Raw entries use the shared page/revision
-content backend, Agent Memory system category, source metadata, publication path, and
-index reconciliation. Lightweight Agent Memory tables remain a namespace-scoped
-projection for authorization, locators, evidence links, state, and idempotency;
-they never duplicate source text. Forget only marks that projection forgotten;
-the Raw entry and revision remain unchanged. Implement bounded lexical recall
-over the destination's eligible current revisions as the baseline; semantic
-recall is an optional later adapter, never a requirement for Hermes memory.
+**Decision**: Store explicit memory as a restricted Raw entry and captured
+conversation evidence as a restricted Raw page whose revisions are appended
+through the existing Raw writer. Every revision is immutable. Raw pages use the
+shared page/revision content backend, Agent Memory system category, source
+metadata, publication path, and index reconciliation. Lightweight Agent Memory
+tables remain a namespace-scoped projection for authorization, locators,
+evidence links, state, and idempotency; they never duplicate source text.
+Forget only marks that projection forgotten; the Raw page and revisions remain
+unchanged. Implement bounded lexical recall over the destination's eligible
+latest revisions as the baseline; semantic recall is an optional later adapter,
+never a requirement for Hermes memory.
 
 **Rationale**: Raw is the Wiki's source layer for unmodified external evidence,
 and the shared writer already preserves verbatim content, provenance, revision

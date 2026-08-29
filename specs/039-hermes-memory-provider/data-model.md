@@ -22,9 +22,11 @@ authorization, provenance, and retry projections.
 - An authenticated Memory provider key determines its Memory Destination on the server.
   The client-provided agent identity is diagnostic context only and cannot change
   authorization.
-- A Memory Record has one immutable backing Raw page/revision and may link to
-  one or more Evidence Records. Raw content is appended once and never edited
-  or deleted by an agent; the logical record can be forgotten independently.
+- An explicit Memory Record has one immutable backing Raw page/revision. A
+  Conversation Evidence Record is an aggregate: one server-derived Raw page
+  receives append-only revisions for accepted captures from the same session.
+  Raw content is never edited or deleted by an agent; the logical record can
+  be forgotten independently.
 - Idempotency is durable and scoped to a destination. Retried, overlapping, or
   resumed lifecycle hooks therefore cannot create duplicate evidence.
 - All new database schema is defined in Drizzle and migrated solely via
@@ -44,13 +46,14 @@ constrained by its owner role plus its memory scope.
 
 ### Page and Page Revision
 
-Each Memory Record and Evidence Record is backed by a restricted entry in the
-shared Raw space and its published revision. The Raw page/revision retains
+Each Memory Record is backed by a restricted entry in the shared Raw space and
+its published revision. An Evidence Record is backed by one restricted Raw page
+whose published revisions form the conversation history. The Raw page/revision retains
 canonical source Markdown/text verbatim, the Agent Memory system category and source
 metadata, rendered representation, content hash, author/actor attribution,
 created time, and common index/reconciliation state. The memory service always
 writes through the existing Raw-entry writer; it never writes page tables
-directly and never updates an existing Agent Memory body.
+directly and never updates an existing revision.
 
 ### API Audit Entry
 
@@ -106,7 +109,7 @@ page revision.
 | `agent_identity` | Client namespace label | Required; all reads/writes and idempotency checks scope to this value. |
 | `record_type` | `memory` or `evidence` | `memory` is explicit durable recall; `evidence` preserves original input. |
 | `page_id` | Backing restricted Raw-space page | Required; shared Raw/page lifecycle is canonical. |
-| `current_revision_id` | Current backing revision | Updated only after successful normal revision save. |
+| `current_revision_id` | Latest backing revision | For an evidence conversation aggregate, advances after each accepted capture; for an explicit memory it remains the original revision. |
 | `idempotency_key` | Caller digest/key | Required for save/evidence submission; unique with `namespace_id` and `agent_identity`. |
 | `source_session_digest` | One-way bounded session correlation | Optional; never stores raw Hermes session ID or profile text. |
 | `state` | `active` or `forgotten` | `forgotten` changes only Agent Memory recall eligibility; the Raw page remains unchanged. |
@@ -120,10 +123,10 @@ Constraints and indexes:
 - A record's page/revision references must belong to the same owner and remain
   restricted. A missing, deleted, or inaccessible backing revision is treated as
   unavailable, never as a chance to read another page.
-- A record's source body is immutable after its first published Raw revision.
-  Retries return the existing locator; they never create a second revision for
-  the same idempotency key. Any future enrichment must create a separate record
-  or an explicit owner-controlled Raw append, not mutate the original body.
+- A record's revisions are immutable after publication. A retry returns the
+  existing capture/revision for the same idempotency key. A different accepted
+  capture with the same session digest appends a new revision to the existing
+  conversation page instead of creating another page or logical record.
 
 ### Agent Memory Evidence Link
 
@@ -151,6 +154,7 @@ explicitly.
 |---|---|---|
 | `agent_identity` | Client namespace label | Required and matches the bound key. |
 | `payload_digest` | Digest of normalized capture input | Required for idempotency conflict detection; never stores evidence text. |
+| `evidence_revision_id` | Exact Raw revision produced by this capture | Nullable for legacy rows; required when a capture is durable after this change, and remains stable even when the conversation receives later revisions. |
 | `status`, `job_id`, `failure_code` | Queue/retry projection | Row-locked claims and conditional terminal updates prevent overlapping workers from regressing a durable capture. |
 
 Constraints and indexes:
@@ -221,8 +225,9 @@ received -> queued -> running -> durable
 
 - A second request with the same destination/idempotency key returns the same
   capture identity/status rather than enqueueing another write.
-- `durable` means the Evidence Record, backing page revision, and record mapping
-  committed together.
+- `durable` means the Evidence Record, the capture's exact backing page
+  revision, and record mapping committed. The record's current revision may
+  advance later without changing this historical capture citation.
 - A strict checkpoint may acknowledge only `durable`; `queued`, `running`,
   `failed`, or timeout must cause the active provider to fail closed.
 
@@ -241,7 +246,8 @@ binding after authentication.
 ### Memory Record
 
 ```text
-new idempotency key -> active (one immutable Raw revision)
+new explicit-save idempotency key -> active (one immutable Raw revision)
+new evidence capture -> active (append one immutable revision to its session page)
 active --forget--> forgotten (Raw page/revision unchanged)
 forgotten --repeat forget--> forgotten (idempotent result)
 ```

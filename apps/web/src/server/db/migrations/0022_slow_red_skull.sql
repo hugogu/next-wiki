@@ -1,0 +1,2 @@
+ALTER TABLE "agent_memory_captures" ADD COLUMN "evidence_revision_id" uuid;--> statement-breakpoint
+ALTER TABLE "agent_memory_captures" ADD CONSTRAINT "agent_memory_captures_evidence_revision_id_page_revisions_id_fk" FOREIGN KEY ("evidence_revision_id") REFERENCES "public"."page_revisions"("id") ON DELETE restrict ON UPDATE no action;

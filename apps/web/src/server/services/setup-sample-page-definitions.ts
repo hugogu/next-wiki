@@ -234,7 +234,7 @@ export const AGENT_MEMORY_PAGE_SOURCE = `# Hermes Integration Guide
 
 ${SAMPLE_PAGE_MARKER}
 
-Use this optional integration to make this Wiki the durable, inspectable memory for one configured agent identity. Hermes is the first supported client. Enable **LLM Wiki** writing mode so the shared **Raw** space is available. Memory records and opted-in conversation evidence are restricted, immutable Raw entries with published revisions and common Wiki indexing/provenance; forgetting only hides a logical record from provider recall and does not change the Raw source.
+Use this optional integration to make this Wiki the durable, inspectable memory for one configured agent identity. Hermes is the first supported client. Enable **LLM Wiki** writing mode so the shared **Raw** space is available. Memory records are restricted Raw entries, while opted-in conversation evidence uses one restricted Raw page with a new immutable published revision for each accepted capture. Both use common Wiki indexing/provenance; forgetting only hides a logical record from provider recall and does not change the Raw source.
 
 The Hermes Plugins screen should show **next-wiki** as **ready** and **active** after setup. The API key field is managed by Hermes's secret store; leave it blank when keeping an existing key.
 
@@ -273,7 +273,7 @@ hermes next-wiki status
 hermes next-wiki check
 ~~~
 
-**status** never contacts the Wiki and never prints a key. **check** validates reachability, API version, the key binding, and granted scopes without returning Wiki content. Automatic capture is asynchronous and excludes tool calls/results, system text, and delegated contexts; inspect the Agent Memory Raw entry and Admin Access Log after the worker reports **durable**. Remote deployments need HTTPS; a Docker-hosted Hermes process must use an address reachable from its own network, not its host-only loopback address.
+**status** never contacts the Wiki and never prints a key. **check** validates reachability, API version, the key binding, and granted scopes without returning Wiki content. Automatic capture is asynchronous and excludes tool calls/results, system text, and delegated contexts; captures from the same session append immutable revisions to one Agent Memory Raw conversation page, and each durable capture retains its own revision citation. Inspect the Agent Memory Raw entry and Admin Access Log after the worker reports **durable**. Remote deployments need HTTPS; a Docker-hosted Hermes process must use an address reachable from its own network, not its host-only loopback address.
 
 ## 4. Recall, save, capture, and revoke
 

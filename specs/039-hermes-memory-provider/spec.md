@@ -117,11 +117,16 @@ durable memory.
    **When** the same source material reaches the Wiki, **Then** the source is
    not duplicated and a successful later retry restores a consistent memory
    state.
-5. **Given** a captured conversation includes sensitive tool output or content
+5. **Given** two accepted captures use the same destination, profile, and
+   `sessionDigest` but different idempotency keys, **When** both become durable,
+   **Then** they resolve to one Raw conversation page, the later capture creates
+   a new immutable revision, and the logical evidence record points to the
+   latest revision for recall.
+6. **Given** a captured conversation includes sensitive tool output or content
    the Wiki key may not preserve, **When** capture is attempted, **Then** the
    provider follows the configured redaction and permission policy, records a
    safe failure where needed, and never broadens the key's access.
-6. **Given** an asynchronous capture reaches `durable`, **When** a later
+7. **Given** an asynchronous capture reaches `durable`, **When** a later
    namespace-scoped recall matches its content, **Then** the provider returns
    the immutable evidence citation directly with `type: "evidence"`; it does
    not require a separate synthesis job or duplicate the Raw body.
@@ -257,10 +262,11 @@ operations fail safely while previously stored Wiki records remain intact.
 - **FR-007**: The provider MUST expose Hermes memory capabilities for relevant
   recall, explicit memory save, and reversible forgetting. Each capability MUST
   use the Wiki's normal authorization, provenance, revision/history, common
-  content/index pipelines, and audit behavior. Save and evidence capture MUST
-  append immutable records through the shared Raw-space writer; forget MUST
-  change only the Hermes record's recall state and MUST NOT mutate or delete the
-  Raw source.
+  content/index pipelines, and audit behavior. Save MUST create a restricted
+  Raw entry. Evidence capture MUST append a new immutable revision to the
+  server-resolved conversation page when the session already exists; it MUST
+  never mutate an existing revision. Forget MUST change only the Hermes
+  record's recall state and MUST NOT mutate or delete the Raw source.
 - **FR-008**: Recalled context MUST be bounded, clearly identified as stored
   memory rather than new user input, and include a durable Wiki address and
   revision/source reference for every recalled record. A no-result response
@@ -270,9 +276,13 @@ operations fail safely while previously stored Wiki records remain intact.
   explicit, owner-authorized configuration and remain constrained by the API
   key's permission scope.
 - **FR-010**: Explicitly saved memories and automatically captured conversation
-  evidence MUST be stored as immutable, inspectable entries in the shared Raw
+  evidence MUST be stored as inspectable restricted content in the shared Raw
   space, using the common page/revision/content-storage and indexing paths, with
   source, profile/session, creation-time, category, and provider provenance.
+  Raw revisions MUST remain immutable. A continuing conversation MUST reuse one
+  server-derived Raw page and represent each accepted capture as a new revision;
+  a capture retry with the same idempotency key MUST NOT create another
+  revision.
   They MUST be restricted by default and MUST NOT publish or alter anonymously
   readable Wiki content without the normal governed action. Hermes metadata
   tables MAY hold only locators, namespace/state, idempotency, and evidence
@@ -345,12 +355,12 @@ operations fail safely while previously stored Wiki records remain intact.
   entries in the shared Raw space, to which a Hermes profile can recall, save,
   and optionally capture memory. It is a logical security boundary, not a
   second content store.
-- **Memory Record**: An immutable Raw-space page/revision used for explicit
-  long-term memory, carrying common Wiki provenance/index metadata and
-  references to supporting source evidence.
-- **Conversation Evidence Record**: An optional restricted, immutable Raw-space
-  entry preserving selected original Hermes conversation material before it is
-  summarized or compressed.
+- **Memory Record**: An immutable logical record whose explicit-save content is
+  backed by one restricted Raw-space page/revision, carrying common Wiki
+  provenance/index metadata and references to supporting source evidence.
+- **Conversation Evidence Record**: An optional restricted logical record whose
+  server-derived Raw conversation page accumulates selected original Hermes
+  material as immutable revisions before it is summarized or compressed.
 - **Capture Checkpoint**: The durable confirmation that selected conversation
   evidence has been preserved before an operator-required lossy compression
   boundary can continue.
@@ -434,10 +444,12 @@ operations fail safely while previously stored Wiki records remain intact.
   listed as the first client integration; the preset itself is not Hermes-named.
   The non-secret `agent_identity` is required in both server validation and the
   Hermes provider configuration and is persisted in the key binding.
-- Canonical memory bodies remain immutable pages/revisions in the shared Raw
-  space and are indexed by the same Wiki pipeline as other pages. Agent Memory
-  tables are locators, authorization, and retry state only; they never duplicate
-  body content. Forget changes only the projection state.
+- Canonical memory bodies remain restricted Raw pages with immutable revisions
+  in the shared Raw space and are indexed by the same Wiki pipeline as other
+  pages. Agent Memory tables are locators, authorization, and retry state only;
+  they never duplicate body content. For a continuing conversation,
+  `current_revision_id` is the latest aggregate revision while each capture
+  retains its own exact revision citation. Forget changes only projection state.
 - `after_compaction` as a primary checkpoint and automatic session-start recall
   are explicitly deferred until the generic lifecycle contract is adopted by a
   second client. The first release keeps opt-in capture and capability-gated

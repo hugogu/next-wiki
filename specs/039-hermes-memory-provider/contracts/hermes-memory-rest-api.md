@@ -209,8 +209,9 @@ An empty `results` array with `complete=true` means no relevant permitted
 memory or durable evidence. It must not be confused with authentication,
 destination, or index failure. Queued/running captures are not returned until
 their Evidence Record is durable. Results identify their source with `type:
-"memory"` or `type: "evidence"`; evidence remains immutable and is not
-forgettable through the memory-record DELETE operation.
+"memory"` or `type: "evidence"`; evidence remains active and is not
+forgettable through the memory-record DELETE operation. For a continuing
+conversation, the evidence result cites its latest immutable Raw revision.
 
 ## `POST /memory/records`
 
@@ -308,9 +309,17 @@ capture. It never accepts tool result content by default.
 | Field | Rules |
 |---|---|
 | `idempotencyKey` | Required, destination-scoped unique key/digest. |
-| `sessionDigest` | Required one-way digest, 32–128 lower-case hex characters; raw session ID is never persisted. |
+| `sessionDigest` | Required one-way digest, 32–128 lower-case hex characters; raw session ID is never persisted. It is the conversation correlation key within the server-resolved destination and agent identity. |
 | `checkpoint` | Required Boolean. `true` means the client will wait for a durable acknowledgement. |
-| `messages` | Required 1–100 direct `user`/`assistant` rows; each and the total must fit the server size limits. System rows, tool calls, tool outputs, arbitrary metadata, and nested payloads are rejected. |
+| `messages` | Required 1–100 direct `user`/`assistant` rows representing the newly captured chunk; each and the total must fit the server size limits. System rows, tool calls, tool outputs, arbitrary metadata, and nested payloads are rejected. |
+
+The server derives one Raw conversation page from the authenticated
+destination, bound agent identity, and `sessionDigest`. Different accepted
+idempotency keys for that tuple append new immutable revisions to the same page;
+reusing an idempotency key returns the original capture and does not append
+again. The logical evidence record's citation is the latest conversation
+revision, while the capture status below returns the exact revision produced by
+that capture.
 
 **202 response**:
 
@@ -360,9 +369,11 @@ checkpoint wait loop.
 }
 ```
 
-`failed` and `cancelled` states return only safe code/message fields. A Hermes
-strict checkpoint succeeds only for `durable=true`; it raises on every other
-terminal state or timeout.
+`failed` and `cancelled` states return only safe code/message fields. A durable
+capture returns the exact Raw revision created for that event, even if a later
+capture has already appended another revision to the same conversation page. A
+Hermes strict checkpoint succeeds only for `durable=true`; it raises on every
+other terminal state or timeout.
 
 ## Client Provider Contract (Hermes first)
 

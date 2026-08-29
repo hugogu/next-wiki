@@ -144,12 +144,17 @@ setup prompt), restart/reload Hermes, and start a new session. Hold a
 conversation containing only disposable text.
 
 1. Complete a turn and verify the turn finishes without waiting for the Wiki.
-2. Poll the provider/job status until a restricted Evidence Record and
+2. Poll the provider/job status until a restricted Evidence Record and an
    immutable Raw backing revision become durable. Verify the Agent Memory
    category and common indexing path through the owner-authorized Wiki surface.
-3. Repeat the same request or simulate a retry. The same destination and
-   idempotency digest must return one capture/result, not duplicate evidence.
-4. Confirm system messages, assistant tool calls, tool result payloads, API
+3. Complete another eligible turn in the same Hermes session. It must append a
+   second immutable revision to the same Raw conversation page and keep one
+   logical Evidence Record. The status citation for each capture must identify
+   that capture's own revision.
+4. Repeat the same request or simulate a retry. The same destination and
+   idempotency digest must return one capture/result, not duplicate evidence or
+   create another revision.
+5. Confirm system messages, assistant tool calls, tool result payloads, API
    secrets, delegated contexts, and raw session IDs were not captured. The
    provider's `status` command reports the capture preference but does not prove
    that a worker has persisted a capture; use the Raw entry and Admin Access Log
