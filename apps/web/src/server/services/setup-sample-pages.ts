@@ -10,10 +10,13 @@ import type { Actor, PermCtx } from '@/server/permissions';
 import * as pagesService from '@/server/services/pages';
 import * as revisionsService from '@/server/services/revisions';
 import { DomainError } from '@/server/errors';
+import { invalidateManagedGuideCache } from '@/server/cache/public-cache';
 import { assertSetupAdmin, recordSamplePagesOutcome, recordSamplePagesSkip } from '@/server/services/setup';
 import {
   AGENT_MEMORY_PAGE_SOURCE,
   AGENT_MEMORY_PAGE_TITLE,
+  HERMES_PAGE_SOURCE,
+  HERMES_PAGE_TITLE,
   LEGACY_AGENT_MEMORY_PAGE_PATH,
   MAIN_FEATURES_PAGE_SOURCE,
   MAIN_FEATURES_PAGE_TITLE,
@@ -22,6 +25,8 @@ import {
   ONBOARDING_LINKS_MARKER,
   ONBOARDING_WELCOME_LINKS_BLOCK,
   ONBOARDING_WELCOME_PAGE_SOURCE,
+  OPENCLAW_PAGE_SOURCE,
+  OPENCLAW_PAGE_TITLE,
   SAMPLE_PAGE_MARKER,
   SAMPLE_PAGE_PATHS,
   WELCOME_PAGE_TITLE,
@@ -116,7 +121,8 @@ async function createPublishedPage(
   input: { path: string; title: string; contentSource: string },
 ): Promise<string> {
   const { pageId } = await pagesService.create(ctx, input);
-  await revisionsService.publish(ctx, { path: input.path, version: 1 });
+  await revisionsService.publish(ctx, { path: input.path, version: 1, skipPublicCacheInvalidation: true });
+  invalidateManagedGuideCache();
   return pageId;
 }
 
@@ -147,7 +153,8 @@ async function enrichWelcomePage(
       title: page.title,
       contentSource: refreshed,
     });
-    await revisionsService.publish(ctx, { path: page.path, version: versionNumber });
+    await revisionsService.publish(ctx, { path: page.path, version: versionNumber, skipPublicCacheInvalidation: true });
+    invalidateManagedGuideCache();
     return { path: page.path, status: 'updated', pageId: page.id };
   }
   const base = source ?? `# ${page.title}\n`;
@@ -156,7 +163,8 @@ async function enrichWelcomePage(
     title: page.title,
     contentSource: enriched,
   });
-  await revisionsService.publish(ctx, { path: page.path, version: versionNumber });
+  await revisionsService.publish(ctx, { path: page.path, version: versionNumber, skipPublicCacheInvalidation: true });
+  invalidateManagedGuideCache();
   return { path: page.path, status: 'updated', pageId: page.id };
 }
 
@@ -173,7 +181,12 @@ async function writeSamplePage(
     const legacySource = legacy
       ? await publishedSource(legacy.id, legacy.currentPublishedVersionId)
       : null;
-    if (legacy && legacySource?.includes(SAMPLE_PAGE_MARKER)) {
+    // The legacy path is shared: once migrated, the generic Agent Memory
+    // guide legitimately lives there too, and it also carries
+    // SAMPLE_PAGE_MARKER. Requiring the found page's title to match this
+    // exact definition (not just "some managed page") stops a reinit from
+    // mistaking that guide for stale Hermes content and moving it away.
+    if (legacy && legacy.title === input.title && legacySource?.includes(SAMPLE_PAGE_MARKER)) {
       // Preserve existing installs without leaving a duplicate setup-owned
       // guide behind. Updating both tree path and public slug retains the old
       // address as a redirect while making the integrations folder canonical.
@@ -205,7 +218,8 @@ async function writeSamplePage(
         title: input.title,
         contentSource: input.contentSource,
       });
-      await revisionsService.publish(ctx, { path: input.path, version: versionNumber });
+      await revisionsService.publish(ctx, { path: input.path, version: versionNumber, skipPublicCacheInvalidation: true });
+      invalidateManagedGuideCache();
       return { path: input.path, status: 'updated', pageId: existing.id };
     }
     return { path: input.path, status: movedLegacy || restoredDeleted ? 'updated' : 'skipped', pageId: existing.id };
@@ -215,10 +229,11 @@ async function writeSamplePage(
 }
 
 /**
- * Generate the optional welcome/markdown-syntax/main-features/Hermes integration pages through
- * the canonical page services (published revisions, normal permissions, and
- * public content cache invalidation via publish). Idempotent per page: reruns
- * skip setup-owned pages and report collisions for user-authored ones.
+ * Generate the optional welcome/markdown-syntax/main-features/Agent Memory
+ * (generic + Hermes + OpenClaw) guide pages through the canonical page
+ * services (published revisions, normal permissions, and public content
+ * cache invalidation via publish). Idempotent per page: reruns skip
+ * setup-owned pages and report collisions for user-authored ones.
  */
 export async function generateSamplePages(actor: Actor): Promise<SetupSamplePagesResponse> {
   const progress = await assertSetupAdmin(actor);
@@ -288,11 +303,13 @@ async function generateSamplePagesInternal(
     { path: SAMPLE_PAGE_PATHS.markdownSyntax, title: MARKDOWN_SYNTAX_PAGE_TITLE, contentSource: MARKDOWN_SYNTAX_PAGE_SOURCE },
     { path: SAMPLE_PAGE_PATHS.mainFeatures, title: MAIN_FEATURES_PAGE_TITLE, contentSource: MAIN_FEATURES_PAGE_SOURCE },
     {
-      path: SAMPLE_PAGE_PATHS.agentMemory,
-      title: AGENT_MEMORY_PAGE_TITLE,
-      contentSource: AGENT_MEMORY_PAGE_SOURCE,
+      path: SAMPLE_PAGE_PATHS.hermes,
+      title: HERMES_PAGE_TITLE,
+      contentSource: HERMES_PAGE_SOURCE,
       legacyPath: LEGACY_AGENT_MEMORY_PAGE_PATH,
     },
+    { path: SAMPLE_PAGE_PATHS.agentMemory, title: AGENT_MEMORY_PAGE_TITLE, contentSource: AGENT_MEMORY_PAGE_SOURCE },
+    { path: SAMPLE_PAGE_PATHS.openclaw, title: OPENCLAW_PAGE_TITLE, contentSource: OPENCLAW_PAGE_SOURCE },
   ]) {
     try {
       results.push(await writeSamplePage(ctx, definition, refreshManaged));

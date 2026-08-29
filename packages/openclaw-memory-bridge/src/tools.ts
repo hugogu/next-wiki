@@ -1,7 +1,7 @@
 import { Type } from 'typebox';
 import type { AnyAgentTool, OpenClawPluginApi } from 'openclaw/plugin-sdk/plugin-entry';
-import type { BridgeConfig } from './config';
-import { ApiClientError, WikiApiClient, type RecallScope } from './api-client';
+import type { BridgeConfig } from './config.js';
+import { ApiClientError, WikiApiClient, type RecallScope } from './api-client.js';
 
 const MAX_QUERY_CHARS = 4_000;
 const MAX_CONTENT_CHARS = 16_000;

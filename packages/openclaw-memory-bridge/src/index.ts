@@ -1,20 +1,20 @@
 import { definePluginEntry, type OpenClawPluginApi } from 'openclaw/plugin-sdk/plugin-entry';
-import { parseBridgeConfig, type BridgeConfig } from './config';
-import { WikiApiClient } from './api-client';
-import { redact } from './redaction';
-import { Outbox, OUTBOX_BOUNDS, type OutboxEntry } from './outbox';
-import { CaptureDeliveryService } from './service';
-import { registerCaptureHooks } from './hooks';
-import { registerAgentMemoryTools } from './tools';
-import { registerPromptEnrichment } from './prompt-enrichment';
+import { parseBridgeConfig, type BridgeConfig } from './config.js';
+import { WikiApiClient } from './api-client.js';
+import { redact } from './redaction.js';
+import { Outbox, OUTBOX_BOUNDS, type OutboxEntry } from './outbox.js';
+import { CaptureDeliveryService } from './service.js';
+import { registerCaptureHooks } from './hooks.js';
+import { registerAgentMemoryTools } from './tools.js';
+import { registerPromptEnrichment } from './prompt-enrichment.js';
 
-export { parseBridgeConfig, ConfigError, type BridgeConfig } from './config';
-export { WikiApiClient, ApiClientError, type RecallScope } from './api-client';
-export { redact } from './redaction';
-export { Outbox, OUTBOX_BOUNDS } from './outbox';
-export { CaptureDeliveryService } from './service';
-export { registerAgentMemoryTools } from './tools';
-export { registerPromptEnrichment } from './prompt-enrichment';
+export { parseBridgeConfig, ConfigError, type BridgeConfig } from './config.js';
+export { WikiApiClient, ApiClientError, type RecallScope } from './api-client.js';
+export { redact } from './redaction.js';
+export { Outbox, OUTBOX_BOUNDS } from './outbox.js';
+export { CaptureDeliveryService } from './service.js';
+export { registerAgentMemoryTools } from './tools.js';
+export { registerPromptEnrichment } from './prompt-enrichment.js';
 
 const PLUGIN_ID = 'next-wiki-memory-bridge';
 

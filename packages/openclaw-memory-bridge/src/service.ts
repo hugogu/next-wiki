@@ -1,5 +1,5 @@
-import type { WikiApiClient } from './api-client';
-import { Outbox, type OutboxEntry } from './outbox';
+import type { WikiApiClient } from './api-client.js';
+import { Outbox, type OutboxEntry } from './outbox.js';
 
 export type ServiceLogger = {
   debug?(message: string): void;

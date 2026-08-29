@@ -1,7 +1,7 @@
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/plugin-entry';
-import type { BridgeConfig, CaptureMode } from './config';
-import { buildCaptureRequest } from './capture';
-import { Outbox, OutboxCapacityError, OutboxPayloadTooLargeError } from './outbox';
+import type { BridgeConfig, CaptureMode } from './config.js';
+import { buildCaptureRequest } from './capture.js';
+import { Outbox, OutboxCapacityError, OutboxPayloadTooLargeError } from './outbox.js';
 
 /**
  * Registers only opt-in observation hooks that enqueue locally or reconcile

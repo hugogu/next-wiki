@@ -1,9 +1,10 @@
-import { beforeAll, afterAll, describe, it, expect } from 'vitest';
+import { afterEach, beforeAll, afterAll, describe, it, expect, vi } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import * as pageService from '@/server/services/pages';
 import * as revisionService from '@/server/services/revisions';
+import * as publicCache from '@/server/cache/public-cache';
 import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 
 async function ensureDefaultSpace() {
@@ -133,6 +134,20 @@ describe('revisionService US4', () => {
       await expect(
         revisionService.publish(buildUserCtx(reader.id, 'reader'), { path: 'deny-publish', version: 1 }),
       ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('skips the broad public-content cache invalidation when the caller opts out', async () => {
+      const editor = await createUser('editor-skip-invalidation@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      await pageService.create(ctx, { path: 'publish-skip-invalidation', title: 'Skip', contentSource: 'v1' });
+
+      const invalidateSpy = vi.spyOn(publicCache, 'invalidatePublicContentCache');
+      await revisionService.publish(ctx, { path: 'publish-skip-invalidation', version: 1, skipPublicCacheInvalidation: true });
+      expect(invalidateSpy).not.toHaveBeenCalled();
     });
   });
 

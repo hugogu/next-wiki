@@ -9,6 +9,9 @@ export const PUBLIC_CONTENT_CACHE_TAG = 'public-content';
 /** Shared data cache for site-wide information rendered in the app shell. */
 export const SITE_SHELL_CACHE_TAG = 'site-shell';
 
+/** Shared data cache for the public page tree that readers navigate, including managed help/guide pages. */
+export const HELP_NAVIGATION_CACHE_TAG = 'help-navigation';
+
 export function shouldUseDataCache(): boolean {
   return (
     dataCacheContext.getStore()?.disabled !== true &&
@@ -34,4 +37,18 @@ export function invalidatePublicContentCache(): void {
 export function invalidateSiteShellCache(): void {
   if (!shouldUseDataCache()) return;
   revalidateTag(SITE_SHELL_CACHE_TAG, 'max');
+}
+
+/**
+ * Targeted invalidation for a managed guide page's create/update. Unlike
+ * `invalidatePublicContentCache`, this never calls `revalidatePath('/', 'layout')`:
+ * a setup/reinit guide write is infrequent and non-interactive, so it doesn't
+ * need the same synchronous, site-wide layout rebuild an in-session user edit
+ * does. Both affected representations still go stale immediately through
+ * their tags and refetch on next read.
+ */
+export function invalidateManagedGuideCache(): void {
+  if (!shouldUseDataCache()) return;
+  revalidateTag(PUBLIC_CONTENT_CACHE_TAG, 'max');
+  revalidateTag(HELP_NAVIGATION_CACHE_TAG, 'max');
 }

@@ -14,9 +14,11 @@ const cache = vi.hoisted(() => ({
   invalidatePublicContentCache: vi.fn(),
   invalidatePublicLinkPaths: vi.fn(),
   invalidateSiteShellCache: vi.fn(),
+  invalidateManagedGuideCache: vi.fn(),
   shouldUseDataCache: () => false,
   PUBLIC_CONTENT_CACHE_TAG: 'public-content',
   SITE_SHELL_CACHE_TAG: 'site-shell',
+  HELP_NAVIGATION_CACHE_TAG: 'help-navigation',
 }));
 vi.mock('@/server/cache/public-cache', () => cache);
 
@@ -61,16 +63,35 @@ describe('sample page definitions (US3)', () => {
       welcome: 'welcome',
       markdownSyntax: 'help/markdown-syntax',
       mainFeatures: 'help/main-features',
-      agentMemory: 'integrations/hermes',
+      agentMemory: 'help/agent-memory-guide',
+      hermes: 'integrations/hermes',
+      openclaw: 'integrations/openclaw',
     });
   });
 
   it('onboarding welcome links to every help page', () => {
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/markdown-syntax)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/main-features)');
-    expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/integrations/hermes)');
+    expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain('](/help/agent-memory-guide)');
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.ONBOARDING_LINKS_MARKER);
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.SAMPLE_PAGE_MARKER);
+  });
+
+  it('generic Agent Memory guide covers connections, recall, and sharing', () => {
+    const source = definitions.AGENT_MEMORY_PAGE_SOURCE;
+    expect(source).toContain('](/integrations/hermes)');
+    expect(source).toContain('](/integrations/openclaw)');
+    expect(source).toContain('Connections and credentials');
+    expect(source).toContain('Sharing (optional)');
+    expect(source).toContain(definitions.SAMPLE_PAGE_MARKER);
+  });
+
+  it('OpenClaw bridge guide covers install, tools, and sharing without a live configuration', () => {
+    const source = definitions.OPENCLAW_PAGE_SOURCE;
+    expect(source).toContain('@next-wiki/openclaw-memory-bridge');
+    expect(source).toContain('](/help/agent-memory-guide');
+    expect(source).toContain('"credential": "${NEXT_WIKI_AGENT_MEMORY_CREDENTIAL}"');
+    expect(source).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
 
   it('markdown syntax guide covers the supported features', () => {
@@ -102,25 +123,34 @@ describe('sample page definitions (US3)', () => {
       expect(source).toContain(topic);
     }
     expect(source).toContain('](/help/markdown-syntax)');
-    expect(source).toContain('](/integrations/hermes)');
+    expect(source).toContain('](/help/agent-memory-guide)');
     expect(source).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
 });
 
+const ALL_SAMPLE_PATHS = [
+  'welcome',
+  'help/markdown-syntax',
+  'help/main-features',
+  'integrations/hermes',
+  'help/agent-memory-guide',
+  'integrations/openclaw',
+];
+
 describe('sample page writer (US3)', () => {
-  it('creates all four pages as published revisions attributed to the admin', async () => {
+  it('creates all six pages as published revisions attributed to the admin', async () => {
     const { actor, userId } = await openSetupAtSampleStep();
     const result = await samplePages.generateSamplePages(actor);
 
     expect(result.status).toBe('completed');
     expect(result.nextStep).toBe('summary');
-    expect(result.pages).toHaveLength(4);
+    expect(result.pages).toHaveLength(6);
     for (const page of result.pages) {
       expect(page.status).toBe('created');
       expect(page.pageId).toBeDefined();
     }
 
-    for (const path of ['welcome', 'help/markdown-syntax', 'help/main-features', 'integrations/hermes']) {
+    for (const path of ALL_SAMPLE_PATHS) {
       const page = await findPageByPath(path);
       expect(page).toBeDefined();
       expect(page?.authorId).toBe(userId);
@@ -160,9 +190,11 @@ describe('sample page writer (US3)', () => {
     const result = await samplePages.reinitializeSamplePages(adminActor(userId), wikiSpace!.id);
 
     expect(result.status).toBe('completed');
-    expect(result.pages).toHaveLength(4);
+    expect(result.pages).toHaveLength(6);
     expect(await readSetupProgress()).toBeUndefined();
     expect(await findPageByPath('integrations/hermes')).toBeDefined();
+    expect(await findPageByPath('help/agent-memory-guide')).toBeDefined();
+    expect(await findPageByPath('integrations/openclaw')).toBeDefined();
   });
 
   it('refreshes marker-owned pages when reinitializing after an example update', async () => {
@@ -186,7 +218,7 @@ describe('sample page writer (US3)', () => {
     expect(result.pages.find((item) => item.path === 'integrations/hermes')).toMatchObject({ status: 'updated' });
     const refreshed = await publishedRevisions('integrations/hermes');
     expect(refreshed).toHaveLength(3);
-    expect(refreshed.at(-1)!.contentSource).toBe(definitions.AGENT_MEMORY_PAGE_SOURCE);
+    expect(refreshed.at(-1)!.contentSource).toBe(definitions.HERMES_PAGE_SOURCE);
   });
 
   it('restores a deleted marker-owned page instead of failing its unique path', async () => {
@@ -208,7 +240,7 @@ describe('sample page writer (US3)', () => {
   it('restores every deleted managed example and publishes the current content', async () => {
     const { actor } = await openSetupAtSampleStep();
     await samplePages.generateSamplePages(actor);
-    const paths = ['welcome', 'help/markdown-syntax', 'help/main-features', 'integrations/hermes'];
+    const paths = ALL_SAMPLE_PATHS;
     for (const path of paths) await pagesService.remove({ actor }, path);
 
     const wikiSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
@@ -222,7 +254,9 @@ describe('sample page writer (US3)', () => {
     }
     expect((await publishedRevisions('help/markdown-syntax')).at(-1)?.contentSource).toBe(definitions.MARKDOWN_SYNTAX_PAGE_SOURCE);
     expect((await publishedRevisions('help/main-features')).at(-1)?.contentSource).toBe(definitions.MAIN_FEATURES_PAGE_SOURCE);
-    expect((await publishedRevisions('integrations/hermes')).at(-1)?.contentSource).toBe(definitions.AGENT_MEMORY_PAGE_SOURCE);
+    expect((await publishedRevisions('integrations/hermes')).at(-1)?.contentSource).toBe(definitions.HERMES_PAGE_SOURCE);
+    expect((await publishedRevisions('help/agent-memory-guide')).at(-1)?.contentSource).toBe(definitions.AGENT_MEMORY_PAGE_SOURCE);
+    expect((await publishedRevisions('integrations/openclaw')).at(-1)?.contentSource).toBe(definitions.OPENCLAW_PAGE_SOURCE);
   });
 
   it('does not restore a deleted user-authored page at a sample path', async () => {
@@ -298,6 +332,8 @@ describe('sample page writer (US3)', () => {
     expect(result.pages.find((page) => page.path === 'help/markdown-syntax')?.status).toBe('collision');
     expect(result.pages.find((page) => page.path === 'help/main-features')?.status).toBe('created');
     expect(result.pages.find((page) => page.path === 'integrations/hermes')?.status).toBe('created');
+    expect(result.pages.find((page) => page.path === 'help/agent-memory-guide')?.status).toBe('created');
+    expect(result.pages.find((page) => page.path === 'integrations/openclaw')?.status).toBe('created');
 
     const page = await findPageByPath('help/markdown-syntax');
     const [current] = await publishedRevisions('help/markdown-syntax');
@@ -327,13 +363,13 @@ describe('sample page writer (US3)', () => {
     expect(result.pages.find((page) => page.path === 'integrations/hermes')).toMatchObject({ status: 'created' });
   });
 
-  it('moves the legacy marker-owned Hermes guide into integrations without duplicating it', async () => {
+  it('moves the legacy marker-owned Hermes guide into integrations without duplicating it, leaving the legacy path retired', async () => {
     const { actor } = await openSetupAtSampleStep();
     const ctx = { actor };
     const legacy = await pagesService.create(ctx, {
       path: definitions.LEGACY_AGENT_MEMORY_PAGE_PATH,
-      title: definitions.AGENT_MEMORY_PAGE_TITLE,
-      contentSource: definitions.AGENT_MEMORY_PAGE_SOURCE,
+      title: definitions.HERMES_PAGE_TITLE,
+      contentSource: definitions.HERMES_PAGE_SOURCE,
     });
     await revisionsService.publish(ctx, { path: definitions.LEGACY_AGENT_MEMORY_PAGE_PATH, version: 1 });
 
@@ -343,9 +379,20 @@ describe('sample page writer (US3)', () => {
       status: 'updated',
       pageId: legacy.pageId,
     });
-    expect(await findPageByPath(definitions.LEGACY_AGENT_MEMORY_PAGE_PATH)).toBeUndefined();
     const migrated = await findPageByPath('integrations/hermes');
     expect(migrated).toMatchObject({ id: legacy.pageId, slug: 'integrations/hermes' });
+
+    // The move retains the legacy path as a permanent redirect alias
+    // (page-addresses.ts), so no page ever lives there again — including the
+    // unrelated, independently pathed generic Agent Memory guide.
+    expect(await findPageByPath(definitions.LEGACY_AGENT_MEMORY_PAGE_PATH)).toBeUndefined();
+    expect(result.pages.find((page) => page.path === definitions.SAMPLE_PAGE_PATHS.agentMemory)).toMatchObject({
+      status: 'created',
+    });
+    const generic = await findPageByPath(definitions.SAMPLE_PAGE_PATHS.agentMemory);
+    expect(generic).toBeDefined();
+    expect(generic!.id).not.toBe(legacy.pageId);
+    expect(generic!.title).toBe(definitions.AGENT_MEMORY_PAGE_TITLE);
   });
 
   it('skip records the choice without creating pages', async () => {
@@ -382,18 +429,35 @@ describe('sample page writer (US3)', () => {
 });
 
 describe('sample page cache invalidation (US3)', () => {
-  it('invalidates public content for every created or updated page', async () => {
+  it('invalidates the targeted guide cache, not the broad site-wide cache, for every created page', async () => {
     cache.invalidatePublicContentCache.mockClear();
+    cache.invalidateManagedGuideCache.mockClear();
     const { actor } = await openSetupAtSampleStep();
     await samplePages.generateSamplePages(actor);
-    // One invalidation per published revision (welcome + 3 help pages).
-    expect(cache.invalidatePublicContentCache).toHaveBeenCalledTimes(4);
+    // One targeted invalidation per published revision (welcome + 5 help/integration guides).
+    expect(cache.invalidateManagedGuideCache).toHaveBeenCalledTimes(6);
+    // The broad, site-wide-layout invalidation is never used for managed guide writes.
+    expect(cache.invalidatePublicContentCache).not.toHaveBeenCalled();
   });
 
   it('does not invalidate when nothing is created (skip)', async () => {
     cache.invalidatePublicContentCache.mockClear();
+    cache.invalidateManagedGuideCache.mockClear();
     const { actor } = await openSetupAtSampleStep();
     await samplePages.skipSamplePages(actor);
     expect(cache.invalidatePublicContentCache).not.toHaveBeenCalled();
+    expect(cache.invalidateManagedGuideCache).not.toHaveBeenCalled();
+  });
+
+  it('does not invalidate anything on a fully idempotent rerun (every page skipped)', async () => {
+    const { actor } = await openSetupAtSampleStep();
+    await samplePages.generateSamplePages(actor);
+    cache.invalidatePublicContentCache.mockClear();
+    cache.invalidateManagedGuideCache.mockClear();
+
+    const result = await samplePages.generateSamplePages(actor);
+    for (const page of result.pages) expect(page.status).toBe('skipped');
+    expect(cache.invalidatePublicContentCache).not.toHaveBeenCalled();
+    expect(cache.invalidateManagedGuideCache).not.toHaveBeenCalled();
   });
 });

@@ -66,7 +66,7 @@ import type { CapabilitySnapshot } from '@/server/services/search/types';
 import { getRevisionMetadata, metadataFromSource, patchMetadata, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { normalizeTagName } from '@/server/metadata/frontmatter';
 import { unstable_cache } from 'next/cache';
-import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
+import { HELP_NAVIGATION_CACHE_TAG, PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 import { DEFAULT_SPACE_SLUG, getSpaceById, listSpaces, resolveSpace } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from '@/server/services/writing-mode';
@@ -1540,7 +1540,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
 const readCachedPublishedPageTree = unstable_cache(
   async (space?: string) => getPageTree(buildAnonymousCtx(), { status: 'published', ...(space ? { space } : {}) }),
   ['published-page-tree'],
-  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG] },
+  { revalidate: 300, tags: [PUBLIC_CONTENT_CACHE_TAG, HELP_NAVIGATION_CACHE_TAG] },
 );
 
 /** Cached tree for the public app shell; authenticated draft visibility is not included. */

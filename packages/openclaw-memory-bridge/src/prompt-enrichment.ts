@@ -1,6 +1,6 @@
 import type { OpenClawPluginApi } from 'openclaw/plugin-sdk/plugin-entry';
-import type { BridgeConfig } from './config';
-import { ApiClientError, WikiApiClient } from './api-client';
+import type { BridgeConfig } from './config.js';
+import { ApiClientError, WikiApiClient } from './api-client.js';
 
 const MAX_QUERY_CHARS = 4_000;
 const MAX_ENRICHMENT_RECORDS = 3;

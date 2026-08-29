@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
-import type { CaptureMode } from './config';
-import type { OutboxMessage } from './outbox';
+import type { CaptureMode } from './config.js';
+import type { OutboxMessage } from './outbox.js';
 
 const MAX_MESSAGES = 100;
 const MAX_TOTAL_CONTENT_CHARS = 64_000;

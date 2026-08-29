@@ -10,9 +10,13 @@ another profile's namespace through a tool argument or URL.
 ## Install and activate
 
 1. Enable **LLM Wiki** writing mode so the shared Raw space is available. Then
-   open **User Center → API Keys** and select **Memory provider**. Set the
-   non-secret **Agent identity** (normally `hermes`). The preset grants only `memory.read`, `memory.write`, and
-   `memory.delete`; it does not grant generic page access. Copy the secret once.
+   open **User Center → API Keys** and use the **Agent memory connections**
+   section to create a connection. Set the non-secret **Agent identity**
+   (normally `hermes`). A connection's credential only ever grants memory
+   scopes, never generic page access, and gets its own private memory
+   destination by default. Copy the shown secret now — it can never be shown
+   again after this dialog closes. (Existing installs using the legacy
+   **Memory provider** API-key preset continue to work unchanged.)
 2. Install the provider:
 
    ```bash
@@ -149,11 +153,13 @@ versions, and verify it after every Hermes upgrade.
 
 ## Rotation, recovery, and backups
 
-Create a new dedicated key, re-run setup, confirm `hermes next-wiki check`,
-then revoke the old key in **User Center → API Keys**. Revocation stops future
-access immediately. Forget changes only the Hermes record's recall state, so
-the immutable Raw entry retains its original content and revisions for
-administrators according to the Wiki's Raw-space retention policy.
+Rotate the credential from **User Center → API Keys → Agent memory
+connections**, re-run setup with the new secret, confirm `hermes next-wiki
+check`, then revoke the connection once you've confirmed the new credential
+works. Revocation stops future access immediately. Forget changes only the
+Hermes record's recall state, so the immutable Raw entry retains its original
+content and revisions for administrators according to the Wiki's Raw-space
+retention policy.
 
 Back up the Wiki database and content store with the normal deployment backup
 procedure; memory pages and their revision citations are included. The normal

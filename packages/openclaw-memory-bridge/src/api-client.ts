@@ -1,4 +1,4 @@
-import type { BridgeConfig } from './config';
+import type { BridgeConfig } from './config.js';
 
 export const BRIDGE_VERSION = '0.1.0';
 const USER_AGENT = `next-wiki-openclaw-memory-bridge/${BRIDGE_VERSION}`;

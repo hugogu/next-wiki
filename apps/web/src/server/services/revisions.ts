@@ -19,7 +19,20 @@ function getUserId(ctx: PermCtx): string | null {
 
 export async function publish(
   ctx: PermCtx,
-  input: { path: string; version: number; expectedRevisionId?: string; space?: string },
+  input: {
+    path: string;
+    version: number;
+    expectedRevisionId?: string;
+    space?: string;
+    /**
+     * Skip the broad `invalidatePublicContentCache` (which forces a
+     * site-wide layout rebuild) for callers that invalidate a narrower,
+     * page-specific representation themselves, e.g. the setup-owned guide
+     * writer in `setup-sample-pages.ts`. Every interactive caller must leave
+     * this unset so a normal publish still refreshes the whole shell.
+     */
+    skipPublicCacheInvalidation?: boolean;
+  },
 ): Promise<{ versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -86,7 +99,7 @@ export async function publish(
 
     return { versionId: revision.id, pageId: page.id, slug: page.slug, path: page.path };
   });
-  invalidatePublicContentCache();
+  if (!input.skipPublicCacheInvalidation) invalidatePublicContentCache();
   await enqueuePublicPageWarmup(getPageHref(result.slug || result.path));
   await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);

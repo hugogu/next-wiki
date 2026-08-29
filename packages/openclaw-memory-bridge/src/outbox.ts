@@ -1,4 +1,4 @@
-import type { CaptureMode } from './config';
+import type { CaptureMode } from './config.js';
 
 /** Matches spec.md "Bounded Limits" exactly; duplicated here (not imported
  * from @next-wiki/shared) because this package is published independently
