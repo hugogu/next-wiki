@@ -2,20 +2,27 @@ import { definePluginEntry, type OpenClawPluginApi } from 'openclaw/plugin-sdk/p
 import { parseBridgeConfig, type BridgeConfig } from './config';
 import { WikiApiClient } from './api-client';
 import { redact } from './redaction';
+import { Outbox, OUTBOX_BOUNDS, type OutboxEntry } from './outbox';
+import { CaptureDeliveryService } from './service';
+import { registerCaptureHooks } from './hooks';
 
 export { parseBridgeConfig, ConfigError, type BridgeConfig } from './config';
 export { WikiApiClient, ApiClientError, type RecallScope } from './api-client';
 export { redact } from './redaction';
+export { Outbox, OUTBOX_BOUNDS } from './outbox';
+export { CaptureDeliveryService } from './service';
+
+const PLUGIN_ID = 'next-wiki-memory-bridge';
 
 /**
  * Hook-only / non-capability OpenClaw plugin: it never claims
- * `plugins.slots.memory`, never calls another plugin's private API, and
- * coexists with an installed local memory provider. Lifecycle capture hooks
- * and the local outbox are wired in a later phase (T029-T032); this entry
- * point only validates configuration and constructs the shared v1 client.
+ * `plugins.slots.memory` (no `registerMemoryCapability` call — confirmed
+ * that call exists and is the exclusive slot by inspecting the installed
+ * SDK's `OpenClawPluginApi` type), never calls another plugin's private
+ * API, and coexists with an installed local memory provider.
  */
 export default definePluginEntry({
-  id: 'next-wiki-memory-bridge',
+  id: PLUGIN_ID,
   name: 'Next Wiki Agent Memory',
   description: 'Bridges OpenClaw session lifecycle to the next-wiki generic Agent Memory service.',
   register(api: OpenClawPluginApi) {
@@ -32,6 +39,23 @@ export default definePluginEntry({
 
     const client = new WikiApiClient(config);
     api.logger.info(`Agent memory bridge activated (capture ${config.capture.enabled ? 'enabled' : 'disabled'}).`);
-    void client;
+
+    if (!config.capture.enabled) return;
+
+    const store = api.runtime.state.openKeyedStore<OutboxEntry>({
+      namespace: `${PLUGIN_ID}:outbox`,
+      maxEntries: OUTBOX_BOUNDS.maxEntriesPerConnection,
+      overflowPolicy: 'reject-new',
+      defaultTtlMs: OUTBOX_BOUNDS.ttlMs,
+    });
+    const outbox = new Outbox(store);
+    const deliveryService = new CaptureDeliveryService({ outbox, client, logger: api.logger });
+
+    registerCaptureHooks(api, config, outbox);
+    api.registerService({
+      id: `${PLUGIN_ID}-delivery`,
+      start: () => deliveryService.start(),
+      stop: () => deliveryService.stop(),
+    });
   },
 });
