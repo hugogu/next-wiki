@@ -451,7 +451,8 @@
             "type": "string",
             "enum": [
               "memory",
-              "evidence"
+              "evidence",
+              "source_document"
             ]
           },
           "state": {
@@ -564,6 +565,411 @@
         "required": [
           "record",
           "idempotent"
+        ]
+      },
+      "AgentMemorySourceDocument": {
+        "type": "object",
+        "properties": {
+          "memoryRecordId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "sourcePath": {
+            "type": "string"
+          },
+          "storagePath": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "revisionHash": {
+            "type": "string"
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "created",
+              "updated",
+              "unchanged"
+            ]
+          },
+          "citation": {
+            "type": "object",
+            "properties": {
+              "pageId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revisionId": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "revisionHash": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "canonicalUrl": {
+                "type": "string",
+                "format": "uri"
+              },
+              "createdAt": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "sourcePath": {
+                "type": "string"
+              },
+              "storagePath": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pageId",
+              "revisionId",
+              "revisionHash",
+              "title",
+              "canonicalUrl",
+              "createdAt",
+              "sourcePath",
+              "storagePath"
+            ]
+          }
+        },
+        "required": [
+          "memoryRecordId",
+          "pageId",
+          "revisionId",
+          "sourcePath",
+          "storagePath",
+          "title",
+          "revisionHash",
+          "outcome",
+          "citation"
+        ]
+      },
+      "AgentMemorySourceDocumentInput": {
+        "type": "object",
+        "properties": {
+          "sourcePath": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 400,
+            "pattern": "^(?!\\/)(?!.*[\\\\\\\\])(?!.*(?:^|\\/)\\.\\.?\\/?)(?!.*\\/\\/)[^\\u0000-\\u001f\\u007f]+\\.md$"
+          },
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 512000
+          },
+          "sourceDigest": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "sourceVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "idempotencyKey": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "sourcePath",
+          "content",
+          "sourceDigest",
+          "idempotencyKey"
+        ]
+      },
+      "AgentMemoryWikiConnection": {
+        "type": "object",
+        "properties": {
+          "apiVersion": {
+            "type": "string",
+            "enum": [
+              "v1"
+            ]
+          },
+          "provider": {
+            "type": "string",
+            "enum": [
+              "next-wiki"
+            ]
+          },
+          "bindingPurpose": {
+            "type": "string",
+            "enum": [
+              "mirror"
+            ]
+          },
+          "namespace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "active"
+                ]
+              },
+              "agentIdentity": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "state",
+              "agentIdentity"
+            ]
+          },
+          "capabilities": {
+            "type": "object",
+            "properties": {
+              "mirror": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "immutableRevisions": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              },
+              "currentOnly": {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              }
+            },
+            "required": [
+              "mirror",
+              "immutableRevisions",
+              "currentOnly"
+            ]
+          },
+          "limits": {
+            "type": "object",
+            "properties": {
+              "maxPathCharacters": {
+                "type": "integer"
+              },
+              "maxContentCharacters": {
+                "type": "integer"
+              }
+            },
+            "required": [
+              "maxPathCharacters",
+              "maxContentCharacters"
+            ]
+          }
+        },
+        "required": [
+          "apiVersion",
+          "provider",
+          "bindingPurpose",
+          "namespace",
+          "capabilities",
+          "limits"
+        ]
+      },
+      "AgentMemoryWikiPage": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "space": {
+            "type": "string",
+            "enum": [
+              "wiki",
+              "raw",
+              "generated"
+            ]
+          },
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string"
+          },
+          "truncated": {
+            "type": "boolean"
+          },
+          "canonicalUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "revisionId": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "format": "uuid"
+          },
+          "revisionHash": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "required": [
+          "pageId",
+          "space",
+          "path",
+          "title",
+          "content",
+          "truncated",
+          "canonicalUrl",
+          "revisionId",
+          "revisionHash"
+        ]
+      },
+      "AgentMemoryWikiPageReadQuery": {
+        "type": "object",
+        "properties": {
+          "maxChars": {
+            "default": 8000,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20000
+          }
+        },
+        "required": [
+          "maxChars"
+        ]
+      },
+      "AgentMemoryWikiSearchQuery": {
+        "type": "object",
+        "properties": {
+          "q": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "limit": {
+            "default": 10,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20
+          }
+        },
+        "required": [
+          "q",
+          "limit"
+        ]
+      },
+      "AgentMemoryWikiSearchResponse": {
+        "type": "object",
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pageId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revisionId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "revisionHash": {
+                  "type": "string"
+                },
+                "space": {
+                  "type": "string",
+                  "enum": [
+                    "wiki",
+                    "raw",
+                    "generated"
+                  ]
+                },
+                "title": {
+                  "type": "string"
+                },
+                "path": {
+                  "type": "string"
+                },
+                "excerpt": {
+                  "type": "string"
+                },
+                "score": {
+                  "type": "number"
+                },
+                "canonicalUrl": {
+                  "type": "string",
+                  "format": "uri"
+                }
+              },
+              "required": [
+                "pageId",
+                "revisionId",
+                "revisionHash",
+                "space",
+                "title",
+                "path",
+                "excerpt",
+                "score",
+                "canonicalUrl"
+              ]
+            }
+          },
+          "coverage": {
+            "type": "object",
+            "properties": {
+              "wiki": {
+                "type": "boolean"
+              },
+              "raw": {
+                "type": "boolean"
+              },
+              "generated": {
+                "type": "boolean"
+              },
+              "complete": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "wiki",
+              "raw",
+              "generated",
+              "complete"
+            ]
+          }
+        },
+        "required": [
+          "results",
+          "coverage"
         ]
       },
       "AiActionView": {
@@ -2358,10 +2764,20 @@
                 "minLength": 1,
                 "maxLength": 100,
                 "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+              },
+              "purpose": {
+                "type": "string",
+                "enum": [
+                  "memory_provider",
+                  "mirror",
+                  "knowledge_search"
+                ],
+                "default": "memory_provider"
               }
             },
             "required": [
-              "agentIdentity"
+              "agentIdentity",
+              "purpose"
             ],
             "description": "Creates or binds the key to an isolated memory destination and agent identity. It can only be used with memory scopes."
           }
@@ -3096,6 +3512,73 @@
           "ok"
         ],
         "description": "Simple OK response"
+      },
+      "OpenClawPairedKeyCreated": {
+        "type": "object",
+        "properties": {
+          "namespace": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "agentIdentity": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "agentIdentity"
+            ]
+          },
+          "mirror": {
+            "$ref": "#/components/schemas/ApiKeyCreated"
+          },
+          "knowledgeSearch": {
+            "$ref": "#/components/schemas/ApiKeyCreated"
+          }
+        },
+        "required": [
+          "namespace",
+          "mirror",
+          "knowledgeSearch"
+        ],
+        "description": "Two one-time secrets for the OpenClaw mirror and knowledge-search bindings."
+      },
+      "OpenClawPairedKeyInput": {
+        "type": "object",
+        "properties": {
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "agentIdentity": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "default": "openclaw"
+          },
+          "includeRaw": {
+            "type": "boolean",
+            "default": false
+          },
+          "includeGenerated": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "agentIdentity",
+          "includeRaw",
+          "includeGenerated"
+        ],
+        "description": "Owner-session-only OpenClaw paired-key preset."
       },
       "PAGE_ADDRESS_TAKEN": {},
       "PAGE_NOT_DELETED": {},
@@ -11757,6 +12240,161 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AgentMemoryForgetResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/wiki/connection": {
+      "get": {
+        "operationId": "get-v1-memory-wiki-connection",
+        "summary": "Inspect the bound Memory Wiki mirror connection",
+        "description": "Returns content-free mirror capabilities for the API key's bound destination.",
+        "tags": [
+          "Agent Memory Wiki"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryWikiConnection"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/wiki/documents": {
+      "put": {
+        "operationId": "put-v1-memory-wiki-documents",
+        "summary": "Mirror one Memory Wiki Markdown document",
+        "description": "Stores a complete current-file snapshot in the bound Raw space. Replaying the same digest is unchanged; updates create an immutable revision.",
+        "tags": [
+          "Agent Memory Wiki"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgentMemorySourceDocumentInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemorySourceDocument"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/wiki/search": {
+      "get": {
+        "operationId": "get-v1-memory-wiki-search",
+        "summary": "Search readable next-wiki knowledge",
+        "description": "Searches the caller's currently permitted Wiki, Raw, and Generated spaces and reports only safe coverage flags.",
+        "tags": [
+          "Agent Memory Wiki"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 4000
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": true,
+            "schema": {
+              "default": 10,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryWikiSearchResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/wiki/pages/{pageId}": {
+      "get": {
+        "operationId": "get-v1-memory-wiki-pages-{pageId}",
+        "summary": "Read one currently visible next-wiki page",
+        "description": "Re-authorizes the selected page against the knowledge-search key's current grants.",
+        "tags": [
+          "Agent Memory Wiki"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "maxChars",
+            "required": true,
+            "schema": {
+              "default": 8000,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20000
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryWikiPage"
                 }
               }
             }
@@ -24917,6 +25555,38 @@
         "responses": {}
       }
     },
+    "/api-keys/openclaw": {
+      "post": {
+        "operationId": "post-api-keys-openclaw",
+        "summary": "Provision paired OpenClaw API keys",
+        "description": "Creates one mirror key and one read-only knowledge-search key. Full secrets are returned only in this response.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenClawPairedKeyInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenClawPairedKeyCreated"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/user/email": {
       "patch": {
         "operationId": "patch-user-email",
@@ -25326,6 +25996,9 @@
     },
     {
       "name": "Agent Memory"
+    },
+    {
+      "name": "Agent Memory Wiki"
     },
     {
       "name": "AI"

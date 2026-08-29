@@ -312,6 +312,16 @@ provider profile after setup. See the
 [Hermes memory provider guide](packages/hermes-memory-provider/README.md) for key
 creation, installation, capture/checkpoint policy, and reverse-proxy guidance.
 
+### OpenClaw Memory Wiki plugin
+
+The [`@next-wiki/openclaw-memory-wiki`](packages/openclaw-memory-wiki/README.md)
+native plugin mirrors the local OpenClaw Memory Wiki vault into the same
+account-bound Raw/page/revision pipeline and bundles a `next-wiki` retrieval
+Skill. Provision its paired mirror and knowledge-search keys from **User Center
+→ API Keys → OpenClaw**; keep both values in OpenClaw SecretRefs. This is
+separate from the generic MCP server connection above and does not replace
+Hermes's provider.
+
 ## Content import, export, and storage
 
 Admin transfer tools support:

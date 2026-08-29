@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useTranslation } from '@/i18n/client';
-import { API_KEY_SCOPES, API_KEY_SPACE_KINDS, type ApiKeyView, type ApiKeyCreated } from '@next-wiki/shared';
+import { API_KEY_SCOPES, API_KEY_SPACE_KINDS, type ApiKeyView, type ApiKeyCreated, type OpenClawPairedKeyCreated } from '@next-wiki/shared';
 import { apiGet, apiDelete } from '@/lib/api/client';
 import { Button } from '@/components/ui/Button';
 import {
@@ -14,7 +14,7 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { PlusIcon, TrashIcon, EyeIcon } from '@/components/icons';
+import { PlusIcon, TrashIcon, EyeIcon, CopyIcon, CheckIcon, XIcon } from '@/components/icons';
 import { ApiKeyCreateDialog } from './ApiKeyCreateDialog';
 import { ApiKeyReveal } from './ApiKeyReveal';
 
@@ -28,6 +28,8 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
   const [keys, setKeys] = useState(initialKeys);
   const [createOpen, setCreateOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<ApiKeyCreated | null>(null);
+  const [createdPair, setCreatedPair] = useState<OpenClawPairedKeyCreated | null>(null);
+  const [copiedPair, setCopiedPair] = useState<string | null>(null);
   const [revealSecret, setRevealSecret] = useState<string | null>(null);
   const [revealTitle, setRevealTitle] = useState('');
   const [revokingId, setRevokingId] = useState<string | null>(null);
@@ -39,8 +41,9 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
     setKeys(list);
   };
 
-  const handleCreated = (key: ApiKeyCreated) => {
-    setCreatedKey(key);
+  const handleCreated = (key: ApiKeyCreated | OpenClawPairedKeyCreated) => {
+    if ('mirror' in key) setCreatedPair(key);
+    else setCreatedKey(key);
     refresh();
   };
 
@@ -195,6 +198,20 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
           created
           onClose={() => setCreatedKey(null)}
         />
+      )}
+
+      {createdPair && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-md">
+          <div className="relative w-full max-w-2xl space-y-md rounded-lg border border-border bg-surface p-lg shadow-lg">
+            <Button type="button" variant="ghost" onClick={() => setCreatedPair(null)} className="absolute right-md top-md h-9 w-9 px-0" aria-label={t('common.actions.dismiss')}><XIcon /></Button>
+            <h3 className="font-display text-xl font-semibold">{t('userCenter.apiKeys.openClawCreatedTitle')}</h3>
+            <p className="text-sm text-muted">{t('userCenter.apiKeys.createdWarning')}</p>
+            {[{ label: t('userCenter.apiKeys.openClawMirrorName'), key: createdPair.mirror }, { label: t('userCenter.apiKeys.openClawSearchName'), key: createdPair.knowledgeSearch }].map(({ label, key }) => (
+              <div key={key.id} className="rounded-lg border border-border bg-surface-elevated p-md"><div className="mb-sm flex items-center justify-between"><div><div className="text-sm font-medium">{label}</div><div className="text-xs text-muted">{key.name}</div></div><Button type="button" variant="ghost" onClick={async () => { await navigator.clipboard.writeText(key.keySecret); setCopiedPair(key.id); }} aria-label={copiedPair === key.id ? t('userCenter.apiKeys.copied') : t('userCenter.apiKeys.copy')}><>{copiedPair === key.id ? <CheckIcon /> : <CopyIcon />}</></Button></div><code className="block overflow-x-auto whitespace-nowrap text-sm font-mono">{key.keySecret}</code></div>
+            ))}
+            <Button type="button" onClick={() => setCreatedPair(null)}>{t('common.actions.dismiss')}</Button>
+          </div>
+        </div>
       )}
 
       {revealSecret && (

@@ -18,6 +18,7 @@ export const SAMPLE_PAGE_PATHS = {
   markdownSyntax: 'help/markdown-syntax',
   mainFeatures: 'help/main-features',
   agentMemory: 'integrations/hermes',
+  openClaw: 'integrations/openclaw',
 } as const;
 
 /** Previous setup-owned location, retained only for an idempotent first-run migration. */
@@ -27,6 +28,7 @@ export const WELCOME_PAGE_TITLE = 'Welcome to next-wiki';
 export const MARKDOWN_SYNTAX_PAGE_TITLE = 'Markdown Syntax Guide';
 export const MAIN_FEATURES_PAGE_TITLE = 'Main Features Guide';
 export const AGENT_MEMORY_PAGE_TITLE = 'Hermes Integration Guide';
+export const OPENCLAW_PAGE_TITLE = 'OpenClaw Integration Guide';
 
 export const WELCOME_PAGE_SOURCE = `# Welcome to next-wiki
 
@@ -91,6 +93,7 @@ ${ONBOARDING_LINKS_MARKER}
 - Learn the syntax in the [Markdown Syntax Guide](/help/markdown-syntax).
 - Tour the product in the [Main Features Guide](/help/main-features).
 - Connect Hermes securely in the [Hermes Integration Guide](/integrations/hermes).
+- Mirror OpenClaw Memory Wiki and search your knowledge in the [OpenClaw Integration Guide](/integrations/openclaw).
 `;
 
 /** Welcome content used when onboarding creates the welcome page itself. */
@@ -226,6 +229,7 @@ Administrators manage users, AI providers and models, storage backends, site ide
 
 - Use the [Hermes Integration Guide](/integrations/hermes) to connect an agent identity to the shared Raw-space memory destination. Memory entries are immutable and indexed through the same Wiki content pipeline.
 - The integration uses a dedicated API key with only memory scopes; it does not need a Wiki AI provider.
+- For OpenClaw Memory Wiki mirroring and account-wide retrieval, see the [OpenClaw Integration Guide](/integrations/openclaw).
 
 > **Tip:** You can edit or delete this page at any time — it is a normal wiki page created during first-run setup.
 `;
@@ -282,4 +286,36 @@ Hermes can use the **next_wiki_memory_search**, **next_wiki_memory_save**, and *
 Rotate a key by creating a new dedicated key and re-running setup, then revoke the old key here in User Center. Revocation stops future access immediately; immutable Raw entries retain their original revisions under the Wiki's Raw retention policy, while Hermes forget only changes provider recall state.
 
 For the complete integration reference, see the [provider README](https://github.com/hugogu/next-wiki/blob/main/packages/hermes-memory-provider/README.md). The [general deployment guide](https://github.com/hugogu/next-wiki/blob/main/docs/deployment.md) covers shared backups and reverse-proxy operations.
+`;
+
+export const OPENCLAW_PAGE_SOURCE = `# OpenClaw Integration Guide
+
+${SAMPLE_PAGE_MARKER}
+
+OpenClaw's Memory Wiki can be mirrored into next-wiki without changing the local vault or OpenClaw's compiler. The plugin keeps the original relative Markdown path, frontmatter, links, and bytes in the existing **Agent Memory → Page → Revision** pipeline. Repeating an unchanged file is idempotent; every changed file becomes one new current Revision while older Revisions remain available for history.
+
+## 1. Create the paired connection
+
+An administrator opens **User Center → API Keys → OpenClaw**. The preset returns two secrets once:
+
+- **Mirror key**: bound to one agent identity and allowed to write only mirrored source documents.
+- **Knowledge-search key**: read-only, with optional explicit Raw/Generated grants in addition to Wiki.
+
+Keep both values in OpenClaw SecretRefs. Never put secrets or Markdown in this page, normal configuration, shell history, or logs.
+
+## 2. Install and configure
+
+~~~bash
+openclaw plugins install @next-wiki/openclaw-memory-wiki
+~~~
+
+Configure the next-wiki origin, the Memory Wiki vault path, and the two SecretRefs. The plugin scans root Markdown files and the standard \`entities/\`, \`concepts/\`, \`syntheses/\`, \`sources/\`, \`reports/\`, and \`_views/\` trees. Attachments and \`.openclaw-wiki\` state are excluded.
+
+## 3. Verify and retrieve
+
+Use \`next_wiki_status\` for non-content health, and call \`next_wiki_sync\` only when an immediate scan is explicitly requested. The bundled \`next-wiki\` Skill searches first, reads only selected results, and cites title, space, path, revision, and canonical URL. If Raw or Generated grants are missing, the result reports incomplete coverage instead of bypassing permissions.
+
+## 4. Rotate or repair
+
+Revoke a compromised key in User Center and provision a new pair. Network failures are retried with bounded backoff and leave the local vault untouched; a degraded status can be repaired by restoring connectivity and running an explicit sync. Removing a local file never hard-deletes its next-wiki page or Revision history.
 `;

@@ -39,24 +39,25 @@ operation.
 ```json
 {
   "displayName": "Personal OpenClaw Memory Wiki",
-  "knowledgeSpaceAccess": ["wiki", "raw", "generated"]
+  "agentIdentity": "openclaw",
+  "includeRaw": true,
+  "includeGenerated": true
 }
 ```
 
 | Field | Rules |
 | --- | --- |
-| `displayName` | Required 1–100-character non-secret label for the paired namespace. |
-| `knowledgeSpaceAccess` | Optional unique subset of `wiki`, `raw`, `generated`; `wiki` is always present. Raw/Generated require the current owner to be an Admin. |
+| `displayName` | Optional 1–100-character non-secret label for the paired namespace. |
+| `agentIdentity` | Optional non-empty identity (defaults to `openclaw`). |
+| `includeRaw`, `includeGenerated` | Optional booleans. Each requests an explicit search grant; the current owner must be an Admin. Wiki is always included. |
 
 **201 response**:
 
 ```json
 {
-  "connection": {
-    "displayName": "Personal OpenClaw Memory Wiki",
-    "mirrorKey": { "id": "uuid", "secret": "nwk_…", "scopes": ["memory.read", "memory.write"] },
-    "knowledgeSearchKey": { "id": "uuid", "secret": "nwk_…", "scopes": ["view"], "spaceAccess": ["wiki", "raw", "generated"] }
-  }
+  "namespace": { "id": "uuid", "displayName": "Personal OpenClaw Memory Wiki", "agentIdentity": "openclaw" },
+  "mirror": { "id": "uuid", "name": "OpenClaw mirror", "keySecret": "nwk_…", "scopes": ["memory.read", "memory.write"], "spaceAccess": ["wiki"] },
+  "knowledgeSearch": { "id": "uuid", "name": "OpenClaw knowledge search", "keySecret": "nwk_…", "scopes": ["view"], "spaceAccess": ["wiki", "raw", "generated"] }
 }
 ```
 
@@ -70,7 +71,7 @@ Raw/Generated grant, `409` active-key limit or destination conflict,
 
 ## Mirror-Key Connection Probe
 
-### `GET /memory/wiki/connection`
+### `GET /api/v1/memory/wiki/connection`
 
 Returns content-free readiness for the **mirror key** only.
 
@@ -80,23 +81,24 @@ Returns content-free readiness for the **mirror key** only.
 
 ```json
 {
-  "provider": "openclaw-memory-wiki",
+  "provider": "next-wiki",
   "apiVersion": "v1",
-  "connection": { "state": "active", "displayName": "Personal OpenClaw Memory Wiki" },
-  "capabilities": { "markdownSnapshotMirror": true, "searchSkill": true },
-  "limits": { "maxDocumentBytes": 262144, "maxPathCharacters": 500 }
+  "bindingPurpose": "mirror",
+  "namespace": { "id": "uuid", "displayName": "Personal OpenClaw Memory Wiki", "state": "active", "agentIdentity": "openclaw" },
+  "capabilities": { "mirror": true, "immutableRevisions": true, "currentOnly": true },
+  "limits": { "maxContentCharacters": 512000, "maxPathCharacters": 400 }
 }
 ```
 
-No owner ID, namespace ID, credential, vault path, source path, document
-metadata, or stored content is returned.
+No owner ID, credential, vault path, source path, document metadata, or stored
+content is returned.
 
 **Errors**: `401` invalid/revoked key, `403` wrong key purpose/scope, `409`
 inactive namespace or unavailable Raw space, `426` incompatible client.
 
 ## Idempotent Markdown Snapshot Upsert
 
-### `PUT /memory/wiki/documents`
+### `PUT /api/v1/memory/wiki/documents`
 
 Creates or advances one generic Agent Memory `source_document` backed by a
 restricted Raw Page. It writes the full current Markdown snapshot through the
@@ -120,9 +122,9 @@ binding.
 
 | Field | Rules |
 | --- | --- |
-| `idempotencyKey` | Required 1–128-character client-generated delivery key. The same key with a different normalized source/digest is `409`; accepted delivery keys and digests are retained only in immutable Revision provenance. |
-| `sourcePath` | Required exact relative UTF-8 `.md` path, 1–500 characters. No absolute path, empty segment, traversal, symlink marker, `_attachments`, `.openclaw-wiki`, control character, or case-fold collision. |
-| `content` | Required UTF-8 Markdown, 1–262,144 bytes. Stored verbatim as the complete source snapshot. |
+| `idempotencyKey` | Required 1–200-character client-generated delivery key. Reusing it with different content is `409`; accepted delivery keys and digests are retained only in immutable Revision provenance. |
+| `sourcePath` | Required exact relative UTF-8 `.md` path, 1–400 characters. No absolute path, empty segment, traversal, backslash, or control character. |
+| `content` | Required Markdown, 1–512,000 characters. Stored verbatim as the complete source snapshot. |
 | `sourceDigest` | Required lowercase SHA-256 of exactly `content`; server recomputes and rejects a mismatch. |
 | `sourceVersion` | Optional bounded non-secret diagnostic hint. It cannot override digest, authorization, or revision order. |
 
@@ -131,17 +133,22 @@ binding.
 ```json
 {
   "outcome": "updated",
-  "document": {
-    "memoryRecordId": "uuid",
+  "memoryRecordId": "uuid",
+  "pageId": "uuid",
+  "revisionId": "uuid",
+  "sourcePath": "entities/alex.md",
+  "storagePath": "agent-memory/<namespace>/memory-wiki/entities/alex-…",
+  "title": "alex",
+  "revisionHash": "sha256-hex",
+  "citation": {
+    "pageId": "uuid",
+    "revisionId": "uuid",
+    "revisionHash": "sha256-hex",
+    "title": "alex",
+    "canonicalUrl": "https://wiki.example/spaces/raw/…",
+    "createdAt": "2026-08-29T00:00:00.000Z",
     "sourcePath": "entities/alex.md",
-    "storagePath": "agent-memory/openclaw/…/entities/alex",
-    "sourceDigest": "sha256-hex",
-    "citation": {
-      "pageId": "uuid",
-      "revisionId": "uuid",
-      "revisionHash": "sha256-hex",
-      "canonicalUrl": "https://wiki.example/spaces/raw/…"
-    }
+    "storagePath": "agent-memory/<namespace>/memory-wiki/entities/alex-…"
   }
 }
 ```
@@ -157,7 +164,7 @@ the exact source spelling remains in revision provenance.
 
 ## Knowledge Search
 
-### `GET /memory/wiki/search`
+### `GET /api/v1/memory/wiki/search`
 
 Runs a bounded, on-demand search across every content space the paired
 knowledge-search key currently may read.
@@ -169,11 +176,8 @@ same active OpenClaw namespace/owner as its paired mirror key.
 
 | Parameter | Rules |
 | --- | --- |
-| `q` | Required 1–200-character search term. |
-| `scope` | Optional `path`, `title`, `content`, or `all`; default `all`. |
-| `pathPrefix` | Optional valid next-wiki subtree constraint. |
+| `q` | Required 1–4,000-character search term. |
 | `limit` | Optional 1–20; default 10. |
-| `excerptLength` | Optional 20–500; default 200. |
 
 The endpoint always searches every permitted Wiki, Raw, and Generated space;
 the caller cannot use a space parameter to bypass grants. It delegates ranking,
@@ -187,13 +191,15 @@ search service.
   "coverage": { "wiki": true, "raw": true, "generated": false, "complete": false },
   "results": [
     {
-      "ref": "page-uuid:revision-uuid",
+      "pageId": "page-uuid",
+      "revisionId": "revision-uuid",
+      "revisionHash": "sha256-hex",
       "space": "raw",
       "title": "Alex",
       "path": "agent-memory/openclaw/…/entities/alex",
-      "sourcePath": "entities/alex.md",
       "excerpt": "…",
-      "citation": { "pageId": "uuid", "revisionId": "uuid", "canonicalUrl": "https://wiki.example/spaces/raw/…" }
+      "score": 0.92,
+      "canonicalUrl": "https://wiki.example/spaces/raw/…"
     }
   ]
 }
@@ -205,7 +211,7 @@ result count. An empty `results` array is a valid no-readable-match response.
 
 ## Read One Search Result
 
-### `GET /memory/wiki/pages/{pageId}`
+### `GET /api/v1/memory/wiki/pages/{pageId}`
 
 Reads one currently readable page selected by a search result.
 
@@ -218,13 +224,15 @@ the leading bounded Markdown source and `truncated: true` where applicable.
 
 ```json
 {
-  "ref": "page-uuid:revision-uuid",
+  "pageId": "page-uuid",
   "space": "generated",
   "title": "Customer profile",
   "path": "profiles/customer",
   "content": "---\n…",
   "truncated": false,
-  "citation": { "pageId": "uuid", "revisionId": "uuid", "revisionHash": "sha256-hex", "canonicalUrl": "https://wiki.example/spaces/generated/…" }
+  "canonicalUrl": "https://wiki.example/spaces/generated/…",
+  "revisionId": "revision-uuid",
+  "revisionHash": "sha256-hex"
 }
 ```
 

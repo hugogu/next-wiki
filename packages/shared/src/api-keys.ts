@@ -35,6 +35,9 @@ export const API_KEY_SCOPES: readonly ApiKeyScope[] = apiKeyScopeSchema.options;
 export const spaceKindSchema = z.enum(['wiki', 'raw', 'generated']);
 export type SpaceKind = z.infer<typeof spaceKindSchema>;
 
+export const agentMemoryBindingPurposeSchema = z.enum(['memory_provider', 'mirror', 'knowledge_search']);
+export type AgentMemoryBindingPurpose = z.infer<typeof agentMemoryBindingPurposeSchema>;
+
 export const API_KEY_SPACE_KINDS: readonly SpaceKind[] = spaceKindSchema.options;
 
 export const createApiKeyInputSchema = z.object({
@@ -56,6 +59,7 @@ export const createApiKeyInputSchema = z.object({
       displayName: z.string().min(1).max(100).optional(),
       sharedNamespaceId: z.string().uuid().optional(),
       agentIdentity: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
+      purpose: agentMemoryBindingPurposeSchema.default('memory_provider'),
     })
     .optional(),
 });
@@ -86,6 +90,21 @@ export const apiKeyCreatedSchema = apiKeyViewSchema.extend({
   keySecret: z.string(),
 });
 export type ApiKeyCreated = z.infer<typeof apiKeyCreatedSchema>;
+
+export const openClawPairedKeyInputSchema = z.object({
+  displayName: z.string().trim().min(1).max(100).optional(),
+  agentIdentity: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/).default('openclaw'),
+  includeRaw: z.boolean().default(false),
+  includeGenerated: z.boolean().default(false),
+}).strict();
+
+export const openClawPairedKeyCreatedSchema = z.object({
+  namespace: z.object({ id: z.string().uuid(), displayName: z.string(), agentIdentity: z.string() }),
+  mirror: apiKeyCreatedSchema,
+  knowledgeSearch: apiKeyCreatedSchema,
+});
+export type OpenClawPairedKeyInput = z.infer<typeof openClawPairedKeyInputSchema>;
+export type OpenClawPairedKeyCreated = z.infer<typeof openClawPairedKeyCreatedSchema>;
 
 export const apiKeyRevealSchema = z.object({
   id: z.string(),

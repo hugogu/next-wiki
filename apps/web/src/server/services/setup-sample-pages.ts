@@ -17,6 +17,8 @@ import {
   LEGACY_AGENT_MEMORY_PAGE_PATH,
   MAIN_FEATURES_PAGE_SOURCE,
   MAIN_FEATURES_PAGE_TITLE,
+  OPENCLAW_PAGE_SOURCE,
+  OPENCLAW_PAGE_TITLE,
   MARKDOWN_SYNTAX_PAGE_SOURCE,
   MARKDOWN_SYNTAX_PAGE_TITLE,
   ONBOARDING_LINKS_MARKER,
@@ -292,6 +294,11 @@ async function generateSamplePagesInternal(
       title: AGENT_MEMORY_PAGE_TITLE,
       contentSource: AGENT_MEMORY_PAGE_SOURCE,
       legacyPath: LEGACY_AGENT_MEMORY_PAGE_PATH,
+    },
+    {
+      path: SAMPLE_PAGE_PATHS.openClaw,
+      title: OPENCLAW_PAGE_TITLE,
+      contentSource: OPENCLAW_PAGE_SOURCE,
     },
   ]) {
     try {

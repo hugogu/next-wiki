@@ -95,6 +95,12 @@ conversation page. See the
 before connecting a remote client, especially for TLS and container-network
 requirements.
 
+For OpenClaw Memory Wiki synchronization, install the native
+[`@next-wiki/openclaw-memory-wiki`](../packages/openclaw-memory-wiki/README.md)
+plugin and configure its two SecretRefs. The plugin writes through the same
+restricted Raw/page/revision storage and leaves local vault files and older
+revisions intact; use HTTPS for non-loopback deployments.
+
 ### Restore
 
 1. Stop the web container:

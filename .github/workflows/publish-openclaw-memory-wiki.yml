@@ -1,0 +1,31 @@
+name: Publish @next-wiki/openclaw-memory-wiki
+
+on:
+  push:
+    tags:
+      - 'openclaw-memory-wiki-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with: { version: 10.33.0 }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @next-wiki/openclaw-memory-wiki typecheck
+      - run: pnpm --filter @next-wiki/openclaw-memory-wiki lint
+      - run: pnpm --filter @next-wiki/openclaw-memory-wiki test
+      - run: pnpm --filter @next-wiki/openclaw-memory-wiki build
+      - name: Publish to npm
+        working-directory: packages/openclaw-memory-wiki
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

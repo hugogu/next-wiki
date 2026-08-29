@@ -9,8 +9,7 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "build": "tsc",
-    "test": "vitest run"
+    "build": "tsc"
   },
   "devDependencies": {
     "typescript": "^5.6.3",

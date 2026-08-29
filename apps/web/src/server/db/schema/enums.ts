@@ -408,7 +408,12 @@ export const translationUsageSourceEnum = pgEnum('translation_usage_source', [
 export const auditOriginEnum = pgEnum('audit_origin', ['web', 'api', 'feishu', 'agent_memory']);
 
 export const agentMemoryNamespaceStateEnum = pgEnum('agent_memory_namespace_state', ['active', 'disabled']);
-export const agentMemoryRecordTypeEnum = pgEnum('agent_memory_record_type', ['memory', 'evidence']);
+export const agentMemoryRecordTypeEnum = pgEnum('agent_memory_record_type', ['memory', 'evidence', 'source_document']);
+export const agentMemoryBindingPurposeEnum = pgEnum('agent_memory_binding_purpose', [
+  'memory_provider',
+  'mirror',
+  'knowledge_search',
+]);
 export const agentMemoryRecordStateEnum = pgEnum('agent_memory_record_state', ['active', 'forgotten']);
 export const agentMemoryEvidenceRelationEnum = pgEnum('agent_memory_evidence_relation', [
   'explicit_save',

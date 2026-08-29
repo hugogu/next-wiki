@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AGENT_MEMORY_LIMITS, agentMemoryEvidenceInputSchema, agentMemoryRecallInputSchema, agentMemorySaveInputSchema } from './agent-memory';
+import { AGENT_MEMORY_LIMITS, agentMemoryEvidenceInputSchema, agentMemoryRecallInputSchema, agentMemorySaveInputSchema, agentMemorySourceDocumentInputSchema, memoryWikiSourcePathSchema } from './agent-memory';
 
 describe('Agent memory contracts', () => {
   it('bounds recall and write payloads', () => {
@@ -17,5 +17,14 @@ describe('Agent memory contracts', () => {
       idempotencyKey: 'checkpoint', sessionDigest: 'a'.repeat(64), checkpoint: true,
       messages: [{ role: 'tool', content: 'do not retain' }],
     }).success).toBe(false);
+  });
+
+  it('accepts Memory Wiki paths while rejecting traversal and non-Markdown input', () => {
+    expect(memoryWikiSourcePathSchema.safeParse('AGENTS.md').success).toBe(true);
+    expect(memoryWikiSourcePathSchema.safeParse('entities/Alex.md').success).toBe(true);
+    expect(memoryWikiSourcePathSchema.safeParse('../secrets.md').success).toBe(false);
+    expect(memoryWikiSourcePathSchema.safeParse('entities/Alex.txt').success).toBe(false);
+    expect(agentMemorySourceDocumentInputSchema.safeParse({ sourcePath: 'AGENTS.md', content: '# A', sourceDigest: 'a'.repeat(64), idempotencyKey: 'AGENTS.md:a' }).success).toBe(true);
+    expect(agentMemorySourceDocumentInputSchema.safeParse({ sourcePath: 'AGENTS.md', content: '# A', sourceDigest: 'a'.repeat(64) }).success).toBe(false);
   });
 });

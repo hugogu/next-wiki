@@ -1,0 +1,33 @@
+import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { scanVault } from '../src/vault-scanner.js';
+
+async function fixture() {
+  const root = await mkdtemp(join(tmpdir(), 'memory-wiki-'));
+  await mkdir(join(root, 'entities'), { recursive: true });
+  await mkdir(join(root, '_attachments'), { recursive: true });
+  await mkdir(join(root, '.openclaw-wiki'), { recursive: true });
+  await writeFile(join(root, 'AGENTS.md'), '---\nkind: person\n---\n# Alex\n');
+  await writeFile(join(root, 'entities', 'Alex.md'), '[profile](../AGENTS.md)');
+  await writeFile(join(root, '_attachments', 'ignored.md'), 'ignored');
+  await writeFile(join(root, '.openclaw-wiki', 'state.md'), 'ignored');
+  return root;
+}
+
+describe('scanVault', () => {
+  it('preserves root and nested Markdown while excluding attachments/state', async () => {
+    const docs = await scanVault(await fixture());
+    expect(docs.map((doc) => doc.sourcePath)).toEqual(['AGENTS.md', 'entities/Alex.md']);
+    expect(docs[0]?.content).toContain('kind: person');
+    expect(docs[1]?.sourceDigest).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('rejects symlinks instead of following them outside the vault', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'memory-wiki-link-'));
+    await writeFile(join(root, 'safe.md'), 'safe');
+    await symlink(join(root, 'safe.md'), join(root, 'linked.md'));
+    await expect(scanVault(root)).rejects.toThrow('Symlinks are not allowed');
+  });
+});
