@@ -1,0 +1,64 @@
+name: Publish @next-wiki/openclaw-memory-bridge
+
+on:
+  push:
+    tags:
+      - 'openclaw-memory-bridge-v*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck bridge
+        run: pnpm --filter @next-wiki/openclaw-memory-bridge typecheck
+
+      - name: Test bridge
+        run: pnpm --filter @next-wiki/openclaw-memory-bridge test
+
+      - name: Build bridge
+        run: pnpm --filter @next-wiki/openclaw-memory-bridge build
+
+      - name: Validate plugin manifest
+        working-directory: packages/openclaw-memory-bridge
+        run: node scripts/validate-manifest.mjs
+
+      - name: Pack archive
+        working-directory: packages/openclaw-memory-bridge
+        run: npm pack --pack-destination "$RUNNER_TEMP/openclaw-memory-bridge-archive"
+
+      - name: Clean install and runtime inspection
+        run: |
+          set -euo pipefail
+          install_dir="$RUNNER_TEMP/openclaw-memory-bridge-clean-install"
+          mkdir -p "$install_dir"
+          cd "$install_dir"
+          npm init -y >/dev/null
+          npm install "$RUNNER_TEMP"/openclaw-memory-bridge-archive/*.tgz "openclaw@$(node -p "require('$GITHUB_WORKSPACE/packages/openclaw-memory-bridge/package.json').peerDependencies.openclaw")"
+          cp "$GITHUB_WORKSPACE/packages/openclaw-memory-bridge/scripts/inspect-runtime.mjs" ./inspect-runtime.mjs
+          node ./inspect-runtime.mjs
+
+      - name: Publish to npm
+        working-directory: packages/openclaw-memory-bridge
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
