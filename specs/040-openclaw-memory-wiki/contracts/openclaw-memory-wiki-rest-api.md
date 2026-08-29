@@ -4,18 +4,19 @@
 **Base URL**: `{NEXT_WIKI_URL}/api/v1`
 **Feature**: [OpenClaw Memory Wiki Integration](../spec.md)
 
-This contract extends the existing versioned Agent Memory surface. It supports
-a native OpenClaw plugin only through server-bound connections; it is not a
-generic Raw-page CRUD API.
+This contract extends the existing versioned Agent Memory surface. A mirrored
+file is a generic Agent Memory `source_document` record backed by the existing
+Page and Revision model; it supports a native OpenClaw plugin only through
+server-bound connections and is not a generic Raw-page CRUD API.
 
 ## Common Rules
 
 - All requests use `Authorization: Bearer {key}` and
   `x-next-wiki-memory-provider-version: {plugin-version}`.
 - All successful and error responses are JSON with private, no-store caching.
-- The server derives owner, namespace, agent identity, key purpose, remote
-  vault root, and permitted spaces from authentication. Request fields cannot
-  select or enlarge any of those boundaries.
+- The server derives owner, namespace, agent identity, key purpose, Page
+  storage root, reader address, and permitted spaces from authentication.
+  Request fields cannot select or enlarge any of those boundaries.
 - Requests are bounded and UTF-8 JSON. The service rejects a body larger than
   the documented input maximum before it creates content.
 - Audit records contain endpoint/outcome/correlation metadata only. They omit
@@ -97,9 +98,10 @@ inactive namespace or unavailable Raw space, `426` incompatible client.
 
 ### `PUT /memory/wiki/documents`
 
-Creates or advances one mirrored Memory Wiki document. It writes the full
-current Markdown snapshot through the existing Raw content lifecycle and never
-appends a new file version to prior file content.
+Creates or advances one generic Agent Memory `source_document` backed by a
+restricted Raw Page. It writes the full current Markdown snapshot through the
+existing Raw content lifecycle, advances the Page's current published Revision,
+and never appends a new file version to prior file content.
 
 **Authorization**: active mirror key with `memory.write` and a `mirror`
 binding.
@@ -118,7 +120,7 @@ binding.
 
 | Field | Rules |
 | --- | --- |
-| `idempotencyKey` | Required 1–128-character client-generated value, unique for a normalized source attempt. Reuse with different normalized input is `409`. |
+| `idempotencyKey` | Required 1–128-character client-generated delivery key. The same key with a different normalized source/digest is `409`; accepted delivery keys and digests are retained only in immutable Revision provenance. |
 | `sourcePath` | Required exact relative UTF-8 `.md` path, 1–500 characters. No absolute path, empty segment, traversal, symlink marker, `_attachments`, `.openclaw-wiki`, control character, or case-fold collision. |
 | `content` | Required UTF-8 Markdown, 1–262,144 bytes. Stored verbatim as the complete source snapshot. |
 | `sourceDigest` | Required lowercase SHA-256 of exactly `content`; server recomputes and rejects a mismatch. |
@@ -130,9 +132,9 @@ binding.
 {
   "outcome": "updated",
   "document": {
-    "documentId": "uuid",
+    "memoryRecordId": "uuid",
     "sourcePath": "entities/alex.md",
-    "remotePath": "agent-memory/openclaw/…/entities/alex",
+    "storagePath": "agent-memory/openclaw/…/entities/alex",
     "sourceDigest": "sha256-hex",
     "citation": {
       "pageId": "uuid",
@@ -144,11 +146,14 @@ binding.
 }
 ```
 
-`created` creates a Raw page and first published revision. `updated` creates a
-new complete revision only when the accepted digest changed. `unchanged` returns
-the current citation and writes no revision. A collision, invalid path, digest
-mismatch, unavailable Raw mode, or incompatible replay is rejected without a
-partial page write.
+`created` creates a generic source-document record, its Raw Page, and the first
+published revision. `updated` creates a new complete revision only when the
+accepted digest changed, then advances the record/Page current-revision
+pointers. `unchanged` returns the current citation and writes no revision. A
+collision, invalid path, digest mismatch, unavailable Raw mode, or incompatible
+replay is rejected without a partial page write. `storagePath` is the existing
+Page storage tree; the Page's reader address remains independently managed, and
+the exact source spelling remains in revision provenance.
 
 ## Knowledge Search
 
