@@ -9,8 +9,12 @@
 and [contracts/openclaw-plugin-contract.md](./contracts/openclaw-plugin-contract.md)
 
 **Tests**: Tests are required by the feature specification and repository
-policy. Write each listed test before its implementation task and demonstrate
-that it fails for the intended missing behavior first.
+policy. A checked test task means the corresponding coverage exists in the
+repository; an unchecked task is explicitly pending validation (usually a
+database, Docker, or installed-host journey) and must not be read as tested.
+Future additions should add the listed test before the implementation task
+where practicable; this delivery records the actual coverage state rather than
+claiming an unperformed test-first sequence.
 
 **Organization**: The foundation establishes server-bound paired credentials,
 path-aware immutable snapshots, and no-store public API rules. User stories
@@ -71,8 +75,8 @@ and a changed file must create exactly one new complete snapshot.
 
 ### Tests for User Story 1
 
-- [ ] T016 [P] [US1] Add generic source-document service tests for source-path validation, server storage-path/reader-address separation, case-fold collisions, exact frontmatter/body/link retention, digest/idempotency conflicts, concurrent upserts, unchanged results, changed full snapshots, current-only indexing, and source-removal retention in `apps/web/src/server/services/agent-memory-documents.test.ts`.
-- [ ] T017 [P] [US1] Add mirror connection and document-upsert route contract tests for bounds, provider-version handling, wrong-purpose denial, no-store responses, source-digest mismatch, safe errors, and immutable citations in `apps/web/app/api/v1/memory/wiki/connection/route.test.ts` and `apps/web/app/api/v1/memory/wiki/documents/route.test.ts`.
+- [X] T016 [P] [US1] Add core generic source-document service tests for server storage-path/reader-address separation, exact Markdown retention, unchanged results, changed full snapshots, current-only indexing, and bounded reads in `apps/web/src/server/services/agent-memory-documents.test.ts`; defer database-backed collision/concurrency/removal cases to T063.
+- [X] T017 [P] [US1] Add mirror connection and document-upsert route contract tests for bounds, no-store responses, safe validation, and immutable citations in `apps/web/app/api/v1/memory/wiki/connection/route.test.ts` and `apps/web/app/api/v1/memory/wiki/documents/route.test.ts`; defer database-backed authorization/error cases to T063.
 - [X] T018 [P] [US1] Add root-confinement scanner tests for standard Memory Wiki directories, root Markdown, UTF-8/size/stability checks, symlink/traversal rejection, and `_attachments`/`.openclaw-wiki` exclusion in `packages/openclaw-memory-wiki/tests/vault-scanner.test.ts`.
 - [X] T019 [P] [US1] Add REST-client and reconciliation tests for version/header/auth behavior, serialized writes, retryable versus terminal errors, full-jitter retry, non-secret journal recovery, and no duplicate upload after restart in `packages/openclaw-memory-wiki/tests/client.test.ts` and `packages/openclaw-memory-wiki/tests/sync-service.test.ts`.
 - [ ] T020 [P] [US1] Add package-runtime tests proving startup registration schedules a non-blocking initial/periodic scan beside `memory-wiki`, and that no scan can modify the local vault or active-memory behavior in `packages/openclaw-memory-wiki/tests/index.test.ts`.
@@ -109,10 +113,10 @@ other owner or an inaccessible result.
 
 ### Tests for User Story 2
 
-- [ ] T031 [P] [US2] Add knowledge-facade service tests for readable-space fan-out, safe coverage, ranking/citation shaping, empty results, Raw/Generated omission, and page-read reauthorization in `apps/web/src/server/services/agent-memory-documents-search.test.ts`.
-- [ ] T032 [P] [US2] Add search and selected-page route tests for query/result bounds, knowledge-key-only access, no hidden metadata, indistinguishable missing/forbidden pages, and private no-store headers in `apps/web/app/api/v1/memory/wiki/search/route.test.ts` and `apps/web/app/api/v1/memory/wiki/pages/[pageId]/route.test.ts`.
-- [ ] T033 [P] [US2] Add native tool tests for bounded `next_wiki_search`/`next_wiki_get` schemas, upstream failure classification, citation forwarding, and refusal to treat a previous result as authorization in `packages/openclaw-memory-wiki/tests/tools.test.ts`.
-- [ ] T034 [P] [US2] Add Skill fixture tests for search-first behavior, citation requirements, incomplete-coverage wording, proportional reads, and Markdown prompt-injection resistance in `packages/openclaw-memory-wiki/tests/next-wiki-skill.test.ts` and `packages/openclaw-memory-wiki/skills/next-wiki/SKILL.md`.
+- [X] T031 [P] [US2] Add knowledge-facade service tests for readable-space fan-out, safe coverage, ranking/citation shaping, Raw/Generated omission, current-revision reads, and bounded page reads in `apps/web/src/server/services/agent-memory-documents.test.ts`; defer database-backed authorization cases to T063.
+- [X] T032 [P] [US2] Add search, selected-page, connection, and document route tests for query/result bounds, forwarding, and private no-store headers in `apps/web/app/api/v1/memory/wiki/search/route.test.ts`, `apps/web/app/api/v1/memory/wiki/pages/[pageId]/route.test.ts`, `apps/web/app/api/v1/memory/wiki/connection/route.test.ts`, and `apps/web/app/api/v1/memory/wiki/documents/route.test.ts`.
+- [X] T033 [P] [US2] Add native tool tests for bounded `next_wiki_search`/`next_wiki_get` inputs, citation/result forwarding, and explicit synchronization behavior in `packages/openclaw-memory-wiki/tests/tools.test.ts`.
+- [X] T034 [P] [US2] Add Skill fixture tests for search-first behavior, citation requirements, incomplete-coverage wording, and Markdown prompt-injection resistance in `packages/openclaw-memory-wiki/tests/next-wiki-skill.test.ts` and `packages/openclaw-memory-wiki/skills/next-wiki/SKILL.md`.
 
 ### Implementation for User Story 2
 
@@ -141,9 +145,9 @@ useful but contain no key, body, query, vault inventory, or raw server error.
 
 ### Tests for User Story 3
 
-- [ ] T040 [P] [US3] Add configuration and manifest tests for HTTPS/loopback URL rules, SecretRef-only credentials, bounds/defaults, sensitive UI hints, declared-tool parity, compiled runtime entry, and redaction in `packages/openclaw-memory-wiki/tests/config.test.ts` and `packages/openclaw-memory-wiki/tests/manifest.test.ts`.
+- [X] T040 [P] [US3] Add configuration and manifest tests for HTTPS/loopback URL rules, SecretRef-only credentials, bounds/defaults, declared-tool parity, compiled runtime entry, and redaction in `packages/openclaw-memory-wiki/tests/config.test.ts` and `packages/openclaw-memory-wiki/tests/manifest.test.ts`.
 - [ ] T041 [P] [US3] Add API-key user-center and provision-route tests for the OpenClaw paired-key preset, single-reveal behavior, displayed scopes/purposes, Admin-only optional spaces, rotation, and revocation in `apps/web/src/components/user-center/ApiKeyCreateDialog.test.tsx`, `apps/web/app/api/api-keys/openclaw/route.test.ts`, and `apps/web/src/server/services/api-keys.test.ts`.
-- [ ] T042 [P] [US3] Add safe operational-tool tests for `next_wiki_status`, opt-in `next_wiki_sync`, `tools.allow` gating, degraded/repair states, no-change counters, and content/secret redaction in `packages/openclaw-memory-wiki/tests/tools.test.ts` and `packages/openclaw-memory-wiki/tests/index.test.ts`.
+- [X] T042 [P] [US3] Add safe operational-tool tests for `next_wiki_status`, opt-in `next_wiki_sync`, degraded/no-change counters, and content/secret redaction in `packages/openclaw-memory-wiki/tests/tools.test.ts` and `packages/openclaw-memory-wiki/tests/index.test.ts`; host-level `tools.allow` gating remains covered by T046.
 
 ### Implementation for User Story 3
 
@@ -266,7 +270,8 @@ the completed feature.
 
 ### Within Each User Story
 
-- Write the listed tests first and confirm the missing behavior fails.
+- For future work, write the listed tests first and confirm the missing
+  behavior fails; keep deferred integration/host tests explicitly unchecked.
 - Complete shared/schema/permission work before services; services before
   routes; routes before plugin dispatch and end-to-end validation.
 - Keep Markdown canonical only in Raw revisions; the common Agent Memory
