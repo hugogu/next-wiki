@@ -10,7 +10,7 @@ import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import { buildPageDescription } from '@/lib/seo';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { getReadablePublishedTranslationLocales, getCachedPublishedTranslationLocales } from '@/server/services/pages';
-import { getCachedPublishedPageTree, getPageTree } from '@/server/services/public-content';
+import { getCachedPublishedPageTree, getPageTree, getRevision } from '@/server/services/public-content';
 import type { ResolvedReaderPage } from '@/server/services/reader-routing';
 import { can, pagePermissionOptions, type Actor } from '@/server/permissions';
 import type { Locale } from '@/i18n/config';
@@ -83,16 +83,24 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
     !isTranslation &&
     page.status === 'draft' &&
     (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
-  const translationLocales = staticPublic
-    ? await getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug)
-    : await getReadablePublishedTranslationLocales({ actor }, resolved.sourcePath, resolved.space.slug);
-  const tree = staticPublic
-    ? await getCachedPublishedPageTree(resolved.space.slug)
-    : await getPageTree({ actor }, { status: 'all', space: resolved.space.slug });
+  const [translationLocales, tree, rawRevision] = await Promise.all([
+    staticPublic
+      ? getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug)
+      : getReadablePublishedTranslationLocales({ actor }, resolved.sourcePath, resolved.space.slug),
+    staticPublic
+      ? getCachedPublishedPageTree(resolved.space.slug)
+      : getPageTree({ actor }, { status: 'all', space: resolved.space.slug }),
+    resolved.space.kind === 'raw'
+      ? getRevision({ actor }, page.pageId, page.version)
+      : Promise.resolve(null),
+  ]);
   const breadcrumbAncestors = getBreadcrumbNodes(tree.root, page.path)
     .slice(0, -1)
     .filter((node) => node.pageId && node.slug);
-  const createdAt = new Date(page.createdAt);
+  const createdAt = new Date(rawRevision?.createdAt ?? page.createdAt);
+  const rawAuthorName = rawRevision?.source && typeof rawRevision.source.apiKeyName === 'string'
+    ? rawRevision.source.apiKeyName
+    : null;
   const siteUrl = env.APP_URL.replace(/\/$/, '');
   const canonicalPath = canonicalSpacePath(resolved.space, resolved.sourcePath, isTranslation ? resolved.locale : null);
   const jsonLd =
@@ -182,8 +190,8 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
             </div>
             <footer className="mt-2xl pt-md border-t border-border text-sm text-muted">
               <div className="flex flex-wrap items-center gap-sm">
-                <span>{t('page.read.createdOn', { date: formatter.dateTime(createdAt, 'short') })}
-                {page.authorDisplayName ? t('page.read.authorSuffix', { name: page.authorDisplayName }) : t('page.read.authorSuffix', { name: t('common.unknownAuthor') })}</span>
+                <span>{t('page.read.createdOn', { date: formatter.dateTime(createdAt, resolved.space.kind === 'raw' ? 'shortWithSeconds' : 'short') })}
+                {t('page.read.authorSuffix', { name: rawAuthorName ?? page.authorDisplayName ?? t('common.unknownAuthor') })}</span>
                 <ProvenanceIndicators pageId={page.pageId} />
               </div>
             </footer>
