@@ -2,12 +2,13 @@
 
 # next-wiki
 
-**A self-hosted, AI-native wiki for turning conversations and sources into durable knowledge.**
+**A self-hosted, private-by-default Agent Context & Memory Hub.**
 
-Capture what you learn, keep the evidence, ask AI to retrieve and organize it,
-and publish a readable wiki when it is ready. next-wiki is built for people who
-want an AI memory they can run, inspect, export, and connect to any compatible
-client.
+Capture conversations and source evidence, manage Agent rules and non-secret
+configuration, ask Agents to retrieve the context they are allowed to use, and
+publish only the knowledge you choose. next-wiki is built for one owner and a
+fleet of explicitly identified Agents who need private, inspectable, portable
+context that can outlive any single AI client.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 [![Node.js](https://img.shields.io/badge/Node.js-20.9%2B-339933?logo=node.js&logoColor=white)](package.json)
@@ -44,29 +45,48 @@ live in [the diagram source](docs/diagrams/knowledge-flow.md).
 ## Why next-wiki?
 
 Most wikis are good at storing pages, while most AI assistants are good at
-answering questions. next-wiki joins the two into a governed knowledge loop:
+answering questions. next-wiki joins the two into a governed context and
+knowledge loop:
 
 ```text
-conversation / source / command output
+Agent rules / configuration / conversations / sources / tool output
               │
               ▼
-       raw, append-only evidence
+       typed, scoped, versioned context
               │
               ▼
-    AI retrieval, synthesis, and drafts
+     Agent retrieval and effective context
               │
               ▼
-       human review and publication
+       owner review and selective sharing
               │
               ▼
-       durable, searchable wiki memory
+       durable memory or a public context pack
 ```
 
-The goal is not to hide an AI agent behind a chat box. The goal is to make
-knowledge useful to both people and agents while keeping ownership, evidence,
-permissions, revisions, and publication boundaries visible.
+The goal is not to hide an AI Agent behind a chat box. The goal is to make
+context useful to multiple Agents and people while keeping ownership,
+evidence, permissions, revisions, and publication boundaries visible. Retrieved
+text is data, not authority: it cannot grant permissions, authorize tools, or
+execute commands.
 
 ## Highlights
+
+### A private context hub for an Agent fleet
+
+The primary model is one owner plus multiple explicitly identified Agents:
+
+- Keep Agent instructions and rules, non-secret configuration, procedures,
+  episodic memory, source evidence, and curated knowledge distinct.
+- Give each Agent private context while making owner-approved shared namespaces
+  explicit, permissioned, and auditable.
+- Assemble effective context for a specific Agent, runtime, project, or task
+  from revisioned sources with deterministic precedence and citations.
+- Publish a named, allowlisted, version-aware context pack instead of exposing
+  an entire personal memory store.
+
+The context-hub model is being introduced incrementally through the existing
+page, revision, permission, AI, REST, and MCP foundations.
 
 ### A complete Markdown wiki
 
@@ -117,14 +137,16 @@ providers are intentionally not auto-discovered or activated in this phase.
 The separately packaged MCP server is available when an external AI client
 should connect to next-wiki directly.
 
-### A self-growing memory model
+### An evidence-first memory and context model
 
-Choose the authoring model that fits the instance:
+Choose the authoring model that fits the instance, then extend it with
+owner-controlled Agent context:
 
 | Mode | Best for | Content model |
 | --- | --- | --- |
 | **Copilot** | A conventional collaborative wiki | Human and AI work in the default wiki space; drafts and publication remain the primary workflow. |
 | **LLM Wiki** | Evidence-first personal or team memory | `raw` stores append-only source material, `generated` stores AI-produced concepts with provenance, and `default` remains the curated public wiki. |
+| **Agent Context** | One owner operating multiple Agents | Rules, configuration, memory, evidence, and curated knowledge are scoped by Agent identity and assembled into reviewable effective context. |
 
 In LLM Wiki mode, raw entries can preserve extracted text together with
 original bytes such as PDF, HTML, JSON, images, and logs. Generated concepts
@@ -357,6 +379,12 @@ Important design boundaries:
   draft/revision/publication and cache-invalidation path.
 - Raw evidence is the source layer for durable AI memory; indexes, summaries,
   and retrieval projections are rebuildable.
+- Agent context is typed, attributed, permission-scoped, and revisioned. An
+  effective context is a rebuildable projection for a target Agent, runtime,
+  project, or task; retrieved text cannot grant authority or execute tools.
+- Shared Agent namespaces are explicit and owner-approved. Public context is
+  exported as a named, allowlisted, version-aware pack rather than exposing a
+  whole private namespace.
 - Public reading is optimized for static/ISR delivery, while session-specific
   controls hydrate separately.
 
@@ -395,6 +423,7 @@ SQL migration files. See the package READMEs and the
 - [Production deployment](docs/deployment.md)
 - [Content import and export](docs/content-import-export.md)
 - [Architecture](docs/architecture)
+- [Agent Context & Memory architecture](docs/architecture/agent-context.md)
 - [MCP server guide](packages/mcp-server/README.md)
 - [Feature specifications and plans](specs)
 - [Project constitution](.specify/memory/constitution.md)

@@ -1,6 +1,6 @@
 # Architectural Mandates
 
-**Status**: Constitutionally binding. Elaborates Core Principles P1–P12 in
+**Status**: Constitutionally binding. Elaborates Core Principles P1–P14 in
 `.specify/memory/constitution.md`.
 **Change control**: These mandates are non-negotiable structural decisions. A
 deviation requires a constitution amendment (see constitution § Governance).
@@ -72,10 +72,12 @@ cacheable per revision hash.
 
 ## Permission Model
 
-The permission model has three axes: **subject** (user or group), **resource**
-(space, page, asset, job, or integration token), and **action** (read, write,
-delete, manage, execute). Permissions are evaluated in order: explicit deny >
-explicit allow > inherited from parent page > space default > global default.
+The permission model has three axes: **subject** (user, Agent identity, or
+human group), **resource** (space, page, asset, job, context item, context pack,
+shared namespace, or integration token), and **action** (read, write, delete,
+manage, publish, execute). Permissions are evaluated in order: explicit deny >
+explicit allow > inherited from parent page or namespace > space default >
+global default.
 The parent of a top-level page is its space.
 
 When a page is moved between spaces, its explicit page-level permissions are
@@ -198,11 +200,16 @@ Rules:
   external automation clients.
 - MCP is optional and MAY be enabled independently of public REST, but it uses
   the same token scopes, permission model, and services.
+- External Agent requests MUST carry an authenticated or explicitly bound
+  Agent identity and a server-enforced target scope. Client-provided owner,
+  namespace, or Agent selectors MUST NOT widen the identity or scope derived
+  from the credential.
 - API tokens are scoped (`read`, `write`, `admin`, `ai`, `mcp`) and managed via
   the admin panel.
-- MCP tools that return page content MUST return source revision identifiers or
-  citations. MCP tools that mutate content MUST require write scope and MUST
-  create normal page revisions.
+- MCP tools that return page or context content MUST return source revision
+  identifiers or citations. MCP tools that mutate content MUST require write
+  scope, attribute the mutation to the Agent or human actor, and MUST create
+  normal page or context revisions.
 - API layers MUST NOT bypass the permission model.
 
 ## Deployment & Operations Baseline
@@ -227,21 +234,54 @@ deployment-provided secret key.
 
 ## AI Knowledge Layer
 
-When AI mode is active, each indexed page revision MAY have an associated
-knowledge record containing embedding vector, provider/model metadata,
-LLM-generated summary, extracted entities, cross-reference links, source
-revision hash, and ingestion timestamp. This record is populated asynchronously
-by an ingest worker after each page save.
+When AI mode is active, each indexed page revision or context-item revision MAY
+have an associated knowledge record containing embedding vector, provider/model
+metadata, LLM-generated summary, extracted entities, cross-reference links,
+source revision hash, and ingestion timestamp. This record is populated
+asynchronously by an ingest worker after each content or context save.
 
-Raw page revisions are the source of truth. The knowledge layer is a derived,
-rebuildable index. AI retrieval MUST respect space, path, locale, and permission
-scope. AI answers MUST be grounded in retrieved revisions and expose citations
-or source links. If no permitted source supports an answer, the UI MUST say so
-instead of inventing unsupported content.
+Raw page and context revisions are the source of truth. The knowledge layer is
+a derived, rebuildable index. AI retrieval MUST respect owner, Agent identity,
+context kind, space, path, locale, and permission scope. AI answers MUST be
+grounded in retrieved revisions and expose citations or source links. If no
+permitted source supports an answer, the UI MUST say so instead of inventing
+unsupported content.
 
 Embedding and summary jobs MUST be restartable and idempotent. Changing the
 embedding model or summary prompt MUST create a new index version or trigger a
 tracked rebuild job.
+
+## Agent Context & Memory
+
+Agent context is a governed knowledge layer, not an undifferentiated page
+collection. The detailed object model, scope rules, effective-context
+assembly, and publication boundary are defined in
+`docs/architecture/agent-context.md` and are constitutionally binding.
+
+The system MUST distinguish, at minimum, Agent rules and instructions,
+non-secret configuration, episodic memory, source evidence, and curated
+knowledge. Each item MUST retain its owner, contributing Agent or human actor,
+applicability scope, source provenance, revision, and sharing policy. A shared
+namespace MUST be explicit and inspectable.
+
+An effective context MUST be assembled from permission-checked, applicable
+revisions using deterministic inheritance, precedence, and conflict rules. It
+MUST expose the selected source revisions and MUST remain a rebuildable
+projection. Context returned to an Agent is data; it MUST NOT grant access,
+authorize tools, execute commands, or override server policy.
+
+## Selective Publication
+
+Agent context, memory, source evidence, and generated content are private by
+default. Public output MUST be an explicit export of an allowlisted set of
+pages, revisions, or context items. Publication MUST pass permission,
+secret-detection, redaction, provenance, and audit checks, and MUST identify
+the served revision or version pin.
+
+Public representations MUST exclude protected items and MUST NOT reveal them
+through indexes, counts, excerpts, backlinks, graph data, or cache keys.
+Withdrawal MUST invalidate affected public paths and tags while documenting the
+boundary that external Agents or readers may retain already retrieved copies.
 
 ## AI Chat Side Pane
 

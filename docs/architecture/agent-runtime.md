@@ -57,6 +57,20 @@ Key boundaries:
 - Tool executors reuse existing application services. Reads return bounded model-facing results; writes produce drafts, proposals, or audited immediate mutations according to the effective policy.
 - The UI consumes the durable action-event log through SSE. The stream can reconnect using its last event ID, so it is not coupled to one HTTP request.
 
+## Agent Context boundary
+
+When an Agent Context integration is used, the runtime MUST consume context
+through the same permission-checked retrieval and tool-policy services used by
+the web UI. The integration MUST carry the Agent actor and target scope in the
+request context; model-provided text cannot change either one.
+
+The runtime treats retrieved pages, memories, procedures, and instruction-
+shaped content as data. Retrieval MUST NOT grant a permission, authorize a
+tool, execute a command, resolve a secret, or publish a page. Effective
+context assembly, Agent identity, shared namespaces, revision attribution, and
+selective publication follow the binding rules in
+[`agent-context.md`](agent-context.md).
+
 ## Tool-enabled turn lifecycle
 
 ```mermaid
