@@ -1,12 +1,30 @@
 import { z } from 'zod';
 import type { WikiApiClient } from '../api-client';
 import { attachFileResponse } from '../shapes';
+import { readFromPath } from './_file-source';
 
 export const attachFileSchema = {
   pageId: z.string().uuid().describe('Id of the page to attach the file to'),
-  fileBase64: z.string().min(1).describe('Base64-encoded file bytes'),
-  fileName: z.string().min(1).describe('Original file name, e.g. "report.pdf"'),
-  mimeType: z.string().optional().describe('MIME type; inferred from the file name if omitted'),
+  fileBase64: z
+    .string()
+    .optional()
+    .describe(
+      'Base64-encoded file bytes. Mutually exclusive with filePath.',
+    ),
+  filePath: z
+    .string()
+    .optional()
+    .describe(
+      'Server-side filesystem path to read from. Must resolve (via fs.realpath) to a regular file inside NEXT_WIKI_MCP_FILE_ALLOW_DIRS (default: server cwd). Mutually exclusive with fileBase64.',
+    ),
+  fileName: z
+    .string()
+    .min(1)
+    .describe('Original file name, e.g. "report.pdf"'),
+  mimeType: z
+    .string()
+    .optional()
+    .describe('MIME type; inferred from the file name if omitted'),
 };
 export type AttachFileInput = z.infer<z.ZodObject<typeof attachFileSchema>>;
 
@@ -51,10 +69,32 @@ function inferMimeType(fileName: string): string {
  * to the target page — the wiki refuses the call otherwise, surfacing the
  * reason in the thrown error (spec FR-007/FR-007a).
  */
-export async function attachFile(client: WikiApiClient, args: AttachFileInput) {
-  const bytes = base64ToUint8Array(args.fileBase64);
+export async function attachFile(
+  client: WikiApiClient,
+  args: AttachFileInput,
+) {
+  const sources = [args.fileBase64, args.filePath].filter(
+    (s) => s !== undefined,
+  );
+  if (sources.length !== 1) {
+    throw new Error(
+      'Must provide exactly one of fileBase64 or filePath (got ' +
+        sources.length +
+        ').',
+    );
+  }
+
+  let bytes: Uint8Array;
+  if (args.filePath !== undefined) {
+    bytes = await readFromPath(args.filePath);
+  } else {
+    bytes = base64ToUint8Array(args.fileBase64!);
+  }
+
   const mimeType = args.mimeType ?? inferMimeType(args.fileName);
-  const file = new File([bytes as BlobPart], args.fileName, { type: mimeType });
+  const file = new File([bytes as BlobPart], args.fileName, {
+    type: mimeType,
+  });
 
   const response = await client.attachFile(args.pageId, file);
   return attachFileResponse(response);

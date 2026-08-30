@@ -1,9 +1,28 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
 import type { WikiApiClient } from '../api-client';
 import { attachFile } from './attach-file';
 
 describe('attach_file', () => {
   const pageId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+  let tmpDir: string;
+  let originalCwd: string;
+  // Snapshot + restore env vars touched by readFromPath.
+  const originalEnv = { ...process.env };
+
+  beforeEach(async () => {
+    tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'mcp-attach-test-'));
+    originalCwd = process.cwd();
+    process.chdir(tmpDir);
+  });
+
+  afterEach(async () => {
+    process.chdir(originalCwd);
+    process.env = { ...originalEnv };
+    await fs.rm(tmpDir, { recursive: true, force: true });
+  });
 
   function mockClient() {
     const attachFileMock = vi.fn().mockResolvedValue({
@@ -14,7 +33,10 @@ describe('attach_file', () => {
       sizeBytes: 0,
       url: '/api/v1/attachments/b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11/content',
     });
-    return { client: { attachFile: attachFileMock } as unknown as WikiApiClient, attachFileMock };
+    return {
+      client: { attachFile: attachFileMock } as unknown as WikiApiClient,
+      attachFileMock,
+    };
   }
 
   it.each([
@@ -80,5 +102,75 @@ describe('attach_file', () => {
     const [, file] = attachFileMock.mock.calls[0] as [unknown, File];
     const roundTripped = Buffer.from(await file.arrayBuffer());
     expect(roundTripped.equals(original)).toBe(true);
+  });
+
+  describe('filePath input', () => {
+    it('reads a file from cwd and passes its bytes with the right mime', async () => {
+      const { client, attachFileMock } = mockClient();
+      const fileBytes = Buffer.from('%PDF-1.4\nfake pdf body\n');
+      await fs.writeFile(path.join(tmpDir, 'report.pdf'), fileBytes);
+
+      await attachFile(client, {
+        pageId,
+        filePath: 'report.pdf',
+        fileName: 'report.pdf',
+      });
+
+      const [calledPageId, file] = attachFileMock.mock.calls[0] as [
+        string,
+        File,
+      ];
+      expect(calledPageId).toBe(pageId);
+      expect(file.name).toBe('report.pdf');
+      expect(file.type).toBe('application/pdf');
+      const roundTripped = Buffer.from(await file.arrayBuffer());
+      expect(roundTripped.equals(fileBytes)).toBe(true);
+    });
+
+    it('rejects path traversal (../)', async () => {
+      const { client } = mockClient();
+      await expect(
+        attachFile(client, {
+          pageId,
+          filePath: '../../../etc/passwd',
+          fileName: 'passwd.txt',
+        }),
+      ).rejects.toThrow(/outside allowed directories/i);
+    });
+
+    it('rejects non-existent file', async () => {
+      const { client } = mockClient();
+      await expect(
+        attachFile(client, {
+          pageId,
+          filePath: 'nope.pdf',
+          fileName: 'nope.pdf',
+        }),
+      ).rejects.toThrow(/does not exist|cannot be resolved/i);
+    });
+  });
+
+  describe('exactly-one-of validation', () => {
+    it('rejects when both fileBase64 and filePath are provided', async () => {
+      const { client } = mockClient();
+      await expect(
+        attachFile(client, {
+          pageId,
+          fileBase64: Buffer.from('x').toString('base64'),
+          filePath: 'report.pdf',
+          fileName: 'report.pdf',
+        }),
+      ).rejects.toThrow(/exactly one/i);
+    });
+
+    it('rejects when neither fileBase64 nor filePath is provided', async () => {
+      const { client } = mockClient();
+      await expect(
+        attachFile(client, {
+          pageId,
+          fileName: 'report.pdf',
+        }),
+      ).rejects.toThrow(/exactly one/i);
+    });
   });
 });

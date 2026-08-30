@@ -253,6 +253,20 @@ describe('upload_image', () => {
 
       expect(uploadImageMock).toHaveBeenCalledOnce();
     });
+
+    it('falls back to path.basename(filePath) when filename is omitted', async () => {
+      const { client, uploadImageMock } = mockClient();
+      await fs.writeFile(
+        path.join(tmpDir, 'detection-result.jpg'),
+        Buffer.from('x'),
+      );
+
+      await uploadImage(client, { filePath: 'detection-result.jpg' });
+
+      const [file] = uploadImageMock.mock.calls[0] as [File];
+      expect(file.name).toBe('detection-result.jpg');
+      expect(file.type).toBe('image/jpeg');
+    });
   });
 
   describe('exactly-one-of validation', () => {
