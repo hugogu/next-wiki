@@ -130,7 +130,10 @@ async function canReadAsset(
   asset: typeof schema.contentAssets.$inferSelect,
 ): Promise<boolean> {
   // Live referencing pages: a published reference is readable per the page's
-  // read rule; a draft reference is readable per read_draft.
+  // read rule; a draft reference is readable per read_draft. Both checks must
+  // carry the referencing page's space kind and visibility — omitting them
+  // would let an asset on a restricted (e.g. raw-space) page be served to
+  // anyone holding its id.
   const rows = await db
     .select({
       pageId: schema.pages.id,
@@ -139,6 +142,8 @@ async function canReadAsset(
       revisionId: schema.pageRevisions.id,
       version: schema.pageRevisions.versionNumber,
       anonymousRead: schema.spaces.anonymousRead,
+      spaceKind: schema.spaces.kind,
+      visibility: schema.pages.visibility,
     })
     .from(schema.contentAssetRefs)
     .innerJoin(schema.pageRevisions, eq(schema.contentAssetRefs.revisionId, schema.pageRevisions.id))
@@ -152,11 +157,21 @@ async function canReadAsset(
     const isAuthor = userId ? row.authorId === userId : false;
     const isPublishedRef = row.currentPublishedVersionId === row.revisionId;
     if (isPublishedRef) {
-      if (can(ctx, 'read', { kind: 'page_list' }, { anonymousRead: row.anonymousRead })) {
+      if (
+        can(ctx, 'read', { kind: 'page', pageId: row.pageId }, {
+          spaceKind: row.spaceKind,
+          anonymousRead: row.anonymousRead,
+          visibility: row.visibility,
+        })
+      ) {
         return true;
       }
     } else if (
-      can(ctx, 'read_draft', { kind: 'revision', pageId: row.pageId, version: row.version }, { isAuthor })
+      can(ctx, 'read_draft', { kind: 'revision', pageId: row.pageId, version: row.version }, {
+        spaceKind: row.spaceKind,
+        visibility: row.visibility,
+        isAuthor,
+      })
     ) {
       return true;
     }

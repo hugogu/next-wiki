@@ -108,10 +108,24 @@ describe('serving an unreferenced upload', () => {
   });
 });
 
-async function referenceFromRevision(assetId: string, opts: { published: boolean }) {
+async function referenceFromRevision(
+  assetId: string,
+  opts: {
+    published: boolean;
+    spaceId?: string;
+    visibility?: 'public' | 'registered' | 'restricted';
+  },
+) {
   const [page] = await db
     .insert(schema.pages)
-    .values({ spaceId, slug: 's', path: `img/${randomUUID()}`, title: 'T', authorId: editorId })
+    .values({
+      spaceId: opts.spaceId ?? spaceId,
+      slug: `s-${randomUUID().slice(0, 8)}`,
+      path: `img/${randomUUID()}`,
+      title: 'T',
+      authorId: editorId,
+      visibility: opts.visibility ?? 'public',
+    })
     .returning();
   const [rev] = await db
     .insert(schema.pageRevisions)
@@ -162,6 +176,42 @@ describe('serving a referenced asset', () => {
       .update(schema.pages)
       .set({ deletedAt: new Date() })
       .where(eq(schema.pages.id, firstPage));
+    expect((await contentAssets.getServableImage(buildAnonymousCtx(), id)).kind).toBe('ok');
+  });
+
+  it('is hidden from non-admins when the referencing published page is restricted', async () => {
+    const id = await uploadAsEditor();
+    await referenceFromRevision(id, { published: true, visibility: 'restricted' });
+    expect((await contentAssets.getServableImage(buildAnonymousCtx(), id)).kind).toBe('not_found');
+    expect((await contentAssets.getServableImage(readerCtx(), id)).kind).toBe('not_found');
+    // Even the uploader/page author loses access: restricted reads are admin-only.
+    expect((await contentAssets.getServableImage(editorCtx(), id)).kind).toBe('not_found');
+    expect((await contentAssets.getServableImage(adminCtx(), id)).kind).toBe('ok');
+  });
+
+  it('is hidden from anonymous callers when the referencing published page is registered-only', async () => {
+    const id = await uploadAsEditor();
+    await referenceFromRevision(id, { published: true, visibility: 'registered' });
+    expect((await contentAssets.getServableImage(buildAnonymousCtx(), id)).kind).toBe('not_found');
+    expect((await contentAssets.getServableImage(readerCtx(), id)).kind).toBe('ok');
+  });
+
+  it('is admin-only when referenced by a published raw-space entry', async () => {
+    const [rawSpace] = await db
+      .insert(schema.spaces)
+      .values({ slug: `raw-${randomUUID().slice(0, 8)}`, name: 'Raw', kind: 'raw', anonymousRead: false })
+      .returning();
+    const id = await uploadAsEditor();
+    await referenceFromRevision(id, { published: true, spaceId: rawSpace!.id, visibility: 'restricted' });
+    expect((await contentAssets.getServableImage(buildAnonymousCtx(), id)).kind).toBe('not_found');
+    expect((await contentAssets.getServableImage(readerCtx(), id)).kind).toBe('not_found');
+    expect((await contentAssets.getServableImage(adminCtx(), id)).kind).toBe('ok');
+  });
+
+  it('still allows anonymous access when any one referencing page is publicly readable', async () => {
+    const id = await uploadAsEditor();
+    await referenceFromRevision(id, { published: true, visibility: 'restricted' });
+    await referenceFromRevision(id, { published: true, visibility: 'public' });
     expect((await contentAssets.getServableImage(buildAnonymousCtx(), id)).kind).toBe('ok');
   });
 });
