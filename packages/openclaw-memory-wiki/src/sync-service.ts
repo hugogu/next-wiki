@@ -32,6 +32,10 @@ export class SyncService {
       let uploaded = 0; let unchanged = 0; let failed = 0;
       for (const document of documents) {
         try {
+          if (journal.completed[document.sourcePath] === document.sourceDigest) {
+            unchanged++;
+            continue;
+          }
           const result = await this.withRetry(() => this.client.mirror({ ...document, idempotencyKey: `${document.sourcePath}:${document.sourceDigest}` }));
           journal.completed[document.sourcePath] = document.sourceDigest;
           if (result.outcome === 'unchanged') unchanged++; else uploaded++;

@@ -19,7 +19,9 @@ describe('SyncService', () => {
     expect(journal.completed['AGENTS.md']).toMatch(/^[a-f0-9]{64}$/);
 
     client.mirror.mockResolvedValue({ outcome: 'unchanged', sourcePath: 'AGENTS.md', pageId: 'p', revisionId: 'r' });
-    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 0, unchanged: 1, failed: 0 });
+    const restarted = new SyncService(vault, client as never, 60);
+    await expect(restarted.run()).resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 0, unchanged: 1, failed: 0 });
+    expect(client.mirror).toHaveBeenCalledTimes(1);
   });
 
   it('enters degraded state without claiming failed writes succeeded', async () => {
@@ -31,5 +33,22 @@ describe('SyncService', () => {
 
     await expect(service.run()).resolves.toMatchObject({ state: 'degraded', scanned: 1, uploaded: 0, unchanged: 0, failed: 1 });
     expect(service.getStatus().lastError).toBe('unavailable');
+  });
+
+  it('retries a changed document after a previously completed digest', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-change-'));
+    const vault = join(parent, 'vault');
+    await mkdir(vault);
+    const path = join(vault, 'WIKI.md');
+    await writeFile(path, '# First\n');
+    const client = { mirror: vi.fn(async () => ({ outcome: 'created', sourcePath: 'WIKI.md', pageId: 'p', revisionId: 'r' })) };
+    const service = new SyncService(vault, client as never, 60);
+
+    await service.run();
+    await writeFile(path, '# Second\n');
+    client.mirror.mockResolvedValue({ outcome: 'updated', sourcePath: 'WIKI.md', pageId: 'p', revisionId: 'r2' });
+
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, unchanged: 0, failed: 0 });
+    expect(client.mirror).toHaveBeenCalledTimes(2);
   });
 });

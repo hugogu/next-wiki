@@ -8,4 +8,10 @@ describe('plugin configuration', () => {
     expect(redactConfig(resolved.config)).toMatchObject({ mirrorApiKeyRef: '[secret]', knowledgeApiKeyRef: '[secret]' });
     expect(redactConfig(resolved.config)).not.toHaveProperty('mirrorKey');
   });
+
+  it('rejects invalid synchronization intervals and missing SecretRefs', async () => {
+    const resolveSecret = vi.fn(async (ref) => String(ref));
+    await expect(resolveConfig({ baseUrl: 'https://wiki.example', vaultPath: process.cwd(), mirrorApiKeyRef: 'a', knowledgeApiKeyRef: 'b', syncIntervalMinutes: 0 }, resolveSecret)).rejects.toThrow('between 1 and 1440');
+    await expect(resolveConfig({ baseUrl: 'https://wiki.example', vaultPath: process.cwd(), mirrorApiKeyRef: 'a' }, resolveSecret)).rejects.toThrow('Both API key SecretRefs are required');
+  });
 });
