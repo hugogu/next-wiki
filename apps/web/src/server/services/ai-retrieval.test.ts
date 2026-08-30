@@ -6,7 +6,7 @@ import * as schema from '@/server/db/schema';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 import { exactCosineSearch } from '@/server/ai/retrieval/vector-search';
 import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
-import { readPermissionFilteredVectorCandidates, retrieve } from './ai-retrieval';
+import { createSemanticSearch, readPermissionFilteredVectorCandidates, retrieve } from './ai-retrieval';
 import * as publicAi from './public-ai';
 
 describe('AI vector retrieval', () => {
@@ -397,6 +397,26 @@ describe('public-ai semantic search facade (US3)', () => {
 
     await clearAiData();
     await db.delete(schema.spaces).where(eq(schema.spaces.id, rawSpaceId));
+    await removeAiTestUser(userId);
+  });
+
+  it('rejects an ai.read-only api key at submit time, not with silent empty results at poll time', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('editor');
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
+    await db.insert(schema.spaces).values({ slug: 'default', name: 'Default', kind: 'wiki' }).onConflictDoNothing();
+
+    // The in-app route (/api/ai/searches) funnels straight into
+    // createSemanticSearch without the v1 facade's scope pre-check — the
+    // service itself must demand page-read permission.
+    const aiReadOnly = buildApiKeyCtx(userId, 'editor', ['ai.read'], 'key');
+    await expect(createSemanticSearch(aiReadOnly, { query: 'q', limit: 5 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    // With the view scope added, the read gate passes and the next failure is
+    // the (undisclosed-before-authz) index readiness check.
+    const withView = buildApiKeyCtx(userId, 'editor', ['view', 'ai.read'], 'key');
+    await expect(createSemanticSearch(withView, { query: 'q', limit: 5 })).rejects.toMatchObject({ code: 'INDEX_NOT_READY' });
+
     await removeAiTestUser(userId);
   });
 

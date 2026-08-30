@@ -169,6 +169,7 @@ async function canReadAsset(
     } else if (
       can(ctx, 'read_draft', { kind: 'revision', pageId: row.pageId, version: row.version }, {
         spaceKind: row.spaceKind,
+        anonymousRead: row.anonymousRead,
         visibility: row.visibility,
         isAuthor,
       })
