@@ -23,25 +23,39 @@ function getMaxBytes(): number {
 
 /**
  * Colon-separated list of directory paths the MCP server is allowed to read
- * from when the `filePath` source is used. Each path is resolved to an
- * absolute, canonical form and the requested file's realpath must start
- * with one of them (with proper path-separator handling to prevent
- * `/foo` matching `/foobar`).
+ * from when the `filePath` source is used. Each path is canonicalised via
+ * `fs.realpath` (with `path.resolve` as a fallback when the directory does
+ * not yet exist, so entries like `/nonexistent` still parse) so that both
+ * sides of the `isWithinAllowedDir` comparison are in the same form.
+ *
+ * This matters on systems where `/tmp` is a symlink (macOS: `/tmp ->
+ * /private/tmp`); without realpath-canonicalisation of allow-dirs, a file
+ * under `/tmp` would have a realpath of `/private/tmp/...` and fail the
+ * `startsWith` check against the unresolved `/tmp` allow-dir.
  *
  * Defaults to the server's working directory. Extend via env var if the
- * agent's scratch space lives elsewhere (e.g., `/tmp`):
+ * agent's scratch space lives elsewhere:
  *   NEXT_WIKI_MCP_FILE_ALLOW_DIRS="/home/hugo/.openclaw/workspace:/tmp"
  */
-function getAllowedDirs(): string[] {
+async function getAllowedDirs(): Promise<string[]> {
   const env = process.env.NEXT_WIKI_MCP_FILE_ALLOW_DIRS;
-  if (env && env.trim().length > 0) {
-    return env
-      .split(':')
-      .map(p => p.trim())
-      .filter(Boolean)
-      .map(p => path.resolve(p));
-  }
-  return [path.resolve(process.cwd())];
+  const rawDirs =
+    env && env.trim().length > 0
+      ? env.split(':').map(p => p.trim()).filter(Boolean)
+      : [process.cwd()];
+  return Promise.all(
+    rawDirs.map(async p => {
+      const resolved = path.resolve(p);
+      try {
+        return await fs.realpath(resolved);
+      } catch {
+        // Directory does not exist (yet); fall back to the resolved path
+        // so the entry still parses. Realpath will fail closed later when
+        // a real file is checked against it.
+        return resolved;
+      }
+    }),
+  );
 }
 
 export const uploadImageSchema = {
@@ -114,7 +128,7 @@ async function readFromPath(filePath: string): Promise<Uint8Array> {
     throw new Error(`filePath does not exist or cannot be resolved: ${filePath}`);
   }
 
-  const allowedDirs = getAllowedDirs();
+  const allowedDirs = await getAllowedDirs();
   if (!allowedDirs.some(dir => isWithinAllowedDir(real, dir))) {
     throw new Error(
       `filePath resolves outside allowed directories: ${real} not in [${allowedDirs.join(', ')}]. ` +

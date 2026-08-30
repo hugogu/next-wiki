@@ -178,6 +178,38 @@ describe('upload_image', () => {
       ).rejects.toThrow(/outside allowed directories/i);
     });
 
+    it('accepts files when the allow-listed dir is reached via a symlink', async () => {
+      // Reproduce the macOS /tmp -> /private/tmp case locally: create a
+      // real subdir `real` inside tmpDir, symlink it as `link`, then
+      // chdir to `link` and set the allow-list to the symlinked path.
+      // The file lives at the realpath (`tmpDir/real/photo.jpg`); without
+      // realpath-canonicalisation of the allow-list, the startsWith check
+      // would fail.
+      const { client, uploadImageMock } = mockClient();
+      const realDir = path.join(tmpDir, 'real');
+      const linkPath = path.join(tmpDir, 'link');
+      await fs.mkdir(realDir);
+      await fs.writeFile(path.join(realDir, 'photo.jpg'), Buffer.from('symlinked-allow'));
+      try {
+        await fs.symlink(realDir, linkPath);
+      } catch {
+        // Skip if symlink not supported (some sandboxes / Windows).
+        return;
+      }
+
+      const startingCwd = process.cwd();
+      try {
+        process.chdir(linkPath);
+        process.env.NEXT_WIKI_MCP_FILE_ALLOW_DIRS = linkPath;
+
+        await uploadImage(client, { filePath: 'photo.jpg', filename: 'photo.jpg' });
+
+        expect(uploadImageMock).toHaveBeenCalledOnce();
+      } finally {
+        process.chdir(startingCwd);
+      }
+    });
+
     it('rejects directory (not a regular file)', async () => {
       const { client } = mockClient();
       await fs.mkdir(path.join(tmpDir, 'subdir'));
