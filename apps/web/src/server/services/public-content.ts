@@ -47,7 +47,6 @@ import { DomainError } from '@/server/errors';
 import { logger } from '@/server/logger';
 import { mapPublicDomainErrorCode } from '@/server/api/public-errors';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
-import { renderMarkdown } from '@/server/pipeline';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import { notifyPublicContentChanged } from '@/server/services/public-content-events';
@@ -69,6 +68,7 @@ import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 import { DEFAULT_SPACE_SLUG, getSpaceById, listSpaces, resolveSpace } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConformance } from '@/server/services/okf';
 import * as rawEntries from '@/server/services/raw-entries';
@@ -2079,7 +2079,7 @@ async function batchUpdateOneItem(
   // Every successful title/path/frontmatter change creates a new revision
   // (FR-024), unlike the single-page updateProperties endpoint (which only
   // versions content changes) — the batch API is explicitly all-or-versioned.
-  const { html, hash } = renderMarkdown(nextContent);
+  const { html, hash } = await renderPageMarkdown(space, nextContent, { locale: page.locale });
   const versionRows = await db
     .select({ value: max(schema.pageRevisions.versionNumber) })
     .from(schema.pageRevisions)

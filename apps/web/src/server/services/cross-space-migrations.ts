@@ -7,8 +7,8 @@ import { DomainError } from '@/server/errors';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { deriveOkfTypeFromPath, ensureOkfConformance, ensureOkfConceptPath } from '@/server/services/okf';
-import { renderMarkdown } from '@/server/pipeline';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import { persistRevisionMetadata, getRevisionMetadata } from '@/server/services/page-metadata';
@@ -263,7 +263,7 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
         const source = destination.kind === 'generated' && row.adaptOkf
           ? ensureOkfConformance(original, { title: page.title, now: new Date(), fallbackType: deriveOkfTypeFromPath(item.destinationPath) })
           : original;
-        const { html, hash } = renderMarkdown(source);
+        const { html, hash } = await renderPageMarkdown(destination, source, { executor: tx, locale: page.locale });
         const [last] = await tx.select({ value: sql<number>`max(${schema.pageRevisions.versionNumber})` }).from(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, page.id));
         replacementId = randomUUID();
         await tx.insert(schema.pageRevisions).values({ id: replacementId, pageId: page.id, versionNumber: (last?.value ?? 0) + 1, locale: page.locale, contentType: revision.contentType, contentSource: source, contentHtml: html, contentHash: hash, authorId: row.requestedBy, status: revision.status, actorKind: 'human', sourceMetadata: revision.sourceMetadata, linkTargetPageId: revision.linkTargetPageId, originalAssetId: revision.originalAssetId, publishedAt: revision.status === 'published' ? new Date() : null });

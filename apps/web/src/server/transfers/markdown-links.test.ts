@@ -39,6 +39,30 @@ describe('findMarkdownLinks (010-ai-curation-api)', () => {
     ]);
   });
 
+  it('keeps a wikilink heading fragment on the target, as a Markdown link URL does', () => {
+    expect(findMarkdownLinks('[[docs/other#install]] and [Other](docs/other#install)')).toEqual([
+      { source: 'markdown', target: 'docs/other#install', linkText: 'Other', external: false },
+      { source: 'wiki', target: 'docs/other#install', linkText: 'docs/other#install', external: false },
+    ]);
+  });
+
+  it('does not record wikilink syntax that the renderer leaves literal', () => {
+    const markdown = [
+      'Prose [[docs/real]].',
+      '',
+      'Inline `[[docs/inline-code]]` stays text.',
+      '',
+      '```md',
+      '[[docs/fenced]]',
+      '```',
+      '',
+      '[[[docs/inside-a-link]]](/elsewhere)',
+    ].join('\n');
+    expect(findMarkdownLinks(markdown).filter((link) => link.source === 'wiki')).toEqual([
+      { source: 'wiki', target: 'docs/real', linkText: 'docs/real', external: false },
+    ]);
+  });
+
   it('marks https:// Markdown links as external', () => {
     const links = findMarkdownLinks('External: [Example](https://example.com/page).');
     expect(links).toEqual([{ source: 'markdown', target: 'https://example.com/page', linkText: 'Example', external: true }]);

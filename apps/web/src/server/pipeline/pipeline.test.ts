@@ -124,6 +124,38 @@ $$`;
     expect(html).toMatch(/<tr[^>]*\bdata-line="3"[^>]*>/); // data row
   });
 
+  it('renders a wikilink as a link, addressed from the site root by default', () => {
+    const { html } = renderMarkdown('- 补充: [[ops/multi-registry]] 说明原因。');
+    expect(html).toContain('<a href="/ops/multi-registry">ops/multi-registry</a>');
+    expect(html).toContain('<li data-line="1">');
+  });
+
+  it('renders a wikilink alias and heading fragment', () => {
+    const { html } = renderMarkdown('[[docs/setup|Setup guide]] and [[docs/setup#install]]');
+    expect(html).toContain('<a href="/docs/setup">Setup guide</a>');
+    expect(html).toContain('<a href="/docs/setup#install">docs/setup#install</a>');
+  });
+
+  it('resolves wikilinks through the supplied resolver', () => {
+    const { html } = renderMarkdown('[[ops/foo]]', {
+      resolveWikiLink: (link) => `/generated/knowledge/${link.target}`,
+    });
+    expect(html).toContain('<a href="/generated/knowledge/ops/foo">ops/foo</a>');
+  });
+
+  it('leaves wikilink syntax alone inside code', () => {
+    const { html } = renderMarkdown('`[[ops/foo]]`\n\n```\n[[ops/bar]]\n```');
+    expect(html).toContain('<code>[[ops/foo]]</code>');
+    expect(html).toContain('[[ops/bar]]');
+    expect(html).not.toContain('<a href="/ops/');
+  });
+
+  it('does not nest a wikilink inside a Markdown link', () => {
+    const { html } = renderMarkdown('[[[ops/foo]]](/elsewhere)');
+    expect(html).toContain('href="/elsewhere"');
+    expect(html).not.toContain('href="/ops/foo"');
+  });
+
   it('does not render valid YAML frontmatter as article content', () => {
     const { html } = renderMarkdown('---\ntags: [devops]\nsummary: Hello\n---\n\n# Title');
     expect(html).toContain('Title');

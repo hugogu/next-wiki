@@ -5,12 +5,13 @@ import * as schema from '@/server/db/schema';
 import { normalizeTagName, parseFrontmatter } from '@/server/metadata/frontmatter';
 import { patchMetadata, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
-import { renderMarkdown } from '@/server/pipeline';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
+import { getSpaceById } from '@/server/services/spaces';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 
 type Target = {
   page: typeof schema.pages.$inferSelect;
@@ -53,6 +54,10 @@ export async function runTagMutation(mutationId: string) {
         where: and(eq(schema.tags.id, mutation.tagId), isNull(schema.tags.deletedAt)),
       });
       if (!tag) throw new Error('Tag no longer exists');
+      // Every tagged page lives in the tag's own space, so one lookup covers
+      // the whole fan-out's wikilink resolution.
+      const space = await getSpaceById(tag.spaceId);
+      if (!space) throw new Error('Tag space no longer exists');
 
       const targetTag = mutation.kind === 'merge' && mutation.targetTagId
         ? await tx.query.tags.findFirst({
@@ -122,7 +127,7 @@ export async function runTagMutation(mutationId: string) {
         }
         nextVersionByPage.set(target.page.id, nextVersion + 1);
         const revisionId = randomUUID();
-        const { html, hash } = renderMarkdown(nextSource);
+        const { html, hash } = await renderPageMarkdown(space, nextSource, { executor: tx, locale: target.page.locale });
         await tx.insert(schema.pageRevisions).values({
           id: revisionId,
           pageId: target.page.id,

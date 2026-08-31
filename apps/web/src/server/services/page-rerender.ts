@@ -3,13 +3,13 @@ import type { PublicPageRenderingResult } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
-import { renderMarkdown } from '@/server/pipeline';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { can, getActorUserId, pagePermissionOptions, type PermCtx } from '@/server/permissions';
 import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 
 /**
  * Re-run the Markdown pipeline over a page's live revisions and store the
@@ -75,7 +75,7 @@ export async function rerenderPage(ctx: PermCtx, pageId: string): Promise<Public
   let publishedChanged = false;
   for (const revision of revisions) {
     const source = await readMarkdownFromDatabase(revision);
-    const { html } = renderMarkdown(source);
+    const { html } = await renderPageMarkdown(space, source, { locale: page.locale });
     if (html === revision.contentHtml) continue;
     await db
       .update(schema.pageRevisions)

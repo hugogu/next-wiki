@@ -4,7 +4,6 @@ import { mimeTypeSchema, pathSchema, rawInputKindSchema, rawSourceSchema, type R
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
-import { renderMarkdown } from '@/server/pipeline';
 import { DomainError } from '@/server/errors';
 import { persistRevisionMetadata } from '@/server/services/page-metadata';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
@@ -13,6 +12,7 @@ import { addReplicationTasks, kickReplication } from '@/server/services/storage-
 import { actorKindOf } from '@/server/services/pages';
 import { getEffectiveDefaultVisibility, resolveSpace } from '@/server/services/spaces';
 import { resolveCategoryForCreate } from '@/server/services/raw-categories';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { DatabaseStore } from '@/server/content-store/database-store';
@@ -134,7 +134,7 @@ export async function createEntry(
   };
   const originalAssetId = originalBytes ? await storeOriginalBytes(originalBytes, contentType, userId) : null;
   const revisionId = randomUUID();
-  const { html, hash } = renderMarkdown(contentSource);
+  const { html, hash } = await renderPageMarkdown(space, contentSource);
 
   const created = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -237,7 +237,7 @@ export async function appendEntry(
     const nextVersion = (versionRows[0]?.value ?? 0) + 1;
     // Server-side concatenation, byte-preserving: the prior body plus the chunk.
     const contentSource = `${current.contentSource}${RAW_APPEND_SEPARATOR}${input.content}`;
-    const { html, hash } = renderMarkdown(contentSource);
+    const { html, hash } = await renderPageMarkdown(space, contentSource, { executor: tx });
     const sourceMetadata: RawSource | null = parsedSource?.data ?? null;
     const [revision] = await tx
       .insert(schema.pageRevisions)

@@ -41,6 +41,7 @@ import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind, type SpaceRow } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { createWikiLinkResolver, renderPageMarkdown } from '@/server/services/wiki-links';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 
@@ -1519,6 +1520,7 @@ export async function create(
     ? ensureOkfConformance(input.contentSource, { title: input.title, now: new Date() })
     : input.contentSource;
   const sourceMetadata = metadataFromSource(contentSource, input.title);
+  const resolveWikiLink = await createWikiLinkResolver(space, contentSource);
 
   const created = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -1540,7 +1542,7 @@ export async function create(
     const slug = input.slug ?? input.path;
     await assertAddressAvailable(tx, space.id, slug, undefined, ctx);
 
-    const { html, hash } = renderMarkdown(contentSource);
+    const { html, hash } = renderMarkdown(contentSource, { resolveWikiLink });
 
     const [page] = await tx
       .insert(schema.pages)
@@ -1662,6 +1664,7 @@ export async function newDraft(
   const sourceMetadata = input.metadata
     ? metadataFromInput(input.title, input.metadata)
     : metadataFromSource(contentSource, input.title);
+  const resolveWikiLink = await createWikiLinkResolver(space, contentSource);
 
   const created = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -1707,7 +1710,7 @@ export async function newDraft(
       .where(eq(schema.pageRevisions.pageId, page.id));
 
     const nextVersion = (maxResult[0]?.value ?? 0) + 1;
-    const { html, hash } = renderMarkdown(contentSource);
+    const { html, hash } = renderMarkdown(contentSource, { resolveWikiLink });
 
     const [revision] = await tx
       .insert(schema.pageRevisions)
@@ -1947,7 +1950,7 @@ export async function moveToSpace(
         });
         if (conformant !== original) {
           const revisionId = randomUUID();
-          const { html, hash } = renderMarkdown(conformant);
+          const { html, hash } = await renderPageMarkdown(target, conformant, { executor: tx, locale: page.locale });
           const versionRows = await tx
             .select({ value: max(schema.pageRevisions.versionNumber) })
             .from(schema.pageRevisions)
