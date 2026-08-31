@@ -291,6 +291,16 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
         target: [schema.pageAddresses.spaceId, schema.pageAddresses.address],
         set: { pageId: page.id, reason: 'cross_space_migration' },
       });
+    // Moving back into a space this page previously left leaves that space's
+    // retained alias duplicating the page's own canonical address again; drop
+    // it, exactly as `setSlug` does for an A -> B -> A rename.
+    await tx
+      .delete(schema.pageAddresses)
+      .where(and(
+        eq(schema.pageAddresses.pageId, page.id),
+        eq(schema.pageAddresses.spaceId, destination.id),
+        eq(schema.pageAddresses.address, legacyAddress),
+      ));
     await tx.update(schema.pages).set({ spaceId: destination.id, path: item.destinationPath, nature: destination.kind === 'generated' ? 'generated' : page.nature, visibility: row.visibility ?? page.visibility, latestVersionId: replacementId ?? page.latestVersionId, currentPublishedVersionId: replacementId && primaryId === page.currentPublishedVersionId ? replacementId : page.currentPublishedVersionId, updatedAt: new Date() }).where(eq(schema.pages.id, page.id));
     await tx.update(schema.crossSpaceMigrationItems).set({ status: 'moved', completedAt: new Date(), updatedAt: new Date() }).where(eq(schema.crossSpaceMigrationItems.id, item.id));
     return { pageId: page.id, source, destination, path: item.destinationPath, slug: page.slug, locale: page.locale, legacyAddress, published: page.currentPublishedVersionId !== null };

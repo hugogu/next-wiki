@@ -220,6 +220,35 @@ describe('pages.moveToSpace', () => {
       .resolves.toEqual({ kind: 'forbidden', visibility: 'restricted', legacy: true });
   });
 
+  it('reclaims its own retained alias when a page moves back to the space it left', async () => {
+    const created = await publishedWikiPage(adminCtx, 'concepts/round-trip', 'wiki body');
+    const [wiki, generated] = await Promise.all([
+      db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') }),
+      db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'generated') }),
+    ]);
+
+    await pageService.moveToSpace(adminCtx, created.pageId, { targetSpace: 'generated' });
+    // The alias the first move retained belongs to this very page, so the
+    // move back is a reclaim, not an address collision.
+    await pageService.moveToSpace(adminCtx, created.pageId, { targetSpace: 'default', visibility: 'public' });
+
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, created.pageId) });
+    expect(page).toMatchObject({ spaceId: wiki!.id, slug: 'concepts/round-trip' });
+
+    // One alias, in the space just left — never a wiki-space row duplicating
+    // the page's own canonical address.
+    const aliases = await db.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.pageId, created.pageId) });
+    expect(aliases).toHaveLength(1);
+    expect(aliases[0]).toMatchObject({ spaceId: generated!.id, address: 'concepts/round-trip', kind: 'retained' });
+
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['wiki', 'concepts', 'round-trip']))
+      .resolves.toMatchObject({ kind: 'original', legacy: false, page: { pageId: created.pageId } });
+    // The address the page was reachable at while it lived in generated now
+    // redirects back to the wiki space.
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['generated', 'concepts', 'round-trip']))
+      .resolves.toMatchObject({ kind: 'original', legacy: true, page: { pageId: created.pageId }, space: { id: wiki!.id } });
+  });
+
   it('warms both the new address and the retained old-space address after moving a published page (035 T081)', async () => {
     await publishedWikiPage(adminCtx, 'concepts/address-move-warmup', 'wiki body');
     const page = await db.query.pages.findFirst({ where: eq(schema.pages.path, 'concepts/address-move-warmup') });

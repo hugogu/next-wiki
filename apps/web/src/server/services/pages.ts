@@ -1927,8 +1927,10 @@ export async function moveToSpace(
 
     // 035 (FR-010): page_addresses/pages.slug uniqueness is space-scoped, so
     // moving into a different space can collide with an address already
-    // claimed there even when the path above did not.
-    await assertAddressAvailable(tx, target.id, page.slug, undefined, ctx);
+    // claimed there even when the path above did not. `page.id` exempts the
+    // page's own rows: a move back to a space it previously left finds its
+    // own retained alias there, which is a reclaim, not a collision.
+    await assertAddressAvailable(tx, target.id, page.slug, page.id, ctx);
 
     // Content-format adaptation: only the generated space requires OKF; inject it
     // when the live/latest content lacks it, as a new revision preserving status.
@@ -1992,6 +1994,17 @@ export async function moveToSpace(
         updatedAt: new Date(),
       })
       .where(eq(schema.pages.id, page.id));
+
+    // A move back into a space this page previously left leaves that space's
+    // retained alias duplicating the page's own canonical address again; drop
+    // it, exactly as `setSlug` does for an A -> B -> A rename.
+    await tx
+      .delete(schema.pageAddresses)
+      .where(and(
+        eq(schema.pageAddresses.pageId, page.id),
+        eq(schema.pageAddresses.spaceId, target.id),
+        eq(schema.pageAddresses.address, page.slug),
+      ));
 
     // 035 (FR-010): retain the page's pre-move address in the *source*
     // space, matching the batch cross-space-migration flow (moveItem in

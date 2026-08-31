@@ -87,6 +87,35 @@ describe('cross-space migration workflow', () => {
       .resolves.toEqual({ kind: 'forbidden', visibility: 'restricted', legacy: true });
   });
 
+  it('reclaims its own retained alias when a page is migrated back to the space it left', async () => {
+    const page = await create(admin, { path: 'imports/round-trip', title: 'Round trip', contentSource: '# Note' });
+    await publish(admin, { path: 'imports/round-trip', version: 1 });
+    const [wiki, generated] = await Promise.all([
+      db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') }),
+      db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'generated') }),
+    ]);
+
+    for (const destinationSpaceId of [generated!.id, wiki!.id]) {
+      const preview = await previewCrossSpaceMigration(admin, {
+        selection: { kind: 'page', pageId: page.pageId }, destinationSpaceId, adaptOkf: true, visibility: 'public',
+      });
+      const operation = await confirmCrossSpaceMigration(admin, { previewId: preview.id, fingerprint: preview.fingerprint });
+      await runCrossSpaceMigration(operation.id);
+    }
+
+    expect(await db.query.pages.findFirst({ where: eq(schema.pages.id, page.pageId) })).toMatchObject({ spaceId: wiki!.id });
+    // One alias, in the space just left — never a wiki-space row duplicating
+    // the page's own canonical address again.
+    const aliases = await db.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.pageId, page.pageId) });
+    expect(aliases).toHaveLength(1);
+    expect(aliases[0]).toMatchObject({ spaceId: generated!.id, address: 'imports/round-trip', kind: 'retained' });
+
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['wiki', 'imports', 'round-trip']))
+      .resolves.toMatchObject({ kind: 'original', legacy: false, page: { pageId: page.pageId } });
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['generated', 'imports', 'round-trip']))
+      .resolves.toMatchObject({ kind: 'original', legacy: true, page: { pageId: page.pageId }, space: { id: wiki!.id } });
+  });
+
   it('warms both the new address and the retained old-space address after moving a published page (035 T081)', async () => {
     const page = await create(admin, { path: 'imports/warmup-note', title: 'Warmup note', contentSource: '# Note' });
     await publish(admin, { path: 'imports/warmup-note', version: 1 });
