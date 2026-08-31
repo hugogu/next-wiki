@@ -2,11 +2,12 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { asc, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildUserCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import * as pageService from '@/server/services/pages';
 import * as revisions from '@/server/services/revisions';
 import * as linkPages from '@/server/services/link-pages';
+import { resolveReaderPage } from '@/server/services/reader-routing';
 import { setModeInternal } from '@/server/services/writing-mode';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
 
@@ -177,6 +178,46 @@ describe('pages.moveToSpace', () => {
       where: (t, { and: andOp, eq: eqOp }) => andOp(eqOp(t.spaceId, wiki!.id), eqOp(t.address, 'concepts/address-move-retain')),
     });
     expect(retained).toMatchObject({ pageId: created.pageId, kind: 'retained', reason: 'cross_space_migration' });
+  });
+
+  // Regression (035 FR-010): writing the `page_addresses` row is only half the
+  // contract — a reader must still reach the page through it. The alias is
+  // retained against the *source* space while the page itself has left, so
+  // resolving it against the URL's own space found nothing and every moved
+  // page 404'd at the address the move deliberately preserved.
+  it('keeps a moved page reachable at its pre-move address, resolved against the destination space', async () => {
+    const created = await publishedWikiPage(adminCtx, 'concepts/moved-reader', 'wiki body');
+
+    await pageService.moveToSpace(adminCtx, created.pageId, { targetSpace: 'generated', visibility: 'public' });
+
+    const generated = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'generated') });
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['generated', 'concepts', 'moved-reader']))
+      .resolves.toMatchObject({ kind: 'original', legacy: false, page: { pageId: created.pageId } });
+
+    // The pre-move wiki address resolves to the same page and carries the
+    // *destination* space, so the route 301s there instead of back to itself.
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['wiki', 'concepts', 'moved-reader']))
+      .resolves.toMatchObject({
+        kind: 'original',
+        legacy: true,
+        sourcePath: 'concepts/moved-reader',
+        page: { pageId: created.pageId },
+        space: { id: generated!.id },
+      });
+  });
+
+  it('never leaks a moved page the destination space does not let the reader see (035 FR-009)', async () => {
+    const created = await publishedWikiPage(adminCtx, 'concepts/moved-restricted', 'wiki body');
+
+    // No explicit visibility: moving into generated defaults to `restricted`.
+    await pageService.moveToSpace(adminCtx, created.pageId, { targetSpace: 'generated' });
+
+    // Exactly the surface a direct request for the destination address gives —
+    // no redirect, and nothing disclosing where the page went.
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['generated', 'concepts', 'moved-restricted']))
+      .resolves.toEqual({ kind: 'forbidden', visibility: 'restricted', legacy: false });
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['wiki', 'concepts', 'moved-restricted']))
+      .resolves.toEqual({ kind: 'forbidden', visibility: 'restricted', legacy: true });
   });
 
   it('warms both the new address and the retained old-space address after moving a published page (035 T081)', async () => {

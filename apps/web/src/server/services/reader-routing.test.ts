@@ -12,7 +12,7 @@ const pages = vi.hoisted(() => ({
   getReaderAccessStatusBySlug: vi.fn(),
   getCachedPublishedTranslationLocales: vi.fn(),
 }));
-const spaces = vi.hoisted(() => ({ resolveSpace: vi.fn() }));
+const spaces = vi.hoisted(() => ({ resolveSpace: vi.fn(), getSpaceById: vi.fn() }));
 const routes = vi.hoisted(() => ({
   resolveSpacePrefix: vi.fn(),
   canonicalSpacePath: vi.fn(),
@@ -34,6 +34,7 @@ vi.mock('@/server/services/translation-locales', () => translationLocales);
 import { buildReaderMetadata, resolveReaderPage, type ResolvedReaderPage } from './reader-routing';
 
 const wiki = { id: 'space-1', slug: 'default', kind: 'wiki', routePrefix: 'wiki' };
+const generated = { id: 'space-2', slug: 'generated', kind: 'generated', routePrefix: 'generated' };
 
 beforeEach(() => {
   translationLocales.getReservedLocalePrefixes.mockResolvedValue(new Set(['zh']));
@@ -191,12 +192,14 @@ describe('resolveReaderPage alias resolution (035, US2)', () => {
     vi.clearAllMocks();
     routes.resolveSpacePrefix.mockResolvedValue({ space: wiki, isAlias: false });
     links.findRetiredLinkTarget.mockResolvedValue(null);
+    spaces.getSpaceById.mockImplementation((id: string) =>
+      [wiki, generated].find((space) => space.id === id) ?? null);
   });
 
   it('301s a retained alias to the page current canonical slug, marked legacy', async () => {
     pages.getCachedPublicLiveBySlug.mockResolvedValue(null);
     pages.getReaderAccessStatusBySlug.mockResolvedValue(null);
-    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'faq', locale: null });
+    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'faq', locale: null, spaceId: 'space-1' });
     const page = { pageId: 'p1', slug: 'faq', path: 'support/faq' };
     // Re-run of the canonical lookup against the *current* slug.
     pages.getCachedPublicLiveBySlug.mockImplementation((slug: string) => (slug === 'faq' ? page : null));
@@ -210,7 +213,7 @@ describe('resolveReaderPage alias resolution (035, US2)', () => {
   it('301s a locale-prefixed alias to the translation current address', async () => {
     pages.getCachedPublicLiveBySlug.mockResolvedValue(null);
     pages.getReaderAccessStatusBySlug.mockResolvedValue(null);
-    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'faq', locale: 'zh' });
+    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'faq', locale: 'zh', spaceId: 'space-1' });
     const translation = { pageId: 'p2', slug: 'faq', path: 'support/faq' };
     // Step 2 (the direct lookup) runs first, against the *stale* address
     // segment, and must miss (not_found — no source page has that slug) so
@@ -228,7 +231,7 @@ describe('resolveReaderPage alias resolution (035, US2)', () => {
   it('never redirects an alias whose target the caller cannot read — same response as a direct request', async () => {
     pages.getCachedPublicLiveBySlug.mockResolvedValue(null);
     pages.getReaderAccessStatusBySlug.mockResolvedValue(null);
-    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'private-doc', locale: null });
+    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'private-doc', locale: null, spaceId: 'space-1' });
     pages.getReaderAccessStatusBySlug.mockImplementation((_ctx: unknown, slug: string) =>
       slug === 'private-doc' ? { kind: 'forbidden', visibility: 'restricted' } : null,
     );
@@ -238,5 +241,48 @@ describe('resolveReaderPage alias resolution (035, US2)', () => {
     // No 301 (no `sourcePath`/canonical address disclosed): exactly the
     // forbidden surface a direct request for the target would produce.
     expect(result).toEqual({ kind: 'forbidden', visibility: 'restricted', legacy: true });
+  });
+
+  // Regression (FR-010): a cross-space move retains the pre-move address
+  // against the *source* space while the page itself leaves it, so the final
+  // lookup must run against the destination space. Resolving it against the
+  // URL's own space made every moved page unreachable at its old address.
+  it('resolves a retained alias whose page has moved to another space against the destination space', async () => {
+    pages.getReaderAccessStatusBySlug.mockResolvedValue(null);
+    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'concepts/moved', locale: null, spaceId: 'space-2' });
+    const page = { pageId: 'p1', slug: 'concepts/moved', path: 'concepts/moved' };
+    pages.getCachedPublicLiveBySlug.mockImplementation((slug: string, spaceSlug: string) =>
+      slug === 'concepts/moved' && spaceSlug === 'generated' ? page : null,
+    );
+
+    const result = await resolveReaderPage({ actor: { kind: 'anonymous' } }, ['wiki', 'concepts/moved']);
+
+    expect(spaces.getSpaceById).toHaveBeenCalledWith('space-2');
+    // `space` is the destination, so the caller 301s to the destination's
+    // canonical URL rather than back to the address that just missed.
+    expect(result).toEqual({ kind: 'original', page, sourcePath: 'concepts/moved', space: generated, legacy: true });
+  });
+
+  it('does not leak a moved page whose destination space the caller cannot read', async () => {
+    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'concepts/secret', locale: null, spaceId: 'space-2' });
+    pages.getCachedPublicLiveBySlug.mockResolvedValue(null);
+    pages.getReaderAccessStatusBySlug.mockImplementation((_ctx: unknown, slug: string, spaceSlug: string) =>
+      slug === 'concepts/secret' && spaceSlug === 'generated' ? { kind: 'forbidden', visibility: 'restricted' } : null,
+    );
+
+    const result = await resolveReaderPage({ actor: { kind: 'anonymous' } }, ['wiki', 'concepts/secret']);
+
+    // Read permission is re-checked on the destination page (FR-009): no
+    // redirect, and no disclosure of where the page went.
+    expect(result).toEqual({ kind: 'forbidden', visibility: 'restricted', legacy: true });
+  });
+
+  it('falls through to not_found when the alias target space no longer exists', async () => {
+    pages.getCachedPublicLiveBySlug.mockResolvedValue(null);
+    pages.getReaderAccessStatusBySlug.mockResolvedValue(null);
+    addresses.resolveAddressTarget.mockResolvedValue({ slug: 'orphan', locale: null, spaceId: 'space-gone' });
+
+    await expect(resolveReaderPage({ actor: { kind: 'anonymous' } }, ['wiki', 'old-orphan-address']))
+      .resolves.toEqual({ kind: 'not_found' });
   });
 });
