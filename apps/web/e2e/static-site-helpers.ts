@@ -125,7 +125,7 @@ export async function createAndPublishImagePage(page: Page, key: string): Promis
 }
 
 export async function restoreWelcomePage(page: Page, key: string): Promise<void> {
-  const lookup = await page.request.get('/api/v1/pages?path=welcome', {
+  const lookup = await page.request.get('/api/v1/pages?path=welcome&space=wiki', {
     headers: { Authorization: `Bearer ${key}` },
   });
   expect(lookup.status()).toBe(200);

@@ -9,6 +9,10 @@ import { Alert } from '@/components/ui/Alert';
 import { getLocalizedErrorMessage } from '@/i18n/error-messages';
 import { PublishIcon, UndoIcon } from '@/components/icons';
 
+type PublishedPage = {
+  canonicalUrl?: string;
+};
+
 export function PublishButton({
   pageId,
   path,
@@ -26,11 +30,14 @@ export function PublishButton({
 }) {
   const { t } = useTranslation();
   const [error, setError] = useState<string | null>(null);
-  const publish = useApiMutation<Record<string, never>, unknown>(
+  const publish = useApiMutation<Record<string, never>, PublishedPage>(
     getPublicApiPagePublicationUrl(pageId, version),
     {
-      onSuccess: () => {
-        window.location.href = getSpaceHref(space, path);
+      onSuccess: (publishedPage) => {
+        // The API knows the configured space prefix and current page slug.
+        // Use that canonical address directly instead of first visiting the
+        // legacy root path and waiting for the reader to redirect.
+        window.location.href = publishedPage.canonicalUrl ?? getSpaceHref(space, path);
       },
       onError: (err: ApiError) => {
         if (err.code === 'FORBIDDEN' || err.code === 'UNAUTHORIZED') {
