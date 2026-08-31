@@ -2,7 +2,6 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, max } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { renderMarkdown } from '@/server/pipeline';
 import { syncRevisionAssetRefs } from './content-assets';
 import { addReplicationTasks, kickReplication } from './storage-replication';
 import { reconcilePageAcrossIndexes } from './ai-index';
@@ -13,6 +12,7 @@ import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 import { ensureOkfConformance } from '@/server/services/okf';
 import { assertAddressAvailable, deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
 import { getReservedLocalePrefixes } from '@/server/services/translation-locales';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -91,7 +91,7 @@ export async function writeImportedRawEntry(input: {
   }
   const revisionId = randomUUID();
   const contentSource = input.page.body;
-  const { html, hash } = renderMarkdown(contentSource);
+  const { html, hash } = await renderPageMarkdown(space, contentSource, { locale: input.page.locale });
   const contentType = input.page.contentType || 'text/plain';
   const sourceMetadata: Record<string, unknown> = {};
   if (input.page.inputKind) sourceMetadata.inputKind = input.page.inputKind;
@@ -203,7 +203,7 @@ export async function writeImportedGeneratedPage(input: {
     title: input.page.title,
     now,
   });
-  const { html, hash } = renderMarkdown(contentSource);
+  const { html, hash } = await renderPageMarkdown(space, contentSource, { locale: input.page.locale });
 
   const result = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -314,7 +314,7 @@ export async function writeImportedPage(input: {
   }
 
   const revisionId = randomUUID();
-  const { html, hash } = renderMarkdown(input.markdown);
+  const { html, hash } = await renderPageMarkdown(space, input.markdown, { locale: input.locale });
   const reservedLocales = await getReservedLocalePrefixes();
   const result = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -513,7 +513,7 @@ export async function writeImportedPageWithHistory(input: {
     let finalTitle = input.versions.at(-1)!.title;
     for (const version of input.versions) {
       const revisionId = randomUUID();
-      const { html, hash } = renderMarkdown(version.markdown);
+      const { html, hash } = await renderPageMarkdown(space, version.markdown, { executor: tx, locale: input.locale });
       await tx.insert(schema.pageRevisions).values({
         id: revisionId,
         pageId,
@@ -669,7 +669,7 @@ export async function writeImportedRawEntryWithHistory(input: {
     const revisionIds: string[] = [];
     for (const version of input.versions) {
       const revisionId = randomUUID();
-      const { html, hash } = renderMarkdown(version.body);
+      const { html, hash } = await renderPageMarkdown(space, version.body, { executor: tx });
       await tx.insert(schema.pageRevisions).values({
         id: revisionId,
         pageId,
@@ -799,7 +799,7 @@ export async function writeImportedGeneratedPageWithHistory(input: {
         title: version.title,
         now: version.createdAt,
       });
-      const { html, hash } = renderMarkdown(contentSource);
+      const { html, hash } = await renderPageMarkdown(space, contentSource, { executor: tx, locale: input.locale });
       await tx.insert(schema.pageRevisions).values({
         id: revisionId,
         pageId,

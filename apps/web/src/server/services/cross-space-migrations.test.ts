@@ -2,9 +2,10 @@ import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { and, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import { create, getHistory } from '@/server/services/pages';
 import { publish } from '@/server/services/revisions';
+import { resolveReaderPage } from '@/server/services/reader-routing';
 import { setModeInternal } from '@/server/services/writing-mode';
 import { confirmCrossSpaceMigration, listCrossSpaceMigrationItems, previewCrossSpaceMigration, runCrossSpaceMigration } from './cross-space-migrations';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
@@ -74,6 +75,45 @@ describe('cross-space migration workflow', () => {
       where: and(eq(schema.pageAddresses.spaceId, wiki!.id), eq(schema.pageAddresses.address, 'imports/ai-note')),
     });
     expect(retainedAddress).toMatchObject({ pageId: page.pageId, kind: 'retained', reason: 'cross_space_migration' });
+    // Writing the row is only half the contract — a reader must still reach
+    // the page through it, resolved against the destination space the page
+    // moved to (regression: this returned not_found for every moved page).
+    await expect(resolveReaderPage(admin, ['wiki', 'imports', 'ai-note'])).resolves.toMatchObject({
+      kind: 'original', legacy: true, page: { pageId: page.pageId }, space: { id: generated!.id },
+    });
+    // ...and read permission is re-checked on the destination page (FR-009):
+    // the moved page is restricted, so an anonymous visitor sees no redirect.
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['wiki', 'imports', 'ai-note']))
+      .resolves.toEqual({ kind: 'forbidden', visibility: 'restricted', legacy: true });
+  });
+
+  it('reclaims its own retained alias when a page is migrated back to the space it left', async () => {
+    const page = await create(admin, { path: 'imports/round-trip', title: 'Round trip', contentSource: '# Note' });
+    await publish(admin, { path: 'imports/round-trip', version: 1 });
+    const [wiki, generated] = await Promise.all([
+      db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') }),
+      db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'generated') }),
+    ]);
+
+    for (const destinationSpaceId of [generated!.id, wiki!.id]) {
+      const preview = await previewCrossSpaceMigration(admin, {
+        selection: { kind: 'page', pageId: page.pageId }, destinationSpaceId, adaptOkf: true, visibility: 'public',
+      });
+      const operation = await confirmCrossSpaceMigration(admin, { previewId: preview.id, fingerprint: preview.fingerprint });
+      await runCrossSpaceMigration(operation.id);
+    }
+
+    expect(await db.query.pages.findFirst({ where: eq(schema.pages.id, page.pageId) })).toMatchObject({ spaceId: wiki!.id });
+    // One alias, in the space just left — never a wiki-space row duplicating
+    // the page's own canonical address again.
+    const aliases = await db.query.pageAddresses.findMany({ where: eq(schema.pageAddresses.pageId, page.pageId) });
+    expect(aliases).toHaveLength(1);
+    expect(aliases[0]).toMatchObject({ spaceId: generated!.id, address: 'imports/round-trip', kind: 'retained' });
+
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['wiki', 'imports', 'round-trip']))
+      .resolves.toMatchObject({ kind: 'original', legacy: false, page: { pageId: page.pageId } });
+    await expect(resolveReaderPage(buildAnonymousCtx(), ['generated', 'imports', 'round-trip']))
+      .resolves.toMatchObject({ kind: 'original', legacy: true, page: { pageId: page.pageId }, space: { id: wiki!.id } });
   });
 
   it('warms both the new address and the retained old-space address after moving a published page (035 T081)', async () => {

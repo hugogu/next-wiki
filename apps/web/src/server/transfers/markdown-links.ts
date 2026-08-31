@@ -2,6 +2,9 @@ import path from 'node:path';
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import { visit } from 'unist-util-visit';
+// One definition of the wikilink syntax, shared with the render pipeline so the
+// links a reader can click and the links this graph records stay identical.
+import { collectWikiLinks } from '@/server/pipeline/wikilink';
 
 type ImageNode = {
   type: 'image';
@@ -242,8 +245,6 @@ export function createWikiJsLinkReplacer(
   };
 }
 
-const WIKILINK_PATTERN = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
-
 /** Finds standard Markdown links and `[[wikilink]]` / `[[wikilink|alias]]` references. */
 export function findMarkdownLinks(markdown: string): MarkdownLink[] {
   const tree = unified().use(remarkParse).parse(markdown);
@@ -258,10 +259,16 @@ export function findMarkdownLinks(markdown: string): MarkdownLink[] {
       external: /^https?:\/\//i.test(link.url),
     });
   });
-  for (const match of markdown.matchAll(WIKILINK_PATTERN)) {
-    const target = match[1]!.trim();
-    const alias = match[2]?.trim();
-    results.push({ source: 'wiki', target, linkText: alias || target, external: false });
+  // Read off the same tree, and only from the prose the renderer rewrites, so a
+  // `[[…]]` shown inside a code sample is not recorded as an outbound link. The
+  // target keeps its `#fragment`, matching how a Markdown link's URL is stored.
+  for (const link of collectWikiLinks(tree)) {
+    results.push({
+      source: 'wiki',
+      target: `${link.target}${link.hash}`,
+      linkText: link.label,
+      external: false,
+    });
   }
   return results;
 }

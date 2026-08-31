@@ -6,6 +6,7 @@ import {
   type StaticSiteExclusionCounts,
 } from '@next-wiki/shared';
 import { renderMarkdown } from '@/server/pipeline';
+import { createStaticWikiLinkResolver } from '@/server/services/wiki-links';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import { getDictionary } from '@/i18n/server';
@@ -170,6 +171,16 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   const locales = publishedLocales(set);
   const searchLanguage = chooseSearchLanguage(locales);
 
+  // Wikilinks resolve to a tree path, the shape `rewriteLinks` maps onto the
+  // artifact's addresses — and only against pages of the same locale, which is
+  // the locale that rewriter resolves in.
+  const wikiLinkResolvers = new Map(
+    locales.map((locale) => [
+      locale,
+      createStaticWikiLinkResolver(set.pages.filter((page) => page.locale === locale)),
+    ]),
+  );
+
   for (const page of set.pages) {
     // Read from the authoritative database: a publish must not stall on a slow
     // read-preferred replica, and the published source always lives in the DB.
@@ -177,7 +188,9 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
       id: page.revisionId,
       contentSource: page.contentSource,
     });
-    const { html } = renderMarkdown(source);
+    const { html } = renderMarkdown(source, {
+      resolveWikiLink: wikiLinkResolvers.get(page.locale),
+    });
     const withIds = injectHeadingIds(html);
     const { html: withLinks, downgraded } = rewriteLinks(
       withIds,

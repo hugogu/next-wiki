@@ -275,11 +275,17 @@ export async function setSlug(
  * resolve through the ordinary steps 2-3 lookups, so redirect targets always
  * reflect the latest rename and permission checks run exactly as they would
  * for a direct hit.
+ *
+ * `spaceId` in the result is the space the target page lives in *now*, which
+ * is not necessarily the space the alias was looked up in: a cross-space move
+ * (FR-010) deliberately retains the pre-move address against the *source*
+ * space while the page itself leaves it. Callers must run the final lookup
+ * against the returned space, or the alias resolves to nothing.
  */
 export async function resolveAddressTarget(
   spaceId: string,
   address: string,
-): Promise<{ slug: string; locale: string | null } | null> {
+): Promise<{ slug: string; locale: string | null; spaceId: string } | null> {
   const row = await db.query.pageAddresses.findFirst({
     where: and(eq(schema.pageAddresses.spaceId, spaceId), eq(schema.pageAddresses.address, address)),
   });
@@ -291,9 +297,11 @@ export async function resolveAddressTarget(
   if (target.sourcePageId) {
     const source = await db.query.pages.findFirst({ where: eq(schema.pages.id, target.sourcePageId) });
     if (!source) return null;
-    return { slug: source.slug, locale: target.locale };
+    // A translation is only addressable through its source page, so the
+    // source's space — not the translation row's — is where it resolves.
+    return { slug: source.slug, locale: target.locale, spaceId: source.spaceId };
   }
-  return { slug: target.slug, locale: null };
+  return { slug: target.slug, locale: null, spaceId: target.spaceId };
 }
 
 export type PageAddressView = {

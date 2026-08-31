@@ -15,7 +15,7 @@ import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildUserCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
-import { renderMarkdown } from '@/server/pipeline';
+import { renderPageMarkdown, type WikiLinkSpace } from '@/server/services/wiki-links';
 import { persistRevisionMetadata } from '@/server/services/page-metadata';
 import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
@@ -401,7 +401,7 @@ async function writeConversationRevision(
   tx: Tx,
   params: {
     existingPageId: string | null;
-    spaceId: string;
+    space: WikiLinkSpace;
     categoryId: string;
     authorId: string;
     path: string;
@@ -410,7 +410,7 @@ async function writeConversationRevision(
     sourceMetadata: RawConversationSourceMetadata;
   },
 ): Promise<{ pageId: string }> {
-  const { html, hash } = renderMarkdown(params.contentSource);
+  const { html, hash } = await renderPageMarkdown(params.space, params.contentSource, { executor: tx });
 
   let pageId = params.existingPageId;
   let versionNumber = 1;
@@ -424,7 +424,7 @@ async function writeConversationRevision(
     const [page] = await tx
       .insert(schema.pages)
       .values({
-        spaceId: params.spaceId,
+        spaceId: params.space.id,
         slug: params.path.split('/').pop() ?? params.path,
         path: params.path,
         title: params.title,
@@ -458,7 +458,7 @@ async function writeConversationRevision(
 
   await persistRevisionMetadata(tx, {
     revisionId: revision.id,
-    spaceId: params.spaceId,
+    spaceId: params.space.id,
     source: params.contentSource,
     fallbackTitle: params.title,
   });
@@ -572,7 +572,7 @@ async function captureConversationWithoutDataCache(actionId: string): Promise<Ca
 
       const { pageId } = await writeConversationRevision(tx, {
         existingPageId,
-        spaceId: space.id,
+        space,
         categoryId: category.id,
         authorId: action.actorUserId,
         path,

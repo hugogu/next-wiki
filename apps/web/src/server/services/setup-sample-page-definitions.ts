@@ -133,6 +133,8 @@ Task lists:
 
 Internal pages are linked by path: [Welcome](/welcome) and [Main Features Guide](/help/main-features). External links work too: [CommonMark](https://commonmark.org).
 
+Wikilinks are a shorthand for internal pages. Write \`[[help/main-features]]\` for [[help/main-features]], \`[[help/main-features|Features]]\` to choose the text, or \`[[help/main-features#tables]]\` to land on a heading. The target does not have to be the page's full address — a trailing part of it is enough as long as only one page matches, so \`[[main-features]]\` finds the same page.
+
 ## Images
 
 \`\`\`md

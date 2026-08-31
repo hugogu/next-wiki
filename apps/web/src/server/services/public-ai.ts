@@ -1,4 +1,4 @@
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type { AiActionStatus, AiSearchResult, PublicSemanticSearchAction, PublicSemanticSearchStatus, PublicSemanticSearchSubmitInput } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -96,6 +96,39 @@ function usageFrom(metadata: Record<string, unknown>): { inputTokens?: number; r
   return { inputTokens, requestId };
 }
 
+/**
+ * Re-check stored search results against the polling caller's own read
+ * permission. The async worker runs retrieval with the submitter's *role*
+ * (ai_actions persists only actorUserId), which cannot express an api_key
+ * actor's per-key spaceAccess. Without this filter, a wiki-only key could
+ * receive excerpts from restricted raw/generated pages its owner may read but
+ * the key itself may not. Pages deleted since the action ran are dropped.
+ */
+async function filterReadableSearchResults(ctx: PermCtx, results: AiSearchResult[]): Promise<AiSearchResult[]> {
+  if (results.length === 0) return results;
+  const pageIds = [...new Set(results.map((result) => result.pageId))];
+  const rows = await db
+    .select({
+      pageId: schema.pages.id,
+      visibility: schema.pages.visibility,
+      spaceKind: schema.spaces.kind,
+      anonymousRead: schema.spaces.anonymousRead,
+    })
+    .from(schema.pages)
+    .innerJoin(schema.spaces, eq(schema.pages.spaceId, schema.spaces.id))
+    .where(and(inArray(schema.pages.id, pageIds), isNull(schema.pages.deletedAt)));
+  const pageById = new Map(rows.map((row) => [row.pageId, row]));
+  return results.filter((result) => {
+    const page = pageById.get(result.pageId);
+    if (!page) return false;
+    return can(ctx, 'read', { kind: 'page', pageId: result.pageId }, {
+      spaceKind: page.spaceKind,
+      anonymousRead: page.anonymousRead,
+      visibility: page.visibility,
+    });
+  });
+}
+
 export async function getSemanticSearchResults(ctx: PermCtx, actionId: string): Promise<PublicSemanticSearchAction> {
   const row = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
   const actorUserId = getActorUserId(ctx);
@@ -133,10 +166,11 @@ export async function getSemanticSearchResults(ctx: PermCtx, actionId: string): 
     orderBy: desc(schema.aiActionEvents.id),
   });
   const results = ((event?.payload as { results?: AiSearchResult[] } | undefined)?.results) ?? [];
+  const visibleResults = await filterReadableSearchResults(ctx, results);
 
   return {
     ...base,
-    items: results.map((result) => ({
+    items: visibleResults.map((result) => ({
       pageId: result.pageId,
       path: result.path,
       title: result.title,

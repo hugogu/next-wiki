@@ -2,13 +2,14 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, isNull, max, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { renderMarkdown } from '@/server/pipeline';
 import { buildUserCtx } from '@/server/permissions';
 import { persistRevisionMetadata } from './page-metadata';
 import { syncRevisionAssetRefs } from './content-assets';
 import { addReplicationTasks, kickReplication } from './storage-replication';
 import { reconcilePageAcrossIndexes } from './ai-index';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
+import { getSpaceById } from '@/server/services/spaces';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 
 type RunRow = typeof schema.translationRuns.$inferSelect;
 type ItemRow = typeof schema.translationRunItems.$inferSelect;
@@ -54,7 +55,13 @@ export async function writeTranslation(input: {
   };
 }): Promise<TranslationWriteResult> {
   const { run, item } = input;
-  const { html, hash } = renderMarkdown(input.translatedMarkdown);
+  // A translation lands in its source page's space, whose pages its wikilinks
+  // resolve against. A source that is no longer there is the same outcome the
+  // transaction below reaches on its own recheck.
+  const sourcePage = await db.query.pages.findFirst({ where: eq(schema.pages.id, item.sourcePageId) });
+  const space = sourcePage ? await getSpaceById(sourcePage.spaceId) : null;
+  if (!space) return { outcome: 'superseded' as const };
+  const { html, hash } = await renderPageMarkdown(space, input.translatedMarkdown, { locale: run.targetLocale });
   const outputHash = hash;
   const revisionId = randomUUID();
 

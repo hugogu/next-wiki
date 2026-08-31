@@ -7,7 +7,7 @@ import * as pageService from '@/server/services/pages';
 import { findRetiredLinkTarget } from '@/server/services/link-pages';
 import { canonicalSpacePath, resolveSpacePrefix } from '@/server/services/space-routes';
 import { resolveAddressTarget } from '@/server/services/page-addresses';
-import { resolveSpace, type SpaceRow } from '@/server/services/spaces';
+import { getSpaceById, resolveSpace, type SpaceRow } from '@/server/services/spaces';
 import { getReservedLocalePrefixes, isReservedLocalePrefix } from '@/server/services/translation-locales';
 
 export type ResolvedReaderPage =
@@ -62,23 +62,30 @@ export async function resolveReaderPage(ctx: PermCtx, rawSegments: string[]): Pr
   // lookup, so read permission is re-checked on the final target exactly as
   // it would be for a direct hit (FR-009).
   const aliasTarget = await resolveAddressTarget(space.id, fullPath);
-  if (aliasTarget?.locale) {
+  // A cross-space move (FR-010) retains the pre-move address against the
+  // source space while the page itself now lives elsewhere, so the final
+  // lookup — and the address the reader is redirected to — must run against
+  // the target's *current* space, not the one this URL's prefix named.
+  const aliasSpace = aliasTarget
+    ? aliasTarget.spaceId === space.id ? space : await getSpaceById(aliasTarget.spaceId)
+    : null;
+  if (aliasTarget && aliasSpace && aliasTarget.locale) {
     const result = isAnonymous
-      ? await pageService.getCachedPublicLiveTranslationBySlug(aliasTarget.locale, aliasTarget.slug, space.slug)
-      : await pageService.getLiveTranslationBySlug(ctx, aliasTarget.locale, aliasTarget.slug, space.slug);
+      ? await pageService.getCachedPublicLiveTranslationBySlug(aliasTarget.locale, aliasTarget.slug, aliasSpace.slug)
+      : await pageService.getLiveTranslationBySlug(ctx, aliasTarget.locale, aliasTarget.slug, aliasSpace.slug);
     if (result.kind === 'page') {
-      return { kind: 'translation', page: result.page, locale: aliasTarget.locale, sourcePath: aliasTarget.slug, space, legacy: true };
+      return { kind: 'translation', page: result.page, locale: aliasTarget.locale, sourcePath: aliasTarget.slug, space: aliasSpace, legacy: true };
     }
     if (result.kind === 'unavailable') {
-      return { kind: 'unavailable', locale: aliasTarget.locale, sourcePath: result.sourcePath, space, legacy: true };
+      return { kind: 'unavailable', locale: aliasTarget.locale, sourcePath: result.sourcePath, space: aliasSpace, legacy: true };
     }
     if (result.kind === 'forbidden') return { kind: 'forbidden', visibility: result.visibility, legacy: true };
-  } else if (aliasTarget) {
+  } else if (aliasTarget && aliasSpace) {
     const target = isAnonymous
-      ? await pageService.getCachedPublicLiveBySlug(aliasTarget.slug, space.slug)
-      : await pageService.getLiveBySlug(ctx, aliasTarget.slug, space.slug);
-    if (target) return { kind: 'original', page: target, sourcePath: aliasTarget.slug, space, legacy: true };
-    const targetAccess = await pageService.getReaderAccessStatusBySlug(ctx, aliasTarget.slug, space.slug);
+      ? await pageService.getCachedPublicLiveBySlug(aliasTarget.slug, aliasSpace.slug)
+      : await pageService.getLiveBySlug(ctx, aliasTarget.slug, aliasSpace.slug);
+    if (target) return { kind: 'original', page: target, sourcePath: aliasTarget.slug, space: aliasSpace, legacy: true };
+    const targetAccess = await pageService.getReaderAccessStatusBySlug(ctx, aliasTarget.slug, aliasSpace.slug);
     if (targetAccess) return { ...targetAccess, legacy: true };
   }
 

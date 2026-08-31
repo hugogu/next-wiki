@@ -1,11 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
+import type { AiSearchResult } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { clearAiData, createAiTestUser, removeAiTestUser } from '../../../test/ai-fixtures';
 import { exactCosineSearch } from '@/server/ai/retrieval/vector-search';
 import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
-import { readPermissionFilteredVectorCandidates, retrieve } from './ai-retrieval';
+import { createSemanticSearch, readPermissionFilteredVectorCandidates, retrieve } from './ai-retrieval';
 import * as publicAi from './public-ai';
 
 describe('AI vector retrieval', () => {
@@ -395,6 +396,109 @@ describe('public-ai semantic search facade (US3)', () => {
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
     await clearAiData();
+    await db.delete(schema.spaces).where(eq(schema.spaces.id, rawSpaceId));
+    await removeAiTestUser(userId);
+  });
+
+  it('rejects an ai.read-only api key at submit time, not with silent empty results at poll time', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('editor');
+    await db.insert(schema.aiSettings).values({ id: 'default', enabled: true });
+    await db.insert(schema.spaces).values({ slug: 'default', name: 'Default', kind: 'wiki' }).onConflictDoNothing();
+
+    // The in-app route (/api/ai/searches) funnels straight into
+    // createSemanticSearch without the v1 facade's scope pre-check — the
+    // service itself must demand page-read permission.
+    const aiReadOnly = buildApiKeyCtx(userId, 'editor', ['ai.read'], 'key');
+    await expect(createSemanticSearch(aiReadOnly, { query: 'q', limit: 5 })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    // With the view scope added, the read gate passes and the next failure is
+    // the (undisclosed-before-authz) index readiness check.
+    const withView = buildApiKeyCtx(userId, 'editor', ['view', 'ai.read'], 'key');
+    await expect(createSemanticSearch(withView, { query: 'q', limit: 5 })).rejects.toMatchObject({ code: 'INDEX_NOT_READY' });
+
+    await removeAiTestUser(userId);
+  });
+
+  it('re-filters stored results against the polling caller, so a wiki-only API key never sees raw excerpts (046 regression)', async () => {
+    await clearAiData();
+    const userId = await createAiTestUser('admin');
+    const wikiSpaceId = randomUUID();
+    await db.insert(schema.spaces).values({ id: wikiSpaceId, slug: `poll-wiki-${wikiSpaceId.slice(0, 8)}`, name: 'Wiki', kind: 'wiki', anonymousRead: true });
+    const rawSpaceId = randomUUID();
+    await db.insert(schema.spaces).values({ id: rawSpaceId, slug: `poll-raw-${rawSpaceId.slice(0, 8)}`, name: 'Raw', kind: 'raw', anonymousRead: false });
+
+    const seedPage = async (spaceId: string, slug: string, visibility: 'public' | 'restricted') => {
+      const pageId = randomUUID();
+      const revisionId = randomUUID();
+      await db.insert(schema.pages).values({
+        id: pageId, spaceId, slug, path: slug, title: slug, authorId: userId, visibility,
+        currentPublishedVersionId: revisionId, latestVersionId: revisionId,
+      });
+      await db.insert(schema.pageRevisions).values({
+        id: revisionId, pageId, versionNumber: 1, contentSource: `${slug} body`,
+        contentHtml: `<p>${slug}</p>`, contentHash: `hash-${slug}`, authorId: userId,
+        status: 'published', publishedAt: new Date(),
+      });
+      return { pageId, revisionId };
+    };
+    const wiki = await seedPage(wikiSpaceId, 'public-page', 'public');
+    const raw = await seedPage(rawSpaceId, 'secret-raw', 'restricted');
+
+    // Simulate a completed action whose worker-side results — produced with
+    // the submitter's admin *role* — contain a restricted raw-space excerpt.
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+    const [action] = await db.insert(schema.aiActions).values({
+      feature: 'semantic_search', status: 'completed', actorUserId: userId,
+      finishedAt: new Date(), expiresAt,
+    }).returning();
+    const results: AiSearchResult[] = [
+      {
+        pageId: wiki.pageId, title: 'public-page', path: 'public-page', slug: 'public-page',
+        locale: 'en', revisionId: wiki.revisionId, revisionHash: 'hash-public-page',
+        chunkId: randomUUID(), excerpt: 'public excerpt', score: 0.9,
+        spaceSlug: `poll-wiki-${wikiSpaceId.slice(0, 8)}`, canonicalUrl: '/wiki/public-page',
+        rawCategorySystemKey: null,
+      },
+      {
+        pageId: raw.pageId, title: 'secret-raw', path: 'secret-raw', slug: 'secret-raw',
+        locale: 'en', revisionId: raw.revisionId, revisionHash: 'hash-secret-raw',
+        chunkId: randomUUID(), excerpt: 'restricted raw excerpt', score: 0.8,
+        spaceSlug: `poll-raw-${rawSpaceId.slice(0, 8)}`, canonicalUrl: '/raw/secret-raw',
+        rawCategorySystemKey: null,
+      },
+    ];
+    await db.insert(schema.aiActionEvents).values({
+      actionId: action!.id, type: 'search_results', payload: { results }, expiresAt,
+    });
+
+    // The submitting admin, polling with a full session ctx, still sees both.
+    const adminView = await publicAi.getSemanticSearchResults(buildUserCtx(userId, 'admin'), action!.id);
+    expect(adminView.status).toBe('succeeded');
+    expect(adminView.items?.map((item) => item.pageId).sort()).toEqual([wiki.pageId, raw.pageId].sort());
+
+    // A wiki-only API key owned by the same admin must not receive the raw
+    // excerpt — the worker's role-level ctx must not widen the key's grant.
+    const keyView = await publicAi.getSemanticSearchResults(
+      buildApiKeyCtx(userId, 'admin', ['view', 'ai.read'], 'key', ['wiki']),
+      action!.id,
+    );
+    expect(keyView.items?.map((item) => item.pageId)).toEqual([wiki.pageId]);
+    expect(JSON.stringify(keyView)).not.toContain('restricted raw excerpt');
+
+    // A key explicitly granted raw access still receives everything.
+    const rawKeyView = await publicAi.getSemanticSearchResults(
+      buildApiKeyCtx(userId, 'admin', ['view', 'ai.read'], 'key', ['wiki', 'raw']),
+      action!.id,
+    );
+    expect(rawKeyView.items).toHaveLength(2);
+
+    await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, wiki.pageId));
+    await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, raw.pageId));
+    await db.delete(schema.pages).where(eq(schema.pages.id, wiki.pageId));
+    await db.delete(schema.pages).where(eq(schema.pages.id, raw.pageId));
+    await clearAiData();
+    await db.delete(schema.spaces).where(eq(schema.spaces.id, wikiSpaceId));
     await db.delete(schema.spaces).where(eq(schema.spaces.id, rawSpaceId));
     await removeAiTestUser(userId);
   });

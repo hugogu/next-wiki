@@ -132,5 +132,11 @@ test.describe('admin cross-space page move', () => {
     expect(moved!).toMatchObject({ nature: 'generated', visibility: 'public' });
     expect(moved!.source).toMatch(/^---\ntype: /);
     expect(moved!.source).toContain('This wiki page was actually AI generated.');
+
+    // 035 (FR-010): the move retains the page's pre-move address, so the URL a
+    // reader already holds must land on the destination space rather than 404.
+    const redirect = await page.request.get('/wiki/ai-import', { maxRedirects: 0 });
+    expect([301, 307, 308]).toContain(redirect.status());
+    expect(new URL(redirect.headers().location!, page.url()).pathname).toBe('/generated/ai-import');
   });
 });

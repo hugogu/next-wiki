@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { AI_CONVERSATIONS_SOURCE_KEY } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { renderMarkdown } from '@/server/pipeline';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { seedBuiltinSystemThemes } from '@/server/services/system-theme';
 import { DEFAULT_SPACE_SLUG } from '@/server/services/spaces';
 import { WELCOME_PAGE_SOURCE } from '@/server/services/setup-sample-page-definitions';
@@ -209,7 +209,7 @@ export async function seedE2eAdminFixture() {
   // Content shared with the first-run onboarding sample-page writer.
   const source = WELCOME_PAGE_SOURCE;
 
-  const { html, hash } = renderMarkdown(source);
+  const { html, hash } = await renderPageMarkdown(space, source);
 
   const [page] = await db
     .insert(schema.pages)

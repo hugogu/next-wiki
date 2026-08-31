@@ -17,7 +17,7 @@ import { getLatestConversationSnapshot } from '@/server/services/raw-conversatio
 import { isLlmWikiMode } from '@/server/services/writing-mode';
 import { canonicalSpacePath, resolveSpacePrefix } from '@/server/services/space-routes';
 import type { SpaceRow } from '@/server/services/spaces';
-import { renderMarkdown } from '@/server/pipeline';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { getDictionary, getStaticLocale } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
 
@@ -76,7 +76,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
     redirect(page.canonicalUrl ?? canonicalSpacePath(space, page.slug));
   }
 
-  const bodyHtml = injectHeadingIds(renderMarkdown(page.contentSource ?? '').html);
+  const bodyHtml = injectHeadingIds((await renderPageMarkdown(space, page.contentSource ?? '', { locale: page.locale })).html);
   const headings = extractHeadings(bodyHtml);
   const latestRevision = page.latestRevision;
   // Raw entries dispatch their renderer by content type from the current

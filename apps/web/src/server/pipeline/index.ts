@@ -17,6 +17,7 @@ import { validateImage } from '@/server/content-store/image-validation';
 import { markdownBody } from '@/server/metadata/frontmatter';
 import { normalizeDisplayMath } from './normalize-display-math';
 import { hasUnrestoredPlaceholder, protectMathPipes, restoreMathPipes } from './protect-math-pipes';
+import { defaultWikiLinkHref, remarkWikiLink, type WikiLinkResolver } from './wikilink';
 
 const sanitizeSchema = {
   ...defaultSchema,
@@ -172,11 +173,12 @@ function wrapCodeBlocks(tree: Root) {
   }
 }
 
-function toHtml(body: string, restorePipes: boolean): string {
+function toHtml(body: string, restorePipes: boolean, resolveWikiLink: WikiLinkResolver): string {
   return unified()
     .use(remarkParse)
     .use(remarkMath)
     .use(remarkGfm)
+    .use(() => remarkWikiLink(resolveWikiLink))
     .use(() => restoreMathPipes(restorePipes))
     // Parse raw HTML so imported Markdown can retain safe elements such as
     // `<img>`. rehypeSanitize immediately following this step is the security
@@ -197,7 +199,17 @@ function toHtml(body: string, restorePipes: boolean): string {
     .toString();
 }
 
-export function renderMarkdown(source: string): { html: string; hash: string } {
+export type RenderOptions = {
+  /**
+   * Turns a `[[wikilink]]` into an href. Rendering is synchronous and reaches
+   * no database, so a caller that knows which pages exist supplies this;
+   * without one, targets are addressed from the site root as written.
+   */
+  resolveWikiLink?: WikiLinkResolver;
+};
+
+export function renderMarkdown(source: string, options: RenderOptions = {}): { html: string; hash: string } {
+  const resolveWikiLink = options.resolveWikiLink ?? defaultWikiLinkHref;
   const normalized = normalizeDisplayMath(markdownBody(source));
   const body = protectMathPipes(normalized);
   // `protectMathPipes` returns the source untouched when it declines to run, so
@@ -205,7 +217,7 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
   // author wrote one and we must not touch it".
   const protectionRan = body !== normalized;
 
-  const rendered = toHtml(body, protectionRan);
+  const rendered = toHtml(body, protectionRan, resolveWikiLink);
 
   // Protection is confined to table rows and restoration covers everywhere it
   // can reach, so this should not happen. If it ever does, the placeholder is
@@ -214,7 +226,9 @@ export function renderMarkdown(source: string): { html: string; hash: string } {
   // else, and makes a stray character impossible for any construct, including
   // ones added to Markdown later.
   const html =
-    protectionRan && hasUnrestoredPlaceholder(rendered) ? toHtml(normalized, false) : rendered;
+    protectionRan && hasUnrestoredPlaceholder(rendered)
+      ? toHtml(normalized, false, resolveWikiLink)
+      : rendered;
 
   const hash = createHash('sha256').update(source).digest('hex');
   return { html, hash };

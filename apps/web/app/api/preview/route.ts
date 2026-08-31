@@ -25,6 +25,11 @@ export async function POST(request: Request) {
   }
 
   try {
+    // No page context, by design: this endpoint renders arbitrary submitted
+    // Markdown for the editor's live pane and chat answers. `[[wikilinks]]`
+    // therefore render as links addressed from the site root rather than
+    // resolved against a space's pages — the stored render, which knows the
+    // space, resolves them on save.
     const { html } = renderMarkdown(parsed.data.contentSource);
     return NextResponse.json({ html });
   } catch (error) {

@@ -7,8 +7,8 @@ import { DomainError } from '@/server/errors';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { deriveOkfTypeFromPath, ensureOkfConformance, ensureOkfConceptPath } from '@/server/services/okf';
-import { renderMarkdown } from '@/server/pipeline';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
 import { addReplicationTasks, kickReplication } from '@/server/services/storage-replication';
 import { persistRevisionMetadata, getRevisionMetadata } from '@/server/services/page-metadata';
@@ -263,7 +263,7 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
         const source = destination.kind === 'generated' && row.adaptOkf
           ? ensureOkfConformance(original, { title: page.title, now: new Date(), fallbackType: deriveOkfTypeFromPath(item.destinationPath) })
           : original;
-        const { html, hash } = renderMarkdown(source);
+        const { html, hash } = await renderPageMarkdown(destination, source, { executor: tx, locale: page.locale });
         const [last] = await tx.select({ value: sql<number>`max(${schema.pageRevisions.versionNumber})` }).from(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, page.id));
         replacementId = randomUUID();
         await tx.insert(schema.pageRevisions).values({ id: replacementId, pageId: page.id, versionNumber: (last?.value ?? 0) + 1, locale: page.locale, contentType: revision.contentType, contentSource: source, contentHtml: html, contentHash: hash, authorId: row.requestedBy, status: revision.status, actorKind: 'human', sourceMetadata: revision.sourceMetadata, linkTargetPageId: revision.linkTargetPageId, originalAssetId: revision.originalAssetId, publishedAt: revision.status === 'published' ? new Date() : null });
@@ -291,6 +291,16 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
         target: [schema.pageAddresses.spaceId, schema.pageAddresses.address],
         set: { pageId: page.id, reason: 'cross_space_migration' },
       });
+    // Moving back into a space this page previously left leaves that space's
+    // retained alias duplicating the page's own canonical address again; drop
+    // it, exactly as `setSlug` does for an A -> B -> A rename.
+    await tx
+      .delete(schema.pageAddresses)
+      .where(and(
+        eq(schema.pageAddresses.pageId, page.id),
+        eq(schema.pageAddresses.spaceId, destination.id),
+        eq(schema.pageAddresses.address, legacyAddress),
+      ));
     await tx.update(schema.pages).set({ spaceId: destination.id, path: item.destinationPath, nature: destination.kind === 'generated' ? 'generated' : page.nature, visibility: row.visibility ?? page.visibility, latestVersionId: replacementId ?? page.latestVersionId, currentPublishedVersionId: replacementId && primaryId === page.currentPublishedVersionId ? replacementId : page.currentPublishedVersionId, updatedAt: new Date() }).where(eq(schema.pages.id, page.id));
     await tx.update(schema.crossSpaceMigrationItems).set({ status: 'moved', completedAt: new Date(), updatedAt: new Date() }).where(eq(schema.crossSpaceMigrationItems.id, item.id));
     return { pageId: page.id, source, destination, path: item.destinationPath, slug: page.slug, locale: page.locale, legacyAddress, published: page.currentPublishedVersionId !== null };

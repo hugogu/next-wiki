@@ -1,10 +1,26 @@
 import { z } from 'zod';
+import * as path from 'node:path';
 import type { WikiApiClient } from '../api-client';
 import { uploadImageResponse } from '../shapes';
+import { readFromPath } from './_file-source';
 
 export const uploadImageSchema = {
-  imageBase64: z.string().min(1).describe('Base64-encoded image bytes'),
-  filename: z.string().optional().describe('Original filename for content-type inference'),
+  imageBase64: z
+    .string()
+    .optional()
+    .describe(
+      'Base64-encoded image bytes. Mutually exclusive with filePath.',
+    ),
+  filePath: z
+    .string()
+    .optional()
+    .describe(
+      'Server-side filesystem path to read from. Must resolve (via fs.realpath) to a regular file inside NEXT_WIKI_MCP_FILE_ALLOW_DIRS (default: server cwd). Mutually exclusive with imageBase64.',
+    ),
+  filename: z
+    .string()
+    .optional()
+    .describe('Original filename for content-type inference'),
   mimeType: z
     .enum(['image/png', 'image/jpeg', 'image/gif', 'image/webp', 'image/svg+xml'])
     .optional()
@@ -34,10 +50,27 @@ function inferMimeType(filename?: string): string {
 }
 
 export async function uploadImage(client: WikiApiClient, args: UploadImageInput) {
-  const bytes = base64ToUint8Array(args.imageBase64);
-  const mimeType = args.mimeType ?? inferMimeType(args.filename);
-  const filename = args.filename ?? `image.${mimeType.split('/')[1]}`;
-  const file = new File([bytes as BlobPart], filename, { type: mimeType });
+  const sources = [args.imageBase64, args.filePath].filter(s => s !== undefined);
+  if (sources.length !== 1) {
+    throw new Error(
+      'Must provide exactly one of imageBase64 or filePath (got ' +
+        sources.length +
+        ').',
+    );
+  }
+
+  let bytes: Uint8Array;
+  if (args.filePath !== undefined) {
+    bytes = await readFromPath(args.filePath);
+  } else {
+    bytes = base64ToUint8Array(args.imageBase64!);
+  }
+
+  const effectiveFilename =
+    args.filename
+    ?? (args.filePath ? path.basename(args.filePath) : 'image.png');
+  const mimeType = args.mimeType ?? inferMimeType(effectiveFilename);
+  const file = new File([bytes as BlobPart], effectiveFilename, { type: mimeType });
 
   const response = await client.uploadImage(file);
   return uploadImageResponse(response);

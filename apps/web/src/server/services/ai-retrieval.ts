@@ -3,7 +3,7 @@ import type { AiSearchResult } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import type { PermCtx } from '@/server/permissions';
-import { buildUserCtx, can } from '@/server/permissions';
+import { buildUserCtx, can, spacePermissionOptions } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { createAiProviderAdapter } from '@/server/ai/registry';
 import { exactCosineSearch, type VectorMatch } from '@/server/ai/retrieval/vector-search';
@@ -25,6 +25,19 @@ export type SemanticSearchInput = {
 
 export async function createSemanticSearch(ctx: PermCtx, input: SemanticSearchInput) {
   await assertAiFeature(ctx, 'search');
+  // Submitting requires page-read permission, not just use_ai_search: poll-time
+  // result filtering evaluates `read` per page, so a caller that cannot read
+  // pages at all (e.g. an api_key with ai.read but no view scope, admitted via
+  // /api/ai/searches) would otherwise queue an action that can only ever
+  // return empty results. Reject it up front with a clear FORBIDDEN instead.
+  const defaultSpace = await resolveSpace();
+  const canReadPages = can(
+    ctx,
+    'read',
+    { kind: 'page_list' },
+    defaultSpace ? spacePermissionOptions(defaultSpace) : { anonymousRead: false },
+  );
+  if (!canReadPages) throw new DomainError('FORBIDDEN', 'Semantic search requires page read permission');
   const generation = await db.query.aiIndexGenerations.findFirst({ where: eq(schema.aiIndexGenerations.isActive, true) });
   if (!generation || generation.status !== 'ready') throw new DomainError('INDEX_NOT_READY', 'Semantic index is not ready');
   const model = await db
