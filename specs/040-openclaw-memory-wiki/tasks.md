@@ -16,7 +16,7 @@ Future additions should add the listed test before the implementation task
 where practicable; this delivery records the actual coverage state rather than
 claiming an unperformed test-first sequence.
 
-**Organization**: The foundation establishes server-bound paired credentials,
+**Organization**: The foundation establishes one server-bound scoped credential,
 path-aware immutable snapshots, and no-store public API rules. User stories
 then deliver the mirror, account-wide retrieval, safe operation, onboarding,
 and privacy/audit guarantees in independently verifiable increments.
@@ -36,23 +36,23 @@ web deployment.
 
 ## Phase 2: Foundational (Blocking Prerequisites)
 
-**Purpose**: Establish the shared contracts, schema migration, binding-purpose
-authorization, paired-key creation, immutable Raw snapshot writer, and
+**Purpose**: Establish the shared contracts, schema migration, scope-based
+authorization, scoped-key creation, immutable Raw snapshot writer, and
 content-free API/audit boundary required by every user story.
 
 **⚠️ CRITICAL**: No user-story route or plugin work starts until this phase is
 complete. No client may choose an account, namespace, remote path, Raw page,
 or authorization scope through a mirror request.
 
-- [X] T005 [P] Add failing shared-schema serialization and validation coverage for OpenClaw paired-key provisioning, mirror connection, document snapshots, citations, bounded search, and coverage responses in `packages/shared/src/api-keys.test.ts` and `packages/shared/src/agent-memory.test.ts`.
+- [X] T005 [P] Add failing shared-schema serialization and validation coverage for OpenClaw scoped-key provisioning, mirror connection, document snapshots, citations, bounded search, and coverage responses in `packages/shared/src/api-keys.test.ts` and `packages/shared/src/agent-memory.test.ts`.
 - [ ] T006 [P] Add failing schema/index coverage for binding purposes, the generic `source_document` Agent Memory record type, and its Page/current-Revision relationship in `apps/web/src/server/db/agent-memory-schema.test.ts`.
-- [ ] T007 [P] Add failing authorization and paired-key service coverage for wrong-purpose keys, missing scopes, mixed owners/namespaces, Raw/Generated Admin-only grants, revocation, and disabled destinations in `apps/web/src/server/permissions/agent-memory.test.ts` and `apps/web/src/server/services/api-keys.test.ts`.
+- [ ] T007 [P] Add failing authorization and scoped-key service coverage for missing scopes, mixed owners/namespaces, Raw/Generated Admin-only grants, revocation, and disabled destinations in `apps/web/src/server/permissions/agent-memory.test.ts` and `apps/web/src/server/services/api-keys.test.ts`.
 - [ ] T008 [P] Add failing full-snapshot Raw writer, public-error/no-store, audit-redaction, and OpenAPI registration coverage in `apps/web/src/server/services/raw-entries.test.ts`, `apps/web/src/server/api/audit-wrapper.test.ts`, and `apps/web/src/server/api/openapi-schemas.test.ts`.
-- [X] T009 Define bounded OpenClaw paired-key, mirror document, connection, search/read, coverage, citation, and error DTOs plus public exports in `packages/shared/src/api-keys.ts`, `packages/shared/src/agent-memory.ts`, and `packages/shared/src/index.ts`.
+- [X] T009 Define bounded OpenClaw scoped-key, mirror document, connection, search/read, coverage, citation, and error DTOs plus public exports in `packages/shared/src/api-keys.ts`, `packages/shared/src/agent-memory.ts`, and `packages/shared/src/index.ts`.
 - [X] T010 Define the `memory_provider`, `mirror`, and `knowledge_search` binding-purpose enum and the generic `source_document` Agent Memory record type; retain the existing `agent_memory_records → pages → page_revisions` relationship without creating an OpenClaw-only table in `apps/web/src/server/db/schema/enums.ts`, `apps/web/src/server/db/schema/agent-memory.ts`, and `apps/web/src/server/db/schema/index.ts`.
 - [X] T011 Generate the database migration with `pnpm db:generate` after T010; commit only generated files in `apps/web/src/server/db/migrations/*.sql`, `apps/web/src/server/db/migrations/meta/*.json`, and `apps/web/src/server/db/migrations/meta/_journal.json`; rerun the command and confirm it reports no schema changes.
-- [X] T012 Implement binding-purpose-aware access resolution, paired-key ownership/namespace validation, and mirror-versus-knowledge route guards in `apps/web/src/server/permissions/agent-memory.ts` and `apps/web/src/server/permissions/index.ts`.
-- [X] T013 Implement the owner-session-only, reveal-once paired OpenClaw key provisioner and its route, atomically creating `mirror` and `knowledge_search` bindings with least-privilege scopes in `apps/web/src/server/services/api-keys.ts` and `apps/web/app/api/api-keys/openclaw/route.ts`.
+- [X] T012 Implement scope-aware access resolution, key ownership/namespace validation, and operation-level route guards in `apps/web/src/server/permissions/agent-memory.ts` and `apps/web/src/server/permissions/index.ts`.
+- [X] T013 Implement the owner-session-only, reveal-once scoped OpenClaw key provisioner and its route, binding one key with caller-selected scopes in `apps/web/src/server/services/api-keys.ts` and `apps/web/app/api/api-keys/openclaw/route.ts`.
 - [X] T014 Implement an internal trusted complete-Raw-snapshot revision helper and an explicit server-selected Raw slug/address input that retain verbatim Markdown, standard rendering/index/asset/replication behavior, Page current-version pointers, and immutable prior revisions in `apps/web/src/server/services/raw-entries.ts`.
 - [X] T015 Extend the Agent Memory route wrapper, public error/OpenAPI schema registry, and audit metadata rules so every new memory route is private no-store and never records Markdown, source paths, queries, excerpts, or secrets in `apps/web/app/api/v1/memory/_shared.ts`, `apps/web/src/server/api/openapi-schemas.ts`, and `apps/web/src/server/api/audit-wrapper.ts`.
 
@@ -139,25 +139,25 @@ observable, and manually recoverable without persisting secrets in ordinary
 configuration or exposing protected content in status.
 
 **Independent Test**: In a clean supported OpenClaw state directory, provision
-a paired connection, install the packed tarball, configure two SecretRefs,
+one scoped connection key, install the packed tarball, configure one SecretRef,
 inspect the runtime, run status and manual sync, and verify all outputs are
 useful but contain no key, body, query, vault inventory, or raw server error.
 
 ### Tests for User Story 3
 
 - [X] T040 [P] [US3] Add configuration and manifest tests for HTTPS/loopback URL rules, SecretRef-only credentials, bounds/defaults, declared-tool parity, compiled runtime entry, and redaction in `packages/openclaw-memory-wiki/tests/config.test.ts` and `packages/openclaw-memory-wiki/tests/manifest.test.ts`.
-- [ ] T041 [P] [US3] Add API-key user-center and provision-route tests for the OpenClaw paired-key preset, single-reveal behavior, displayed scopes/purposes, Admin-only optional spaces, rotation, and revocation in `apps/web/src/components/user-center/ApiKeyCreateDialog.test.tsx`, `apps/web/app/api/api-keys/openclaw/route.test.ts`, and `apps/web/src/server/services/api-keys.test.ts`.
+- [ ] T041 [P] [US3] Add API-key user-center and provision-route tests for the OpenClaw scoped-key preset, single-reveal behavior, displayed scopes, Admin-only optional spaces, rotation, and revocation in `apps/web/src/components/user-center/ApiKeyCreateDialog.test.tsx`, `apps/web/app/api/api-keys/openclaw/route.test.ts`, and `apps/web/src/server/services/api-keys.test.ts`.
 - [X] T042 [P] [US3] Add safe operational-tool tests for `next_wiki_status`, opt-in `next_wiki_sync`, degraded/no-change counters, and content/secret redaction in `packages/openclaw-memory-wiki/tests/tools.test.ts` and `packages/openclaw-memory-wiki/tests/index.test.ts`; host-level `tools.allow` gating remains covered by T046.
 
 ### Implementation for User Story 3
 
-- [X] T043 [US3] Implement the API-key dialog preset, paired-secret reveal/copy guidance, purpose/scope explanations, and English/Chinese UI strings in `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
+- [X] T043 [US3] Implement the API-key dialog preset, scoped-secret reveal/copy guidance, scope explanations, and English/Chinese UI strings in `apps/web/src/components/user-center/ApiKeyCreateDialog.tsx`, `apps/web/messages/en.json`, and `apps/web/messages/zh.json`.
 - [X] T044 [US3] Implement the default read-only `next_wiki_status` and explicitly allowed side-effecting `next_wiki_sync` tools with safe state summaries and serialized immediate scan requests in `packages/openclaw-memory-wiki/src/tools.ts` and `packages/openclaw-memory-wiki/src/index.ts`.
 - [X] T045 [US3] Write the package's canonical install, SecretRef configuration, connection check, initial/ongoing/manual synchronization, agent-scoped-vault limitation, key rotation/revocation, and diagnosis guide in `packages/openclaw-memory-wiki/README.md`.
 - [ ] T046 [US3] Add an installed-tarball host smoke test that runs `npm pack`, `openclaw plugins install npm-pack:`, runtime inspection, configuration validation, `openclaw skills list`, and safe status/manual-sync calls in `packages/openclaw-memory-wiki/tests/package-smoke.test.ts`.
 
 **Checkpoint**: Operators can install and safely operate the package with
-separate least-privilege SecretRefs, clear recovery steps, and a verified
+one scoped SecretRef, clear recovery steps, and a verified
 compiled runtime rather than repository-only source files.
 
 ---
@@ -195,7 +195,7 @@ user-authored conflicting page.
 purpose, revocation takes effect immediately, audit data is content-free, and
 local source disappearance never hard-deletes revision history.
 
-**Independent Test**: Configure two owners and paired connections, exercise
+**Independent Test**: Configure two owners and scoped connections, exercise
 mirror/search/read/retry/revocation with altered request fields, inspect audit
 entries, and verify successful operations remain owner-bound while neither
 account can enumerate or alter the other's data.
@@ -204,11 +204,11 @@ account can enumerate or alter the other's data.
 
 - [ ] T053 [P] [US5] Add audit-redaction tests proving OpenClaw route operations retain only endpoint/status/key/correlation timing while excluding secrets, Markdown, source paths/digests, titles, queries, excerpts, and response bodies in `apps/web/src/server/services/audit.test.ts` and `apps/web/src/server/api/audit-wrapper.test.ts`.
 - [ ] T054 [P] [US5] Add route/service isolation and revocation tests for modified namespace/path/space inputs, purpose swapping, expired/revoked/disabled keys, cross-owner page IDs, and retained source documents in `apps/web/src/server/services/agent-memory-documents.test.ts`, `apps/web/app/api/v1/memory/wiki/documents/route.test.ts`, `apps/web/app/api/v1/memory/wiki/search/route.test.ts`, and `apps/web/app/api/v1/memory/wiki/pages/[pageId]/route.test.ts`.
-- [ ] T055 [P] [US5] Add user-center and real-plugin end-to-end coverage for paired-key creation, access reduction, revocation, recovery messaging, audit visibility, and cross-account rejection in `apps/web/e2e/api-keys.spec.ts` and `packages/openclaw-memory-wiki/tests/wiki-api-integration.test.ts`.
+- [ ] T055 [P] [US5] Add user-center and real-plugin end-to-end coverage for scoped-key creation, access reduction, revocation, recovery messaging, audit visibility, and cross-account rejection in `apps/web/e2e/api-keys.spec.ts` and `packages/openclaw-memory-wiki/tests/wiki-api-integration.test.ts`.
 
 ### Implementation for User Story 5
 
-- [X] T056 [US5] Harden paired-key validation and revocation/rotation propagation so a disabled owner, namespace, or key immediately prevents its corresponding mirror/search operation without deleting Raw pages or revisions in `apps/web/src/server/services/api-keys.ts`, `apps/web/src/server/permissions/agent-memory.ts`, and `apps/web/src/server/services/agent-memory-documents.ts`.
+- [X] T056 [US5] Harden scoped-key validation and revocation/rotation propagation so a disabled owner, namespace, or key immediately prevents each operation without deleting Raw pages or revisions in `apps/web/src/server/services/api-keys.ts`, `apps/web/src/server/permissions/agent-memory.ts`, and `apps/web/src/server/services/agent-memory-documents.ts`.
 - [X] T057 [US5] Enforce operation-level audit redaction and safe correlation/error mapping for all `/api/v1/memory/wiki/*` routes in `apps/web/src/server/api/audit-wrapper.ts`, `apps/web/src/server/services/audit.ts`, and `apps/web/app/api/v1/memory/_shared.ts`.
 - [X] T058 [US5] Add plugin-side safe repair guidance for unauthorized, revoked, incompatible, unavailable, conflict, and missing-result outcomes without caching protected bodies or treating a failed write/read as successful in `packages/openclaw-memory-wiki/src/client.ts`, `packages/openclaw-memory-wiki/src/sync-service.ts`, and `packages/openclaw-memory-wiki/src/tools.ts`.
 
@@ -229,7 +229,7 @@ the completed feature.
 - [X] T062 [P] Review server/package/UI/sample-page output for credential, protected-content, raw-error, and prompt-injection leakage in `apps/web/src/server/services/agent-memory-documents.ts`, `packages/openclaw-memory-wiki/src/client.ts`, `packages/openclaw-memory-wiki/skills/next-wiki/SKILL.md`, and `apps/web/src/server/services/setup-sample-page-definitions.ts`.
 - [ ] T063 Run focused shared, service, route, plugin, and setup tests named by `packages/shared/src/agent-memory.test.ts`, `apps/web/src/server/services/agent-memory-documents.test.ts`, `apps/web/app/api/v1/memory/wiki/documents/route.test.ts`, `packages/openclaw-memory-wiki/tests/`, and `apps/web/e2e/setup-onboarding.spec.ts`; fix only feature-related failures.
 - [X] T064 Run workspace/package typecheck, lint, test, and production builds using `package.json`, `apps/web/package.json`, and `packages/openclaw-memory-wiki/package.json`.
-- [ ] T065 Run the Docker Compose full journey from `specs/040-openclaw-memory-wiki/quickstart.md` using `docker-compose.yml`, including paired-key provisioning, fixture-vault mirror/retry, all-space retrieval, partial coverage, account isolation, and tarball installation smoke validation.
+- [ ] T065 Run the Docker Compose full journey from `specs/040-openclaw-memory-wiki/quickstart.md` using `docker-compose.yml`, including scoped-key provisioning, fixture-vault mirror/retry, all-space retrieval, partial coverage, account isolation, and tarball installation smoke validation.
 - [X] T066 Reconcile and validate all documented commands, limits, deployment-address guidance, controlled ClawHub publication wording, and no-secret examples against `specs/040-openclaw-memory-wiki/quickstart.md`, `packages/openclaw-memory-wiki/README.md`, `docs/deployment.md`, and `apps/web/src/server/services/setup-sample-page-definitions.ts`.
 
 ---
@@ -243,7 +243,7 @@ the completed feature.
   needed; T005–T015 block feature routes and runtime integration.
 - **US1 (Phase 3)**: Depends on the complete Foundation and is the first
   independently useful mirror MVP.
-- **US2 (Phase 4)**: Depends on Foundation and the paired connection boundary;
+- **US2 (Phase 4)**: Depends on Foundation and the single scoped connection boundary;
   its read-only retrieval work can proceed after those contracts stabilize and
   is independently testable with seeded pages.
 - **US3 (Phase 5)**: Depends on US1's package/client lifecycle because safe
@@ -258,7 +258,7 @@ the completed feature.
 
 - **US1 (P1)**: Starts after Foundation; delivers account-bound, immutable
   Memory Wiki mirroring.
-- **US2 (P1)**: Starts after Foundation; consumes paired credentials but does
+- **US2 (P1)**: Starts after Foundation; consumes the scoped connection credential but does
   not depend on a completed vault import to search independent Wiki/Raw/
   Generated data.
 - **US3 (P2)**: Builds on US1's plugin runtime to make installation and
@@ -319,7 +319,7 @@ externally useful result requested by the feature specification.
 
 ### Incremental Delivery
 
-1. Setup + Foundation → paired credentials and an enforceable server boundary.
+1. Setup + Foundation → one scoped credential and an enforceable server boundary.
 2. US1 → durable Memory Wiki preservation.
 3. US2 → cited account-wide knowledge retrieval.
 4. US3 → secure install, status, and manual recovery.
@@ -328,7 +328,7 @@ externally useful result requested by the feature specification.
 
 ### Parallel Team Strategy
 
-1. One developer completes Foundation schema, permissions, paired keys, and
+1. One developer completes Foundation schema, permissions, scoped keys, and
    Raw snapshot primitives.
 2. Once those contracts stabilize:
    - Developer A: US1 mirror routes and plugin reconciliation.

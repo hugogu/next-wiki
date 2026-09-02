@@ -8,16 +8,16 @@
 - A Memory Wiki Markdown body is canonical only as a restricted Raw page
   revision. No OpenClaw-specific table, scan journal, audit row, or API log
   stores a second durable body copy.
-- An authenticated key determines the namespace, key purpose, owner, and
+- An authenticated key determines the namespace, owner, and
   remote root on the server. The plugin supplies a source-relative path and
   content; it never selects an account, namespace, Raw page, or arbitrary
   next-wiki path.
 - A changed source document produces a full immutable revision snapshot.
   `appendEntry` remains reserved for append-only evidence and is never used to
   concatenate successive versions of one Memory Wiki file.
-- Two connection keys have non-overlapping powers. The mirror key cannot read
-  arbitrary account pages; the knowledge-search key cannot call memory write
-  routes. Both must be tied to one owner-managed destination.
+- One connection key carries independent scopes. `memory.read`/`memory.write`
+  govern Agent Memory operations, `view` governs search/page reads, and
+  Raw/Generated grants remain an explicit space-access decision.
 - File removal does not delete source data. Existing Raw retention, visibility,
   audit, and ordinary administrator lifecycle controls govern it.
 
@@ -29,17 +29,17 @@
 space-access authority. API key secrets are revealed only by the owner at
 connection creation and then supplied to OpenClaw as SecretRefs.
 
-The OpenClaw provisioner creates these two distinct keys atomically:
+The OpenClaw provisioner creates one bound key. Its capabilities are additive;
+each endpoint checks only the scope it needs:
 
-| Key purpose | Required scopes | Allowed space access | Permitted feature calls |
-| --- | --- | --- | --- |
-| `mirror` | `memory.read`, `memory.write` | Wiki only; no generic Raw/Generated read grant | connection probe and document snapshot upsert |
-| `knowledge_search` | `view` | `wiki` plus owner-selected `raw` and/or `generated` | connection-bound search and source read |
+| Unified connection key | Scope/grant | Permitted feature calls |
+| --- | --- | --- |
+| OpenClaw Memory Wiki | `memory.read`, `memory.write`, `view`; independent `spaceAccess` | Agent Memory, Memory Wiki mirror, account-wide search, and selected page reads |
 
-The owner must be an active Admin to create the paired connection or to grant
-Raw/Generated coverage. Rotation creates a replacement key of the same purpose
-under the same namespace before revoking the old key; a revoked/disabled key
-never resolves to a connection.
+The owner must be an active Admin to create the connection or to grant
+Raw/Generated coverage. Rotation creates one replacement connection key with
+the selected scopes; the old key is revoked after the replacement is verified.
+A revoked/disabled key never resolves to a connection.
 
 ### Agent Memory Namespace
 
@@ -85,16 +85,14 @@ default that preserves all existing integrations as `memory_provider`.
 | `api_key_id` | Bound API key | Primary key; one purpose per key. |
 | `namespace_id` | Owner-managed destination | Required; key owner and namespace owner must match. |
 | `agent_identity` | Non-secret client identity | Required; OpenClaw provisioner uses its fixed integration identity. |
-| `purpose` | `memory_provider`, `mirror`, or `knowledge_search` | Existing rows migrate to `memory_provider`; a route accepts only its intended purpose. |
+| `purpose` | `memory_provider`, `mirror`, or `knowledge_search` | Legacy metadata retained for compatibility; capability routes authorize by required scope. |
 | `shared_by_owner` | Deliberate shared-destination marker | Existing field; cannot grant access by itself. |
 | `created_at` | Binding timestamp | Auditable via key lifecycle. |
 
-For one active OpenClaw connection, the server requires at least one `mirror`
-and one `knowledge_search` binding with the same namespace and identity. A
-knowledge-search binding without `view`, or a mirror binding lacking memory
-write, is invalid. Generic existing Memory provider routes continue to require
-`memory_provider` bindings, preserving their behavior for Hermes and later
-adapters.
+One active OpenClaw connection has one binding and one key. A key may carry
+`memory.read`, `memory.write`, and `view` together; each route checks only the
+scope it needs. Generic existing Memory provider routes continue to work with
+`memory_provider` bindings, preserving Hermes and later adapters.
 
 ### Agent Memory Record — Source Document Extension
 
@@ -146,7 +144,7 @@ the next full scan re-establishes convergence through server-side digest checks.
 ### Search Coverage
 
 Search coverage is computed for each knowledge-search request from the current
-key owner, role, binding purpose, writing mode, and explicit space access:
+key owner, role, `view` scope, writing mode, and explicit space access:
 
 ```text
 { wiki: boolean, raw: boolean, generated: boolean, complete: boolean }
@@ -161,15 +159,15 @@ space, without reporting any inaccessible page metadata. It is not persisted.
 
 ```text
 unprovisioned
-  -> paired (both keys bound to same active namespace)
-  -> configured (both SecretRefs resolve in OpenClaw)
+  -> bound (one key bound to an active namespace)
+  -> configured (the single SecretRef resolves in OpenClaw)
   -> active (first successful connection probe)
-  -> degraded (one key revoked, scope/role changes, or repeated safe failures)
+  -> degraded (key revoked, scope/role changes, or repeated safe failures)
   -> active (successful recheck/rotation)
-  -> revoked (namespace disabled or both bindings revoked)
+  -> revoked (namespace disabled or key revoked / namespace disabled)
 ```
 
-Only an owner-created paired binding may enter `paired`. `degraded` is a
+Only an owner-created binding may enter `bound`. `degraded` is a
 plugin-local status, not a permission bypass; every route rechecks live keys
 and namespace state.
 
@@ -194,14 +192,14 @@ hard-deleted.
 
 | Operation | Required key/binding | Server-derived authority | Result |
 | --- | --- | --- | --- |
-| Probe/mirror document | Mirror key + `mirror` binding | Key owner, active namespace, identity, server-derived Page storage root | Content can create/advance only that generic source-document record/Page. |
-| Search knowledge | Knowledge key + `knowledge_search` binding | Key owner, current role, permitted spaces | Only readable page summaries/excerpts plus safe coverage. |
-| Read selected result | Knowledge key + `knowledge_search` binding | Same request context and page permission | Only readable bounded Markdown plus revision citation. |
-| Rotate/revoke pair | Browser session of namespace owner | Owner and current Admin role | Reveals replacement once or immediately stops next calls. |
+| Probe/mirror document | Bound key + `memory.write` | Key owner, active namespace, identity, server-derived Page storage root | Content can create/advance only that generic source-document record/Page. |
+| Search knowledge | Bound key + `view` | Key owner, current role, permitted spaces | Only readable page summaries/excerpts plus safe coverage. |
+| Read selected result | Bound key + `view` | Same request context and page permission | Only readable bounded Markdown plus revision citation. |
+| Rotate/revoke connection | Browser session of namespace owner | Owner and current Admin role | Reveals replacement once or immediately stops all calls. |
 
 No route accepts a caller-selected account, namespace, destination root,
 database page ID for mirror writes, or permission override. Route services must
-reject a key with the wrong binding purpose before reading/writing data.
+reject a key that lacks the operation's required scope before reading/writing data.
 
 ## Migration and Retention Rules
 

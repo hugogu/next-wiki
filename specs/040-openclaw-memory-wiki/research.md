@@ -165,36 +165,36 @@ collide remotely.
 `apps/web/src/server/services/agent-memory.ts`, and
 `apps/web/src/server/services/raw-entries.ts`.
 
-## 6. Paired Keys Preserve Both Memory and Account-Wide Search Boundaries
+## 6. One Scoped Key Covers the OpenClaw Connection
 
-**Decision**: Provision an OpenClaw connection as two SecretRef-backed keys
-bound to one owner-managed Agent Memory namespace:
+**Decision**: Provision an OpenClaw connection as one SecretRef-backed API key
+bound to one owner-managed Agent Memory namespace. Ordinary scopes are
+independent capabilities on that key:
 
-- the **mirror key** has only `memory.read` and `memory.write`, and can call
-  connection/document mirror resources;
-- the **knowledge-search key** has `view` plus explicit `wiki`, `raw`, and/or
-  `generated` space access granted by its current admin owner, and can call
-  connection-bound search/read resources.
+- `memory.read` / `memory.write` control Agent Memory and Memory Wiki snapshots;
+- `view` controls next-wiki search and selected page reads;
+- `spaceAccess` independently grants Wiki, Raw, and/or Generated coverage.
 
-The server records each binding's purpose and requires both keys to belong to
-the same owner and namespace. The setup flow reveals both keys once; the plugin
-passes them only through manifest-declared SecretRefs.
+The server derives the owner, namespace, and agent identity from the binding and
+checks the required scope on every endpoint. The setup flow reveals one key once;
+the plugin passes it through one manifest-declared SecretRef.
 
-**Rationale**: Existing API-key policy intentionally forbids memory scopes from
-mixing with generic scopes or Raw/Generated access. Giving one memory key broad
-page access would weaken the bounded-destination model. Two keys retain current
-least-privilege guarantees while letting a single configured OpenClaw connection
-search the user's larger permitted knowledge base.
+**Rationale**: A connection is the natural lifecycle and rotation unit. Splitting
+one connection into keys by endpoint created needless provisioning, storage,
+configuration, and rotation work. Existing API-key policy already models each
+capability as a scope, while `spaceAccess` safely narrows content visibility.
+One bound key preserves least privilege as long as routes check their required
+scope and never trust client-supplied destinations.
 
 **Alternatives considered**:
 
-- One broad Admin key: rejected because it makes mirror compromise equivalent
-  to all-account access and defeats independent revocation.
-- Let a generic view key call mirror APIs: rejected because it is not bound to
-  a destination or agent identity.
-- Use the existing public search route directly from any key: rejected for the
-  official plugin path because it cannot prove the search key belongs to the
-  mirror connection or report safe space coverage.
+- Two keys per connection: rejected because it couples one lifecycle to two
+  secrets and prevents a coherent scope grant/revocation decision.
+- One unscoped Admin key: rejected because it bypasses destination binding and
+  exposes unrelated account operations.
+- Use the existing public search route directly from any key: rejected because
+  it cannot prove the key is bound to an Agent Memory destination or report safe
+  space coverage.
 
 **Local evidence**: `apps/web/src/server/services/api-keys.ts`,
 `apps/web/src/server/permissions/agent-memory.ts`,
@@ -204,7 +204,7 @@ search the user's larger permitted knowledge base.
 ## 7. Reuse Permission-Safe Search and Page Reads
 
 **Decision**: Add a connection-bound search facade and source-read facade that
-authenticate the paired knowledge-search key, then delegate to
+authenticate the same bound key with `view`, then delegate to
 `publicContent.searchPages` and `getPageById`. Return page-space coverage and
 result citations; do not create a new index, query language, or unfiltered
 content read path.

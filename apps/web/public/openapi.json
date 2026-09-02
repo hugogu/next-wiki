@@ -712,7 +712,9 @@
           "bindingPurpose": {
             "type": "string",
             "enum": [
-              "mirror"
+              "memory_provider",
+              "mirror",
+              "knowledge_search"
             ]
           },
           "namespace": {
@@ -2779,7 +2781,7 @@
               "agentIdentity",
               "purpose"
             ],
-            "description": "Creates or binds the key to an isolated memory destination and agent identity. It can only be used with memory scopes."
+            "description": "Creates or binds the key to an isolated memory destination and agent identity. Memory scopes may be combined with ordinary content scopes on the same key."
           }
         },
         "required": [
@@ -3513,11 +3515,85 @@
         ],
         "description": "Simple OK response"
       },
-      "OpenClawPairedKeyCreated": {
+      "OpenClawKeyCreated": {
         "type": "object",
         "properties": {
-          "namespace": {
-            "type": "object",
+          "id": {
+            "type": "string",
+            "description": "API key identifier."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the API key."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "view",
+                "create",
+                "edit",
+                "delete",
+                "share",
+                "run",
+                "storage",
+                "preferences",
+                "transfers",
+                "manage_tags",
+                "ai.read",
+                "ai.image",
+                "attachments",
+                "memory.read",
+                "memory.write",
+                "memory.delete"
+              ]
+            },
+            "description": "Permission scopes granted to the key."
+          },
+          "spaceAccess": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wiki",
+                "raw",
+                "generated"
+              ]
+            },
+            "description": "Content spaces the key may read, independent of scopes."
+          },
+          "keyPrefix": {
+            "type": "string",
+            "description": "Non-secret prefix of the key, shown for identification."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Timestamp when the key was created."
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the key was revoked, or null if still active."
+          },
+          "lastUsedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the key was last used, or null if never used."
+          },
+          "keySecret": {
+            "type": "string",
+            "description": "Full secret key value. Shown only once, at creation time."
+          },
+          "memoryDestination": {
+            "type": [
+              "object",
+              "null"
+            ],
             "properties": {
               "id": {
                 "type": "string",
@@ -3526,6 +3602,13 @@
               "displayName": {
                 "type": "string"
               },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "disabled"
+                ]
+              },
               "agentIdentity": {
                 "type": "string"
               }
@@ -3533,24 +3616,26 @@
             "required": [
               "id",
               "displayName",
+              "state",
               "agentIdentity"
-            ]
-          },
-          "mirror": {
-            "$ref": "#/components/schemas/ApiKeyCreated"
-          },
-          "knowledgeSearch": {
-            "$ref": "#/components/schemas/ApiKeyCreated"
+            ],
+            "description": "Dedicated Agent memory destination, or null for a normal API key."
           }
         },
         "required": [
-          "namespace",
-          "mirror",
-          "knowledgeSearch"
+          "id",
+          "name",
+          "scopes",
+          "spaceAccess",
+          "keyPrefix",
+          "createdAt",
+          "revokedAt",
+          "lastUsedAt",
+          "keySecret"
         ],
-        "description": "Two one-time secrets for the OpenClaw mirror and knowledge-search bindings."
+        "description": "API key creation response, including the one-time secret value."
       },
-      "OpenClawPairedKeyInput": {
+      "OpenClawKeyInput": {
         "type": "object",
         "properties": {
           "displayName": {
@@ -3564,21 +3649,49 @@
             "maxLength": 100,
             "default": "openclaw"
           },
-          "includeRaw": {
-            "type": "boolean",
-            "default": false
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "view",
+                "create",
+                "edit",
+                "delete",
+                "share",
+                "run",
+                "storage",
+                "preferences",
+                "transfers",
+                "manage_tags",
+                "ai.read",
+                "ai.image",
+                "attachments",
+                "memory.read",
+                "memory.write",
+                "memory.delete"
+              ]
+            },
+            "minItems": 1
           },
-          "includeGenerated": {
-            "type": "boolean",
-            "default": false
+          "spaceAccess": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wiki",
+                "raw",
+                "generated"
+              ]
+            }
           }
         },
         "required": [
           "agentIdentity",
-          "includeRaw",
-          "includeGenerated"
+          "scopes",
+          "spaceAccess"
         ],
-        "description": "Owner-session-only OpenClaw paired-key preset."
+        "description": "Owner-session-only OpenClaw connection key preset. Scopes and content-space grants are independent capabilities."
       },
       "PAGE_ADDRESS_TAKEN": {},
       "PAGE_NOT_DELETED": {},
@@ -12366,7 +12479,7 @@
       "get": {
         "operationId": "get-v1-memory-wiki-pages-{pageId}",
         "summary": "Read one currently visible next-wiki page",
-        "description": "Re-authorizes the selected page against the knowledge-search key's current grants.",
+        "description": "Re-authorizes the selected page against the bound integration key's current grants.",
         "tags": [
           "Agent Memory Wiki"
         ],
@@ -25558,8 +25671,8 @@
     "/api-keys/openclaw": {
       "post": {
         "operationId": "post-api-keys-openclaw",
-        "summary": "Provision paired OpenClaw API keys",
-        "description": "Creates one mirror key and one read-only knowledge-search key. Full secrets are returned only in this response.",
+        "summary": "Provision an OpenClaw API key",
+        "description": "Creates one account-bound OpenClaw key with the requested Agent Memory scopes and content-space grants. The full secret is returned only in this response.",
         "tags": [
           "User"
         ],
@@ -25568,7 +25681,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OpenClawPairedKeyInput"
+                "$ref": "#/components/schemas/OpenClawKeyInput"
               }
             }
           }
@@ -25579,7 +25692,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/OpenClawPairedKeyCreated"
+                  "$ref": "#/components/schemas/OpenClawKeyCreated"
                 }
               }
             }

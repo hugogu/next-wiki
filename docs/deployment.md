@@ -97,7 +97,7 @@ requirements.
 
 For OpenClaw Memory Wiki synchronization, install the native
 [`@next-wiki/openclaw-memory-wiki`](../packages/openclaw-memory-wiki/README.md)
-plugin and configure its two SecretRefs. The plugin writes through the same
+plugin and configure its single scoped SecretRef. The plugin writes through the same
 restricted Raw/page/revision storage and leaves local vault files and older
 revisions intact; use HTTPS for non-loopback deployments.
 

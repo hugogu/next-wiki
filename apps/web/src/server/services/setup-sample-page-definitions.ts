@@ -294,16 +294,17 @@ export const OPENCLAW_PAGE_SOURCE = `# OpenClaw Integration Guide
 
 ${SAMPLE_PAGE_MARKER}
 
-OpenClaw's Memory Wiki can be mirrored into next-wiki without changing the local vault or OpenClaw's compiler. The plugin keeps the original relative Markdown path, frontmatter, links, and bytes in the existing **Agent Memory → Page → Revision** pipeline. Repeating an unchanged file is idempotent; every changed file becomes one new current Revision while older Revisions remain available for history.
+OpenClaw's Memory Wiki can be mirrored into next-wiki without changing the local vault or OpenClaw's compiler. The plugin uses the same generic **Agent Memory → Page → Revision** pipeline as other memory adapters, keeping the original relative Markdown path, frontmatter, links, and bytes. Repeating an unchanged file is idempotent; every changed file becomes one new current Revision while older Revisions remain available for history.
 
-## 1. Create the paired connection
+## 1. Create the connection key
 
-An administrator opens **User Center → API Keys → OpenClaw**. The preset returns two secrets once:
+An administrator opens **User Center → API Keys → OpenClaw**. The preset returns one secret once. Select the scopes needed by this connection:
 
-- **Mirror key**: bound to one agent identity and allowed to write only mirrored source documents.
-- **Knowledge-search key**: read-only, with optional explicit Raw/Generated grants in addition to Wiki.
+- \`memory.read\` and \`memory.write\` for Agent Memory and Memory Wiki synchronization;
+- \`view\` for next-wiki search and selected page reads;
+- optional Raw/Generated space grants when this Admin owner wants the connection to retrieve them. Wiki is always included.
 
-Keep both values in OpenClaw SecretRefs. Never put secrets or Markdown in this page, normal configuration, shell history, or logs.
+Keep the single value in an OpenClaw SecretRef. Never put secrets or Markdown in this page, normal configuration, shell history, or logs.
 
 ## 2. Install and configure
 
@@ -311,7 +312,7 @@ Keep both values in OpenClaw SecretRefs. Never put secrets or Markdown in this p
 openclaw plugins install @next-wiki/openclaw-memory-wiki
 ~~~
 
-Configure the next-wiki origin, the Memory Wiki vault path, and the two SecretRefs. The plugin scans root Markdown files and the standard \`entities/\`, \`concepts/\`, \`syntheses/\`, \`sources/\`, \`reports/\`, and \`_views/\` trees. Attachments and \`.openclaw-wiki\` state are excluded.
+Configure the next-wiki origin, the Memory Wiki vault path, and the one SecretRef. The plugin scans root Markdown files and the standard \`entities/\`, \`concepts/\`, \`syntheses/\`, \`sources/\`, \`reports/\`, and \`_views/\` trees. Attachments and \`.openclaw-wiki\` state are excluded.
 
 ## 3. Verify and retrieve
 
@@ -319,5 +320,5 @@ Use \`next_wiki_status\` for non-content health, and call \`next_wiki_sync\` onl
 
 ## 4. Rotate or repair
 
-Revoke a compromised key in User Center and provision a new pair. Network failures are retried with bounded backoff and leave the local vault untouched; a degraded status can be repaired by restoring connectivity and running an explicit sync. Removing a local file never hard-deletes its next-wiki page or Revision history.
+Revoke a compromised key in User Center and provision a new connection key with the same scopes. Network failures are retried with bounded backoff and leave the local vault untouched; a degraded status can be repaired by restoring connectivity and running an explicit sync. Removing a local file never hard-deletes its next-wiki page or Revision history.
 `;

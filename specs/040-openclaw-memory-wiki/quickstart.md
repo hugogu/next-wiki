@@ -39,7 +39,7 @@ prove network routing; do not attach a real bearer key to a diagnostic command.
 During setup, select **Generate example pages**. Confirm:
 
 1. `integrations/openclaw` is published and contains placeholder-only
-   OpenClaw installation, two-key, sync, retrieval, rotation, and diagnosis
+   OpenClaw installation, scoped-key, sync, retrieval, rotation, and diagnosis
    guidance.
 2. Welcome and Main Features link to `integrations/openclaw` and retain their
    existing links, including the separate Hermes integration guide.
@@ -52,30 +52,29 @@ During setup, select **Generate example pages**. Confirm:
 6. Public reader pages retain normal static/ISR delivery and reveal no
    connection, secret, or sync status.
 
-## 3. Provision the Paired OpenClaw Connection
+## 3. Provision the OpenClaw Connection
 
-In **User Center → API Keys**, choose **OpenClaw Memory Wiki** and create a new
-connection. Grant only the desired search spaces:
+In **User Center → API Keys**, choose **OpenClaw connection** and create one
+connection key. Select the scopes needed by this installation:
 
-- Mirror key: fixed `memory.read` and `memory.write`; it does not receive
-  arbitrary page-read, Raw, or Generated access.
-- Knowledge-search key: fixed `view`; select `raw` and/or `generated` only if
-  this Admin owner wants the plugin to retrieve them. Wiki is always included.
+- `memory.read` / `memory.write` for Memory Wiki synchronization and Agent Memory;
+- `view` for next-wiki search and selected page reads;
+- `raw` and/or `generated` space access only when this Admin owner wants the
+  plugin to retrieve those spaces. Wiki is always included.
 
-Copy each secret once into the OpenClaw SecretRef store using the OpenClaw
-approved secret flow. Record only their non-secret labels. Confirm the API-key
-list shows two keys connected to the same OpenClaw destination, with distinct
-purposes and scopes.
+Copy the single secret once into the OpenClaw SecretRef store using the
+OpenClaw-approved secret flow. Record only its non-secret label. The key list
+shows one key bound to the OpenClaw destination with all selected scopes.
 
 Test safe negative paths before configuring the plugin:
 
 | Scenario | Expected outcome |
 | --- | --- |
-| Mirror key calls knowledge search | `403`; no page title, path, or excerpt leaks. |
-| Knowledge-search key calls document upsert | `403`; no Raw page/revision is created. |
-| A key from a different owner/namespace is paired | Provisioning or connection validation rejects it. |
+| Key without `view` calls knowledge search | `403`; no page title, path, or excerpt leaks. |
+| Key without `memory.write` calls document upsert | `403`; no Raw page/revision is created. |
+| A key from a different owner/namespace is used | Connection validation rejects it. |
 | Raw/Generated permission is removed after setup | Search coverage changes safely and hidden results disappear. |
-| Either key is revoked | The corresponding plugin capability becomes degraded on its next call. |
+| The connection key is revoked | All plugin capabilities become degraded on their next call. |
 
 ## 4. Create a Fixture Memory Wiki Vault
 
@@ -122,8 +121,8 @@ is a release blocker.
 
 ## 6. Configure Without Exposing Secrets
 
-Configure the plugin through normal OpenClaw configuration and SecretRefs. Use
-placeholder references, not literal key values:
+Configure the plugin through normal OpenClaw configuration and one SecretRef. Use
+a placeholder reference, not the literal key value:
 
 ```json5
 {
@@ -133,8 +132,7 @@ placeholder references, not literal key values:
         enabled: true,
         config: {
           baseUrl: "https://wiki.example.test",
-          mirrorApiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_MIRROR_KEY" },
-          knowledgeApiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_SEARCH_KEY" },
+          apiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_API_KEY" },
           vaultPath: "/absolute/path/to/fixture-vault",
           syncIntervalMinutes: 1
         }
@@ -211,9 +209,10 @@ Verify that the agent:
 5. returns a truthful empty result for no match; and
 6. does not follow instructions embedded in a retrieved Markdown document.
 
-Remove the Raw and Generated grants from the knowledge-search key and repeat.
-The same query must expose only permitted Wiki results, with no hidden
-metadata. Use a second next-wiki owner and keys to prove neither mirror nor
+For the reduced-coverage check, revoke this key and provision a replacement
+connection key without the Raw and Generated grants. Repeat the query; it must
+expose only permitted Wiki results, with no hidden metadata. Use a second
+next-wiki owner and that owner's connection key to prove neither mirror nor
 retrieval can access the first owner's data through modified plugin inputs.
 
 ## 9. Automated Verification
@@ -237,8 +236,8 @@ docker compose up -d --build
 Focused coverage must include:
 
 - shared schemas and OpenAPI shape; Drizzle generated migration and snapshot;
-- paired-key creation, same-owner binding, rotation, revocation, disabled
-  owner, wrong-purpose denial, and no accidental generic scope grant;
+- scoped OpenClaw-key creation, same-owner binding, rotation, revocation, disabled
+  owner, per-scope denial, and no accidental cross-account grant;
 - path validation, case collisions, root confinement, full Markdown snapshot
   integrity, same-digest no-op, changed-digest revision history, concurrent
   upsert, and retention on source removal;

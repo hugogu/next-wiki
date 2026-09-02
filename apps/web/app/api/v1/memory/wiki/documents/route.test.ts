@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const upsertSourceDocument = vi.hoisted(() => vi.fn());
 
@@ -8,7 +8,7 @@ vi.mock('../../_shared', () => ({
   assertSupportedProvider: vi.fn(),
 }));
 vi.mock('../../../_shared/route', () => ({
-  withPublicApi: (handler: unknown) => handler,
+  withPublicApi: (handler: (request: NextRequest, context: unknown, ctx: unknown) => unknown) => (request: NextRequest, context: unknown) => handler(request, context, {}),
   parsePublicJson: async (request: NextRequest, schema: { safeParse: (value: unknown) => { success: boolean; data?: unknown } }) => {
     const parsed = schema.safeParse(await request.json());
     return parsed.success
@@ -24,6 +24,10 @@ vi.mock('../../../_shared/route', () => ({
 vi.mock('@/server/services/agent-memory-documents', () => ({ upsertSourceDocument }));
 
 import * as route from './route';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('PUT /api/v1/memory/wiki/documents', () => {
   it('validates a complete snapshot and returns an uncached outcome', async () => {

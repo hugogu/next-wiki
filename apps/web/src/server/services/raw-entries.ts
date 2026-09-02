@@ -308,7 +308,7 @@ export async function replaceEntry(
   const userId = assertRawWriteAccess(ctx, space);
   await assertNotMigrating();
   const contentType = resolveContentType(input.contentType, null);
-  const { html, hash } = renderMarkdown(input.content);
+  const { html, hash } = await renderPageMarkdown(space, input.content);
   const replaced = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
     await tx.execute(sql`select id from pages where id = ${pageId} for update`);

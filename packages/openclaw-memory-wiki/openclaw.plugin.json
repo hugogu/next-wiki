@@ -9,15 +9,8 @@
     "additionalProperties": false,
     "properties": {
       "baseUrl": { "type": "string", "format": "uri", "description": "next-wiki origin (HTTPS or loopback HTTP)" },
-      "mirrorApiKeyRef": {
-        "description": "OpenClaw SecretRef for the mirror key",
-        "anyOf": [
-          { "type": "string" },
-          { "type": "object", "additionalProperties": false, "properties": { "source": { "enum": ["env", "file", "exec"] }, "provider": { "type": "string" }, "id": { "type": "string" } }, "required": ["source", "provider", "id"] }
-        ]
-      },
-      "knowledgeApiKeyRef": {
-        "description": "OpenClaw SecretRef for the knowledge-search key",
+      "apiKeyRef": {
+        "description": "OpenClaw SecretRef for the account-bound integration key",
         "anyOf": [
           { "type": "string" },
           { "type": "object", "additionalProperties": false, "properties": { "source": { "enum": ["env", "file", "exec"] }, "provider": { "type": "string" }, "id": { "type": "string" } }, "required": ["source", "provider", "id"] }
@@ -27,11 +20,10 @@
       "syncIntervalMinutes": { "type": "integer", "minimum": 1, "maximum": 1440, "default": 5 },
       "enabled": { "type": "boolean", "default": true }
     },
-    "required": ["baseUrl", "mirrorApiKeyRef", "knowledgeApiKeyRef", "vaultPath"]
+    "required": ["baseUrl", "apiKeyRef", "vaultPath"]
   },
   "uiHints": {
-    "mirrorApiKeyRef": { "sensitive": true, "label": "Mirror API key SecretRef" },
-    "knowledgeApiKeyRef": { "sensitive": true, "label": "Knowledge search API key SecretRef" }
+    "apiKeyRef": { "sensitive": true, "label": "OpenClaw API key SecretRef" }
   },
   "skills": ["./skills"],
   "contracts": { "tools": ["next_wiki_status", "next_wiki_sync", "next_wiki_search", "next_wiki_get"] },
@@ -44,8 +36,7 @@
   "configContracts": {
     "secretInputs": {
       "paths": [
-        { "path": "mirrorApiKeyRef", "expected": "string" },
-        { "path": "knowledgeApiKeyRef", "expected": "string" }
+        { "path": "apiKeyRef", "expected": "string" }
       ]
     }
   }

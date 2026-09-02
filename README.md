@@ -316,11 +316,11 @@ creation, installation, capture/checkpoint policy, and reverse-proxy guidance.
 
 The [`@next-wiki/openclaw-memory-wiki`](packages/openclaw-memory-wiki/README.md)
 native plugin mirrors the local OpenClaw Memory Wiki vault into the same
-account-bound Raw/page/revision pipeline and bundles a `next-wiki` retrieval
-Skill. Provision its paired mirror and knowledge-search keys from **User Center
-→ API Keys → OpenClaw**; keep both values in OpenClaw SecretRefs. This is
-separate from the generic MCP server connection above and does not replace
-Hermes's provider.
+account-bound Agent Memory + Raw/page/revision pipeline and bundles a
+`next-wiki` retrieval Skill. Provision one scoped connection key from **User
+Center → API Keys → OpenClaw**; keep its value in an OpenClaw SecretRef. The
+plugin and Hermes adapter share the same server-side memory/page model; they
+only differ in their client runtime and source format.
 
 ## Content import, export, and storage
 

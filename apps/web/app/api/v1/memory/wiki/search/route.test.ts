@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const searchKnowledge = vi.hoisted(() => vi.fn());
 
@@ -7,7 +7,7 @@ vi.mock('../../_shared', () => ({
   assertSupportedProvider: vi.fn(),
 }));
 vi.mock('../../../_shared/route', () => ({
-  withPublicApi: (handler: unknown) => handler,
+  withPublicApi: (handler: (request: NextRequest, context: unknown, ctx: unknown) => unknown) => (request: NextRequest, context: unknown) => handler(request, context, {}),
   parsePublicQuery: (request: NextRequest, schema: { safeParse: (value: unknown) => { success: boolean; data?: unknown } }) => {
     const params = new URL(request.url).searchParams;
     const parsed = schema.safeParse({ q: params.get('q'), limit: params.get('limit') ?? undefined });
@@ -24,6 +24,10 @@ vi.mock('../../../_shared/route', () => ({
 vi.mock('@/server/services/agent-memory-documents', () => ({ searchKnowledge }));
 
 import * as route from './route';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('GET /api/v1/memory/wiki/search', () => {
   it('returns current readable results and safe coverage without caching', async () => {

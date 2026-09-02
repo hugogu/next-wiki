@@ -5,9 +5,7 @@ const getMirrorConnection = vi.hoisted(() => vi.fn());
 
 vi.mock('../../_shared', () => ({
   assertSupportedProvider: vi.fn(),
-}));
-vi.mock('../../../_shared/route', () => ({
-  withPublicApi: (handler: unknown) => handler,
+  withPublicApi: (handler: (request: NextRequest, context: unknown, ctx: unknown) => unknown) => (request: NextRequest, context: unknown) => handler(request, context, {}),
   publicJson: (data: unknown, init?: ResponseInit) => {
     const headers = new Headers(init?.headers);
     headers.set('Cache-Control', 'private, no-store');
@@ -21,7 +19,7 @@ import * as route from './route';
 describe('GET /api/v1/memory/wiki/connection', () => {
   it('returns content-free capabilities with private caching disabled', async () => {
     getMirrorConnection.mockResolvedValue({
-      apiVersion: 'v1', provider: 'next-wiki', bindingPurpose: 'mirror',
+      apiVersion: 'v1', provider: 'next-wiki', bindingPurpose: 'memory_provider',
       capabilities: { mirror: true, immutableRevisions: true, currentOnly: true },
     });
 
@@ -29,6 +27,6 @@ describe('GET /api/v1/memory/wiki/connection', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('private, no-store');
-    await expect(response.json()).resolves.toMatchObject({ bindingPurpose: 'mirror', capabilities: { currentOnly: true } });
+    await expect(response.json()).resolves.toMatchObject({ bindingPurpose: 'memory_provider', capabilities: { currentOnly: true } });
   });
 });

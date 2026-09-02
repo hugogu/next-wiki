@@ -119,7 +119,7 @@ async function existing(access: AgentMemoryAccess, sourcePath: string) {
 export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySourceDocumentInput) {
   const input = agentMemorySourceDocumentInputSchema.parse(rawInput);
   if (actualDigest(input.content) !== input.sourceDigest) throw new DomainError('CONFLICT', 'Source digest does not match content');
-  const access = await requireAgentMemoryAccess(ctx, 'memory.write', 'mirror');
+  const access = await requireAgentMemoryAccess(ctx, 'memory.write', 'any');
   const current = await existing(access, input.sourcePath);
   if (current) {
     const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, current.currentRevisionId) });
@@ -184,12 +184,12 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
 }
 
 export async function getMirrorConnection(ctx: PermCtx) {
-  const access = await requireAgentMemoryAccess(ctx, 'memory.write', 'mirror');
+  const access = await requireAgentMemoryAccess(ctx, 'memory.write', 'any');
   await getRawSpace();
   return {
     apiVersion: 'v1' as const,
     provider: 'next-wiki' as const,
-    bindingPurpose: 'mirror' as const,
+    bindingPurpose: access.bindingPurpose,
     namespace: { id: access.namespaceId, displayName: access.namespaceName, state: 'active' as const, agentIdentity: access.agentIdentity },
     capabilities: { mirror: true, immutableRevisions: true, currentOnly: true },
     limits: { maxPathCharacters: 400, maxContentCharacters: 512_000 },
@@ -197,7 +197,7 @@ export async function getMirrorConnection(ctx: PermCtx) {
 }
 
 export async function searchKnowledge(ctx: PermCtx, query: string, limit: number) {
-  await requireAgentMemoryAccess(ctx, 'view', 'knowledge_search');
+  await requireAgentMemoryAccess(ctx, 'view', 'any');
   const result = await publicContent.searchPages(ctx, {
     q: query,
     scope: 'all',
@@ -232,7 +232,7 @@ export async function searchKnowledge(ctx: PermCtx, query: string, limit: number
 }
 
 export async function readKnowledgePage(ctx: PermCtx, pageId: string, maxChars = 8_000) {
-  await requireAgentMemoryAccess(ctx, 'view', 'knowledge_search');
+  await requireAgentMemoryAccess(ctx, 'view', 'any');
   const page = await publicContent.getPageById(ctx, pageId, ['latestRevision']);
   if (!page || !page.contentSource) throw new DomainError('NOT_FOUND', 'Page not found');
   const bounded = page.contentSource.slice(0, maxChars);
