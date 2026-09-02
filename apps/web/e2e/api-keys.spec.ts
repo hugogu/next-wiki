@@ -8,6 +8,14 @@ async function register(page: Page, email: string, password: string) {
   await page.waitForURL('/');
 }
 
+async function loginAsAdmin(page: Page) {
+  await page.goto('/auth/login');
+  await page.getByLabel('Email', { exact: true }).fill('admin@example.com');
+  await page.getByLabel('Password', { exact: true }).fill('admin123');
+  await page.locator('form').getByRole('button', { name: /sign in/i }).click();
+  await page.waitForURL('/');
+}
+
 async function createApiKey(page: Page, name: string, scopes: string[]): Promise<string> {
   await page.goto('/user-center/api-keys');
   await page.getByRole('button', { name: 'Create API key' }).first().click();
@@ -43,6 +51,22 @@ test.describe('api keys', () => {
     await page.getByRole('button', { name: 'Create API key' }).first().click();
 
     await expect(page.getByRole('checkbox', { name: 'AI image generation' })).toBeVisible();
+  });
+
+  test('keeps ordinary scopes when the memory provider preset is toggled', async ({ page }) => {
+    await loginAsAdmin(page);
+    await page.goto('/user-center/api-keys');
+    await page.getByRole('button', { name: 'Create API key' }).first().click();
+
+    const memoryProvider = page.locator('label').filter({ hasText: 'Memory provider' }).locator('input[type="checkbox"]');
+    const viewScope = page.getByRole('checkbox', { name: /^View/ });
+    await memoryProvider.check();
+    await viewScope.check();
+    await memoryProvider.uncheck();
+
+    await expect(viewScope).toBeChecked();
+    await expect(page.getByRole('checkbox', { name: /^Memory recall/ })).not.toBeChecked();
+    await page.getByRole('button', { name: /cancel/i }).click();
   });
 
   test('attachments scope is preserved and shown after creation', async ({ page }) => {
