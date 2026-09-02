@@ -26,29 +26,35 @@ server-bound connections and is not a generic Raw-page CRUD API.
   route annotations; the prose here is the client integration guide, not a
   substitute for generated OpenAPI.
 
-## OpenClaw Connection Key Provisioning
+## Generic Agent Memory Provider Key Provisioning
 
-### `POST /api/api-keys/openclaw`
+### `POST /api/api-keys`
 
-Creates one owner-managed OpenClaw connection key and reveals its secret once.
-This is an authenticated browser/session operation, never an API-key operation.
+Creates one owner-managed Agent Memory provider key and reveals its secret once.
+The endpoint is agent-agnostic: OpenClaw, Hermes, Pi, and future adapters use
+the same API. This is an authenticated browser/session operation, never an
+API-key operation.
 
 **Request**:
 
 ```json
 {
-  "displayName": "Personal OpenClaw Memory Wiki",
-  "agentIdentity": "openclaw",
+  "name": "Personal OpenClaw Memory Wiki",
   "scopes": ["view", "memory.read", "memory.write"],
-  "spaceAccess": ["wiki", "raw", "generated"]
+  "spaceAccess": ["wiki", "raw", "generated"],
+  "memoryProvider": {
+    "displayName": "Personal OpenClaw Memory Wiki",
+    "agentIdentity": "openclaw"
+  }
 }
 ```
 
 | Field | Rules |
 | --- | --- |
-| `displayName` | Optional 1–100-character non-secret label for the namespace. |
-| `agentIdentity` | Optional non-empty identity (defaults to `openclaw`). |
-| `scopes` | Ordinary API-key scopes. `memory.read`/`memory.write` control Agent Memory operations; `view` controls next-wiki search and reads. Defaults to `view`, `memory.read`, and `memory.write`. |
+| `name` | Required 1–100-character non-secret API-key label. |
+| `memoryProvider.displayName` | Optional 1–100-character non-secret label for the namespace. |
+| `memoryProvider.agentIdentity` | Required non-empty adapter identity, such as `openclaw`, `hermes`, or `pi`. |
+| `scopes` | Ordinary API-key scopes. `memory.read`/`memory.write` control Agent Memory operations; `view` controls next-wiki search and reads. Memory and content scopes are independent. |
 | `spaceAccess` | Content-space grants independent from scopes. Wiki is always included; Raw/Generated require an Admin owner. |
 
 **201 response**:
@@ -64,9 +70,9 @@ This is an authenticated browser/session operation, never an API-key operation.
 }
 ```
 
-The response is the only secret reveal. The client must immediately place the
-single value in an OpenClaw SecretRef and never persist it in normal
-configuration, command history, source code, or a Skill.
+The response is the only secret reveal. The adapter must immediately place the
+single value in its host's approved SecretRef mechanism and never persist it in
+normal configuration, command history, source code, or a Skill.
 
 **Errors**: `401` unauthenticated session, `403` non-Admin or invalid
 Raw/Generated grant, `409` active-key limit or destination conflict,

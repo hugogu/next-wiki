@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apiKeyScopeSchema, openClawKeyInputSchema } from './api-keys';
+import { apiKeyScopeSchema, createApiKeyInputSchema } from './api-keys';
 
 describe('API-key scopes', () => {
   it('includes the narrow image-generation scope', () => {
@@ -10,11 +10,16 @@ describe('API-key scopes', () => {
     expect(apiKeyScopeSchema.options).toEqual(expect.arrayContaining(['memory.read', 'memory.write', 'memory.delete']));
   });
 
-  it('normalizes the single OpenClaw key preset defaults', () => {
-    expect(openClawKeyInputSchema.parse({})).toMatchObject({
-      agentIdentity: 'openclaw',
+  it('allows a memory provider key to combine memory and content capabilities', () => {
+    expect(createApiKeyInputSchema.parse({
+      name: 'OpenClaw connection',
       scopes: ['view', 'memory.read', 'memory.write'],
-      spaceAccess: ['wiki'],
+      spaceAccess: ['wiki', 'raw'],
+      memoryProvider: { agentIdentity: 'openclaw' },
+    })).toMatchObject({
+      scopes: ['view', 'memory.read', 'memory.write'],
+      spaceAccess: ['wiki', 'raw'],
+      memoryProvider: { agentIdentity: 'openclaw' },
     });
   });
 });

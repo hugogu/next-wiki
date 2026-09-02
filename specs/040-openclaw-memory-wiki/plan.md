@@ -14,10 +14,11 @@ on-demand retrieval of the account's permitted Wiki, Generated, and Raw
 content.
 
 The Wiki extends the existing Agent Memory boundary with a generic source-
-document snapshot capability. A server-bound OpenClaw connection provisions one
-account-bound API key whose ordinary scopes independently grant Memory reads,
-Memory writes, next-wiki search/page reads, and optional Raw/Generated space
-access. Each source document uses the existing
+document snapshot capability. A server-bound Agent Memory provider connection
+provisions one account-bound API key whose ordinary scopes independently grant
+Memory reads, Memory writes, next-wiki search/page reads, and optional
+Raw/Generated space access. OpenClaw is one adapter identity on that generic
+binding; future agents use the same path. Each source document uses the existing
 `agent_memory_records → pages → page_revisions` relationship: the Page owns its
 storage tree and reader address, and its current published Revision is the
 sole searchable version. The service owns destination resolution, storage-path
@@ -165,14 +166,14 @@ specs/040-openclaw-memory-wiki/
 ```text
 apps/web/
 ├── app/api/
-│   ├── api-keys/openclaw/route.ts   # scoped connection-key creation, reveal-once response
+│   ├── api-keys/route.ts             # generic API-key and Agent Memory-provider creation
 │   └── v1/memory/wiki/
 │       ├── connection/route.ts
 │       ├── documents/route.ts
 │       ├── search/route.ts
 │       └── pages/[pageId]/route.ts
 ├── src/components/user-center/
-│   └── ApiKeyCreateDialog.tsx       # OpenClaw scoped-key preset
+│   └── ApiKeyCreateDialog.tsx       # generic Memory provider key preset
 ├── src/server/
 │   ├── api/openapi-schemas.ts
 │   ├── db/schema/agent-memory.ts
@@ -180,7 +181,7 @@ apps/web/
 │   └── services/
 │       ├── agent-memory.ts          # shared destination + generic record integration
 │       ├── agent-memory-documents.ts # generic source-document snapshot service
-│       ├── api-keys.ts              # scoped-key provisioner
+│       ├── api-keys.ts              # generic API-key/provider provisioner
 │       ├── raw-entries.ts           # trusted full-snapshot revision helper
 │       └── setup-sample-page-*.ts
 └── test and e2e/                    # service, route, key, audit, setup coverage
@@ -188,7 +189,7 @@ apps/web/
 packages/
 ├── shared/src/
 │   ├── agent-memory.ts               # mirror and connection DTOs
-│   └── api-keys.ts                   # OpenClaw scoped-key DTOs
+│   └── api-keys.ts                   # generic API-key/provider DTOs
 └── openclaw-memory-wiki/
     ├── package.json
     ├── openclaw.plugin.json
@@ -221,8 +222,8 @@ REST; it does not reuse the Node MCP process or direct server internals.
 1. **Freeze public contracts and scoped credentials**
    - Add shared schemas for stable Markdown snapshot input, mirror document
      view/outcome, connection capabilities, search coverage, and the
-     reveal-once OpenClaw connection-key response.
-   - Add the owner-only provisioner that creates one key for one namespace.
+     reveal-once generic Agent Memory provider-key response.
+   - Reuse the owner-only generic API-key provisioner to create one key for one namespace.
      Store ordinary scopes (`memory.read`, `memory.write`, `view`, and optional
      content capabilities) on that key; bind its destination and identity
      server-side and reject cross-owner setup.

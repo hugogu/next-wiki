@@ -1786,8 +1786,6 @@ export const translationKeys = [
   "userCenter.apiKeys.scopesHint",
   "userCenter.apiKeys.memoryProviderPreset",
   "userCenter.apiKeys.memoryProviderPresetHint",
-  "userCenter.apiKeys.openClawPreset",
-  "userCenter.apiKeys.openClawPresetHint",
   "userCenter.apiKeys.agentIdentityLabel",
   "userCenter.apiKeys.memoryDestinationHint",
   "userCenter.apiKeys.memoryProviderNewDestination",

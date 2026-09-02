@@ -2766,20 +2766,10 @@
                 "minLength": 1,
                 "maxLength": 100,
                 "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
-              },
-              "purpose": {
-                "type": "string",
-                "enum": [
-                  "memory_provider",
-                  "mirror",
-                  "knowledge_search"
-                ],
-                "default": "memory_provider"
               }
             },
             "required": [
-              "agentIdentity",
-              "purpose"
+              "agentIdentity"
             ],
             "description": "Creates or binds the key to an isolated memory destination and agent identity. Memory scopes may be combined with ordinary content scopes on the same key."
           }
@@ -3514,184 +3504,6 @@
           "ok"
         ],
         "description": "Simple OK response"
-      },
-      "OpenClawKeyCreated": {
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string",
-            "description": "API key identifier."
-          },
-          "name": {
-            "type": "string",
-            "description": "Human-readable name for the API key."
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "view",
-                "create",
-                "edit",
-                "delete",
-                "share",
-                "run",
-                "storage",
-                "preferences",
-                "transfers",
-                "manage_tags",
-                "ai.read",
-                "ai.image",
-                "attachments",
-                "memory.read",
-                "memory.write",
-                "memory.delete"
-              ]
-            },
-            "description": "Permission scopes granted to the key."
-          },
-          "spaceAccess": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "wiki",
-                "raw",
-                "generated"
-              ]
-            },
-            "description": "Content spaces the key may read, independent of scopes."
-          },
-          "keyPrefix": {
-            "type": "string",
-            "description": "Non-secret prefix of the key, shown for identification."
-          },
-          "createdAt": {
-            "type": "string",
-            "description": "Timestamp when the key was created."
-          },
-          "revokedAt": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Timestamp when the key was revoked, or null if still active."
-          },
-          "lastUsedAt": {
-            "type": [
-              "string",
-              "null"
-            ],
-            "description": "Timestamp when the key was last used, or null if never used."
-          },
-          "keySecret": {
-            "type": "string",
-            "description": "Full secret key value. Shown only once, at creation time."
-          },
-          "memoryDestination": {
-            "type": [
-              "object",
-              "null"
-            ],
-            "properties": {
-              "id": {
-                "type": "string",
-                "format": "uuid"
-              },
-              "displayName": {
-                "type": "string"
-              },
-              "state": {
-                "type": "string",
-                "enum": [
-                  "active",
-                  "disabled"
-                ]
-              },
-              "agentIdentity": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "id",
-              "displayName",
-              "state",
-              "agentIdentity"
-            ],
-            "description": "Dedicated Agent memory destination, or null for a normal API key."
-          }
-        },
-        "required": [
-          "id",
-          "name",
-          "scopes",
-          "spaceAccess",
-          "keyPrefix",
-          "createdAt",
-          "revokedAt",
-          "lastUsedAt",
-          "keySecret"
-        ],
-        "description": "API key creation response, including the one-time secret value."
-      },
-      "OpenClawKeyInput": {
-        "type": "object",
-        "properties": {
-          "displayName": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100
-          },
-          "agentIdentity": {
-            "type": "string",
-            "minLength": 1,
-            "maxLength": 100,
-            "default": "openclaw"
-          },
-          "scopes": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "view",
-                "create",
-                "edit",
-                "delete",
-                "share",
-                "run",
-                "storage",
-                "preferences",
-                "transfers",
-                "manage_tags",
-                "ai.read",
-                "ai.image",
-                "attachments",
-                "memory.read",
-                "memory.write",
-                "memory.delete"
-              ]
-            },
-            "minItems": 1
-          },
-          "spaceAccess": {
-            "type": "array",
-            "items": {
-              "type": "string",
-              "enum": [
-                "wiki",
-                "raw",
-                "generated"
-              ]
-            }
-          }
-        },
-        "required": [
-          "agentIdentity",
-          "scopes",
-          "spaceAccess"
-        ],
-        "description": "Owner-session-only OpenClaw connection key preset. Scopes and content-space grants are independent capabilities."
       },
       "PAGE_ADDRESS_TAKEN": {},
       "PAGE_NOT_DELETED": {},
@@ -25666,38 +25478,6 @@
         ],
         "parameters": [],
         "responses": {}
-      }
-    },
-    "/api-keys/openclaw": {
-      "post": {
-        "operationId": "post-api-keys-openclaw",
-        "summary": "Provision an OpenClaw API key",
-        "description": "Creates one account-bound OpenClaw key with the requested Agent Memory scopes and content-space grants. The full secret is returned only in this response.",
-        "tags": [
-          "User"
-        ],
-        "parameters": [],
-        "requestBody": {
-          "content": {
-            "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/OpenClawKeyInput"
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/OpenClawKeyCreated"
-                }
-              }
-            }
-          }
-        }
       }
     },
     "/user/email": {

@@ -10,7 +10,7 @@
     "properties": {
       "baseUrl": { "type": "string", "format": "uri", "description": "next-wiki origin (HTTPS or loopback HTTP)" },
       "apiKeyRef": {
-        "description": "OpenClaw SecretRef for the account-bound integration key",
+        "description": "SecretRef for the generic Agent Memory provider key",
         "anyOf": [
           { "type": "string" },
           { "type": "object", "additionalProperties": false, "properties": { "source": { "enum": ["env", "file", "exec"] }, "provider": { "type": "string" }, "id": { "type": "string" } }, "required": ["source", "provider", "id"] }
@@ -23,7 +23,7 @@
     "required": ["baseUrl", "apiKeyRef", "vaultPath"]
   },
   "uiHints": {
-    "apiKeyRef": { "sensitive": true, "label": "OpenClaw API key SecretRef" }
+    "apiKeyRef": { "sensitive": true, "label": "Agent Memory provider API key SecretRef" }
   },
   "skills": ["./skills"],
   "contracts": { "tools": ["next_wiki_status", "next_wiki_sync", "next_wiki_search", "next_wiki_get"] },

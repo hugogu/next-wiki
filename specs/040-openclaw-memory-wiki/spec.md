@@ -293,6 +293,11 @@ to the correct account while cross-account and revoked attempts fail safely.
   handling mechanism approved by OpenClaw and MUST NOT appear in command-line
   arguments, normal plugin configuration, generated Wiki pages, logs, search
   results, audit metadata, status output, or error messages.
+- **FR-018a**: Agent Memory provider credentials MUST use the generic API-key
+  `memoryProvider` contract. Agent-specific adapters such as OpenClaw, Hermes,
+  or Pi MUST be represented by `agentIdentity` on the binding and MUST NOT
+  require a provider-specific key type, provisioning endpoint, or permission
+  model.
 - **FR-019**: The service MUST use the existing account permissions when
   granting Raw and Generated search coverage. It MUST never grant access to
   those spaces simply because an OpenClaw plugin requests them.
@@ -329,9 +334,11 @@ to the correct account while cross-account and revoked attempts fail safely.
 
 ### Key Entities
 
-- **OpenClaw Connection**: An operator-authorized, account-bound relationship
-  between one OpenClaw environment and one next-wiki account, including the
-  remote vault root, non-secret settings, permission coverage, and health.
+- **Agent Memory Provider Connection**: An operator-authorized, account-bound
+  relationship between one agent adapter (such as OpenClaw, Hermes, or Pi) and
+  one next-wiki account, including the remote source settings, non-secret
+  configuration, permission coverage, and health. The adapter identity is
+  metadata on the generic Memory provider binding, not a new key type.
 - **Mirrored Memory Wiki Document**: One eligible Markdown document from a
   Memory Wiki vault, identified by its vault-relative path and source version,
   with immutable next-wiki history and provenance.

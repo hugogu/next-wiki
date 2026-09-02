@@ -165,10 +165,12 @@ collide remotely.
 `apps/web/src/server/services/agent-memory.ts`, and
 `apps/web/src/server/services/raw-entries.ts`.
 
-## 6. One Scoped Key Covers the OpenClaw Connection
+## 6. One Generic Agent Memory Provider Key Covers Each Connection
 
-**Decision**: Provision an OpenClaw connection as one SecretRef-backed API key
-bound to one owner-managed Agent Memory namespace. Ordinary scopes are
+**Decision**: Reuse the generic Agent Memory provider API-key flow for every
+agent connection. Each connection is one SecretRef-backed API key bound to one
+owner-managed Agent Memory namespace. The adapter identity is data on the
+binding, not a new key type or provisioning endpoint. Ordinary scopes are
 independent capabilities on that key:
 
 - `memory.read` / `memory.write` control Agent Memory and Memory Wiki snapshots;
@@ -190,6 +192,11 @@ scope and never trust client-supplied destinations.
 
 - Two keys per connection: rejected because it couples one lifecycle to two
   secrets and prevents a coherent scope grant/revocation decision.
+- An OpenClaw-specific key type or `/api/api-keys/openclaw` endpoint: rejected
+  because every future agent (for example Pi) would require another special
+  schema, route, UI branch, and lifecycle. The existing generic
+  `memoryProvider` input already carries the agent identity and supports the
+  same composable scopes.
 - One unscoped Admin key: rejected because it bypasses destination binding and
   exposes unrelated account operations.
 - Use the existing public search route directly from any key: rejected because

@@ -59,7 +59,6 @@ export const createApiKeyInputSchema = z.object({
       displayName: z.string().min(1).max(100).optional(),
       sharedNamespaceId: z.string().uuid().optional(),
       agentIdentity: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
-      purpose: agentMemoryBindingPurposeSchema.default('memory_provider'),
     })
     .optional(),
 });
@@ -90,25 +89,6 @@ export const apiKeyCreatedSchema = apiKeyViewSchema.extend({
   keySecret: z.string(),
 });
 export type ApiKeyCreated = z.infer<typeof apiKeyCreatedSchema>;
-
-export const openClawKeyInputSchema = z.object({
-  displayName: z.string().trim().min(1).max(100).optional(),
-  agentIdentity: z.string().trim().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/).default('openclaw'),
-  scopes: z
-    .array(apiKeyScopeSchema)
-    .min(1, 'At least one scope is required')
-    .refine((items) => items.length === new Set(items).size, { message: 'Scopes must be unique' })
-    .default(['view', 'memory.read', 'memory.write']),
-  spaceAccess: z
-    .array(spaceKindSchema)
-    .refine((items) => items.length === new Set(items).size, { message: 'Space access entries must be unique' })
-    .default(['wiki']),
-}).strict();
-
-export const openClawKeyCreatedSchema = apiKeyCreatedSchema;
-
-export type OpenClawKeyInput = z.infer<typeof openClawKeyInputSchema>;
-export type OpenClawKeyCreated = z.infer<typeof openClawKeyCreatedSchema>;
 
 export const apiKeyRevealSchema = z.object({
   id: z.string(),
