@@ -48,8 +48,12 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
   const isMemoryProviderKey = memoryProviderScopes.some((scope) => scopes.includes(scope));
 
   const toggleMemoryProvider = () => {
-    setScopes(() => (isMemoryProviderKey ? [] : memoryProviderScopes));
-    setSpaceAccess(['wiki']);
+    setScopes((prev) => {
+      if (isMemoryProviderKey) {
+        return prev.filter((scope) => !memoryProviderScopes.includes(scope));
+      }
+      return Array.from(new Set([...prev, ...memoryProviderScopes]));
+    });
   };
 
   const toggleSpace = (space: SpaceKind) => {

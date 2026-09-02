@@ -54,7 +54,12 @@ test.describe('unified pagination', () => {
       await page.request.get('/api/v1/pages', { headers: { Authorization: `Bearer ${key}` } });
     }
 
-    await page.goto('/admin/api-audit');
+    // Restrict the list to the requests generated above. Page navigation is
+    // itself audited, so an unfiltered admin log can grow while this test is
+    // navigating and cross a page boundary between the count query and the
+    // rendered controls.
+    const generatedPath = encodeURIComponent('/api/v1/pages');
+    await page.goto(`/admin/api-audit?path=${generatedPath}`);
     const nav = page.getByRole('navigation', { name: 'Pagination' });
     await expect(nav).toBeVisible();
 
@@ -87,7 +92,7 @@ test.describe('unified pagination', () => {
     // growth. On the last page the Next/Last controls render as disabled
     // <span>s (not links), so match them by aria-label and assert the URL no
     // longer holds the out-of-range value.
-    await page.goto('/admin/api-audit?page=99999');
+    await page.goto(`/admin/api-audit?page=99999&path=${generatedPath}`);
     await expect(page).not.toHaveURL(/[?&]page=99999/);
     await expect(nav.locator('[aria-label="Next"]')).toHaveAttribute('aria-disabled', 'true');
     await expect(nav.locator('[aria-label="Last"]')).toHaveAttribute('aria-disabled', 'true');
