@@ -26,13 +26,12 @@ server-bound connections and is not a generic Raw-page CRUD API.
   route annotations; the prose here is the client integration guide, not a
   substitute for generated OpenAPI.
 
-## Paired OpenClaw Key Provisioning
+## OpenClaw Connection Key Provisioning
 
 ### `POST /api/api-keys/openclaw`
 
-Creates an owner-managed OpenClaw connection and reveals two distinct secrets
-once. This is an authenticated browser/session operation, never an API-key
-operation.
+Creates one owner-managed OpenClaw connection key and reveals its secret once.
+This is an authenticated browser/session operation, never an API-key operation.
 
 **Request**:
 
@@ -40,42 +39,47 @@ operation.
 {
   "displayName": "Personal OpenClaw Memory Wiki",
   "agentIdentity": "openclaw",
-  "includeRaw": true,
-  "includeGenerated": true
+  "scopes": ["view", "memory.read", "memory.write"],
+  "spaceAccess": ["wiki", "raw", "generated"]
 }
 ```
 
 | Field | Rules |
 | --- | --- |
-| `displayName` | Optional 1–100-character non-secret label for the paired namespace. |
+| `displayName` | Optional 1–100-character non-secret label for the namespace. |
 | `agentIdentity` | Optional non-empty identity (defaults to `openclaw`). |
-| `includeRaw`, `includeGenerated` | Optional booleans. Each requests an explicit search grant; the current owner must be an Admin. Wiki is always included. |
+| `scopes` | Ordinary API-key scopes. `memory.read`/`memory.write` control Agent Memory operations; `view` controls next-wiki search and reads. Defaults to `view`, `memory.read`, and `memory.write`. |
+| `spaceAccess` | Content-space grants independent from scopes. Wiki is always included; Raw/Generated require an Admin owner. |
 
 **201 response**:
 
 ```json
 {
-  "namespace": { "id": "uuid", "displayName": "Personal OpenClaw Memory Wiki", "agentIdentity": "openclaw" },
-  "mirror": { "id": "uuid", "name": "OpenClaw mirror", "keySecret": "nwk_…", "scopes": ["memory.read", "memory.write"], "spaceAccess": ["wiki"] },
-  "knowledgeSearch": { "id": "uuid", "name": "OpenClaw knowledge search", "keySecret": "nwk_…", "scopes": ["view"], "spaceAccess": ["wiki", "raw", "generated"] }
+  "id": "uuid",
+  "name": "Personal OpenClaw Memory Wiki",
+  "keySecret": "nwk_…",
+  "scopes": ["view", "memory.read", "memory.write"],
+  "spaceAccess": ["wiki", "raw", "generated"],
+  "memoryDestination": { "id": "uuid", "displayName": "Personal OpenClaw Memory Wiki", "state": "active", "agentIdentity": "openclaw" }
 }
 ```
 
 The response is the only secret reveal. The client must immediately place the
-two values in separate OpenClaw SecretRefs and never persist them in normal
+single value in an OpenClaw SecretRef and never persist it in normal
 configuration, command history, source code, or a Skill.
 
 **Errors**: `401` unauthenticated session, `403` non-Admin or invalid
 Raw/Generated grant, `409` active-key limit or destination conflict,
 `422` validation failure.
 
-## Mirror-Key Connection Probe
+## Connection Probe
 
 ### `GET /api/v1/memory/wiki/connection`
 
-Returns content-free readiness for the **mirror key** only.
+Returns content-free readiness for the bound key when it has
+`memory.write`.
 
-**Authorization**: active mirror key with `memory.read` and a `mirror` binding.
+**Authorization**: active bound Agent Memory key with `memory.write`.
 
 **200 response**:
 
@@ -83,7 +87,7 @@ Returns content-free readiness for the **mirror key** only.
 {
   "provider": "next-wiki",
   "apiVersion": "v1",
-  "bindingPurpose": "mirror",
+  "bindingPurpose": "memory_provider",
   "namespace": { "id": "uuid", "displayName": "Personal OpenClaw Memory Wiki", "state": "active", "agentIdentity": "openclaw" },
   "capabilities": { "mirror": true, "immutableRevisions": true, "currentOnly": true },
   "limits": { "maxContentCharacters": 512000, "maxPathCharacters": 400 }
@@ -93,7 +97,7 @@ Returns content-free readiness for the **mirror key** only.
 No owner ID, credential, vault path, source path, document metadata, or stored
 content is returned.
 
-**Errors**: `401` invalid/revoked key, `403` wrong key purpose/scope, `409`
+**Errors**: `401` invalid/revoked key, `403` missing scope or unbound key, `409`
 inactive namespace or unavailable Raw space, `426` incompatible client.
 
 ## Idempotent Markdown Snapshot Upsert
@@ -105,8 +109,7 @@ restricted Raw Page. It writes the full current Markdown snapshot through the
 existing Raw content lifecycle, advances the Page's current published Revision,
 and never appends a new file version to prior file content.
 
-**Authorization**: active mirror key with `memory.write` and a `mirror`
-binding.
+**Authorization**: active bound Agent Memory key with `memory.write`.
 
 **Request**:
 
@@ -166,11 +169,11 @@ the exact source spelling remains in revision provenance.
 
 ### `GET /api/v1/memory/wiki/search`
 
-Runs a bounded, on-demand search across every content space the paired
-knowledge-search key currently may read.
+Runs a bounded, on-demand search across every content space the bound key
+currently may read.
 
-**Authorization**: active key with `view`, `knowledge_search` binding, and the
-same active OpenClaw namespace/owner as its paired mirror key.
+**Authorization**: active bound key with `view`; page visibility and current
+space grants are rechecked for every request.
 
 **Query**:
 
@@ -215,7 +218,7 @@ result count. An empty `results` array is a valid no-readable-match response.
 
 Reads one currently readable page selected by a search result.
 
-**Authorization**: same as knowledge search; page visibility is rechecked.
+**Authorization**: active bound key with `view`; page visibility is rechecked.
 
 **Query**: `maxChars` is optional, 1–20,000, default 8,000. The service returns
 the leading bounded Markdown source and `truncated: true` where applicable.

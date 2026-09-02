@@ -84,6 +84,29 @@ describe('api-keys service', () => {
       expect(binding?.namespaceId).toBe(created.memoryDestination?.id);
     });
 
+    it('provisions one OpenClaw key with independent memory, search, and space permissions', async () => {
+      const user = await createTestUser('apikey-openclaw-single@example.com');
+      await db.update(schema.users).set({ role: 'admin' }).where(eq(schema.users.id, user.id));
+      const ctx = buildUserCtx(user.id, 'admin');
+
+      const created = await apiKeyService.createOpenClawKey(ctx, {
+        displayName: 'OpenClaw personal connection',
+        agentIdentity: 'openclaw',
+        scopes: ['view', 'memory.read', 'memory.write'],
+        spaceAccess: ['wiki', 'raw', 'generated'],
+      });
+
+      expect(created.keySecret).toMatch(/^nwk_/);
+      expect(created.scopes).toEqual(['view', 'memory.read', 'memory.write']);
+      expect(created.spaceAccess).toEqual(['wiki', 'raw', 'generated']);
+      expect(created.memoryDestination).toMatchObject({ agentIdentity: 'openclaw', state: 'active' });
+      const bindings = await db.query.agentMemoryKeyBindings.findMany({
+        where: eq(schema.agentMemoryKeyBindings.apiKeyId, created.id),
+      });
+      expect(bindings).toHaveLength(1);
+      expect(bindings[0]?.bindingPurpose).toBe('memory_provider');
+    });
+
     it('requires an admin-owned dedicated destination for memory scopes', async () => {
       const user = await createTestUser('apikey-hermes-invalid@example.com');
       await db.update(schema.users).set({ role: 'editor' }).where(eq(schema.users.id, user.id));

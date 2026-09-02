@@ -6,7 +6,7 @@ describe('plugin registration', () => {
     const registerTool = vi.fn();
     const stop = vi.fn();
     await register({
-      config: { baseUrl: 'https://wiki.example', vaultPath: process.cwd(), mirrorApiKeyRef: 'secret://mirror', knowledgeApiKeyRef: 'secret://search', enabled: false },
+      config: { baseUrl: 'https://wiki.example', vaultPath: process.cwd(), apiKeyRef: 'secret://openclaw', enabled: false },
       resolveSecretRef: vi.fn(), registerTool, registerSkill: vi.fn(), onShutdown: stop,
     });
     expect(registerTool).not.toHaveBeenCalled();

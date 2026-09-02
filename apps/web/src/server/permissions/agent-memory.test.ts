@@ -55,6 +55,14 @@ describe('Agent memory permissions', () => {
     expect(access.agentIdentity).toBe('mino');
   });
 
+  it('allows one bound key to exercise independent memory and retrieval scopes', async () => {
+    const { userId, created } = await memoryKey('openclaw');
+    const ctx = buildApiKeyCtx(userId, 'admin', ['view', 'memory.read', 'memory.write'], created.id);
+
+    await expect(requireAgentMemoryAccess(ctx, 'memory.write', 'any')).resolves.toMatchObject({ agentIdentity: 'openclaw' });
+    await expect(requireAgentMemoryAccess(ctx, 'view', 'any')).resolves.toMatchObject({ agentIdentity: 'openclaw' });
+  });
+
   it('rejects generic page scopes, unbound keys, and disabled destinations', async () => {
     const { userId, created } = await memoryKey();
     await expect(requireAgentMemoryAccess(buildApiKeyCtx(userId, 'admin', ['view', 'edit'], created.id), 'memory.read')).rejects.toMatchObject({ code: 'AGENT_MEMORY_SCOPE_REQUIRED' });

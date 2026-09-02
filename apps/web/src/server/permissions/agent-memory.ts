@@ -25,7 +25,8 @@ export type AgentMemoryAccess = {
 export async function requireAgentMemoryAccess(
   ctx: PermCtx,
   requiredScope: AgentMemoryScope | 'view' | 'any',
-  requiredPurpose: AgentMemoryBindingPurpose = 'memory_provider',
+  /** Purpose is legacy metadata; pass 'any' for a unified integration key. */
+  requiredPurpose: AgentMemoryBindingPurpose | 'any' = 'memory_provider',
 ): Promise<AgentMemoryAccess> {
   if (ctx.actor.kind !== 'api_key') {
     throw new DomainError('UNAUTHORIZED', 'A dedicated Agent memory API key is required');
@@ -44,7 +45,13 @@ export async function requireAgentMemoryAccess(
       namespace: true,
     },
   });
-  if (!binding || !binding.key || binding.key.userId !== ctx.actor.userId || binding.namespace.ownerUserId !== ctx.actor.userId || binding.bindingPurpose !== requiredPurpose) {
+  if (
+    !binding ||
+    !binding.key ||
+    binding.key.userId !== ctx.actor.userId ||
+    binding.namespace.ownerUserId !== ctx.actor.userId ||
+    (requiredPurpose !== 'any' && binding.bindingPurpose !== requiredPurpose)
+  ) {
     throw new DomainError('AGENT_MEMORY_KEY_UNBOUND', 'This key is not bound to an active Agent memory destination');
   }
   if (binding.namespace.state !== 'active') {

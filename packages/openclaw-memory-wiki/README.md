@@ -5,11 +5,11 @@ Memory Wiki vault into next-wiki's account-bound Raw space and adds a bundled
 Skill for account-wide Wiki/Raw/Generated retrieval.
 
 Install the packed plugin with `openclaw plugins install <tarball>`. Configure
-`baseUrl`, `vaultPath`, and two OpenClaw SecretRefs: the mirror key returned by
-the next-wiki OpenClaw key preset, and the separate knowledge-search key. Keep
-both keys out of ordinary config files. The mirror key writes only the bound
-source-document destination; the search key is read-only and its Raw/Generated
-access is explicit and admin-controlled.
+`baseUrl`, `vaultPath`, and one OpenClaw SecretRef containing the API key
+created for this connection. The key's ordinary scopes independently control
+Agent Memory reads/writes and next-wiki search/page reads; Raw/Generated space
+access is an explicit administrator grant on that same key. Keep the key out
+of ordinary config files.
 
 The scanner preserves each Markdown file's bytes, frontmatter, links, and
 relative source path in immutable next-wiki Revisions. Re-running a scan with

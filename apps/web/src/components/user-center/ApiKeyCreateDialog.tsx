@@ -7,7 +7,6 @@ import {
   API_KEY_SPACE_KINDS,
   type ApiKeyScope,
   type ApiKeyCreated,
-  type OpenClawPairedKeyCreated,
   type SpaceKind,
 } from '@next-wiki/shared';
 import { apiGet, apiPost } from '@/lib/api/client';
@@ -17,7 +16,7 @@ import { XIcon } from '@/components/icons';
 
 interface ApiKeyCreateDialogProps {
   onClose: () => void;
-  onCreated: (key: ApiKeyCreated | OpenClawPairedKeyCreated) => void;
+  onCreated: (key: ApiKeyCreated) => void;
   /** 046: only admins may grant raw/generated space access to a new key. */
   currentUserIsAdmin: boolean;
 }
@@ -47,7 +46,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
   };
 
   const memoryProviderScopes: ApiKeyScope[] = ['memory.read', 'memory.write', 'memory.delete'];
-  const isMemoryProviderKey = memoryProviderScopes.some((scope) => scopes.includes(scope));
+  const isMemoryProviderKey = !openClaw && memoryProviderScopes.some((scope) => scopes.includes(scope));
 
   const toggleMemoryProvider = () => {
     setScopes(() => (isMemoryProviderKey ? [] : memoryProviderScopes));
@@ -78,7 +77,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!openClaw && scopes.length === 0) {
+    if (scopes.length === 0) {
       setError(t('userCenter.apiKeys.atLeastOneScope'));
       return;
     }
@@ -86,10 +85,10 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
     setError('');
     try {
       if (openClaw) {
-        const paired = await apiPost<{ displayName?: string; agentIdentity: string; includeRaw: boolean; includeGenerated: boolean }, OpenClawPairedKeyCreated>('/api/api-keys/openclaw', {
-          displayName: name.trim(), agentIdentity: agentIdentity.trim() || 'openclaw', includeRaw: spaceAccess.includes('raw'), includeGenerated: spaceAccess.includes('generated'),
+        const result = await apiPost<{ displayName?: string; agentIdentity: string; scopes: ApiKeyScope[]; spaceAccess: SpaceKind[] }, ApiKeyCreated>('/api/api-keys/openclaw', {
+          displayName: name.trim(), agentIdentity: agentIdentity.trim() || 'openclaw', scopes, spaceAccess,
         });
-        onCreated(paired);
+        onCreated(result);
         onClose();
         return;
       }
@@ -172,7 +171,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
               </div>
             </label>
             <label className={`mb-sm flex items-start gap-sm rounded-md border border-primary/40 bg-primary/5 p-sm ${currentUserIsAdmin ? 'cursor-pointer' : 'opacity-50'}`}>
-              <input type="checkbox" checked={openClaw} onChange={() => { setOpenClaw((value) => !value); setAgentIdentity((value) => value === 'hermes' ? 'openclaw' : value); setScopes([]); }} disabled={!currentUserIsAdmin} className="mt-1" />
+              <input type="checkbox" checked={openClaw} onChange={() => { setOpenClaw((value) => !value); setAgentIdentity((value) => value === 'hermes' ? 'openclaw' : value); setScopes((value) => openClaw ? value : ['view', 'memory.read', 'memory.write']); setSpaceAccess(['wiki']); }} disabled={!currentUserIsAdmin} className="mt-1" />
               <div className="text-sm"><div className="font-medium">{t('userCenter.apiKeys.openClawPreset')}</div><div className="text-muted text-xs">{t('userCenter.apiKeys.openClawPresetHint')}</div></div>
             </label>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-2">
@@ -182,7 +181,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                     type="checkbox"
                     checked={scopes.includes(scope)}
                     onChange={() => toggleScope(scope)}
-                  disabled={openClaw || (!currentUserIsAdmin && memoryProviderScopes.includes(scope)) || (isMemoryProviderKey && !memoryProviderScopes.includes(scope))}
+                    disabled={!currentUserIsAdmin && memoryProviderScopes.includes(scope)}
                     className="mt-1"
                   />
                   <div className="text-sm">
@@ -194,7 +193,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
             </div>
           </div>
 
-          {!isMemoryProviderKey && <div>
+          <div>
             <span className="block text-sm font-medium mb-xs">{t('userCenter.apiKeys.spaceAccessLabel')}</span>
             <p className="text-xs text-muted mb-sm">{t('userCenter.apiKeys.spaceAccessHint')}</p>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-3">
@@ -224,7 +223,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                 );
               })}
             </div>
-          </div>}
+          </div>
 
           {(isMemoryProviderKey || openClaw) && (
             <div className="space-y-sm rounded-md border border-border bg-surface-elevated p-sm text-xs text-muted">

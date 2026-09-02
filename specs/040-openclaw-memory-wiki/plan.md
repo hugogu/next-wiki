@@ -14,15 +14,15 @@ on-demand retrieval of the account's permitted Wiki, Generated, and Raw
 content.
 
 The Wiki extends the existing Agent Memory boundary with a generic source-
-document snapshot capability. A server-bound OpenClaw connection provisions two
-least-privilege keys for the same namespace: a mirror key that can write only
-approved Memory Wiki snapshots and a knowledge-search key that can read only
-the owner's granted content spaces. Each source document uses the existing
+document snapshot capability. A server-bound OpenClaw connection provisions one
+account-bound API key whose ordinary scopes independently grant Memory reads,
+Memory writes, next-wiki search/page reads, and optional Raw/Generated space
+access. Each source document uses the existing
 `agent_memory_records → pages → page_revisions` relationship: the Page owns its
 storage tree and reader address, and its current published Revision is the
 sole searchable version. The service owns destination resolution, storage-path
 derivation, provenance, idempotency, and Raw revision creation; the plugin
-never receives database access or a generic write credential. Account-wide
+never receives database access or an unscoped write credential. Account-wide
 retrieval reuses the established page search and page-read services behind a
 narrow connection-bound facade, rather than creating a parallel search engine.
 
@@ -74,8 +74,8 @@ to 256 KiB is accepted by next-wiki in under 3 seconds and searchable within
 the plugin must never follow symlinks or read outside that root; `_attachments`
 and `.openclaw-wiki` are excluded; no secret in CLI arguments, local state,
 logs, status, audit metadata, sample pages, or Skill text; normal OpenClaw
-turns and Memory Wiki compilation never wait for remote synchronization; both
-keys are SecretRef-backed and must be bound to the same owner-managed
+turns and Memory Wiki compilation never wait for remote synchronization; the
+single connection key is SecretRef-backed and bound to one owner-managed
 destination.
 
 **Scale/Scope**: One published OpenClaw plugin and Skill; one OpenClaw vault
@@ -93,11 +93,11 @@ automatic discovery of every agent-scoped vault.
 | P1 — simple deployment | The Wiki gains only tables, routes, and existing services. The OpenClaw runtime is an external package; no new next-wiki service, daemon, queue, or container is introduced. | Pass |
 | P2 — AI-native, never vendor-locked | OpenClaw is a client adapter over a documented Agent Memory REST capability. The Wiki's canonical source, authorization, and search layers remain client-neutral; no OpenClaw model SDK is introduced into the web service. | Pass |
 | P3 — portable, self-growing memory | Captured Markdown is stored verbatim as restricted Raw page revisions with citations and common indexing. The bundled Skill retrieves evidence on demand and instructs the agent to cite it. | Pass |
-| P5 — permissions first | Mirror and search keys are distinct and tied to one namespace and owner. The server derives the mirror root and rechecks page/space permissions for every search/read; plugin configuration cannot select another account. | Pass |
+| P5 — permissions first | One scoped key is tied to one namespace and owner. The server derives the mirror root and rechecks page/space permissions for every operation; plugin configuration cannot select another account. | Pass |
 | P7 — async-first heavy work | Vault scanning and retry run in a serialized background plugin service. One bounded document snapshot is synchronous only after stability checks; no chat turn or Memory Wiki compiler waits for it. | Pass |
 | P8 — source content and reversibility | Raw pages retain immutable full-file snapshots. The common Agent Memory record points at the Page/current Revision, while Revision metadata retains exact source provenance; digest-equal retries are no-ops and removals never hard-delete Raw history. | Pass |
 | P9 — open standards | Integration uses versioned REST/JSON, OpenAPI, Markdown, a documented plugin manifest, and an independently installable package. | Pass |
-| P10 — explicit registration | The plugin manifest, two-key provisioner, route registrations, system category, OpenAPI schemas, sample-page definitions, package entry point, Skill, and release workflow are explicit. | Pass |
+| P10 — explicit registration | The plugin manifest, scoped-key provisioner, route registrations, system category, OpenAPI schemas, sample-page definitions, package entry point, Skill, and release workflow are explicit. | Pass |
 | P12 — public reading static by default | The only public change is a marker-owned OpenClaw help page and links. It follows existing published static/ISR delivery and targeted invalidation; credentials and integration state remain authenticated. | Pass |
 
 ### Source of Truth, Provenance, and Publication Boundary
@@ -165,14 +165,14 @@ specs/040-openclaw-memory-wiki/
 ```text
 apps/web/
 ├── app/api/
-│   ├── api-keys/openclaw/route.ts   # paired-key creation, reveal-once response
+│   ├── api-keys/openclaw/route.ts   # scoped connection-key creation, reveal-once response
 │   └── v1/memory/wiki/
 │       ├── connection/route.ts
 │       ├── documents/route.ts
 │       ├── search/route.ts
 │       └── pages/[pageId]/route.ts
 ├── src/components/user-center/
-│   └── ApiKeyCreateDialog.tsx       # OpenClaw paired-key preset
+│   └── ApiKeyCreateDialog.tsx       # OpenClaw scoped-key preset
 ├── src/server/
 │   ├── api/openapi-schemas.ts
 │   ├── db/schema/agent-memory.ts
@@ -180,7 +180,7 @@ apps/web/
 │   └── services/
 │       ├── agent-memory.ts          # shared destination + generic record integration
 │       ├── agent-memory-documents.ts # generic source-document snapshot service
-│       ├── api-keys.ts              # paired-key provisioner
+│       ├── api-keys.ts              # scoped-key provisioner
 │       ├── raw-entries.ts           # trusted full-snapshot revision helper
 │       └── setup-sample-page-*.ts
 └── test and e2e/                    # service, route, key, audit, setup coverage
@@ -188,7 +188,7 @@ apps/web/
 packages/
 ├── shared/src/
 │   ├── agent-memory.ts               # mirror and connection DTOs
-│   └── api-keys.ts                   # OpenClaw paired-key DTOs
+│   └── api-keys.ts                   # OpenClaw scoped-key DTOs
 └── openclaw-memory-wiki/
     ├── package.json
     ├── openclaw.plugin.json
@@ -218,14 +218,14 @@ REST; it does not reuse the Node MCP process or direct server internals.
 
 ## Design and Delivery Sequence
 
-1. **Freeze public contracts and paired credentials**
+1. **Freeze public contracts and scoped credentials**
    - Add shared schemas for stable Markdown snapshot input, mirror document
      view/outcome, connection capabilities, search coverage, and the
-     reveal-once OpenClaw paired-key response.
-   - Add the owner-only provisioner that creates two keys for one namespace:
-     mirror (`memory.read`/`memory.write`) and knowledge search (`view` plus
-     owner-approved space access). Bind the two key purposes to the same
-     owner/namespace and reject mixed-purpose or cross-owner setup.
+     reveal-once OpenClaw connection-key response.
+   - Add the owner-only provisioner that creates one key for one namespace.
+     Store ordinary scopes (`memory.read`, `memory.write`, `view`, and optional
+     content capabilities) on that key; bind its destination and identity
+     server-side and reject cross-owner setup.
    - Document all new routes with route-level OpenAPI metadata and regenerate
      the public OpenAPI document.
 
@@ -244,9 +244,11 @@ REST; it does not reuse the Node MCP process or direct server internals.
 
 3. **Expose narrow mirror and retrieval surfaces**
    - Add a bounded idempotent document upsert under `/api/v1/memory/wiki/`,
-     resolving namespace, identity, and destination only from the mirror key.
+     resolving namespace, identity, and destination only from the bound key and
+     requiring `memory.write`.
      Return safe `created`, `updated`, and `unchanged` metadata and a citation.
-   - Add connection-bound search/read facades for the paired knowledge key.
+   - Add connection-bound search/read facades for the same bound key, requiring
+     `view`.
      They delegate to the existing `publicContent.searchPages` and
      `getPageById` permission-filtered services, return only readable content,
      and include coverage for Wiki/Raw/Generated without leaking inaccessible

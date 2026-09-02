@@ -257,7 +257,7 @@ export const CreateApiKeyInput = z
       sharedNamespaceId: z.string().uuid().optional(),
       agentIdentity: z.string().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
       purpose: z.enum(['memory_provider', 'mirror', 'knowledge_search']).default('memory_provider'),
-    }).optional().describe('Creates or binds the key to an isolated memory destination and agent identity. It can only be used with memory scopes.'),
+    }).optional().describe('Creates or binds the key to an isolated memory destination and agent identity. Memory scopes may be combined with ordinary content scopes on the same key.'),
   })
   .describe('Create an API key.');
 
@@ -317,18 +317,19 @@ export const ApiKeyReveal = z
   })
   .describe('API key secret reveal response.');
 
-export const OpenClawPairedKeyInput = z.object({
+export const OpenClawKeyInput = z.object({
   displayName: z.string().min(1).max(100).optional(),
   agentIdentity: z.string().min(1).max(100).default('openclaw'),
-  includeRaw: z.boolean().default(false),
-  includeGenerated: z.boolean().default(false),
-}).describe('Owner-session-only OpenClaw paired-key preset.');
+  scopes: z
+    .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image', 'attachments', 'memory.read', 'memory.write', 'memory.delete']))
+    .min(1)
+    .default(['view', 'memory.read', 'memory.write']),
+  spaceAccess: z
+    .array(z.enum(['wiki', 'raw', 'generated']))
+    .default(['wiki']),
+}).describe('Owner-session-only OpenClaw connection key preset. Scopes and content-space grants are independent capabilities.');
 
-export const OpenClawPairedKeyCreated = z.object({
-  namespace: z.object({ id: z.string().uuid(), displayName: z.string(), agentIdentity: z.string() }),
-  mirror: ApiKeyCreated,
-  knowledgeSearch: ApiKeyCreated,
-}).describe('Two one-time secrets for the OpenClaw mirror and knowledge-search bindings.');
+export const OpenClawKeyCreated = ApiKeyCreated.describe('One-time OpenClaw connection key response.');
 
 export const AgentMemoryConnection = z.object({
   apiVersion: z.literal('v1'),
@@ -412,7 +413,7 @@ export const AgentMemoryEvidenceStatus = z.object({
 export const AgentMemoryWikiConnection = z.object({
   apiVersion: z.literal('v1'),
   provider: z.literal('next-wiki'),
-  bindingPurpose: z.literal('mirror'),
+  bindingPurpose: z.enum(['memory_provider', 'mirror', 'knowledge_search']),
   namespace: z.object({ id: z.string().uuid(), displayName: z.string(), state: z.literal('active'), agentIdentity: z.string() }),
   capabilities: z.object({ mirror: z.literal(true), immutableRevisions: z.literal(true), currentOnly: z.literal(true) }),
   limits: z.object({ maxPathCharacters: z.number().int(), maxContentCharacters: z.number().int() }),

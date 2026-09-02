@@ -6,7 +6,7 @@ import { readKnowledgePage } from '@/server/services/agent-memory-documents';
 /**
  * @openapi
  * @summary Read one currently visible next-wiki page
- * @description Re-authorizes the selected page against the knowledge-search key's current grants.
+ * @description Re-authorizes the selected page against the bound integration key's current grants.
  * @tag Agent Memory Wiki
  * @auth bearer
  * @queryParams AgentMemoryWikiPageReadQuery

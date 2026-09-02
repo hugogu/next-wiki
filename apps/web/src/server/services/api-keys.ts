@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { encryptKey, decryptKey, constantTimeCompare } from '@/server/crypto/key-encryption';
 import type { PermCtx } from '@/server/permissions';
-import type { AgentMemoryBindingPurpose, ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, OpenClawPairedKeyInput, OpenClawPairedKeyCreated, SpaceKind } from '@next-wiki/shared';
+import type { AgentMemoryBindingPurpose, ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, OpenClawKeyInput, OpenClawKeyCreated, SpaceKind } from '@next-wiki/shared';
 
 const ADMIN_ONLY_SPACE_KINDS: readonly SpaceKind[] = ['raw', 'generated'];
 
@@ -61,12 +61,9 @@ export async function create(
   if (memoryScopes.length > 0 && !memoryProvider) {
     throw new DomainError('BAD_REQUEST', 'Agent memory scopes require a bound Agent memory destination');
   }
-  if (memoryProvider && bindingPurpose !== 'knowledge_search' && (memoryScopes.length === 0 || memoryScopes.length !== scopes.length)) {
-    throw new DomainError('BAD_REQUEST', 'An Agent memory key may contain only dedicated memory scopes');
-  }
-  if (memoryProvider && bindingPurpose === 'knowledge_search' && (memoryScopes.length > 0 || !scopes.includes('view'))) {
-    throw new DomainError('BAD_REQUEST', 'A knowledge-search key must include view and no memory scopes');
-  }
+  // A bound key may combine Agent Memory and regular content capabilities.
+  // Scopes are independent permissions; binding only fixes the destination and
+  // identity and never turns one capability into another.
   if (memoryProvider && (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin')) {
     throw new DomainError('FORBIDDEN', 'Only administrators may create an Agent memory API key');
   }
@@ -79,10 +76,6 @@ export async function create(
   if (grantsAdminOnlySpace && !(ctx.actor.kind === 'user' && ctx.actor.role === 'admin')) {
     throw new DomainError('FORBIDDEN', 'Only admins may grant raw/generated space access to an API key');
   }
-  if (memoryProvider && bindingPurpose !== 'knowledge_search' && spaceAccess.some((kind) => kind !== 'wiki')) {
-    throw new DomainError('BAD_REQUEST', 'Agent memory API keys cannot access Raw or Generated spaces');
-  }
-
   const activeCount = await db.$count(
     schema.apiKeys,
     and(eq(schema.apiKeys.userId, userId), isNull(schema.apiKeys.revokedAt)),
@@ -183,44 +176,19 @@ export async function create(
   };
 }
 
-/** Provision the two least-privilege credentials used by the OpenClaw
- * integration. The mirror key can only write Agent Memory; the search key can
- * only read the explicitly granted content spaces. */
-export async function createOpenClawPair(ctx: PermCtx, input: OpenClawPairedKeyInput): Promise<OpenClawPairedKeyCreated> {
+/** Provision one account-bound OpenClaw connection with caller-selected scopes. */
+export async function createOpenClawKey(ctx: PermCtx, input: OpenClawKeyInput): Promise<OpenClawKeyCreated> {
   if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
     throw new DomainError('FORBIDDEN', 'Only administrators may create an OpenClaw connection');
   }
-  const agentIdentity = input.agentIdentity.trim();
-  const mirror = await create(
+  const displayName = input.displayName?.trim() || 'OpenClaw Memory Wiki';
+  return create(
     ctx,
-    `${input.displayName?.trim() || 'OpenClaw'} mirror`,
-    ['memory.read', 'memory.write'],
-    ['wiki'],
-    { displayName: input.displayName?.trim() || 'OpenClaw Memory Wiki', agentIdentity, purpose: 'mirror' },
+    displayName,
+    input.scopes,
+    input.spaceAccess,
+    { displayName, agentIdentity: input.agentIdentity.trim(), purpose: 'memory_provider' },
   );
-  const namespaceId = mirror.memoryDestination?.id;
-  if (!namespaceId) throw new Error('OPENCLAW_NAMESPACE_NOT_CREATED');
-  try {
-    const knowledgeSearch = await create(
-      ctx,
-      `${input.displayName?.trim() || 'OpenClaw'} knowledge search`,
-      ['view'],
-      [
-        'wiki',
-        ...(input.includeRaw ? ['raw' as const] : []),
-        ...(input.includeGenerated ? ['generated' as const] : []),
-      ],
-      { sharedNamespaceId: namespaceId, displayName: input.displayName?.trim() || 'OpenClaw Memory Wiki', agentIdentity, purpose: 'knowledge_search' },
-    );
-    return {
-      namespace: { id: namespaceId, displayName: mirror.memoryDestination!.displayName, agentIdentity },
-      mirror,
-      knowledgeSearch,
-    };
-  } catch (error) {
-    await revoke(ctx, mirror.id).catch(() => undefined);
-    throw error;
-  }
 }
 
 export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {

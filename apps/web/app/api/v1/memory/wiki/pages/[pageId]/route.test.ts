@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const readKnowledgePage = vi.hoisted(() => vi.fn());
 
 vi.mock('../../../_shared', () => ({
   assertSupportedProvider: vi.fn(),
+  withPublicApi: (handler: (request: NextRequest, context: unknown, ctx: unknown) => unknown) => (request: NextRequest, context: unknown) => handler(request, context, {}),
+  publicJson: (data: unknown, init?: ResponseInit) => {
+    const headers = new Headers(init?.headers);
+    headers.set('Cache-Control', 'private, no-store');
+    return NextResponse.json(data, { ...init, headers });
+  },
 }));
 vi.mock('../../../../_shared/route', () => ({
   withPublicApi: (handler: unknown) => handler,
@@ -24,6 +30,10 @@ vi.mock('../../../../_shared/route', () => ({
 vi.mock('@/server/services/agent-memory-documents', () => ({ readKnowledgePage }));
 
 import * as route from './route';
+
+beforeEach(() => {
+  vi.clearAllMocks();
+});
 
 describe('GET /api/v1/memory/wiki/pages/:pageId', () => {
   it('passes the selected page and bounded read length to the reauthorizing facade', async () => {

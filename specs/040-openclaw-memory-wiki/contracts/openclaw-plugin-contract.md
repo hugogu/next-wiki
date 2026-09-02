@@ -33,8 +33,7 @@ startup, and registers `./skills`.
         enabled: true,
         config: {
           baseUrl: "https://wiki.example.com",
-          mirrorApiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_MIRROR_KEY" },
-          knowledgeApiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_SEARCH_KEY" },
+          apiKeyRef: { source: "env", provider: "default", id: "NEXT_WIKI_API_KEY" },
           vaultPath: "~/.openclaw/wiki/main",
           syncIntervalMinutes: 1
         }
@@ -47,13 +46,12 @@ startup, and registers `./skills`.
 | Field | Rules |
 | --- | --- |
 | `baseUrl` | Required HTTPS service origin; local HTTP is accepted only for loopback/local development. |
-| `mirrorApiKeyRef` | Required OpenClaw SecretRef. Resolves only at runtime and is used only for connection/snapshot endpoints. |
-| `knowledgeApiKeyRef` | Required OpenClaw SecretRef. Resolves only at runtime and is used only for search/source read endpoints. |
+| `apiKeyRef` | Required OpenClaw SecretRef for the one account-bound integration key. Resolves only at runtime; each endpoint checks its required scope. |
 | `vaultPath` | Required local vault root. One plugin connection maps to one vault; agent-scoped Memory Wiki deployments configure a separate connection per child vault. |
 | `syncIntervalMinutes` | Optional bounded interval, default 5 minutes. |
 
-The manifest declares both key paths in `configContracts.secretInputs` and
-marks them sensitive in UI hints. The normal configuration schema validates
+The manifest declares the key path in `configContracts.secretInputs` and marks
+it sensitive in UI hints. The normal configuration schema validates
 resolved secret values as strings but never serializes, prints, or returns
 them. Validation fails before background work if the URL, root, secret
 reference, interval, or bounds are invalid.

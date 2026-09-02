@@ -35,8 +35,8 @@ function hostSecretResolver(api: OpenClawPluginApi, path: string): SecretResolve
 export async function register(api: OpenClawPluginApi): Promise<void> {
   const pluginConfig = api.pluginConfig ?? api.config;
   if (!pluginConfig?.enabled) return;
-  const { config, mirrorKey, knowledgeKey } = await resolveConfig(pluginConfig, hostSecretResolver(api, `${api.id ?? 'next-wiki-memory-wiki'}.config`));
-  const client = new NextWikiClient({ baseUrl: config.baseUrl, mirrorKey, knowledgeKey });
+  const { config, apiKey } = await resolveConfig(pluginConfig, hostSecretResolver(api, `${api.id ?? 'next-wiki-memory-wiki'}.config`));
+  const client = new NextWikiClient({ baseUrl: config.baseUrl, apiKey });
   const sync = new SyncService(config.vaultPath, client, config.syncIntervalMinutes);
   for (const definition of Object.values(createTools(client, sync))) {
     api.registerTool(definition, { optional: definition.name === 'next_wiki_sync' });
