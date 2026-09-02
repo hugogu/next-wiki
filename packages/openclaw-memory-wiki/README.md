@@ -5,8 +5,9 @@ Memory Wiki vault into next-wiki's account-bound Raw space and adds a bundled
 Skill for account-wide Wiki/Raw/Generated retrieval.
 
 Install the packed plugin with `openclaw plugins install <tarball>`. Configure
-`baseUrl`, `vaultPath`, and one OpenClaw SecretRef containing the API key
-created for this connection. The key's ordinary scopes independently control
+`baseUrl`, `vaultPath`, and one OpenClaw SecretRef containing a generic Agent
+Memory provider API key. Set its agent identity to `openclaw`; the key's
+ordinary scopes independently control
 Agent Memory reads/writes and next-wiki search/page reads; Raw/Generated space
 access is an explicit administrator grant on that same key. Keep the key out
 of ordinary config files.

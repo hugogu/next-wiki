@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { encryptKey, decryptKey, constantTimeCompare } from '@/server/crypto/key-encryption';
 import type { PermCtx } from '@/server/permissions';
-import type { AgentMemoryBindingPurpose, ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, OpenClawKeyInput, OpenClawKeyCreated, SpaceKind } from '@next-wiki/shared';
+import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, SpaceKind } from '@next-wiki/shared';
 
 const ADMIN_ONLY_SPACE_KINDS: readonly SpaceKind[] = ['raw', 'generated'];
 
@@ -15,9 +15,7 @@ const KEY_PREFIX_LENGTH = 12;
 const MAX_KEYS_PER_USER = 10;
 const PREFIX_COLLISION_RETRIES = 3;
 
-type MemoryProviderKeyOptions = Omit<NonNullable<CreateApiKeyInput['memoryProvider']>, 'purpose'> & {
-  purpose?: AgentMemoryBindingPurpose;
-};
+type MemoryProviderKeyOptions = NonNullable<CreateApiKeyInput['memoryProvider']>;
 type MemoryDestination = NonNullable<ApiKeyView['memoryDestination']>;
 
 function generateKey(): string {
@@ -57,7 +55,6 @@ export async function create(
   if (memoryProvider && (!memoryAgentIdentity || memoryAgentIdentity.length > 100 || !/^[^\u0000-\u001f\u007f]+$/u.test(memoryAgentIdentity))) {
     throw new DomainError('BAD_REQUEST', 'Agent identity must be a non-empty value no longer than 100 characters');
   }
-  const bindingPurpose: AgentMemoryBindingPurpose = memoryProvider?.purpose ?? 'memory_provider';
   if (memoryScopes.length > 0 && !memoryProvider) {
     throw new DomainError('BAD_REQUEST', 'Agent memory scopes require a bound Agent memory destination');
   }
@@ -151,7 +148,7 @@ export async function create(
         apiKeyId: row.id,
         namespaceId: namespace.id,
         agentIdentity: memoryAgentIdentity!,
-        bindingPurpose,
+        bindingPurpose: 'memory_provider',
         sharedByOwner: Boolean(memoryProvider.sharedNamespaceId),
       });
       destination = { id: namespace.id, displayName: namespace.displayName, state: namespace.state, agentIdentity: memoryAgentIdentity! };
@@ -174,21 +171,6 @@ export async function create(
     lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
     memoryDestination: destination,
   };
-}
-
-/** Provision one account-bound OpenClaw connection with caller-selected scopes. */
-export async function createOpenClawKey(ctx: PermCtx, input: OpenClawKeyInput): Promise<OpenClawKeyCreated> {
-  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
-    throw new DomainError('FORBIDDEN', 'Only administrators may create an OpenClaw connection');
-  }
-  const displayName = input.displayName?.trim() || 'OpenClaw Memory Wiki';
-  return create(
-    ctx,
-    displayName,
-    input.scopes,
-    input.spaceAccess,
-    { displayName, agentIdentity: input.agentIdentity.trim(), purpose: 'memory_provider' },
-  );
 }
 
 export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {

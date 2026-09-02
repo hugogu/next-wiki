@@ -29,12 +29,14 @@
 space-access authority. API key secrets are revealed only by the owner at
 connection creation and then supplied to OpenClaw as SecretRefs.
 
-The OpenClaw provisioner creates one bound key. Its capabilities are additive;
-each endpoint checks only the scope it needs:
+The generic Agent Memory provider flow creates one bound key. Its capabilities
+are additive; each endpoint checks only the scope it needs. OpenClaw, Hermes,
+Pi, and future adapters differ only by `agentIdentity` and source/runtime
+adapter:
 
-| Unified connection key | Scope/grant | Permitted feature calls |
+| Agent Memory provider key | Scope/grant | Permitted feature calls |
 | --- | --- | --- |
-| OpenClaw Memory Wiki | `memory.read`, `memory.write`, `view`; independent `spaceAccess` | Agent Memory, Memory Wiki mirror, account-wide search, and selected page reads |
+| Any adapter (for example OpenClaw) | `memory.read`, `memory.write`, `view`; independent `spaceAccess` | Agent Memory, source mirroring, account-wide search, and selected page reads |
 
 The owner must be an active Admin to create the connection or to grant
 Raw/Generated coverage. Rotation creates one replacement connection key with
@@ -44,7 +46,7 @@ A revoked/disabled key never resolves to a connection.
 ### Agent Memory Namespace
 
 `agent_memory_namespaces` remains the owner-managed, durable destination. A
-new OpenClaw connection creates one fresh namespace by default, with an
+new Agent Memory provider connection creates one fresh namespace by default, with an
 operator-visible display name. The namespace is also the server-derived root
 for every mirrored document. It contains no vault filesystem path, query,
 credential, or Markdown body.
@@ -77,19 +79,21 @@ title, vault path, owner label, response body, or credential.
 ### Agent Memory Key Binding
 
 `agent_memory_key_bindings` continues to bind a key to exactly one namespace
-and agent identity. It gains a non-null **binding purpose** with a migration
-default that preserves all existing integrations as `memory_provider`.
+and agent identity. Its existing **binding purpose** is retained as internal
+compatibility metadata; new keys created through the generic provider flow
+always use `memory_provider`, and route authorization is scope-based rather
+than adapter- or purpose-specific.
 
 | Field | Description | Validation |
 | --- | --- | --- |
 | `api_key_id` | Bound API key | Primary key; one purpose per key. |
 | `namespace_id` | Owner-managed destination | Required; key owner and namespace owner must match. |
-| `agent_identity` | Non-secret client identity | Required; OpenClaw provisioner uses its fixed integration identity. |
+| `agent_identity` | Non-secret client identity | Required; each adapter supplies its own stable identity, such as `openclaw`, `hermes`, or `pi`. |
 | `purpose` | `memory_provider`, `mirror`, or `knowledge_search` | Legacy metadata retained for compatibility; capability routes authorize by required scope. |
 | `shared_by_owner` | Deliberate shared-destination marker | Existing field; cannot grant access by itself. |
 | `created_at` | Binding timestamp | Auditable via key lifecycle. |
 
-One active OpenClaw connection has one binding and one key. A key may carry
+One active Agent Memory provider connection has one binding and one key. A key may carry
 `memory.read`, `memory.write`, and `view` together; each route checks only the
 scope it needs. Generic existing Memory provider routes continue to work with
 `memory_provider` bindings, preserving Hermes and later adapters.

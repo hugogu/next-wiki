@@ -256,7 +256,6 @@ export const CreateApiKeyInput = z
       displayName: z.string().min(1).max(100).optional(),
       sharedNamespaceId: z.string().uuid().optional(),
       agentIdentity: z.string().min(1).max(100).regex(/^[^\u0000-\u001f\u007f]+$/),
-      purpose: z.enum(['memory_provider', 'mirror', 'knowledge_search']).default('memory_provider'),
     }).optional().describe('Creates or binds the key to an isolated memory destination and agent identity. Memory scopes may be combined with ordinary content scopes on the same key.'),
   })
   .describe('Create an API key.');
@@ -316,20 +315,6 @@ export const ApiKeyReveal = z
     keySecret: z.string().describe('Full secret key value.'),
   })
   .describe('API key secret reveal response.');
-
-export const OpenClawKeyInput = z.object({
-  displayName: z.string().min(1).max(100).optional(),
-  agentIdentity: z.string().min(1).max(100).default('openclaw'),
-  scopes: z
-    .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image', 'attachments', 'memory.read', 'memory.write', 'memory.delete']))
-    .min(1)
-    .default(['view', 'memory.read', 'memory.write']),
-  spaceAccess: z
-    .array(z.enum(['wiki', 'raw', 'generated']))
-    .default(['wiki']),
-}).describe('Owner-session-only OpenClaw connection key preset. Scopes and content-space grants are independent capabilities.');
-
-export const OpenClawKeyCreated = ApiKeyCreated.describe('One-time OpenClaw connection key response.');
 
 export const AgentMemoryConnection = z.object({
   apiVersion: z.literal('v1'),

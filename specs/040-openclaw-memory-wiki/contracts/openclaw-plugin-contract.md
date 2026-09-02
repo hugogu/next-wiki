@@ -46,7 +46,7 @@ startup, and registers `./skills`.
 | Field | Rules |
 | --- | --- |
 | `baseUrl` | Required HTTPS service origin; local HTTP is accepted only for loopback/local development. |
-| `apiKeyRef` | Required OpenClaw SecretRef for the one account-bound integration key. Resolves only at runtime; each endpoint checks its required scope. |
+| `apiKeyRef` | Required host SecretRef containing a generic Agent Memory provider key. Resolves only at runtime; each endpoint checks its required scope. |
 | `vaultPath` | Required local vault root. One plugin connection maps to one vault; agent-scoped Memory Wiki deployments configure a separate connection per child vault. |
 | `syncIntervalMinutes` | Optional bounded interval, default 5 minutes. |
 

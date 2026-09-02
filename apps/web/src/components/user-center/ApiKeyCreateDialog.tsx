@@ -35,7 +35,6 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
   const [memoryDestinations, setMemoryDestinations] = useState<MemoryDestination[]>([]);
   const [sharedNamespaceId, setSharedNamespaceId] = useState('');
   const [agentIdentity, setAgentIdentity] = useState('hermes');
-  const [openClaw, setOpenClaw] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
@@ -46,7 +45,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
   };
 
   const memoryProviderScopes: ApiKeyScope[] = ['memory.read', 'memory.write', 'memory.delete'];
-  const isMemoryProviderKey = !openClaw && memoryProviderScopes.some((scope) => scopes.includes(scope));
+  const isMemoryProviderKey = memoryProviderScopes.some((scope) => scopes.includes(scope));
 
   const toggleMemoryProvider = () => {
     setScopes(() => (isMemoryProviderKey ? [] : memoryProviderScopes));
@@ -84,14 +83,6 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
     setSubmitting(true);
     setError('');
     try {
-      if (openClaw) {
-        const result = await apiPost<{ displayName?: string; agentIdentity: string; scopes: ApiKeyScope[]; spaceAccess: SpaceKind[] }, ApiKeyCreated>('/api/api-keys/openclaw', {
-          displayName: name.trim(), agentIdentity: agentIdentity.trim() || 'openclaw', scopes, spaceAccess,
-        });
-        onCreated(result);
-        onClose();
-        return;
-      }
       const result = await apiPost<
         {
           name: string;
@@ -161,7 +152,7 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                 type="checkbox"
                 checked={isMemoryProviderKey}
                 onChange={toggleMemoryProvider}
-                disabled={!currentUserIsAdmin || openClaw}
+                disabled={!currentUserIsAdmin}
                 className="mt-1"
               />
               <div className="text-sm">
@@ -169,10 +160,6 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
                 <div className="text-muted text-xs">{t('userCenter.apiKeys.memoryProviderPresetHint')}</div>
                 {!currentUserIsAdmin && <div className="text-warning text-xs">{t('userCenter.apiKeys.spaceAccessAdminOnly')}</div>}
               </div>
-            </label>
-            <label className={`mb-sm flex items-start gap-sm rounded-md border border-primary/40 bg-primary/5 p-sm ${currentUserIsAdmin ? 'cursor-pointer' : 'opacity-50'}`}>
-              <input type="checkbox" checked={openClaw} onChange={() => { setOpenClaw((value) => !value); setAgentIdentity((value) => value === 'hermes' ? 'openclaw' : value); setScopes((value) => openClaw ? value : ['view', 'memory.read', 'memory.write']); setSpaceAccess(['wiki']); }} disabled={!currentUserIsAdmin} className="mt-1" />
-              <div className="text-sm"><div className="font-medium">{t('userCenter.apiKeys.openClawPreset')}</div><div className="text-muted text-xs">{t('userCenter.apiKeys.openClawPresetHint')}</div></div>
             </label>
             <div className="grid grid-cols-1 gap-sm md:grid-cols-2">
               {API_KEY_SCOPES.map((scope) => (
@@ -225,13 +212,13 @@ export function ApiKeyCreateDialog({ onClose, onCreated, currentUserIsAdmin }: A
             </div>
           </div>
 
-          {(isMemoryProviderKey || openClaw) && (
+          {isMemoryProviderKey && (
             <div className="space-y-sm rounded-md border border-border bg-surface-elevated p-sm text-xs text-muted">
               <label className="block">
                 <span className="mb-xs block font-medium">{t('userCenter.apiKeys.agentIdentityLabel')}</span>
                 <Input value={agentIdentity} onChange={(event) => setAgentIdentity(event.target.value)} required minLength={1} maxLength={100} />
               </label>
-              <p>{openClaw ? t('userCenter.apiKeys.openClawPresetHint') : t('userCenter.apiKeys.memoryDestinationHint')}</p>
+              <p>{t('userCenter.apiKeys.memoryDestinationHint')}</p>
               {isMemoryProviderKey && <>
                 <label className="flex items-center gap-sm cursor-pointer">
                   <input

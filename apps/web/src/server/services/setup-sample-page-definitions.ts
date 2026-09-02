@@ -296,9 +296,9 @@ ${SAMPLE_PAGE_MARKER}
 
 OpenClaw's Memory Wiki can be mirrored into next-wiki without changing the local vault or OpenClaw's compiler. The plugin uses the same generic **Agent Memory → Page → Revision** pipeline as other memory adapters, keeping the original relative Markdown path, frontmatter, links, and bytes. Repeating an unchanged file is idempotent; every changed file becomes one new current Revision while older Revisions remain available for history.
 
-## 1. Create the connection key
+## 1. Create the Agent Memory provider key
 
-An administrator opens **User Center → API Keys → OpenClaw**. The preset returns one secret once. Select the scopes needed by this connection:
+An administrator opens **User Center → API Keys** and creates a normal **Memory provider** key with \`agentIdentity\` set to \`openclaw\`. The key returns one secret once. Select the scopes needed by this connection:
 
 - \`memory.read\` and \`memory.write\` for Agent Memory and Memory Wiki synchronization;
 - \`view\` for next-wiki search and selected page reads;
@@ -320,5 +320,5 @@ Use \`next_wiki_status\` for non-content health, and call \`next_wiki_sync\` onl
 
 ## 4. Rotate or repair
 
-Revoke a compromised key in User Center and provision a new connection key with the same scopes. Network failures are retried with bounded backoff and leave the local vault untouched; a degraded status can be repaired by restoring connectivity and running an explicit sync. Removing a local file never hard-deletes its next-wiki page or Revision history.
+Revoke a compromised key in User Center and provision a new Agent Memory provider key with the same scopes. Network failures are retried with bounded backoff and leave the local vault untouched; a degraded status can be repaired by restoring connectivity and running an explicit sync. Removing a local file never hard-deletes its next-wiki page or Revision history.
 `;

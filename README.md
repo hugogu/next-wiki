@@ -317,9 +317,11 @@ creation, installation, capture/checkpoint policy, and reverse-proxy guidance.
 The [`@next-wiki/openclaw-memory-wiki`](packages/openclaw-memory-wiki/README.md)
 native plugin mirrors the local OpenClaw Memory Wiki vault into the same
 account-bound Agent Memory + Raw/page/revision pipeline and bundles a
-`next-wiki` retrieval Skill. Provision one scoped connection key from **User
-Center → API Keys → OpenClaw**; keep its value in an OpenClaw SecretRef. The
-plugin and Hermes adapter share the same server-side memory/page model; they
+`next-wiki` retrieval Skill. Provision a normal **Memory provider** API key
+from **User Center → API Keys**, set its `agentIdentity` to `openclaw`, and
+combine `memory.read`/`memory.write` with `view` and any administrator-approved
+space grants as needed. Keep the one secret in an OpenClaw SecretRef. The
+plugin and Hermes adapter use the same server-side memory/page model; they
 only differ in their client runtime and source format.
 
 ## Content import, export, and storage

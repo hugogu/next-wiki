@@ -39,7 +39,8 @@ prove network routing; do not attach a real bearer key to a diagnostic command.
 During setup, select **Generate example pages**. Confirm:
 
 1. `integrations/openclaw` is published and contains placeholder-only
-   OpenClaw installation, scoped-key, sync, retrieval, rotation, and diagnosis
+   OpenClaw installation, generic Agent Memory provider key, sync, retrieval,
+   rotation, and diagnosis
    guidance.
 2. Welcome and Main Features link to `integrations/openclaw` and retain their
    existing links, including the separate Hermes integration guide.
@@ -52,10 +53,11 @@ During setup, select **Generate example pages**. Confirm:
 6. Public reader pages retain normal static/ISR delivery and reveal no
    connection, secret, or sync status.
 
-## 3. Provision the OpenClaw Connection
+## 3. Provision the Agent Memory Provider Connection
 
-In **User Center → API Keys**, choose **OpenClaw connection** and create one
-connection key. Select the scopes needed by this installation:
+In **User Center → API Keys**, choose the generic **Memory provider** preset
+and create one key with `agentIdentity: openclaw`. Select the scopes needed by
+this installation:
 
 - `memory.read` / `memory.write` for Memory Wiki synchronization and Agent Memory;
 - `view` for next-wiki search and selected page reads;
@@ -236,7 +238,7 @@ docker compose up -d --build
 Focused coverage must include:
 
 - shared schemas and OpenAPI shape; Drizzle generated migration and snapshot;
-- scoped OpenClaw-key creation, same-owner binding, rotation, revocation, disabled
+- scoped generic Agent Memory provider-key creation, same-owner binding, rotation, revocation, disabled
   owner, per-scope denial, and no accidental cross-account grant;
 - path validation, case collisions, root confinement, full Markdown snapshot
   integrity, same-digest no-op, changed-digest revision history, concurrent
