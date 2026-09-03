@@ -16,13 +16,27 @@ function parseRange(value: string | null, size: number) {
   return start <= end && start < size ? { start, end } : null;
 }
 
+function isMissingFile(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT';
+}
+
 async function handleGET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!uuidSchema.safeParse(id).success) return apiError('TRANSFER_NOT_FOUND', 'Not found', 404);
   try {
-    const row = await artifacts.getRow(await createApiContext(), id);
+    const ctx = await createApiContext();
+    const row = await artifacts.getRow(ctx, id);
     if (row.status !== 'ready') {
       throw new DomainError('ARTIFACT_NOT_UPLOADABLE', 'Artifact is not ready');
+    }
+    try {
+      await transferArtifactStore.size(row.storageKey);
+    } catch (error) {
+      if (isMissingFile(error)) {
+        await artifacts.markMissing(ctx, id);
+        throw new DomainError('TRANSFER_NOT_FOUND', 'Transfer artifact content not found');
+      }
+      throw error;
     }
     const range = parseRange(request.headers.get('range'), row.sizeBytes);
     const stream = transferArtifactStore.read(row.storageKey, range ?? undefined);

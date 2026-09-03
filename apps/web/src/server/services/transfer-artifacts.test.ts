@@ -264,4 +264,28 @@ describe('transfer artifacts service', () => {
       code: 'TRANSFER_NOT_FOUND',
     });
   });
+
+  it('marks a ready artifact unavailable when its storage file is missing', async () => {
+    const [artifact] = await db
+      .insert(schema.transferArtifacts)
+      .values({
+        kind: 'export_archive',
+        status: 'ready',
+        createdBy: adminId,
+        storageKey: `${randomUUID()}.zip`,
+        contentType: 'application/zip',
+        sizeBytes: 10,
+        contentHash: sha256(Buffer.from('missing')),
+        expiresAt: new Date(Date.now() + 72 * 3_600_000),
+        readyAt: new Date(),
+      })
+      .returning();
+
+    await artifacts.markMissing(adminCtx, artifact!.id);
+
+    const updated = await getRow(artifact!.id);
+    expect(updated?.status).toBe('deleted');
+    expect(updated?.deletedAt).not.toBeNull();
+    expect(updated?.errorMessage).toBe('Artifact content is missing from storage');
+  });
 });

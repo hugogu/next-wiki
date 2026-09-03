@@ -1082,7 +1082,12 @@
         "resume": "继续",
         "retry": "重试",
         "cleanup": "清理",
-        "download": "下载"
+        "download": "下载",
+        "downloading": "正在准备下载……"
+      },
+      "download": {
+        "unavailableTitle": "下载不可用",
+        "unavailableMessage": "该导出文件已不可用，可能已经过期或被删除。"
       }
     },
     "storage": {

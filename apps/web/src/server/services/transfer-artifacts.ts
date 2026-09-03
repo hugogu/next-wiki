@@ -69,6 +69,18 @@ export async function getRow(ctx: PermCtx, id: string): Promise<ArtifactRow> {
   return row;
 }
 
+export async function markMissing(ctx: PermCtx, id: string): Promise<void> {
+  assertCanManageTransfers(ctx);
+  await db
+    .update(schema.transferArtifacts)
+    .set({
+      status: 'deleted',
+      deletedAt: new Date(),
+      errorMessage: 'Artifact content is missing from storage',
+    })
+    .where(and(eq(schema.transferArtifacts.id, id), eq(schema.transferArtifacts.status, 'ready')));
+}
+
 export async function get(ctx: PermCtx, id: string): Promise<TransferArtifactView> {
   return toArtifactView(await getRow(ctx, id));
 }

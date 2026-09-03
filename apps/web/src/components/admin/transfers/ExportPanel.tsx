@@ -19,6 +19,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { InfoIcon } from '@/components/icons';
 import { useApiMutation } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
+import { TransferArtifactDownloadButton } from './TransferArtifactDownloadButton';
 
 function tone(status: TransferRunView['status']) {
   if (status === 'completed') return 'success' as const;
@@ -36,12 +37,7 @@ function ExportRunActions({ run }: { run: TransferRunView }) {
   return (
     <div className="flex items-center gap-xs">
       {run.reportArtifactId && (
-        <a
-          className="inline-flex items-center rounded-md bg-primary px-md py-sm text-sm text-primary-text hover:bg-primary/90"
-          href={`/api/transfer-artifacts/${run.reportArtifactId}/content`}
-        >
-          {t('admin.transfers.actions.download')}
-        </a>
+        <TransferArtifactDownloadButton url={`/api/transfer-artifacts/${run.reportArtifactId}/content`} />
       )}
       {run.canCancel && (
         <Button

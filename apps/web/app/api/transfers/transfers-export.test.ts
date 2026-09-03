@@ -12,8 +12,9 @@ const transfers = vi.hoisted(() => ({
 const artifacts = vi.hoisted(() => ({
   get: vi.fn(),
   getRow: vi.fn(),
+  markMissing: vi.fn(),
 }));
-const artifactStore = vi.hoisted(() => ({ read: vi.fn() }));
+const artifactStore = vi.hoisted(() => ({ read: vi.fn(), size: vi.fn() }));
 
 // The transfer routes are wrapped with withApiAudit, which reads next/headers
 // and resolves the actor outside a request scope. Bypass it so the tests can
@@ -200,6 +201,7 @@ describe('transfer export REST routes', () => {
       // An internal field the route must never forward to the client.
       _internalNote: 'DO-NOT-LEAK-9',
     });
+    artifactStore.size.mockResolvedValue(Buffer.byteLength(PAYLOAD));
     artifactStore.read.mockReturnValue(Readable.from([Buffer.from(PAYLOAD)]));
 
     const response = await artifactContentRoute.GET(
@@ -220,5 +222,32 @@ describe('transfer export REST routes', () => {
     expect(
       JSON.stringify(Object.fromEntries(response.headers.entries())),
     ).not.toContain('DO-NOT-LEAK-9');
+  });
+
+  it('returns 404 instead of opening a stream when the artifact file is missing', async () => {
+    const id = randomUUID();
+    artifactStore.read.mockClear();
+    artifacts.getRow.mockResolvedValue({
+      id,
+      status: 'ready',
+      storageKey: 'missing.zip',
+      contentType: 'application/zip',
+      sizeBytes: 12,
+      originalFilename: 'missing.zip',
+    });
+    artifactStore.size.mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+
+    const response = await artifactContentRoute.GET(
+      new NextRequest(`http://localhost/api/transfer-artifacts/${id}/content`),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: 'TRANSFER_NOT_FOUND' });
+    expect(artifacts.markMissing).toHaveBeenCalledWith(
+      { actor: { kind: 'user', userId: 'admin', role: 'admin' } },
+      id,
+    );
+    expect(artifactStore.read).not.toHaveBeenCalled();
   });
 });

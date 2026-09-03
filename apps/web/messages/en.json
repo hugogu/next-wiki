@@ -1082,7 +1082,12 @@
         "resume": "Resume",
         "retry": "Retry",
         "cleanup": "Clean up",
-        "download": "Download"
+        "download": "Download",
+        "downloading": "Preparing download..."
+      },
+      "download": {
+        "unavailableTitle": "Download unavailable",
+        "unavailableMessage": "This export file is no longer available. It may have expired or been removed."
       }
     },
     "storage": {
