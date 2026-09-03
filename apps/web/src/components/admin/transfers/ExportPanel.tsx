@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { TransferRunAccepted, TransferRunView } from '@next-wiki/shared';
 import { Button } from '@/components/ui/Button';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
 import { Input } from '@/components/ui/Input';
 import { Tooltip } from '@/components/ui/Tooltip';
 import {
@@ -19,6 +20,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import { InfoIcon } from '@/components/icons';
 import { useApiMutation } from '@/lib/api/client';
 import { useTranslation } from '@/i18n/client';
+import { TransferArtifactDownloadButton } from './TransferArtifactDownloadButton';
 
 function tone(status: TransferRunView['status']) {
   if (status === 'completed') return 'success' as const;
@@ -27,40 +29,80 @@ function tone(status: TransferRunView['status']) {
   return 'info' as const;
 }
 
+export function isExportArtifactExpired(
+  run: Pick<TransferRunView, 'reportArtifactId' | 'expiresAt'>,
+): boolean {
+  return Boolean(run.reportArtifactId && Date.parse(run.expiresAt) <= Date.now());
+}
+
 function ExportRunActions({ run }: { run: TransferRunView }) {
   const { t } = useTranslation();
   const router = useRouter();
   const cancel = useApiMutation(`/api/transfers/${run.id}/cancellation`);
   const retry = useApiMutation(`/api/transfers/${run.id}/retries`);
+  const remove = useApiMutation<void, void>(
+    () => `/api/transfer-artifacts/${run.reportArtifactId ?? ''}`,
+    { method: 'DELETE' },
+  );
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
+  const expired = isExportArtifactExpired(run);
+
+  function deleteExpiredArtifact() {
+    if (!run.reportArtifactId) return;
+    remove.mutate(undefined, {
+      onSuccess: () => {
+        setConfirmingDelete(false);
+        router.refresh();
+      },
+    });
+  }
 
   return (
-    <div className="flex items-center gap-xs">
-      {run.reportArtifactId && (
-        <a
-          className="inline-flex items-center rounded-md bg-primary px-md py-sm text-sm text-primary-text hover:bg-primary/90"
-          href={`/api/transfer-artifacts/${run.reportArtifactId}/content`}
-        >
-          {t('admin.transfers.actions.download')}
-        </a>
+    <>
+      <div className="flex items-center gap-xs">
+        {run.reportArtifactId && !expired && (
+          <TransferArtifactDownloadButton url={`/api/transfer-artifacts/${run.reportArtifactId}/content`} />
+        )}
+        {run.reportArtifactId && expired && (
+          <Button
+            variant="danger"
+            disabled={remove.isPending}
+            onClick={() => setConfirmingDelete(true)}
+          >
+            {t('admin.transfers.actions.deleteArtifact')}
+          </Button>
+        )}
+        {run.canCancel && (
+          <Button
+            variant="secondary"
+            disabled={cancel.isPending}
+            onClick={() => cancel.mutate(undefined, { onSuccess: () => router.refresh() })}
+          >
+            {t('admin.transfers.actions.cancel')}
+          </Button>
+        )}
+        {run.canRetry && (
+          <Button
+            disabled={retry.isPending}
+            onClick={() => retry.mutate(undefined, { onSuccess: () => router.refresh() })}
+          >
+            {t('admin.transfers.actions.retry')}
+          </Button>
+        )}
+      </div>
+      {confirmingDelete && (
+        <ConfirmDialog
+          title={t('admin.transfers.delete.title')}
+          message={t('admin.transfers.delete.message')}
+          confirmLabel={t('admin.transfers.actions.deleteArtifact')}
+          confirmVariant="danger"
+          pending={remove.isPending}
+          error={remove.error?.message}
+          onConfirm={deleteExpiredArtifact}
+          onCancel={() => { if (!remove.isPending) setConfirmingDelete(false); }}
+        />
       )}
-      {run.canCancel && (
-        <Button
-          variant="secondary"
-          disabled={cancel.isPending}
-          onClick={() => cancel.mutate(undefined, { onSuccess: () => router.refresh() })}
-        >
-          {t('admin.transfers.actions.cancel')}
-        </Button>
-      )}
-      {run.canRetry && (
-        <Button
-          disabled={retry.isPending}
-          onClick={() => retry.mutate(undefined, { onSuccess: () => router.refresh() })}
-        >
-          {t('admin.transfers.actions.retry')}
-        </Button>
-      )}
-    </div>
+    </>
   );
 }
 
@@ -156,7 +198,14 @@ export function ExportPanel({ runs }: { runs: TransferRunView[] }) {
                     {t(`admin.transfers.kind.${run.kind}`)}
                   </Link>
                 </DataTableCell>
-                <DataTableCell><StatusBadge tone={tone(run.status)}>{t(`admin.transfers.status.${run.status}`)}</StatusBadge></DataTableCell>
+                <DataTableCell>
+                  <div className="flex flex-wrap items-center gap-xs">
+                    <StatusBadge tone={tone(run.status)}>{t(`admin.transfers.status.${run.status}`)}</StatusBadge>
+                    {isExportArtifactExpired(run) && (
+                      <StatusBadge tone="danger">{t('admin.transfers.status.expired')}</StatusBadge>
+                    )}
+                  </div>
+                </DataTableCell>
                 <DataTableCell>{run.processedItems}/{run.totalItems}</DataTableCell>
                 <DataTableCell>{new Date(run.queuedAt).toLocaleString()}</DataTableCell>
                 <DataTableCell><ExportRunActions run={run} /></DataTableCell>

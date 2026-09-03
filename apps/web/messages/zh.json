@@ -1074,6 +1074,7 @@
         "completed_with_warnings": "完成但有警告",
         "failed": "失败",
         "cancelled": "已取消",
+        "expired": "已过期",
         "cleaned": "已清理"
       },
       "actions": {
@@ -1082,7 +1083,17 @@
         "resume": "继续",
         "retry": "重试",
         "cleanup": "清理",
-        "download": "下载"
+        "download": "下载",
+        "downloading": "正在准备下载……",
+        "deleteArtifact": "删除归档"
+      },
+      "download": {
+        "unavailableTitle": "下载不可用",
+        "unavailableMessage": "该导出文件已不可用，可能已经过期或被删除。"
+      },
+      "delete": {
+        "title": "删除已过期的导出归档？",
+        "message": "该操作会永久删除已过期的归档，但会保留传输历史记录。"
       }
     },
     "storage": {

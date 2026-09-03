@@ -12,6 +12,7 @@ import { apiGet, useApiMutation } from '@/lib/api/client';
 import { getPageHref } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { TranslateFunction } from '@/i18n';
+import { TransferArtifactDownloadButton } from './TransferArtifactDownloadButton';
 
 const PAGE_SIZE = 20;
 const TERMINAL: TransferRunView['status'][] = ['completed', 'completed_with_warnings', 'failed', 'cancelled'];
@@ -200,7 +201,7 @@ export function TransferRunDetail({
                 </Button>
               </Tooltip>
             )}
-            {run.reportArtifactId && <a className="inline-flex items-center rounded-md bg-primary px-md py-sm text-sm text-primary-text" href={`/api/transfer-artifacts/${run.reportArtifactId}/content`}>{t('admin.transfers.actions.download')}</a>}
+            {run.reportArtifactId && <TransferArtifactDownloadButton url={`/api/transfer-artifacts/${run.reportArtifactId}/content`} />}
           </div>
         </div>
         {(() => {

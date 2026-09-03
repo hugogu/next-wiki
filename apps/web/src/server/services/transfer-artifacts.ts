@@ -69,6 +69,18 @@ export async function getRow(ctx: PermCtx, id: string): Promise<ArtifactRow> {
   return row;
 }
 
+export async function markMissing(ctx: PermCtx, id: string): Promise<void> {
+  assertCanManageTransfers(ctx);
+  await db
+    .update(schema.transferArtifacts)
+    .set({
+      status: 'deleted',
+      deletedAt: new Date(),
+      errorMessage: 'Artifact content is missing from storage',
+    })
+    .where(and(eq(schema.transferArtifacts.id, id), eq(schema.transferArtifacts.status, 'ready')));
+}
+
 export async function get(ctx: PermCtx, id: string): Promise<TransferArtifactView> {
   return toArtifactView(await getRow(ctx, id));
 }
@@ -117,7 +129,11 @@ export async function upload(
 }
 
 export async function remove(ctx: PermCtx, id: string): Promise<void> {
-  const row = await getRow(ctx, id);
+  assertCanManageTransfers(ctx);
+  const row = await db.query.transferArtifacts.findFirst({
+    where: eq(schema.transferArtifacts.id, id),
+  });
+  if (!row) throw new DomainError('TRANSFER_NOT_FOUND', 'Transfer artifact not found');
   const active = await db.query.transferRuns.findFirst({
     where: and(
       or(
@@ -128,9 +144,17 @@ export async function remove(ctx: PermCtx, id: string): Promise<void> {
     ),
   });
   if (active) throw new DomainError('ARTIFACT_IN_USE', 'Artifact is used by an active run');
-  await transferArtifactStore.delete(row.storageKey);
+  if (row.status !== 'deleted') {
+    await transferArtifactStore.delete(row.storageKey);
+    await db
+      .update(schema.transferArtifacts)
+      .set({ status: 'deleted', deletedAt: new Date() })
+      .where(eq(schema.transferArtifacts.id, id));
+  }
+  // Retain the run history, but remove a stale download link after the
+  // artifact has been manually deleted (including one already cleaned up).
   await db
-    .update(schema.transferArtifacts)
-    .set({ status: 'deleted', deletedAt: new Date() })
-    .where(eq(schema.transferArtifacts.id, id));
+    .update(schema.transferRuns)
+    .set({ reportArtifactId: null })
+    .where(eq(schema.transferRuns.reportArtifactId, id));
 }

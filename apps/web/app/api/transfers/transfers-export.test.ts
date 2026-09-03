@@ -12,8 +12,10 @@ const transfers = vi.hoisted(() => ({
 const artifacts = vi.hoisted(() => ({
   get: vi.fn(),
   getRow: vi.fn(),
+  markMissing: vi.fn(),
+  remove: vi.fn(),
 }));
-const artifactStore = vi.hoisted(() => ({ read: vi.fn() }));
+const artifactStore = vi.hoisted(() => ({ read: vi.fn(), size: vi.fn() }));
 
 // The transfer routes are wrapped with withApiAudit, which reads next/headers
 // and resolves the actor outside a request scope. Bypass it so the tests can
@@ -187,6 +189,22 @@ describe('transfer export REST routes', () => {
     expect(JSON.stringify(body)).not.toMatch(/credential|secret|token|password/i);
   });
 
+  it('DELETE /api/transfer-artifacts/[id] removes the artifact', async () => {
+    const id = randomUUID();
+    artifacts.remove.mockResolvedValue(undefined);
+
+    const response = await artifactMetaRoute.DELETE(
+      new NextRequest(`http://localhost/api/transfer-artifacts/${id}`, { method: 'DELETE' }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(204);
+    expect(artifacts.remove).toHaveBeenCalledWith(
+      { actor: { kind: 'user', userId: 'admin', role: 'admin' } },
+      id,
+    );
+  });
+
   it('GET /api/transfer-artifacts/[id]/content streams bytes and leaks no internals', async () => {
     const id = randomUUID();
     const PAYLOAD = 'portable-archive-bytes';
@@ -200,6 +218,7 @@ describe('transfer export REST routes', () => {
       // An internal field the route must never forward to the client.
       _internalNote: 'DO-NOT-LEAK-9',
     });
+    artifactStore.size.mockResolvedValue(Buffer.byteLength(PAYLOAD));
     artifactStore.read.mockReturnValue(Readable.from([Buffer.from(PAYLOAD)]));
 
     const response = await artifactContentRoute.GET(
@@ -220,5 +239,56 @@ describe('transfer export REST routes', () => {
     expect(
       JSON.stringify(Object.fromEntries(response.headers.entries())),
     ).not.toContain('DO-NOT-LEAK-9');
+  });
+
+  it('HEAD /api/transfer-artifacts/[id]/content probes bytes without opening a stream', async () => {
+    const id = randomUUID();
+    artifactStore.read.mockClear();
+    artifacts.getRow.mockResolvedValue({
+      id,
+      status: 'ready',
+      storageKey: 'head.zip',
+      contentType: 'application/zip',
+      sizeBytes: 12,
+      originalFilename: 'head.zip',
+    });
+    artifactStore.size.mockResolvedValue(12);
+
+    const response = await artifactContentRoute.HEAD(
+      new NextRequest(`http://localhost/api/transfer-artifacts/${id}/content`, { method: 'HEAD' }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-length')).toBe('12');
+    expect(response.headers.get('content-disposition')).toContain('head.zip');
+    expect(artifactStore.read).not.toHaveBeenCalled();
+  });
+
+  it('returns 404 instead of opening a stream when the artifact file is missing', async () => {
+    const id = randomUUID();
+    artifactStore.read.mockClear();
+    artifacts.getRow.mockResolvedValue({
+      id,
+      status: 'ready',
+      storageKey: 'missing.zip',
+      contentType: 'application/zip',
+      sizeBytes: 12,
+      originalFilename: 'missing.zip',
+    });
+    artifactStore.size.mockRejectedValue(Object.assign(new Error('missing'), { code: 'ENOENT' }));
+
+    const response = await artifactContentRoute.GET(
+      new NextRequest(`http://localhost/api/transfer-artifacts/${id}/content`),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(404);
+    expect(await response.json()).toMatchObject({ code: 'TRANSFER_NOT_FOUND' });
+    expect(artifacts.markMissing).toHaveBeenCalledWith(
+      { actor: { kind: 'user', userId: 'admin', role: 'admin' } },
+      id,
+    );
+    expect(artifactStore.read).not.toHaveBeenCalled();
   });
 });
