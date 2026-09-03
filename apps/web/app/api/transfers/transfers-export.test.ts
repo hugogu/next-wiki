@@ -13,6 +13,7 @@ const artifacts = vi.hoisted(() => ({
   get: vi.fn(),
   getRow: vi.fn(),
   markMissing: vi.fn(),
+  remove: vi.fn(),
 }));
 const artifactStore = vi.hoisted(() => ({ read: vi.fn(), size: vi.fn() }));
 
@@ -186,6 +187,22 @@ describe('transfer export REST routes', () => {
     expect(body.contentUrl).toBe(`/api/transfer-artifacts/${id}/content`);
     // The artifact view never carries credentials.
     expect(JSON.stringify(body)).not.toMatch(/credential|secret|token|password/i);
+  });
+
+  it('DELETE /api/transfer-artifacts/[id] removes the artifact', async () => {
+    const id = randomUUID();
+    artifacts.remove.mockResolvedValue(undefined);
+
+    const response = await artifactMetaRoute.DELETE(
+      new NextRequest(`http://localhost/api/transfer-artifacts/${id}`, { method: 'DELETE' }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(204);
+    expect(artifacts.remove).toHaveBeenCalledWith(
+      { actor: { kind: 'user', userId: 'admin', role: 'admin' } },
+      id,
+    );
   });
 
   it('GET /api/transfer-artifacts/[id]/content streams bytes and leaks no internals', async () => {

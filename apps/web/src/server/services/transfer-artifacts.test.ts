@@ -288,4 +288,38 @@ describe('transfer artifacts service', () => {
     expect(updated?.deletedAt).not.toBeNull();
     expect(updated?.errorMessage).toBe('Artifact content is missing from storage');
   });
+
+  it('clears a run reference when deleting an already-cleaned artifact', async () => {
+    const [artifact] = await db
+      .insert(schema.transferArtifacts)
+      .values({
+        kind: 'export_archive',
+        status: 'deleted',
+        createdBy: adminId,
+        storageKey: `${randomUUID()}.zip`,
+        contentType: 'application/zip',
+        expiresAt: new Date(Date.now() - 1_000),
+        deletedAt: new Date(),
+      })
+      .returning();
+    const [run] = await db
+      .insert(schema.transferRuns)
+      .values({
+        kind: 'site_export',
+        status: 'completed',
+        phase: 'completed',
+        actorUserId: adminId,
+        reportArtifactId: artifact!.id,
+        expiresAt: new Date(Date.now() - 1_000),
+        finishedAt: new Date(),
+      })
+      .returning();
+
+    await artifacts.remove(adminCtx, artifact!.id);
+
+    const updatedRun = await db.query.transferRuns.findFirst({
+      where: eq(schema.transferRuns.id, run!.id),
+    });
+    expect(updatedRun?.reportArtifactId).toBeNull();
+  });
 });

@@ -1074,6 +1074,7 @@
         "completed_with_warnings": "Completed with warnings",
         "failed": "Failed",
         "cancelled": "Cancelled",
+        "expired": "Expired",
         "cleaned": "Cleaned"
       },
       "actions": {
@@ -1083,11 +1084,16 @@
         "retry": "Retry",
         "cleanup": "Clean up",
         "download": "Download",
-        "downloading": "Preparing download..."
+        "downloading": "Preparing download...",
+        "deleteArtifact": "Delete archive"
       },
       "download": {
         "unavailableTitle": "Download unavailable",
         "unavailableMessage": "This export file is no longer available. It may have expired or been removed."
+      },
+      "delete": {
+        "title": "Delete expired export archive?",
+        "message": "This permanently removes the expired archive. The transfer history will remain."
       }
     },
     "storage": {
