@@ -20,6 +20,20 @@ const { tempDir } = vi.hoisted(() => {
   return { tempDir: dir };
 });
 
+const log = vi.hoisted(() => ({
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  exception: vi.fn(),
+  warnException: vi.fn(),
+}));
+
+vi.mock('@/server/logger', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/logger')>()),
+  logger: log,
+}));
+
 const TRUNCATE =
   'TRUNCATE TABLE transfer_page_mappings, transfer_asset_mappings, transfer_items, transfer_runs, transfer_artifacts, writing_mode_settings, raw_categories, page_revisions, pages, translation_languages, users, spaces RESTART IDENTITY CASCADE';
 
@@ -190,6 +204,34 @@ async function buildArchiveAndImport(opts: {
 }
 
 describe('runTransferImport (archive_import)', () => {
+  it('logs and persists unexpected worker failures', async () => {
+    log.exception.mockClear();
+    const [run] = await db
+      .insert(schema.transferRuns)
+      .values({
+        kind: 'archive_import',
+        status: 'queued',
+        actorUserId: adminId,
+        options: {},
+        expiresAt: new Date(Date.now() + 3_600_000),
+      })
+      .returning();
+
+    await runTransferImport(run!.id);
+
+    const failed = await db.query.transferRuns.findFirst({
+      where: eq(schema.transferRuns.id, run!.id),
+    });
+    expect(failed?.status).toBe('failed');
+    expect(failed?.errorMessage).toBe('Import source is unavailable');
+    expect(failed?.errorDetail).toContain('Import source is unavailable');
+    expect(log.exception).toHaveBeenCalledWith(
+      'transfer import failed',
+      expect.any(Error),
+      expect.objectContaining({ runId: run!.id, kind: 'archive_import' }),
+    );
+  });
+
   it('imports a wiki page into the default wiki space', async () => {
     await buildArchiveAndImport({
       pages: [{ id: 'w1', path: 'docs/wiki-page', title: 'Wiki Page', markdown: '# Wiki Page\n\nBody', spaceKind: 'wiki' }],

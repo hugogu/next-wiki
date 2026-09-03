@@ -21,6 +21,7 @@ import { runWithoutDataCache } from '@/server/cache/public-cache';
 import { deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
 import { getReservedLocalePrefixes } from '@/server/services/translation-locales';
 import type { NormalizedPortableManifest } from '@next-wiki/shared';
+import { formatExceptionDetail, formatExceptionMessage, logger } from '@/server/logger';
 
 const WIKIJS_PREVIEW_BATCH_SIZE = 50;
 
@@ -521,9 +522,16 @@ async function runTransferPreviewWithoutDataCache(runId: string): Promise<void> 
     // Fall back per run kind so a Wiki.js preview failure isn't mislabeled as
     // an archive problem, which makes troubleshooting harder.
     const fallbackCode = started.kind === 'wikijs_preview' ? 'WIKIJS_PREVIEW_FAILED' : 'INVALID_ARCHIVE';
+    logger.exception('transfer preview failed', error, {
+      runId,
+      kind: started.kind,
+      sourceArtifactId: started.sourceArtifactId,
+      sourceId: started.sourceId,
+    });
     await markRunTerminal(runId, 'failed', {
       errorCode: error instanceof DomainError ? error.code : fallbackCode,
-      errorMessage: error instanceof Error ? error.message.slice(0, 500) : 'Preview failed',
+      errorMessage: formatExceptionMessage(error),
+      errorDetail: formatExceptionDetail(error),
     });
   }
 }

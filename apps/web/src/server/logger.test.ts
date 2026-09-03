@@ -1,5 +1,5 @@
 import { describe, expect, it, vi, afterEach } from 'vitest';
-import { logger, redactSensitiveText } from './logger';
+import { formatExceptionDetail, formatExceptionMessage, logger, redactSensitiveText } from './logger';
 
 function lastLogEntry(spy: ReturnType<typeof vi.spyOn>): Record<string, unknown> {
   const call = spy.mock.calls.at(-1)!;
@@ -41,6 +41,20 @@ describe('logger.exception', () => {
     const message = (entry.error as { message: string }).message;
     expect(message).not.toContain('hunter2');
     expect(message).toContain('[REDACTED]@');
+  });
+});
+
+describe('formatted exception fields', () => {
+  it('returns redacted, bounded operator-facing fields', () => {
+    const error = new Error('request failed: https://user:secret@example.com/' + 'x'.repeat(700));
+    const message = formatExceptionMessage(error, 80);
+    const detail = formatExceptionDetail(error, 120);
+
+    expect(message).not.toContain('secret');
+    expect(message.length).toBeLessThanOrEqual(80);
+    expect(detail).not.toContain('secret');
+    expect(detail.length).toBeLessThanOrEqual(120);
+    expect(detail).toContain('Error:');
   });
 });
 

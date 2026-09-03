@@ -58,6 +58,66 @@ describe('portable archive writer', () => {
     expect((await readFile(path.join(directory, result.stored.storageKey))).byteLength).toBeGreaterThan(0);
   });
 
+  it('scopes pages by space and deduplicates assets with identical bytes', async () => {
+    directory = await mkdtemp(path.join(tmpdir(), 'next-wiki-transfer-'));
+    const store = new TransferArtifactStore(directory, 1024 * 1024);
+    const bytes = Buffer.from('shared asset');
+    const assetIds = [
+      '00000000-0000-0000-0000-000000000001',
+      '00000000-0000-0000-0000-000000000002',
+    ];
+    const page = (id: string, spaceKind: 'wiki' | 'generated', spaceSlug: string) => ({
+      id,
+      revisionId: `r-${id}`,
+      path: 'memory/shared',
+      locale: 'en',
+      title: `${spaceKind} shared page`,
+      markdown: `![shared](/api/assets/${assetIds[spaceKind === 'wiki' ? 0 : 1]})`,
+      contentHash: sha256(id),
+      publishedAt: null,
+      createdAt: '2026-06-21T00:00:00.000Z',
+      updatedAt: '2026-06-21T00:00:00.000Z',
+      assetIds: [assetIds[spaceKind === 'wiki' ? 0 : 1]!],
+      slug: 'memory/shared',
+      aliases: [] as { address: string; kind: 'retained' | 'manual' }[],
+      spaceKind,
+      spaceSlug,
+      markdownContentType: 'text/markdown',
+    });
+    const result = await writePortableArchive({
+      storageKey: '00000000-0000-0000-0000-000000000097.zip',
+      instanceId: 'instance',
+      productVersion: '1',
+      capturedAt: '2026-06-21T00:00:00.000Z',
+      pages: [page('wiki-page', 'wiki', 'default'), page('generated-page', 'generated', 'generated')],
+      assets: [...assetIds].reverse().map((id) => ({
+        id,
+        contentHash: sha256(bytes),
+        contentType: 'application/json',
+        sizeBytes: bytes.length,
+        bytes,
+      })),
+      store,
+    });
+
+    expect(result.manifest.pages.map((item) => item.entry).sort()).toEqual([
+      'pages/generated/en/memory/shared.md',
+      'pages/wiki/en/memory/shared.md',
+    ]);
+    expect(result.manifest.assets).toHaveLength(1);
+    expect(new Set(result.manifest.files.map((file) => file.entry)).size).toBe(result.manifest.files.length);
+    expect(result.manifest.snapshot.spaces).toEqual([
+      { slug: 'generated', kind: 'generated', pageCount: 1 },
+      { slug: 'default', kind: 'wiki', pageCount: 1 },
+    ]);
+
+    const inspected = await inspectPortableArchive(path.join(directory, result.stored.storageKey));
+    for (const manifestPage of result.manifest.pages) {
+      const body = await inspected.readEntry(manifestPage.entry);
+      expect(body.toString('utf8')).toContain(`../../assets/${result.manifest.assets[0]!.id}.json`);
+    }
+  });
+
   it('writes a page\'s history entries as their own declared zip files', async () => {
     directory = await mkdtemp(path.join(tmpdir(), 'next-wiki-transfer-'));
     const store = new TransferArtifactStore(directory, 1024 * 1024);
@@ -108,7 +168,7 @@ describe('portable archive writer', () => {
     const manifestPage = result.manifest.pages[0]!;
     expect(manifestPage.historyEntries).toHaveLength(1);
     const historyEntry = manifestPage.historyEntries![0]!;
-    expect(historyEntry.entry).toBe(pageHistoryEntryPath('en', 'docs/history', 1));
+    expect(historyEntry.entry).toBe(pageHistoryEntryPath('en', 'docs/history', 1, 'wiki'));
     expect(historyEntry.versionNumber).toBe(1);
     expect(historyEntry.revisionId).toBe('rev-old');
     expect(historyEntry.authorEmail).toBe('old-author@example.com');

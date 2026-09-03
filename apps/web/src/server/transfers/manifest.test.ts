@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   pageEntryPath,
+  pageHistoryEntryPath,
   parsePage,
   serializePage,
   stableManifest,
@@ -36,6 +37,12 @@ describe('portable archive manifest', () => {
   it('encodes page path segments and sorts inventories deterministically', () => {
     expect(pageEntryPath('zh-CN', '目录/空 格')).toBe(
       'pages/zh-CN/%E7%9B%AE%E5%BD%95/%E7%A9%BA%20%E6%A0%BC.md',
+    );
+    expect(pageEntryPath('en', 'memory/shared', 'generated')).toBe(
+      'pages/generated/en/memory/shared.md',
+    );
+    expect(pageHistoryEntryPath('en', 'memory/shared', 1, 'wiki')).toBe(
+      'pages/wiki/en/memory/shared/history/1.md',
     );
     const base = {
       format: 'next-wiki-portable' as const,

@@ -49,24 +49,40 @@ export async function writePortableArchive(input: {
   zip.outputStream.pipe(target.stream);
 
   const assetsBySourceId = new Map<string, { hash: string; entry: string }>();
-  const manifestAssets = input.assets.map((asset) => {
+  const assetsByHash = new Map<string, {
+    asset: ExportAsset;
+    descriptor: NormalizedPortableManifest['assets'][number];
+  }>();
+  const manifestAssets: NormalizedPortableManifest['assets'] = [];
+  // Sort before choosing the canonical descriptor so archives remain
+  // deterministic when multiple source assets contain identical bytes.
+  for (const asset of [...input.assets].sort((left, right) => left.id.localeCompare(right.id))) {
     const hash = sha256(asset.bytes);
     const ext = extensionForType(asset.contentType);
-    const entry = `assets/${hash}.${ext}`;
-    assetsBySourceId.set(asset.id, { hash, entry });
-    return {
+    const existing = assetsByHash.get(hash);
+    if (existing) {
+      assetsBySourceId.set(asset.id, {
+        hash,
+        entry: existing.descriptor.entry,
+      });
+      continue;
+    }
+    const descriptor: NormalizedPortableManifest['assets'][number] = {
       id: hash,
-      entry,
+      entry: `assets/${hash}.${ext}`,
       contentHash: hash,
       contentType: asset.contentType,
       sizeBytes: asset.bytes.length,
       sourceAssetId: asset.id,
     };
-  });
+    assetsByHash.set(hash, { asset, descriptor });
+    assetsBySourceId.set(asset.id, { hash, entry: descriptor.entry });
+    manifestAssets.push(descriptor);
+  }
 
   const files: NormalizedPortableManifest['files'] = [];
   const manifestPages = input.pages.map((page) => {
-    const entry = pageEntryPath(page.locale, page.path);
+    const entry = pageEntryPath(page.locale, page.path, page.spaceKind);
     const bodyText = page.spaceKind === 'raw'
       ? page.markdown
       : rewriteMarkdownImages(page.markdown, (url) => {
@@ -96,7 +112,7 @@ export async function writePortableArchive(input: {
     files.push({ entry, sha256: sha256(body), sizeBytes: Buffer.byteLength(body) });
 
     const historyEntries = (page.historyVersions ?? []).map((version) => {
-      const historyEntry = pageHistoryEntryPath(page.locale, page.path, version.versionNumber);
+      const historyEntry = pageHistoryEntryPath(page.locale, page.path, version.versionNumber, page.spaceKind);
       const historyBodyText = page.spaceKind === 'raw'
         ? version.markdown
         : rewriteMarkdownImages(version.markdown, (url) => {
@@ -167,24 +183,22 @@ export async function writePortableArchive(input: {
     };
   });
 
-  for (const [index, asset] of input.assets.entries()) {
-    const descriptor = manifestAssets[index]!;
+  for (const { asset, descriptor } of assetsByHash.values()) {
     zip.addBuffer(asset.bytes, descriptor.entry, { mtime: new Date(input.capturedAt), mode: 0o100644 });
     files.push({ entry: descriptor.entry, sha256: descriptor.contentHash, sizeBytes: descriptor.sizeBytes });
   }
 
   const writingMode = (await getWritingMode()) ?? 'copilot';
-  const spacesSummary: NormalizedPortableManifest['snapshot']['spaces'] = [];
-  const kindCounts = new Map<string, number>();
+  const spacesByKey = new Map<string, NormalizedPortableManifest['snapshot']['spaces'][number]>();
   for (const page of manifestPages) {
-    const slug = page.spaceSlug;
-    kindCounts.set(slug, (kindCounts.get(slug) ?? 0) + 1);
+    const key = `${page.spaceKind}\u0000${page.spaceSlug}`;
+    const existing = spacesByKey.get(key);
+    if (existing) existing.pageCount += 1;
+    else spacesByKey.set(key, { slug: page.spaceSlug, kind: page.spaceKind, pageCount: 1 });
   }
-  const seenKinds = new Set(manifestPages.map((p) => p.spaceKind));
-  for (const kind of seenKinds) {
-    const slug = kind === 'wiki' ? input.instanceId : kind;
-    spacesSummary.push({ slug, kind, pageCount: kindCounts.get(slug) ?? 0 });
-  }
+  const spacesSummary = [...spacesByKey.values()].sort(
+    (left, right) => left.kind.localeCompare(right.kind) || left.slug.localeCompare(right.slug),
+  );
 
   const exportedHistoryVersions = manifestPages.reduce((sum, page) => sum + (page.historyEntries?.length ?? 0), 0);
   const report = JSON.stringify({

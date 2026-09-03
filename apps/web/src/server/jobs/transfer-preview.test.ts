@@ -14,6 +14,14 @@ const mocks = vi.hoisted(() => ({
   WikiJsClient: vi.fn(),
   getRuntimeSource: vi.fn(),
 }));
+const log = vi.hoisted(() => ({
+  debug: vi.fn(),
+  info: vi.fn(),
+  warn: vi.fn(),
+  error: vi.fn(),
+  exception: vi.fn(),
+  warnException: vi.fn(),
+}));
 
 vi.mock('@/server/transfers/wikijs-client', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/server/transfers/wikijs-client')>()),
@@ -22,6 +30,11 @@ vi.mock('@/server/transfers/wikijs-client', async (importOriginal) => ({
 
 vi.mock('@/server/services/transfer-sources', () => ({
   getRuntimeSource: mocks.getRuntimeSource,
+}));
+
+vi.mock('@/server/logger', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/server/logger')>()),
+  logger: log,
 }));
 
 // Redirect the singleton store to a temp dir BEFORE the job module (and its
@@ -427,6 +440,12 @@ describe('runTransferPreview (archive_preview)', () => {
     });
     expect(failed?.status).toBe('failed');
     expect(failed?.errorCode).toBe('INVALID_ARCHIVE');
+    expect(failed?.errorDetail).toContain('Archive is truncated or malformed');
+    expect(log.exception).toHaveBeenCalledWith(
+      'transfer preview failed',
+      expect.any(Error),
+      expect.objectContaining({ runId: run!.id, kind: 'archive_preview', sourceArtifactId: artifact.id }),
+    );
   });
 
   it('fails the run when the source artifact is not ready', async () => {

@@ -4,6 +4,7 @@ import * as schema from '@/server/db/schema';
 import { getRuntimeSource } from '@/server/services/transfer-sources';
 import { markRunTerminal } from '@/server/services/transfers';
 import { WikiJsClient } from '@/server/transfers/wikijs-client';
+import { formatExceptionDetail, logger } from '@/server/logger';
 
 export async function runTransferSourceTest(runId: string): Promise<void> {
   const run = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, runId) });
@@ -24,7 +25,11 @@ export async function runTransferSourceTest(runId: string): Promise<void> {
       lastErrorCode: null,
     }).where(eq(schema.transferSources.id, source.id));
     await markRunTerminal(runId, 'completed', { totalItems: pages.length, processedItems: pages.length });
-  } catch {
+  } catch (error) {
+    logger.exception('transfer source test failed', error, {
+      runId,
+      sourceId: run.sourceId,
+    });
     await db.update(schema.transferSources).set({
       status: 'unavailable',
       lastCheckedAt: new Date(),
@@ -33,6 +38,7 @@ export async function runTransferSourceTest(runId: string): Promise<void> {
     await markRunTerminal(runId, 'failed', {
       errorCode: 'SOURCE_UNAVAILABLE',
       errorMessage: 'Wiki.js connection test failed',
+      errorDetail: formatExceptionDetail(error),
     });
   }
 }
