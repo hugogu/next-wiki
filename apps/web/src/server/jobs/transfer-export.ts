@@ -9,7 +9,7 @@ import { writeOkfArchive } from '@/server/transfers/okf-archive-writer';
 import { markRunTerminal } from '@/server/services/transfers';
 import { normalizeHistoryLimit } from '@/server/transfers/wikijs-client';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
-import { logger } from '@/server/logger';
+import { formatExceptionDetail, logger } from '@/server/logger';
 
 // Runs inside a pg-boss worker, not a Next.js request — there is no
 // incremental-cache work store there, so any cached space lookup
@@ -100,7 +100,7 @@ async function runTransferExportWithoutDataCache(runId: string): Promise<void> {
       createdItems: snapshot.pages.length + snapshot.assets.length,
     });
   } catch (error) {
-    logger.error('transfer export failed', { runId, error });
+    logger.exception('transfer export failed', error, { runId, artifactId });
     await db
       .update(schema.transferArtifacts)
       .set({ status: 'failed', errorMessage: 'Export failed' })
@@ -108,7 +108,7 @@ async function runTransferExportWithoutDataCache(runId: string): Promise<void> {
     await markRunTerminal(runId, 'failed', {
       errorCode: 'EXPORT_FAILED',
       errorMessage: isGeneratedOkfExport ? 'OKF archive export failed' : 'Portable archive export failed',
-      errorDetail: error instanceof Error ? error.message.slice(0, 500) : null,
+      errorDetail: formatExceptionDetail(error),
     });
   }
 }

@@ -35,6 +35,14 @@ Rules:
 - Page entry path is `pages/{locale}/{path}.md`.
 - Asset entry path is `assets/{sha256}.{extension}`.
 
+Legacy v1 (and older v2) archives use the unscoped page layout above. Current
+portable archive version 2 exports scope page entries by space kind:
+`pages/{spaceKind}/{locale}/{path}.md`. History entries use the same scope:
+`pages/{spaceKind}/{locale}/{path}/history/{version}.md`. The manifest `entry`
+field is authoritative, so importers must use it instead of reconstructing a
+path from locale and page path. This prevents pages with the same path in the
+wiki, generated, and raw spaces from colliding in one ZIP.
+
 ## `manifest.json`
 
 ```json
@@ -138,8 +146,10 @@ listed as warnings in `reports/export.json`; archive import does not fetch them.
 - Unknown major versions are rejected before content changes.
 - Unknown optional fields are ignored and preserved only in the report.
 - Missing required fields or checksum mismatches reject preview.
-- Export ordering is deterministic by `(locale, path)` and content hash so the
-  same snapshot yields reproducible entry ordering.
+- Export ordering is deterministic by `(spaceKind, spaceSlug, locale, path)`
+  and content hash so the same snapshot yields reproducible entry ordering.
+- Exporters deduplicate assets with identical content bytes and reference the
+  single content-addressed asset entry from every page that uses it.
 
 ## Safety Limits
 

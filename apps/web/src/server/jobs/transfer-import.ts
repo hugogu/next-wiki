@@ -35,6 +35,7 @@ import { getSpaceByKind } from '@/server/services/spaces';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
 import type { NormalizedPortableManifest } from '@next-wiki/shared';
 import type { ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
+import { formatExceptionDetail, formatExceptionMessage, logger } from '@/server/logger';
 
 async function availableKinds(): Promise<Set<NormalizedPortableManifest['pages'][number]['spaceKind']>> {
   const available: Set<NormalizedPortableManifest['pages'][number]['spaceKind']> = new Set(['wiki']);
@@ -462,8 +463,12 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
           runId: run.id,
         });
         markdown = `${markdown.slice(0, image.start)}${localUrl}${markdown.slice(image.end)}`;
-      } catch {
+      } catch (error) {
         warnings += 1;
+        logger.warnException('transfer import image localization failed', error, {
+          runId: run.id,
+          sourceId: source.id,
+        });
       }
     }
     if (input.tags !== undefined) {
@@ -519,6 +524,11 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
     } catch (error) {
       failed += 1;
       processed += 1;
+      logger.warnException('transfer import item failed', error, {
+        runId: run.id,
+        sourceType: 'wikijs',
+        sourceKey: plan.sourceKey,
+      });
       await db.insert(schema.transferItems).values({
         runId: run.id,
         kind: 'page',
@@ -527,7 +537,7 @@ async function runWikiJsImport(run: typeof schema.transferRuns.$inferSelect) {
         displayName: plan.displayName,
         action: 'skip',
         status: 'failed',
-        errorMessage: error instanceof Error ? error.message.slice(0, 500) : 'Import failed',
+        errorMessage: formatExceptionMessage(error),
         metadata: {},
         finishedAt: new Date(),
       }).onConflictDoNothing();
@@ -790,9 +800,17 @@ async function runTransferImportWithoutDataCache(runId: string): Promise<void> {
     else if (started.kind === 'wikijs_import') await runWikiJsImport(started);
     else throw new Error('Unsupported import kind');
   } catch (error) {
+    logger.exception('transfer import failed', error, {
+      runId,
+      kind: started.kind,
+      sourceArtifactId: started.sourceArtifactId,
+      sourceId: started.sourceId,
+      previewRunId: started.previewRunId,
+    });
     await markRunTerminal(runId, 'failed', {
       errorCode: 'IMPORT_FAILED',
-      errorMessage: error instanceof Error ? error.message.slice(0, 500) : 'Import failed',
+      errorMessage: formatExceptionMessage(error),
+      errorDetail: formatExceptionDetail(error),
     });
   }
 }

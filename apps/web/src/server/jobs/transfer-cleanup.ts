@@ -2,6 +2,7 @@ import { and, eq, inArray, lt, or } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { transferArtifactStore } from '@/server/transfers/artifact-store';
+import { logger } from '@/server/logger';
 
 export async function runTransferCleanup(now = new Date()): Promise<void> {
   const artifacts = await db
@@ -24,7 +25,11 @@ export async function runTransferCleanup(now = new Date()): Promise<void> {
       ),
     });
     if (active) continue;
-    await transferArtifactStore.delete(artifact.storageKey).catch(() => undefined);
+    await transferArtifactStore.delete(artifact.storageKey).catch((error) => {
+      logger.warnException('transfer artifact cleanup failed', error, {
+        artifactId: artifact.id,
+      });
+    });
     await db
       .update(schema.transferArtifacts)
       .set({ status: 'deleted', deletedAt: new Date() })

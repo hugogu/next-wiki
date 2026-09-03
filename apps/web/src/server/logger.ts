@@ -90,6 +90,16 @@ function describeException(error: unknown): ExceptionInfo {
   };
 }
 
+/** Return a redacted, bounded message suitable for an operator-facing record. */
+export function formatExceptionMessage(error: unknown, maxLength = 500): string {
+  return describeException(error).message.slice(0, maxLength);
+}
+
+/** Return a redacted, bounded stack suitable for an operator-facing record. */
+export function formatExceptionDetail(error: unknown, maxLength = 8_000): string {
+  return describeException(error).stack.slice(0, maxLength);
+}
+
 function write(level: LogLevel, message: string, meta?: Record<string, unknown>) {
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),

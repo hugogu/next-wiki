@@ -13,24 +13,42 @@ export function sha256(value: string | Buffer): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
-export function pageEntryPath(locale: string, canonicalPath: string): string {
+export type PortablePageSpaceKind = 'wiki' | 'generated' | 'raw';
+
+/**
+ * Build a portable page entry path. The unscoped form is the legacy v1/v2
+ * layout; v2 exports pass the space kind so pages with the same path in
+ * different spaces cannot collide inside one ZIP.
+ */
+export function pageEntryPath(
+  locale: string,
+  canonicalPath: string,
+  spaceKind?: PortablePageSpaceKind,
+): string {
   const cleanLocale = locale.normalize('NFC').replace(/[^A-Za-z0-9_-]/g, '_');
   const cleanPath = canonicalPath
     .normalize('NFC')
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
-  return `pages/${cleanLocale}/${cleanPath || '_root'}.md`;
+  const scope = spaceKind ? `${spaceKind}/` : '';
+  return `pages/${scope}${cleanLocale}/${cleanPath || '_root'}.md`;
 }
 
-export function pageHistoryEntryPath(locale: string, canonicalPath: string, versionNumber: number): string {
+export function pageHistoryEntryPath(
+  locale: string,
+  canonicalPath: string,
+  versionNumber: number,
+  spaceKind?: PortablePageSpaceKind,
+): string {
   const cleanLocale = locale.normalize('NFC').replace(/[^A-Za-z0-9_-]/g, '_');
   const cleanPath = canonicalPath
     .normalize('NFC')
     .split('/')
     .map((segment) => encodeURIComponent(segment))
     .join('/');
-  return `pages/${cleanLocale}/${cleanPath || '_root'}/history/${versionNumber}.md`;
+  const scope = spaceKind ? `${spaceKind}/` : '';
+  return `pages/${scope}${cleanLocale}/${cleanPath || '_root'}/history/${versionNumber}.md`;
 }
 
 export function serializePage(fm: PortablePageFrontmatter, markdown: string): string {
@@ -80,9 +98,12 @@ export function stableManifest(manifest: NormalizedPortableManifest): Normalized
     ...manifest,
     pages: [...manifest.pages].sort(
       (left, right) =>
+        left.spaceKind.localeCompare(right.spaceKind) ||
+        left.spaceSlug.localeCompare(right.spaceSlug) ||
         left.locale.localeCompare(right.locale) ||
         left.path.localeCompare(right.path) ||
-        left.contentHash.localeCompare(right.contentHash),
+        left.contentHash.localeCompare(right.contentHash) ||
+        left.entry.localeCompare(right.entry),
     ),
     assets: [...manifest.assets].sort((left, right) => left.id.localeCompare(right.id)),
     files: [...manifest.files].sort((left, right) => left.entry.localeCompare(right.entry)),
