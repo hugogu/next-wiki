@@ -10,7 +10,7 @@ import { DomainError } from '@/server/errors';
 import type { PermCtx } from '@/server/permissions';
 import { requireAgentMemoryAccess, type AgentMemoryAccess } from '@/server/permissions/agent-memory';
 import * as rawEntries from '@/server/services/raw-entries';
-import { resolveSpace } from '@/server/services/spaces';
+import { resolveSpace, type SpaceKind } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { env } from '@/server/config';
 import * as publicContent from '@/server/services/public-content';
@@ -62,6 +62,12 @@ function titleFor(sourcePath: string): string {
 
 function actualDigest(content: string): string {
   return createHash('sha256').update(content, 'utf8').digest('hex');
+}
+
+async function resolvePageSpaceKind(spaceSlug: string): Promise<SpaceKind> {
+  const space = await resolveSpace(spaceSlug);
+  if (!space) throw new DomainError('NOT_FOUND', 'Page not found');
+  return space.kind;
 }
 
 async function getRawSpace() {
@@ -208,17 +214,17 @@ export async function searchKnowledge(ctx: PermCtx, query: string, limit: number
     excerptLength: 240,
     order: 'relevance',
   });
-  const items = result.items.map((item) => ({
+  const items = await Promise.all(result.items.map(async (item) => ({
     pageId: item.page.id,
     revisionId: item.page.latestRevision?.id ?? item.page.publishedRevision?.id,
     revisionHash: item.page.latestRevision?.contentHash ?? item.page.publishedRevision?.contentHash,
-    space: item.page.spaceSlug as 'wiki' | 'raw' | 'generated',
+    space: await resolvePageSpaceKind(item.page.spaceSlug),
     title: item.page.title,
     path: item.page.path,
     excerpt: item.excerpt ?? '',
     score: item.score ?? 0,
     canonicalUrl: item.page.canonicalUrl ?? '',
-  }));
+  })));
   const actor = ctx.actor;
   const coverage = {
     wiki: true,
@@ -239,7 +245,7 @@ export async function readKnowledgePage(ctx: PermCtx, pageId: string, maxChars =
   const revision = page.latestRevision ?? page.publishedRevision;
   return {
     pageId: page.id,
-    space: page.spaceSlug as 'wiki' | 'raw' | 'generated',
+    space: await resolvePageSpaceKind(page.spaceSlug),
     path: page.path,
     title: page.title,
     content: bounded,
