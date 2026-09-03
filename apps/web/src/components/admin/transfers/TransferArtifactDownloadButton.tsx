@@ -30,19 +30,20 @@ export function TransferArtifactDownloadButton({ url }: { url: string }) {
     setPending(true);
     try {
       const response = await fetch(url, {
+        method: 'HEAD',
         credentials: 'same-origin',
       });
       if (!response.ok) throw new Error(`Download failed with status ${response.status}`);
 
-      const objectUrl = window.URL.createObjectURL(await response.blob());
+      // The probe keeps missing artifacts in the admin page, while the native
+      // download preserves streaming, range requests, and browser download UX.
       const link = document.createElement('a');
-      link.href = objectUrl;
+      link.href = url;
       link.download = downloadFilename(response.headers.get('content-disposition'));
       link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
       link.remove();
-      window.setTimeout(() => window.URL.revokeObjectURL(objectUrl), 0);
     } catch {
       // Keep the user on the admin page when retention cleanup or storage loss
       // makes the database's historical artifact reference unavailable.

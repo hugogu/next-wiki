@@ -241,6 +241,30 @@ describe('transfer export REST routes', () => {
     ).not.toContain('DO-NOT-LEAK-9');
   });
 
+  it('HEAD /api/transfer-artifacts/[id]/content probes bytes without opening a stream', async () => {
+    const id = randomUUID();
+    artifactStore.read.mockClear();
+    artifacts.getRow.mockResolvedValue({
+      id,
+      status: 'ready',
+      storageKey: 'head.zip',
+      contentType: 'application/zip',
+      sizeBytes: 12,
+      originalFilename: 'head.zip',
+    });
+    artifactStore.size.mockResolvedValue(12);
+
+    const response = await artifactContentRoute.HEAD(
+      new NextRequest(`http://localhost/api/transfer-artifacts/${id}/content`, { method: 'HEAD' }),
+      { params: Promise.resolve({ id }) },
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-length')).toBe('12');
+    expect(response.headers.get('content-disposition')).toContain('head.zip');
+    expect(artifactStore.read).not.toHaveBeenCalled();
+  });
+
   it('returns 404 instead of opening a stream when the artifact file is missing', async () => {
     const id = randomUUID();
     artifactStore.read.mockClear();

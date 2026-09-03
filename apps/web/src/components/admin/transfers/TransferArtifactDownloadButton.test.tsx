@@ -54,11 +54,37 @@ describe('TransferArtifactDownloadButton', () => {
 
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/transfer-artifacts/missing/content',
-      { credentials: 'same-origin' },
+      { method: 'HEAD', credentials: 'same-origin' },
     );
     expect(window.location.href).toBe(currentUrl);
     expect(container.querySelector('[role="dialog"]')).not.toBeNull();
     expect(container.textContent).toContain('Download unavailable');
     expect(container.textContent).toContain('The export is no longer available.');
+  });
+
+  it('uses the native download after a successful availability probe', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 200,
+        headers: { 'content-disposition': 'attachment; filename="export.zip"' },
+      }),
+    );
+    const clickMock = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', fetchMock);
+
+    act(() => {
+      root.render(<TransferArtifactDownloadButton url="/api/transfer-artifacts/ready/content" />);
+    });
+    await act(async () => {
+      container.querySelector('button')!.click();
+      await Promise.resolve();
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      '/api/transfer-artifacts/ready/content',
+      { method: 'HEAD', credentials: 'same-origin' },
+    );
+    expect(clickMock).toHaveBeenCalledOnce();
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
   });
 });
