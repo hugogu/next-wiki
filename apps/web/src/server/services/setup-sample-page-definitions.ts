@@ -312,7 +312,27 @@ Keep the single value in an OpenClaw SecretRef. Never put secrets or Markdown in
 openclaw plugins install @next-wiki/openclaw-memory-wiki
 ~~~
 
-Configure the next-wiki origin, the Memory Wiki vault path, and the one SecretRef. The plugin scans root Markdown files and the standard \`entities/\`, \`concepts/\`, \`syntheses/\`, \`sources/\`, \`reports/\`, and \`_views/\` trees. Attachments and \`.openclaw-wiki\` state are excluded.
+Add the plugin to \`openclaw.json\` with the next-wiki origin, the Memory Wiki vault path, and one SecretRef for the Agent Memory provider key:
+
+~~~json
+{
+  "plugins": {
+    "entries": {
+      "next-wiki-memory-wiki": {
+        "enabled": true,
+        "config": {
+          "baseUrl": "https://kb.example.com",
+          "apiKeyRef": { "source": "env", "provider": "default", "id": "NEXT_WIKI_API_KEY" },
+          "vaultPath": "~/.openclaw/wiki/main",
+          "syncIntervalMinutes": 5
+        }
+      }
+    }
+  }
+}
+~~~
+
+\`baseUrl\` is the next-wiki origin only — never append \`/api/v1\`; a copied API base is auto-normalized. \`apiKeyRef\` accepts a plain string or an \`env\`/\`file\`/\`exec\` SecretRef; keep the key out of ordinary config files. The key needs the Agent Memory \`memory.write\` scope for synchronization and \`memory.read\` plus \`view\` for the \`next_wiki_search\`/\`next_wiki_get\` tools. Restart the gateway after changing config, then verify with \`next_wiki_status\`. Files larger than 512 KB are skipped with a warning instead of stalling the whole run. The plugin scans root Markdown files and the standard \`entities/\`, \`concepts/\`, \`syntheses/\`, \`sources/\`, \`reports/\`, and \`_views/\` trees. Attachments and \`.openclaw-wiki\` state are excluded.
 
 ## 3. Verify and retrieve
 
