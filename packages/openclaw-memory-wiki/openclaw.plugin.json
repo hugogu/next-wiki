@@ -15,40 +15,8 @@
         "format": "uri",
         "description": "next-wiki origin (HTTPS or loopback HTTP)"
       },
-      "mirrorApiKeyRef": {
-        "description": "OpenClaw SecretRef for the mirror key",
-        "anyOf": [
-          {
-            "type": "string"
-          },
-          {
-            "type": "object",
-            "additionalProperties": false,
-            "properties": {
-              "source": {
-                "enum": [
-                  "env",
-                  "file",
-                  "exec"
-                ]
-              },
-              "provider": {
-                "type": "string"
-              },
-              "id": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "source",
-              "provider",
-              "id"
-            ]
-          }
-        ]
-      },
-      "knowledgeApiKeyRef": {
-        "description": "OpenClaw SecretRef for the knowledge-search key",
+      "apiKeyRef": {
+        "description": "SecretRef for the generic Agent Memory provider key",
         "anyOf": [
           {
             "type": "string"
@@ -96,19 +64,14 @@
     },
     "required": [
       "baseUrl",
-      "mirrorApiKeyRef",
-      "knowledgeApiKeyRef",
+      "apiKeyRef",
       "vaultPath"
     ]
   },
   "uiHints": {
-    "mirrorApiKeyRef": {
+    "apiKeyRef": {
       "sensitive": true,
-      "label": "Mirror API key SecretRef"
-    },
-    "knowledgeApiKeyRef": {
-      "sensitive": true,
-      "label": "Knowledge search API key SecretRef"
+      "label": "Agent Memory provider API key SecretRef"
     }
   },
   "skills": [
@@ -140,11 +103,7 @@
     "secretInputs": {
       "paths": [
         {
-          "path": "mirrorApiKeyRef",
-          "expected": "string"
-        },
-        {
-          "path": "knowledgeApiKeyRef",
+          "path": "apiKeyRef",
           "expected": "string"
         }
       ]

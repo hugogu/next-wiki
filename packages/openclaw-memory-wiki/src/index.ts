@@ -25,22 +25,28 @@ type PluginRuntimeState = {
 };
 
 function hostSecretResolver(api: OpenClawPluginApi, path: string): SecretResolver {
-  // The OpenClaw runtime may pre-resolve SecretRefs in plugin config before
-  // invoking register(). When that happens, `ref` arrives as the already-resolved
-  // literal value (a non-empty string) instead of a SecretRef object. Pass
-  // through that case so plugins still start when eager resolution is enabled.
+  if (api.resolveSecretRef) return api.resolveSecretRef;
   return async (ref: SecretInput) => {
-    if (typeof ref === 'string' && ref.length > 0) return ref;
-    if (api.resolveSecretRef) return api.resolveSecretRef(ref);
     if (!api.config) throw new Error('OpenClaw runtime configuration is unavailable');
-    const value = await resolveRequiredConfiguredSecretRefInputString({
-      config: api.config as never,
-      env: process.env,
-      value: ref,
-      path,
-    });
-    if (!value) throw new Error(`${path} SecretRef is unresolved`);
-    return value;
+    let resolved: string | undefined;
+    try {
+      resolved = await resolveRequiredConfiguredSecretRefInputString({
+        config: api.config as never,
+        env: process.env,
+        value: ref,
+        path,
+      });
+    } catch {
+      // `ref` looked like a SecretRef (env shorthand, template, legacy marker,
+      // or object) but the runtime could not resolve it. Surface the original
+      // error rather than silently passing the unresolved string through.
+      throw new Error(`${path} SecretRef is unresolved`);
+    }
+    if (resolved !== undefined) return resolved;
+    // `ref` did not match any SecretRef shape — treat it as an already-resolved
+    // literal value forwarded by the runtime.
+    if (typeof ref === 'string' && ref.length > 0) return ref;
+    throw new Error(`${path} SecretRef is unresolved`);
   };
 }
 

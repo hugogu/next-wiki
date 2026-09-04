@@ -53,7 +53,8 @@
     "install": {
       "npmSpec": "@next-wiki/openclaw-memory-wiki@0.1.2",
       "minHostVersion": ">=2026.7.1-2"
-    }
+    },
+    "version": "0.1.2"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
