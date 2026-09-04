@@ -53,12 +53,17 @@ export class SyncService {
       return this.status;
     } finally { this.running = false; }
   }
+  private startRun(): void {
+    void this.run().catch(() => {
+      this.status = { ...this.status, state: 'degraded', failed: Math.max(1, this.status.failed), lastError: 'sync_failed' };
+    });
+  }
   private async withRetry<T>(operation: () => Promise<T>): Promise<T> {
     let last: unknown;
     for (let attempt = 0; attempt < 4; attempt++) { try { return await operation(); } catch (error) { last = error; if (!(error as { retryable?: boolean }).retryable) throw error; await new Promise((resolve) => setTimeout(resolve, Math.min(5_000, 250 * 2 ** attempt) + Math.random() * 150)); } }
     throw last;
   }
-  start() { if (!this.timer) this.timer = setInterval(() => { void this.run(); }, this.intervalMinutes * 60_000); void this.run(); }
+  start() { if (!this.timer) this.timer = setInterval(() => this.startRun(), this.intervalMinutes * 60_000); this.startRun(); }
   stop() { if (this.timer) clearInterval(this.timer); this.timer = undefined; }
   getStatus(): SyncStatus { return { ...this.status }; }
 }

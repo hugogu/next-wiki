@@ -4,6 +4,7 @@ import { NextWikiClient } from './client.js';
 import { SyncService } from './sync-service.js';
 import { createTools } from './tools.js';
 import { definePluginEntry } from 'openclaw/plugin-sdk/plugin-entry';
+import type { ToolRuntime } from './tools.js';
 
 export type OpenClawPluginApi = {
   id?: string;
@@ -15,6 +16,12 @@ export type OpenClawPluginApi = {
   registerSkill?: (path: string) => void;
   onShutdown?: (handler: () => void | Promise<void>) => void;
   logger?: { warn: (message: string) => void; error: (message: string) => void };
+};
+
+type PluginRuntimeState = {
+  initialization?: Promise<ToolRuntime>;
+  runtime?: ToolRuntime;
+  startupError?: string;
 };
 
 function hostSecretResolver(api: OpenClawPluginApi, path: string): SecretResolver {
@@ -32,22 +39,92 @@ function hostSecretResolver(api: OpenClawPluginApi, path: string): SecretResolve
   };
 }
 
-export async function register(api: OpenClawPluginApi): Promise<void> {
+function safeStartupError(error: unknown): string {
+  const message = error instanceof Error ? error.message.replace(/[\r\n]/gu, ' ').trim() : '';
+  const knownErrors = new Set([
+    'baseUrl must use HTTPS or loopback HTTP',
+    'API key SecretRef is required',
+    'vaultPath must point to an existing directory',
+    'syncIntervalMinutes must be between 1 and 1440',
+    'API key SecretRef resolved to an empty value',
+  ]);
+  if (knownErrors.has(message)) return message;
+  if (/secret|api[ -]?key|credential|token/iu.test(message)) return 'api_key_resolution_failed';
+  return 'plugin_startup_failed';
+}
+
+function reportStartupFailure(api: OpenClawPluginApi, error: unknown): void {
+  try {
+    api.logger?.error(`[next-wiki-memory-wiki] startup failed: ${safeStartupError(error)}`);
+  } catch {
+    // A logger failure must never become a second plugin startup failure.
+  }
+}
+
+function createRuntime(api: OpenClawPluginApi, pluginConfig: Partial<PluginConfig>): {
+  ensure: () => Promise<ToolRuntime>;
+  start: () => Promise<void>;
+  stop: () => void;
+  status: () => Promise<unknown>;
+} {
+  const state: PluginRuntimeState = {};
+  const ensure = async (): Promise<ToolRuntime> => {
+    if (state.runtime) return state.runtime;
+    state.initialization ??= (async () => {
+      const { config, apiKey } = await resolveConfig(pluginConfig, hostSecretResolver(api, `${api.id ?? 'next-wiki-memory-wiki'}.config`));
+      const client = new NextWikiClient({ baseUrl: config.baseUrl, apiKey });
+      const runtime: ToolRuntime = {
+        client,
+        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes),
+      };
+      state.runtime = runtime;
+      return runtime;
+    })().catch((error: unknown) => {
+      state.startupError = safeStartupError(error);
+      throw error;
+    });
+    return state.initialization;
+  };
+  const start = async (): Promise<void> => {
+    const { sync } = await ensure();
+    sync.start();
+  };
+  const stop = (): void => {
+    state.runtime?.sync.stop();
+  };
+  const status = async (): Promise<unknown> => {
+    try {
+      return (await ensure()).sync.getStatus();
+    } catch {
+      return { state: 'degraded', scanned: 0, uploaded: 0, unchanged: 0, failed: 1, lastError: state.startupError ?? 'plugin_startup_failed' };
+    }
+  };
+  return { ensure, start, stop, status };
+}
+
+/**
+ * OpenClaw invokes plugin registration synchronously. Async work belongs in a
+ * registered service (or an explicitly handled fallback), never in a detached
+ * Promise from this function.
+ */
+export function register(api: OpenClawPluginApi): void {
   const pluginConfig = api.pluginConfig ?? api.config;
   if (!pluginConfig?.enabled) return;
-  const { config, apiKey } = await resolveConfig(pluginConfig, hostSecretResolver(api, `${api.id ?? 'next-wiki-memory-wiki'}.config`));
-  const client = new NextWikiClient({ baseUrl: config.baseUrl, apiKey });
-  const sync = new SyncService(config.vaultPath, client, config.syncIntervalMinutes);
-  for (const definition of Object.values(createTools(client, sync))) {
+  const runtime = createRuntime(api, pluginConfig);
+  for (const definition of Object.values(createTools(runtime.ensure, runtime.status))) {
     api.registerTool(definition, { optional: definition.name === 'next_wiki_sync' });
   }
   api.registerSkill?.('./skills/next-wiki');
   if (api.registerService) {
-    api.registerService({ id: 'next-wiki-memory-wiki-sync', start: () => sync.start(), stop: () => sync.stop() });
+    api.registerService({
+      id: 'next-wiki-memory-wiki-sync',
+      start: () => runtime.start().catch((error: unknown) => { reportStartupFailure(api, error); }),
+      stop: runtime.stop,
+    });
   } else {
-    sync.start();
-    api.onShutdown?.(() => sync.stop());
+    void runtime.start().catch((error: unknown) => { reportStartupFailure(api, error); });
+    api.onShutdown?.(runtime.stop);
   }
 }
 
-export default definePluginEntry({ id: 'next-wiki-memory-wiki', name: 'next-wiki Memory Wiki', description: 'Mirror OpenClaw Memory Wiki into next-wiki and retrieve account knowledge.', register: (api) => { void register(api as unknown as OpenClawPluginApi); } });
+export default definePluginEntry({ id: 'next-wiki-memory-wiki', name: 'next-wiki Memory Wiki', description: 'Mirror OpenClaw Memory Wiki into next-wiki and retrieve account knowledge.', register: (api) => register(api as unknown as OpenClawPluginApi) });
