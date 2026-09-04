@@ -260,6 +260,46 @@ export const CreateApiKeyInput = z
   })
   .describe('Create an API key.');
 
+export const UpdateApiKeyInput = z
+  .object({
+    scopes: z
+      .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image', 'attachments', 'memory.read', 'memory.write', 'memory.delete']))
+      .min(1)
+      .optional()
+      .describe('Replacement permission scopes. At least one scope is required when provided; scopes must be unique.'),
+    spaceAccess: z
+      .array(z.enum(['wiki', 'raw', 'generated']))
+      .optional()
+      .describe('Replacement content-space grants. Wiki is always included; raw/generated require an admin owner.'),
+  })
+  .describe('Update an API key\'s permission grants. Provide scopes, spaceAccess, or both.');
+
+export const ApiKeyIdPathParams = z
+  .object({ id: z.string().uuid().describe('API key identifier.') });
+
+export const ApiKeyView = z
+  .object({
+    id: z.string().describe('API key identifier.'),
+    name: z.string().describe('Human-readable name for the API key.'),
+    scopes: z
+      .array(z.enum(['view', 'create', 'edit', 'delete', 'share', 'run', 'storage', 'preferences', 'transfers', 'manage_tags', 'ai.read', 'ai.image', 'attachments', 'memory.read', 'memory.write', 'memory.delete']))
+      .describe('Permission scopes granted to the key.'),
+    spaceAccess: z
+      .array(z.enum(['wiki', 'raw', 'generated']))
+      .describe('Content spaces the key may read, independent of scopes.'),
+    keyPrefix: z.string().describe('Non-secret prefix of the key, shown for identification.'),
+    createdAt: z.string().describe('Timestamp when the key was created.'),
+    revokedAt: z.string().nullable().describe('Timestamp when the key was revoked, or null if still active.'),
+    lastUsedAt: z.string().nullable().describe('Timestamp when the key was last used, or null if never used.'),
+    memoryDestination: z.object({
+      id: z.string().uuid(),
+      displayName: z.string(),
+      state: z.enum(['active', 'disabled']),
+      agentIdentity: z.string(),
+    }).nullable().optional().describe('Dedicated Agent memory destination, or null for a normal API key.'),
+  })
+  .describe('API key view without its secret.');
+
 export const ApiKeyViewList = z
   .array(
     z.object({

@@ -59,7 +59,7 @@ A personal credential for programmatic API access. Belongs to exactly one user.
 | `id` | uuid (pk) | default `gen_random_uuid()` | surrogate PK |
 | `user_id` | uuid | fk → users(id), not null | owner |
 | `name` | text | not null | user-supplied label (1–100 chars) |
-| `scopes` | apiKeyScope[] | not null | immutable set chosen at creation (FR-008); stored as PostgreSQL `text[]` with app-level validation against the enum |
+| `scopes` | apiKeyScope[] | not null | mutable permission set, always non-empty; stored as PostgreSQL `text[]` with app-level validation against the enum |
 | `key_prefix` | text | not null | non-secret visible prefix (first 12 chars of key, e.g. `nwk_aB3xY9zK`) for identification + indexed lookup |
 | `key_secret_encrypted` | text | not null | full key value encrypted with AES-256-GCM (includes nonce + tag, base64-encoded) — reversible on demand (FR-009, FR-010) |
 | `created_at` | timestamptz | not null default `now()` | |
@@ -80,10 +80,12 @@ A personal credential for programmatic API access. Belongs to exactly one user.
 - Key format: `nwk_` + base64url(32 random bytes) ≈ 48 chars. Generated
   server-side; user never provides the key value.
 
-**Immutability** (FR-008): after insert, `scopes` and `name` are never updated.
-The only mutable column is `revoked_at` (soft-delete equivalent for keys) and
-`last_used_at` (operational metadata). To change scopes, generate a new key and
-revoke the old one.
+**Mutable grants** (FR-008): the owner may update `scopes` and the independent
+content-space grant list on an active key. The update keeps the same encrypted
+secret and prefix, requires at least one scope, applies the same role and
+administrator-only checks as creation, and is rejected for revoked keys. The
+key `name`, encrypted secret, and prefix remain unchanged; `last_used_at` stays
+operational metadata.
 
 **Encryption details** (plan D3):
 - Encryption: AES-256-GCM with a random 12-byte nonce per key.

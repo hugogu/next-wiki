@@ -65,7 +65,7 @@ identity is shown while the key and response bodies are never printed.
 
 ### Tests for User Story 1
 
-- [X] T016 [P] [US1] Add API-key provisioning/reuse/rotation tests for owner-only destination selection and immutable memory scopes in `apps/web/src/server/services/api-keys.test.ts`.
+- [X] T016 [P] [US1] Add API-key provisioning/reuse/rotation tests for owner-only destination selection and memory-scope binding rules in `apps/web/src/server/services/api-keys.test.ts`.
 - [ ] T017 [P] [US1] Add connection and diagnostics route contract tests for valid, revoked, unbound, disabled, forbidden, incompatible, redirect, and timeout cases in `apps/web/app/api/v1/memory/connection/route.test.ts` and `apps/web/app/api/v1/memory/diagnostics/route.test.ts`.
 - [ ] T018 [P] [US1] Add UI tests for the Memory provider key preset, new-versus-shared destination choice, and scope explanations in `apps/web/src/components/user-center/ApiKeyCreateDialog.test.tsx`.
 - [X] T019 [P] [US1] Add provider discovery and no-network availability tests in `packages/hermes-memory-provider/tests/test_provider_registration.py` and `packages/hermes-memory-provider/tests/test_availability.py`.

@@ -277,7 +277,9 @@ curl \
 ```
 
 API keys combine the owner's role with explicit scopes, so a key cannot grant
-more access than its owner. API activity is recorded in the audit log.
+more access than its owner. Active keys can have their scopes and content-space
+access updated from User Center without changing the secret. API activity is
+recorded in the audit log.
 
 ### MCP server for external AI clients
 

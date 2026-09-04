@@ -5,7 +5,15 @@ import * as schema from '@/server/db/schema';
 import { DomainError } from '@/server/errors';
 import { encryptKey, decryptKey, constantTimeCompare } from '@/server/crypto/key-encryption';
 import type { PermCtx } from '@/server/permissions';
-import type { ApiKeyScope, ApiKeyView, ApiKeyCreated, ApiKeyReveal, CreateApiKeyInput, SpaceKind } from '@next-wiki/shared';
+import type {
+  ApiKeyScope,
+  ApiKeyView,
+  ApiKeyCreated,
+  ApiKeyReveal,
+  CreateApiKeyInput,
+  SpaceKind,
+  UpdateApiKeyInput,
+} from '@next-wiki/shared';
 
 const ADMIN_ONLY_SPACE_KINDS: readonly SpaceKind[] = ['raw', 'generated'];
 
@@ -17,6 +25,15 @@ const PREFIX_COLLISION_RETRIES = 3;
 
 type MemoryProviderKeyOptions = NonNullable<CreateApiKeyInput['memoryProvider']>;
 type MemoryDestination = NonNullable<ApiKeyView['memoryDestination']>;
+type ApiKeyRow = typeof schema.apiKeys.$inferSelect;
+type MemoryBindingWithNamespace = {
+  agentIdentity: string;
+  namespace: {
+    id: string;
+    displayName: string;
+    state: 'active' | 'disabled';
+  };
+};
 
 function generateKey(): string {
   const bytes = randomBytes(KEY_RANDOM_BYTES);
@@ -28,8 +45,32 @@ function extractPrefix(token: string): string {
   return token.slice(0, KEY_PREFIX_LENGTH);
 }
 
+function memoryDestinationFromBinding(binding: MemoryBindingWithNamespace | null | undefined): MemoryDestination | null {
+  if (!binding) return null;
+  return {
+    id: binding.namespace.id,
+    displayName: binding.namespace.displayName,
+    state: binding.namespace.state,
+    agentIdentity: binding.agentIdentity,
+  };
+}
+
+function toView(row: ApiKeyRow, memoryDestination: MemoryDestination | null): ApiKeyView {
+  return {
+    id: row.id,
+    name: row.name,
+    scopes: row.scopes,
+    spaceAccess: row.spaceAccess,
+    keyPrefix: row.keyPrefix,
+    createdAt: row.createdAt.toISOString(),
+    revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
+    lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
+    memoryDestination,
+  };
+}
+
 /**
- * Account-management operations (list/create/reveal/revoke) are session-only.
+ * Account-management operations (list/create/update/reveal/revoke) are session-only.
  * An API-key actor must never read, mint, reveal, or revoke keys — that would
  * let a key escalate (mint a broader sibling) or exfiltrate other keys.
  */
@@ -187,24 +228,11 @@ export async function list(ctx: PermCtx): Promise<ApiKeyView[]> {
         with: { namespace: true },
       })
     : [];
-  const destinations = new Map(bindings.map((binding) => [binding.apiKeyId, {
-    id: binding.namespace.id,
-    displayName: binding.namespace.displayName,
-    state: binding.namespace.state,
-    agentIdentity: binding.agentIdentity,
-  }]));
+  const destinations = new Map(
+    bindings.map((binding) => [binding.apiKeyId, memoryDestinationFromBinding(binding)!] as const),
+  );
 
-  return rows.map((row) => ({
-    id: row.id,
-    name: row.name,
-    scopes: row.scopes,
-    spaceAccess: row.spaceAccess,
-    keyPrefix: row.keyPrefix,
-    createdAt: row.createdAt.toISOString(),
-    revokedAt: row.revokedAt ? row.revokedAt.toISOString() : null,
-    lastUsedAt: row.lastUsedAt ? row.lastUsedAt.toISOString() : null,
-    memoryDestination: destinations.get(row.id) ?? null,
-  }));
+  return rows.map((row) => toView(row, destinations.get(row.id) ?? null));
 }
 
 export async function listMemoryDestinations(ctx: PermCtx): Promise<MemoryDestination[]> {
@@ -231,6 +259,70 @@ export async function reveal(ctx: PermCtx, keyId: string): Promise<ApiKeyReveal>
     id: row.id,
     keySecret: decryptKey(row.keySecretEncrypted),
   };
+}
+
+export async function update(ctx: PermCtx, keyId: string, input: UpdateApiKeyInput): Promise<ApiKeyView> {
+  const userId = requireUserId(ctx);
+  if (ctx.actor.kind !== 'user') {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to manage your API keys');
+  }
+  const row = await db.query.apiKeys.findFirst({
+    where: and(
+      eq(schema.apiKeys.id, keyId),
+      eq(schema.apiKeys.userId, userId),
+      isNull(schema.apiKeys.revokedAt),
+    ),
+  });
+
+  if (!row) {
+    throw new DomainError('NOT_FOUND', 'Active API key not found');
+  }
+
+  const scopes = input.scopes ?? row.scopes;
+  if (scopes.length === 0 || new Set(scopes).size !== scopes.length) {
+    throw new DomainError('BAD_REQUEST', 'At least one unique scope is required');
+  }
+
+  const spaceAccess = Array.from(new Set(['wiki', ...(input.spaceAccess ?? row.spaceAccess)])) as SpaceKind[];
+  const addedAdminOnlySpace = spaceAccess.some(
+    (kind) => ADMIN_ONLY_SPACE_KINDS.includes(kind) && !row.spaceAccess.includes(kind),
+  );
+  if (addedAdminOnlySpace && ctx.actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'Only admins may grant raw/generated space access to an API key');
+  }
+
+  const addedMemoryScope = scopes.some(
+    (scope) => scope.startsWith('memory.') && !row.scopes.includes(scope),
+  );
+  if (addedMemoryScope && ctx.actor.role !== 'admin') {
+    throw new DomainError('FORBIDDEN', 'Only administrators may grant Agent memory scopes');
+  }
+
+  const memoryBinding = await db.query.agentMemoryKeyBindings.findFirst({
+    where: eq(schema.agentMemoryKeyBindings.apiKeyId, keyId),
+    with: { namespace: true },
+  });
+  if (scopes.some((scope) => scope.startsWith('memory.')) && !memoryBinding) {
+    throw new DomainError('BAD_REQUEST', 'Agent memory scopes require a bound Agent memory destination');
+  }
+
+  const [updated] = await db
+    .update(schema.apiKeys)
+    .set({ scopes, spaceAccess })
+    .where(
+      and(
+        eq(schema.apiKeys.id, keyId),
+        eq(schema.apiKeys.userId, userId),
+        isNull(schema.apiKeys.revokedAt),
+      ),
+    )
+    .returning();
+
+  if (!updated) {
+    throw new DomainError('NOT_FOUND', 'Active API key not found');
+  }
+
+  return toView(updated, memoryDestinationFromBinding(memoryBinding));
 }
 
 export async function revoke(ctx: PermCtx, keyId: string): Promise<void> {

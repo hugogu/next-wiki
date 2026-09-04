@@ -14,8 +14,9 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
-import { PlusIcon, TrashIcon, EyeIcon } from '@/components/icons';
+import { PlusIcon, TrashIcon, EyeIcon, EditIcon } from '@/components/icons';
 import { ApiKeyCreateDialog } from './ApiKeyCreateDialog';
+import { ApiKeyEditDialog } from './ApiKeyEditDialog';
 import { ApiKeyReveal } from './ApiKeyReveal';
 
 interface ApiKeyListProps {
@@ -32,6 +33,7 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
   const [revealTitle, setRevealTitle] = useState('');
   const [revokingId, setRevokingId] = useState<string | null>(null);
   const [revokeTarget, setRevokeTarget] = useState<ApiKeyView | null>(null);
+  const [editTarget, setEditTarget] = useState<ApiKeyView | null>(null);
   const [revokeError, setRevokeError] = useState('');
 
   const refresh = async () => {
@@ -42,6 +44,10 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
   const handleCreated = (key: ApiKeyCreated) => {
     setCreatedKey(key);
     refresh();
+  };
+
+  const handleUpdated = (updated: ApiKeyView) => {
+    setKeys((previous) => previous.map((key) => (key.id === updated.id ? updated : key)));
   };
 
   const handleReveal = async (key: ApiKeyView) => {
@@ -152,6 +158,15 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
                             <Button
                               type="button"
                               variant="ghost"
+                              onClick={() => setEditTarget(key)}
+                              title={t('userCenter.apiKeys.edit')}
+                              aria-label={t('userCenter.apiKeys.edit')}
+                            >
+                              <EditIcon />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
                               onClick={() => handleReveal(key)}
                               title={t('userCenter.apiKeys.reveal')}
                               aria-label={t('userCenter.apiKeys.reveal')}
@@ -184,6 +199,15 @@ export function ApiKeyList({ initialKeys, currentUserIsAdmin }: ApiKeyListProps)
           onClose={() => setCreateOpen(false)}
           onCreated={handleCreated}
           currentUserIsAdmin={currentUserIsAdmin}
+        />
+      )}
+
+      {editTarget && (
+        <ApiKeyEditDialog
+          apiKey={editTarget}
+          currentUserIsAdmin={currentUserIsAdmin}
+          onClose={() => setEditTarget(null)}
+          onUpdated={handleUpdated}
         />
       )}
 

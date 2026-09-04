@@ -228,6 +228,71 @@ describe('api-keys service', () => {
     });
   });
 
+  describe('update', () => {
+    it('updates scopes and space access while preserving the key secret and prefix', async () => {
+      const user = await createTestUser('apikey-update@example.com');
+      await db.update(schema.users).set({ role: 'admin' }).where(eq(schema.users.id, user.id));
+      const ctx = buildUserCtx(user.id, 'admin');
+      const created = await apiKeyService.create(ctx, 'update-key', ['view']);
+      const before = await db.query.apiKeys.findFirst({ where: eq(schema.apiKeys.id, created.id) });
+
+      const updated = await apiKeyService.update(ctx, created.id, {
+        scopes: ['view', 'create'],
+        spaceAccess: ['raw'],
+      });
+
+      expect(updated).toMatchObject({
+        id: created.id,
+        scopes: ['view', 'create'],
+        spaceAccess: ['wiki', 'raw'],
+      });
+      expect(updated).not.toHaveProperty('keySecret');
+      expect(updated.keyPrefix).toBe(created.keyPrefix);
+
+      const resolved = await apiKeyService.lookupByToken(created.keySecret);
+      expect(resolved).toMatchObject({
+        keyId: created.id,
+        scopes: ['view', 'create'],
+        spaceAccess: ['wiki', 'raw'],
+      });
+      const row = await db.query.apiKeys.findFirst({ where: eq(schema.apiKeys.id, created.id) });
+      expect(row!.keySecretEncrypted).not.toBe(created.keySecret);
+      expect(row!.keySecretEncrypted).toBe(before!.keySecretEncrypted);
+      expect(row!.keyPrefix).toBe(created.keyPrefix);
+    });
+
+    it('rejects admin-only space grants from a non-admin owner', async () => {
+      const user = await createTestUser('apikey-update-space-editor@example.com');
+      await db.update(schema.users).set({ role: 'editor' }).where(eq(schema.users.id, user.id));
+      const ctx = buildUserCtx(user.id, 'editor');
+      const created = await apiKeyService.create(ctx, 'editor-key', ['view']);
+
+      await expect(
+        apiKeyService.update(ctx, created.id, { spaceAccess: ['wiki', 'raw'] }),
+      ).rejects.toThrow(DomainError);
+    });
+
+    it('does not let a regular key acquire Agent memory scopes without a binding', async () => {
+      const user = await createTestUser('apikey-update-memory@example.com');
+      const ctx = buildUserCtx(user.id, user.role);
+      const created = await apiKeyService.create(ctx, 'regular-key', ['view']);
+
+      await expect(
+        apiKeyService.update(ctx, created.id, { scopes: ['view', 'memory.read'] }),
+      ).rejects.toThrow(DomainError);
+    });
+
+    it('does not let an API-key actor update a key', async () => {
+      const user = await createTestUser('apikey-update-actor@example.com');
+      const userCtx = buildUserCtx(user.id, user.role);
+      const created = await apiKeyService.create(userCtx, 'owned-key', ['view']);
+
+      await expect(
+        apiKeyService.update(buildApiKeyCtx(user.id, user.role, ['view'], created.id), created.id, { scopes: ['edit'] }),
+      ).rejects.toThrow(DomainError);
+    });
+  });
+
   describe('lookupByToken', () => {
     it('resolves a valid key', async () => {
       const user = await createTestUser('apikey-lookup@example.com');

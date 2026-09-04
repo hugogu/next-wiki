@@ -129,7 +129,7 @@ Represents an uploaded asset.
 ## API Key Actor
 
 Existing actor representation combining key identity, owning user id, owning
-user role, and immutable scopes.
+user role, and the key's current scopes.
 
 ### Permission Mapping
 

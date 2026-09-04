@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { apiKeyScopeSchema, createApiKeyInputSchema } from './api-keys';
+import { apiKeyScopeSchema, createApiKeyInputSchema, updateApiKeyInputSchema } from './api-keys';
 
 describe('API-key scopes', () => {
   it('includes the narrow image-generation scope', () => {
@@ -21,5 +21,11 @@ describe('API-key scopes', () => {
       spaceAccess: ['wiki', 'raw'],
       memoryProvider: { agentIdentity: 'openclaw' },
     });
+  });
+
+  it('accepts partial updates to scopes or space access, but not an empty update', () => {
+    expect(updateApiKeyInputSchema.parse({ scopes: ['view', 'edit'] })).toEqual({ scopes: ['view', 'edit'] });
+    expect(updateApiKeyInputSchema.parse({ spaceAccess: ['wiki', 'raw'] })).toEqual({ spaceAccess: ['wiki', 'raw'] });
+    expect(updateApiKeyInputSchema.safeParse({}).success).toBe(false);
   });
 });

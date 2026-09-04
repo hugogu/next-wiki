@@ -2106,6 +2106,19 @@
         ],
         "description": "API key creation response, including the one-time secret value."
       },
+      "ApiKeyIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "API key identifier."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "ApiKeyReveal": {
         "type": "object",
         "properties": {
@@ -2123,6 +2136,121 @@
           "keySecret"
         ],
         "description": "API key secret reveal response."
+      },
+      "ApiKeyView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "API key identifier."
+          },
+          "name": {
+            "type": "string",
+            "description": "Human-readable name for the API key."
+          },
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "view",
+                "create",
+                "edit",
+                "delete",
+                "share",
+                "run",
+                "storage",
+                "preferences",
+                "transfers",
+                "manage_tags",
+                "ai.read",
+                "ai.image",
+                "attachments",
+                "memory.read",
+                "memory.write",
+                "memory.delete"
+              ]
+            },
+            "description": "Permission scopes granted to the key."
+          },
+          "spaceAccess": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wiki",
+                "raw",
+                "generated"
+              ]
+            },
+            "description": "Content spaces the key may read, independent of scopes."
+          },
+          "keyPrefix": {
+            "type": "string",
+            "description": "Non-secret prefix of the key, shown for identification."
+          },
+          "createdAt": {
+            "type": "string",
+            "description": "Timestamp when the key was created."
+          },
+          "revokedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the key was revoked, or null if still active."
+          },
+          "lastUsedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp when the key was last used, or null if never used."
+          },
+          "memoryDestination": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "properties": {
+              "id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "displayName": {
+                "type": "string"
+              },
+              "state": {
+                "type": "string",
+                "enum": [
+                  "active",
+                  "disabled"
+                ]
+              },
+              "agentIdentity": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "id",
+              "displayName",
+              "state",
+              "agentIdentity"
+            ],
+            "description": "Dedicated Agent memory destination, or null for a normal API key."
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "scopes",
+          "spaceAccess",
+          "keyPrefix",
+          "createdAt",
+          "revokedAt",
+          "lastUsedAt"
+        ],
+        "description": "API key view without its secret."
       },
       "ApiKeyViewList": {
         "type": "array",
@@ -11049,6 +11177,50 @@
         "required": [
           "providers"
         ]
+      },
+      "UpdateApiKeyInput": {
+        "type": "object",
+        "properties": {
+          "scopes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "view",
+                "create",
+                "edit",
+                "delete",
+                "share",
+                "run",
+                "storage",
+                "preferences",
+                "transfers",
+                "manage_tags",
+                "ai.read",
+                "ai.image",
+                "attachments",
+                "memory.read",
+                "memory.write",
+                "memory.delete"
+              ]
+            },
+            "minItems": 1,
+            "description": "Replacement permission scopes. At least one scope is required when provided; scopes must be unique."
+          },
+          "spaceAccess": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "wiki",
+                "raw",
+                "generated"
+              ]
+            },
+            "description": "Replacement content-space grants. Wiki is always included; raw/generated require an admin owner."
+          }
+        },
+        "description": "Update an API key's permission grants. Provide scopes, spaceAccess, or both."
       },
       "UpdatePreferencesInput": {
         "type": "object",
@@ -25442,6 +25614,49 @@
       }
     },
     "/api-keys/{id}": {
+      "patch": {
+        "operationId": "patch-api-keys-{id}",
+        "summary": "Update API key permissions",
+        "description": "Updates the active user's API key scopes and/or content-space access without changing the key secret. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "User"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "API key identifier."
+            },
+            "description": "API key identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateApiKeyInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiKeyView"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "operationId": "delete-api-keys-{id}",
         "summary": "Revoke API key",
@@ -25451,14 +25666,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "API key identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "API key identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {

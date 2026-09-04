@@ -466,7 +466,7 @@ receive a 403.
   tracking progress, item counts, verification results, status (pending,
   running, verifying, completed, failed, aborted), and the outcome that
   determines whether cutover occurs.
-- **API Key Scope (extended)**: the existing immutable per-key permission set,
+- **API Key Scope (extended)**: the existing mutable per-key permission set,
   now including `storage` and `preferences` in addition to `view`, `create`,
   `edit`, `delete`, `share`, `run`.
 

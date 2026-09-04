@@ -3,7 +3,7 @@
 **Feature Branch**: `002-user-center-api-keys`
 **Created**: 2026-06-18
 **Status**: Implemented
-**Input**: User description: "通过开源框架 next-openapi-gen 支持在线 api-docs 文档与 OpenAPI 接口元数据。建立用户中心，提供用户配置（昵称、邮箱修改）、密码重置、显示偏好（风格、语言）、个人 API 密钥生成及删除。API Key 需预置 Scope 控制（查看、创建、编辑、删除、分享、运行页面权限），Scope 不可变更，只能生成新 Key，暂不需要有效期控制。所有通过 Key 的 API 访问需有独立审计记录，用户可在用户中心查看自己的 Key 调用记录，系统管理员可在系统配置页面查看及查询所有 API 访问记录（包括报错）。所有新页面遵循现有 Style 及多语言支持。"
+**Input**: User description: "通过开源框架 next-openapi-gen 支持在线 api-docs 文档与 OpenAPI 接口元数据。建立用户中心，提供用户配置（昵称、邮箱修改）、密码重置、显示偏好（风格、语言）、个人 API 密钥生成及删除。API Key 需预置 Scope 控制（查看、创建、编辑、删除、分享、运行页面权限），并允许在不更换 secret 的情况下修改 Scope 和内容空间访问范围，暂不需要有效期控制。所有通过 Key 的 API 访问需有独立审计记录，用户可在用户中心查看自己的 Key 调用记录，系统管理员可在系统配置页面查看及查询所有 API 访问记录（包括报错）。所有新页面遵循现有 Style 及多语言支持。"
 
 ## Implementation Notes
 
@@ -123,8 +123,8 @@ page list. Then try `DELETE /api/pages/{path}` with the same key and receive a
 
 1. **Given** a signed-in user, **When** they create a new API key with a name
    and a selected set of scopes, **Then** the key value is displayed at creation
-   and the key is saved with the chosen (immutable) scopes. The user can later
-   reveal the key value from the key list.
+   and the key is saved with the chosen scopes. The user can later reveal the
+   key value from the key list.
 2. **Given** an API key with the `view` scope owned by an editor, **When** a
    client calls `GET /api/pages` with the key as a Bearer token, **Then** the
    request succeeds and returns the published page list.
@@ -136,9 +136,10 @@ page list. Then try `DELETE /api/pages/{path}` with the same key and receive a
    because the owner's role does not permit creation (scope ∩ role = ∅).
 5. **Given** a revoked (deleted) key, **When** the client calls any endpoint,
    **Then** the request is denied with 401.
-6. **Given** the user already created a key, **When** they try to change the
-   scope of that key, **Then** no such operation is offered; they must generate
-   a new key instead.
+6. **Given** the user already created an active key, **When** they update its
+   scopes or content-space access, **Then** the grants are updated immediately,
+   the same key secret and prefix remain valid, and the update is recorded by
+   the API audit boundary.
 
 ---
 
@@ -265,14 +266,19 @@ correctly.
 
 - **FR-006**: System MUST let a signed-in user generate personal API keys from
   the User Center. Each key has a user-supplied label (name) and a selected set
-  of scopes chosen at creation.
+  of scopes chosen at creation; active-key permission grants can be updated
+  later without rotating the secret.
 - **FR-007**: System MUST define the following predefined page-permission scopes:
   `view` (查看), `create` (创建), `edit` (编辑), `delete` (删除), `share` (分享),
   `run` (运行). Additional scopes MAY be added in future slices without
   migration.
-- **FR-008**: Key scopes MUST be immutable after creation. To change the
-  permission set, the user generates a new key and revokes the old one. No
-  in-place scope editing is exposed.
+- **FR-008**: The owner MUST be able to update an active key's scopes and
+  content-space access in place without changing its secret or prefix. An
+  update MUST retain at least one scope, apply the same scope-intersection and
+  administrator-only space rules as key creation, and take effect on the next
+  authenticated request. Revoked keys MUST NOT be editable. Agent Memory
+  scopes MUST remain bound to an existing Agent Memory destination, and a
+  non-administrator MUST NOT add Agent Memory or Raw/Generated grants.
 - **FR-009**: System MUST store the key secret encrypted (reversible) so that
   users can reveal the full key value from the key list at any time. The reveal
   action MUST require an explicit user interaction (e.g., a "show" button) to
@@ -343,12 +349,12 @@ correctly.
 ### Key Entities *(include if feature involves data)*
 
 - **API Key**: a personal credential issued to a user for programmatic API
-  access. Has a user-given label (name), an immutable set of scopes chosen at
-  creation, an encrypted secret (revisitable via a reveal action in the key
+  access. Has a user-given label (name), a mutable set of scopes and content
+  space grants, an encrypted secret (revisitable via a reveal action in the key
   list), a non-secret visible prefix for quick identification, a creation
   timestamp, and a revocation timestamp (null while active). Belongs to exactly
   one user. Scopes are drawn from a predefined enum (`view`, `create`, `edit`,
-  `delete`, `share`, `run`).
+  `delete`, `share`, `run`) and updates do not rotate the secret.
 - **API Audit Entry**: an immutable record of a single API request made with an
   API key. Captures the key, the owning user, the HTTP method and path, the
   response status code, the request duration, a timestamp, and a short error

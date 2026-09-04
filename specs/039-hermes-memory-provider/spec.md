@@ -199,7 +199,7 @@ operations fail safely while previously stored Wiki records remain intact.
 
 1. **Given** the provider calls the Wiki, **When** an operation is accepted or
    rejected, **Then** the Wiki applies the API key owner's role together with
-   the key's immutable scopes and records the operation in the existing audit
+   the key's current scopes and records the operation in the existing audit
    trail without recording the secret.
 2. **Given** the owner revokes or restricts the provider's API key, **When**
    Hermes next contacts the Wiki, **Then** the operation is denied before it
@@ -257,7 +257,7 @@ operations fail safely while previously stored Wiki records remain intact.
   credential as a visible command-line argument.
 - **FR-006**: Connection validation and normal provider operations MUST use the
   existing versioned Wiki API and a dedicated API key; they MUST honor the
-  key's immutable scopes and owner role and MUST NOT reuse browser sessions,
+  key's current scopes and owner role and MUST NOT reuse browser sessions,
   database credentials, or a privileged internal interface.
 - **FR-007**: The provider MUST expose Hermes memory capabilities for relevant
   recall, explicit memory save, and reversible forgetting. Each capability MUST

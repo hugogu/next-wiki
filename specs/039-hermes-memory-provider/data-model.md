@@ -36,8 +36,9 @@ authorization, provenance, and retry projections.
 
 ### API Key
 
-Existing `api_keys` keeps the encrypted secret, immutable scopes, owner, revocation
-state, and last-used timestamp. It gains the dedicated scope values
+Existing `api_keys` keeps the encrypted secret, mutable scopes, owner, revocation
+state, and last-used timestamp. Permission updates keep the same secret and
+prefix. It gains the dedicated scope values
 `memory.read`, `memory.write`, and `memory.delete`.
 
 The provider does not receive a browser session, database credential, or generic

@@ -79,6 +79,26 @@ test.describe('api keys', () => {
     await expect(row.getByText('Attachments', { exact: true })).toBeVisible();
   });
 
+  test('allows an active key to update its scopes without rotating the secret', async ({ page }) => {
+    const timestamp = Date.now();
+    await register(page, `api-key-edit-${timestamp}@example.com`, 'Password123!');
+    const secret = await createApiKey(page, 'Editable permissions', ['View']);
+
+    await page.goto('/user-center/api-keys');
+    const row = page.locator('tr', { hasText: 'Editable permissions' });
+    const prefix = await row.locator('td').nth(3).textContent();
+    await row.getByRole('button', { name: 'Edit permissions' }).click();
+    await page.getByRole('checkbox', { name: /^Create/ }).check();
+    await page.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(row.getByText('Create', { exact: true })).toBeVisible();
+    await expect(row.locator('td').nth(3)).toHaveText(prefix!.trim());
+    const listResponse = await page.request.get('/api/v1/pages', {
+      headers: { Authorization: `Bearer ${secret}` },
+    });
+    expect(listResponse.status()).toBe(200);
+  });
+
   test('view scope key can read but not write; create scope as reader is role-denied; revocation blocks access and audit logs attempts', async ({ page }) => {
     const timestamp = Date.now();
     const email = `api-keys-${timestamp}@example.com`;

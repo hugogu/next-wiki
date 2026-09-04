@@ -64,6 +64,27 @@ export const createApiKeyInputSchema = z.object({
 });
 export type CreateApiKeyInput = z.infer<typeof createApiKeyInputSchema>;
 
+export const updateApiKeyInputSchema = z
+  .object({
+    scopes: z
+      .array(apiKeyScopeSchema)
+      .min(1, 'At least one scope is required')
+      .refine((items) => items.length === new Set(items).size, {
+        message: 'Scopes must be unique',
+      })
+      .optional(),
+    spaceAccess: z
+      .array(spaceKindSchema)
+      .refine((items) => items.length === new Set(items).size, {
+        message: 'Space access entries must be unique',
+      })
+      .optional(),
+  })
+  .refine((value) => value.scopes !== undefined || value.spaceAccess !== undefined, {
+    message: 'At least one API key permission field must be provided',
+  });
+export type UpdateApiKeyInput = z.infer<typeof updateApiKeyInputSchema>;
+
 export const apiKeyViewSchema = z.object({
   id: z.string(),
   name: z.string(),

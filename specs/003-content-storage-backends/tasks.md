@@ -261,7 +261,7 @@ all calls appear in audit logs.
 ### Tests for User Story 4
 
 - [X] T080 [P] [US4] Add permission-matrix tests for `manage_storage` and self-only `manage_preferences` across session and API-key actors in `apps/web/src/server/permissions/permissions.test.ts`
-- [X] T081 [P] [US4] Add API-key service tests for creating, listing, revealing, and validating keys carrying the new immutable scopes in `apps/web/src/server/services/api-keys.test.ts`
+- [X] T081 [P] [US4] Add API-key service tests for creating, listing, revealing, and validating keys carrying the new scopes in `apps/web/src/server/services/api-keys.test.ts`
 - [X] T082 [P] [US4] Add preference-service tests for scoped API-key self-updates and missing-scope denial in `apps/web/src/server/services/user-center.test.ts`
 - [X] T083 [P] [US4] Add Playwright/API coverage for scope selection, storage role intersection, preference updates, 403 responses, and audit entries in `apps/web/e2e/content-storage-scopes.spec.ts`
 
