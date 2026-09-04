@@ -36,11 +36,12 @@ function hostSecretResolver(api: OpenClawPluginApi, path: string): SecretResolve
         value: ref,
         path,
       });
-    } catch {
+    } catch (error) {
       // `ref` looked like a SecretRef (env shorthand, template, legacy marker,
-      // or object) but the runtime could not resolve it. Surface the original
-      // error rather than silently passing the unresolved string through.
-      throw new Error(`${path} SecretRef is unresolved`);
+      // or object) but the runtime could not resolve it. Surface a clear
+      // message while preserving the underlying failure as `cause` so the
+      // root reason stays available for debugging.
+      throw new Error(`${path} SecretRef is unresolved`, { cause: error });
     }
     if (resolved !== undefined) return resolved;
     // `ref` did not match any SecretRef shape — treat it as an already-resolved

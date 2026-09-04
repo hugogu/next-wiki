@@ -68,12 +68,18 @@ describe('hostSecretResolver accepts both SecretRef and pre-resolved literal inp
   });
 
   it('surfaces an error when a SecretRef-shaped input cannot be resolved by the fallback', async () => {
-    // '$MISSING_KEY' parses as an env SecretRef; env var MISSING_KEY is not set,
-    // so the fallback resolver must throw and the startup must report
-    // 'api_key_resolution_failed' (message contains "SecretRef").
-    const h = startOnce({ apiKeyRef: '$MISSING_KEY' });
-    await h.service.start();
-    expect(h.logger.error).toHaveBeenCalledWith(expect.stringContaining('api_key_resolution_failed'));
-    h.service.stop();
+    // '$MISSING_KEY' parses as an env SecretRef. Delete the env var explicitly
+    // (and restore afterwards) so the test does not depend on the surrounding
+    // environment having left it unset.
+    const original = process.env.MISSING_KEY;
+    delete process.env.MISSING_KEY;
+    try {
+      const h = startOnce({ apiKeyRef: '$MISSING_KEY' });
+      await h.service.start();
+      expect(h.logger.error).toHaveBeenCalledWith(expect.stringContaining('api_key_resolution_failed'));
+      h.service.stop();
+    } finally {
+      if (original !== undefined) process.env.MISSING_KEY = original;
+    }
   });
 });
