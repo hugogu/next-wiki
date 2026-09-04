@@ -34,7 +34,10 @@ export async function resolveConfig(input: Partial<PluginConfig>, resolveSecret:
   if (!Number.isInteger(syncIntervalMinutes) || syncIntervalMinutes < 1 || syncIntervalMinutes > 1440) throw new Error('syncIntervalMinutes must be between 1 and 1440');
   const apiKey = await resolveSecret(input.apiKeyRef);
   if (!apiKey) throw new Error('API key SecretRef resolved to an empty value');
-  return { config: { baseUrl: input.baseUrl!.replace(/\/$/u, ''), apiKeyRef: input.apiKeyRef, vaultPath, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
+  // Tolerate a copied API base: the client already prefixes every request path
+  // with /api/v1, so a configured baseUrl carrying that suffix would double it.
+  const baseUrl = input.baseUrl!.replace(/\/api(?:\/v\d+)?\/?$/u, '').replace(/\/$/u, '');
+  return { config: { baseUrl, apiKeyRef: input.apiKeyRef, vaultPath, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
 }
 
 export function redactConfig(config: PluginConfig): Omit<PluginConfig, 'apiKeyRef'> & { apiKeyRef: '[secret]' } {
