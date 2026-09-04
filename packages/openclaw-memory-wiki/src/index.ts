@@ -25,8 +25,13 @@ type PluginRuntimeState = {
 };
 
 function hostSecretResolver(api: OpenClawPluginApi, path: string): SecretResolver {
-  if (api.resolveSecretRef) return api.resolveSecretRef;
+  // The OpenClaw runtime may pre-resolve SecretRefs in plugin config before
+  // invoking register(). When that happens, `ref` arrives as the already-resolved
+  // literal value (a non-empty string) instead of a SecretRef object. Pass
+  // through that case so plugins still start when eager resolution is enabled.
   return async (ref: SecretInput) => {
+    if (typeof ref === 'string' && ref.length > 0) return ref;
+    if (api.resolveSecretRef) return api.resolveSecretRef(ref);
     if (!api.config) throw new Error('OpenClaw runtime configuration is unavailable');
     const value = await resolveRequiredConfiguredSecretRefInputString({
       config: api.config as never,
