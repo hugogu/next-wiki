@@ -30,4 +30,17 @@ describe('scanVault', () => {
     await symlink(join(root, 'safe.md'), join(root, 'linked.md'));
     await expect(scanVault(root)).rejects.toThrow('Symlinks are not allowed');
   });
+
+  it('skips oversized files with a warning instead of aborting the scan', async () => {
+    const root = await fixture();
+    await writeFile(join(root, 'entities', 'Huge.md'), `# Huge\n\n${'x'.repeat(520_000)}\n`);
+    const warnings: Array<[string, string]> = [];
+    const docs = await scanVault(root, 512_000, (sourcePath, reason) => warnings.push([sourcePath, reason]));
+    expect(docs.map((doc) => doc.sourcePath)).toEqual(['AGENTS.md', 'entities/Alex.md']);
+    expect(warnings).toEqual([['entities/Huge.md', 'too_large']]);
+  });
+
+  it('still throws when the vault path escapes the root', async () => {
+    await expect(scanVault('/nonexistent-vault-root-xyz')).rejects.toThrow();
+  });
 });

@@ -10,7 +10,11 @@ function isInside(root: string, candidate: string): boolean {
   return rel === '' || (!rel.startsWith(`..${sep}`) && rel !== '..');
 }
 
-export async function scanVault(vaultPath: string, maxBytes = 512_000): Promise<VaultDocument[]> {
+function toSourcePath(root: string, fullPath: string): string {
+  return relative(root, fullPath).split(sep).join('/');
+}
+
+export async function scanVault(vaultPath: string, maxBytes = 512_000, onSkip?: (sourcePath: string, reason: 'too_large' | 'changed_during_scan') => void): Promise<VaultDocument[]> {
   const root = await resolve(vaultPath);
   const documents: VaultDocument[] = [];
   async function walk(directory: string): Promise<void> {
@@ -24,13 +28,17 @@ export async function scanVault(vaultPath: string, maxBytes = 512_000): Promise<
       if (stat.isSymbolicLink()) throw new Error(`Symlinks are not allowed in the Memory Wiki vault: ${entry.name}`);
       if (stat.isDirectory()) { await walk(fullPath); continue; }
       if (!stat.isFile() || !entry.name.toLocaleLowerCase().endsWith('.md')) continue;
-      if (stat.size > maxBytes) throw new Error(`Markdown file exceeds the configured limit: ${relative(root, fullPath)}`);
+      if (stat.size > maxBytes) {
+        onSkip?.(toSourcePath(root, fullPath), 'too_large');
+        continue;
+      }
       const content = await readFile(fullPath, 'utf8');
       const after = await lstat(fullPath);
       if (after.size !== stat.size || after.mtimeMs !== stat.mtimeMs) {
-        throw new Error(`Markdown file changed during scan: ${relative(root, fullPath)}`);
+        onSkip?.(toSourcePath(root, fullPath), 'changed_during_scan');
+        continue;
       }
-      const sourcePath = relative(root, fullPath).split(sep).join('/');
+      const sourcePath = toSourcePath(root, fullPath);
       documents.push({ sourcePath, content, sourceDigest: createHash('sha256').update(content, 'utf8').digest('hex'), sizeBytes: stat.size });
     }
   }

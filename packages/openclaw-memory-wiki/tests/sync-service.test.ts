@@ -10,11 +10,19 @@ describe('SyncService', () => {
     const vault = join(parent, 'vault');
     await mkdir(vault);
     await writeFile(join(vault, 'AGENTS.md'), '# Alex\n');
-    const client = { mirror: vi.fn(async () => ({ outcome: 'created', sourcePath: 'AGENTS.md', pageId: 'p', revisionId: 'r' })) };
+    const client = { mirror: vi.fn(async (_document: { sourcePath: string; content: string; sourceDigest: string; idempotencyKey: string }) => ({ outcome: 'created', sourcePath: 'AGENTS.md', pageId: 'p', revisionId: 'r' })) };
     const service = new SyncService(vault, client as never, 60);
 
-    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, unchanged: 0, failed: 0 });
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, unchanged: 0, failed: 0, skipped: 0 });
     expect(client.mirror).toHaveBeenCalledTimes(1);
+    // The mirror payload must carry only the fields the server schema accepts —
+    // scanner-internal metadata such as sizeBytes is rejected with 422.
+    expect(client.mirror.mock.calls[0]?.[0]).toEqual({
+      sourcePath: 'AGENTS.md',
+      content: '# Alex\n',
+      sourceDigest: expect.stringMatching(/^[a-f0-9]{64}$/) as unknown as string,
+      idempotencyKey: expect.stringMatching(/^AGENTS\.md:[a-f0-9]{64}$/) as unknown as string,
+    });
     const journal = JSON.parse(await readFile(join(parent, '.openclaw-wiki-next-wiki-sync.json'), 'utf8')) as { completed: Record<string, string> };
     expect(journal.completed['AGENTS.md']).toMatch(/^[a-f0-9]{64}$/);
 
@@ -33,6 +41,35 @@ describe('SyncService', () => {
 
     await expect(service.run()).resolves.toMatchObject({ state: 'degraded', scanned: 1, uploaded: 0, unchanged: 0, failed: 1 });
     expect(service.getStatus().lastError).toBe('unavailable');
+  });
+
+  it('reports scan-level failures instead of hanging silent', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-scanfail-'));
+    const vaultAsFile = join(parent, 'vault.md');
+    await writeFile(vaultAsFile, '# not a directory\n');
+    const client = { mirror: vi.fn() };
+    const service = new SyncService(vaultAsFile, client as never, 60);
+    const errorLog = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    try {
+      await expect(service.run()).resolves.toMatchObject({ state: 'degraded', lastError: 'vault_scan_failed' });
+      expect(errorLog).toHaveBeenCalledWith('[next-wiki-memory-wiki] sync run failed:', expect.anything());
+    } finally {
+      errorLog.mockRestore();
+    }
+    expect(client.mirror).not.toHaveBeenCalled();
+  });
+
+  it('counts skipped oversized files without failing the run', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-skip-'));
+    const vault = join(parent, 'vault');
+    await mkdir(vault);
+    await writeFile(join(vault, 'small.md'), '# Small\n');
+    await writeFile(join(vault, 'huge.md'), `# Huge\n\n${'x'.repeat(520_000)}\n`);
+    const client = { mirror: vi.fn(async () => ({ outcome: 'created', sourcePath: 'small.md', pageId: 'p', revisionId: 'r' })) };
+    const service = new SyncService(vault, client as never, 60);
+
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, skipped: 1, failed: 0 });
+    expect(client.mirror).toHaveBeenCalledTimes(1);
   });
 
   it('retries a changed document after a previously completed digest', async () => {
