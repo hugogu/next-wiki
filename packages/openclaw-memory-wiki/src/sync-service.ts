@@ -54,7 +54,9 @@ export class SyncService {
           journal.completed[document.sourcePath] = document.sourceDigest;
           if (result.outcome === 'unchanged') unchanged++; else uploaded++;
         } catch (error) {
-          failed++; journal.lastError = error instanceof Error ? error.message : 'sync_failed';
+          failed++;
+          if (needsMirrorMigration) delete journal.completed[document.sourcePath];
+          journal.lastError = error instanceof Error ? error.message : 'sync_failed';
         }
       }
       journal.lastRunAt = new Date().toISOString();

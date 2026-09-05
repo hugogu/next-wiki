@@ -75,6 +75,26 @@ describe('SyncService', () => {
     expect(client.mirror.mock.calls.map(([document]) => document.sourcePath)).toEqual(['a.md', 'b.md', 'b.md']);
   });
 
+  it('retries a migration failure even when the old journal has the same digest', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-migration-checkpoint-'));
+    const vault = join(parent, 'vault');
+    await mkdir(vault);
+    await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
+    const client = { mirror: vi.fn(async () => ({ outcome: 'created', sourcePath: 'WIKI.md', pageId: 'p', revisionId: 'r' })) };
+    const journalPath = join(parent, '.openclaw-wiki-next-wiki-sync.json');
+    const service = new SyncService(vault, client as never, 60);
+
+    await service.run();
+    const journal = JSON.parse(await readFile(journalPath, 'utf8')) as Record<string, unknown>;
+    journal.version = 1;
+    await writeFile(journalPath, JSON.stringify(journal));
+    client.mirror.mockRejectedValueOnce(new Error('migration unavailable'));
+
+    await expect(new SyncService(vault, client as never, 60).run()).resolves.toMatchObject({ state: 'degraded', failed: 1 });
+    await expect(new SyncService(vault, client as never, 60).run()).resolves.toMatchObject({ state: 'idle', uploaded: 1, failed: 0 });
+    expect(client.mirror).toHaveBeenCalledTimes(3);
+  });
+
   it('enters degraded state without claiming failed writes succeeded', async () => {
     const vault = await mkdtemp(join(tmpdir(), 'next-wiki-sync-failure-'));
     await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
