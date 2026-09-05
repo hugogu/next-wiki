@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { realpathSync } from 'node:fs';
 import { lstat, readFile, rename, writeFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
 import { scanVault, DEFAULT_MAX_FILE_BYTES, type VaultDocument } from './vault-scanner.js';
@@ -14,6 +15,24 @@ function isMissingPath(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ENOENT';
 }
 
+function canonicalPath(value: string): string {
+  try { return realpathSync(value); } catch { return resolve(value); }
+}
+
+function markdownBody(content: string): string {
+  const frontmatter = /^\uFEFF?---\r?\n[\s\S]*?\r?\n---(?:\r?\n|$)/u.exec(content);
+  return (frontmatter ? content.slice(frontmatter[0].length) : content).replace(/\r\n?/gu, '\n').trim();
+}
+
+function isMemoryWikiBridge(document: VaultDocument): boolean {
+  return document.sourcePath.toLocaleLowerCase().startsWith('sources/') && /^\uFEFF?---\r?\n[\s\S]*?sourceType\s*:\s*["']?memory-bridge["']?[\s\S]*?\r?\n---(?:\r?\n|$)/mu.test(document.content);
+}
+
+function deduplicationKey(document: VaultDocument): string | undefined {
+  if (!document.sourcePath.toLocaleLowerCase().startsWith('memory-core/') && !isMemoryWikiBridge(document)) return undefined;
+  return createHash('sha256').update(markdownBody(document.content), 'utf8').digest('hex');
+}
+
 export class SyncService {
   private running = false;
   private timer: ReturnType<typeof setInterval> | undefined;
@@ -24,7 +43,7 @@ export class SyncService {
     if (workspacePath) {
       this.sources.push({ path: join(workspacePath, 'MEMORY.md'), prefix: 'memory-core/', optional: true, kind: 'file', sourcePath: 'MEMORY.md' });
     }
-    if (memoryPath && resolve(memoryPath) !== resolve(vaultPath)) {
+    if (memoryPath && canonicalPath(memoryPath) !== canonicalPath(vaultPath)) {
       this.sources.push({ path: memoryPath, prefix: 'memory-core/memory/', optional: true, kind: 'directory' });
     }
   }
@@ -63,7 +82,12 @@ export class SyncService {
         }
         return [{ sourcePath, content, sourceDigest: createHash('sha256').update(content, 'utf8').digest('hex'), sizeBytes: stat.size }];
       }
-      const documents = await scanVault(source.path, DEFAULT_MAX_FILE_BYTES, (sourcePath, reason) => onSkip(`${source.prefix}${sourcePath}`, reason));
+      const documents = await scanVault(
+        source.path,
+        DEFAULT_MAX_FILE_BYTES,
+        (sourcePath, reason) => onSkip(`${source.prefix}${sourcePath}`, reason),
+        source.prefix === 'memory-core/memory/' ? ['working'] : undefined,
+      );
       if (!source.prefix) return documents;
       return documents.map((document) => ({ ...document, sourcePath: `${source.prefix}${document.sourcePath}` }));
     } catch (error) {
@@ -81,15 +105,38 @@ export class SyncService {
     this.status = { ...this.status, state: 'running', failed: 0, skipped: 0 };
     try {
       let skipped = 0;
-      const [documents, journal] = await Promise.all([
-        Promise.all(this.sources.map((source) => this.scanSource(source, (sourcePath, reason) => {
-          skipped++;
-          console.warn(`[next-wiki-memory-wiki] skipped ${sourcePath}: ${reason}`);
-        }))).then((groups) => groups.flat()),
+      let scanFailures = 0;
+      let scanError: string | undefined;
+      const [scannedDocuments, journal] = await Promise.all([
+        Promise.all(this.sources.map(async (source) => {
+          try {
+            return await this.scanSource(source, (sourcePath, reason) => {
+              skipped++;
+              console.warn(`[next-wiki-memory-wiki] skipped ${sourcePath}: ${reason}`);
+            });
+          } catch (error) {
+            if (!source.optional) throw error;
+            scanFailures++;
+            scanError ??= 'memory_scan_failed';
+            console.error(`[next-wiki-memory-wiki] optional source scan failed: ${source.path}`, error);
+            return [];
+          }
+        })).then((groups) => groups.flat()),
         this.readJournal(),
       ]);
+      const seenContent = new Set<string>();
+      const documents = scannedDocuments.filter((document) => {
+        const key = deduplicationKey(document);
+        if (!key || !seenContent.has(key)) {
+          if (key) seenContent.add(key);
+          return true;
+        }
+        skipped++;
+        console.warn(`[next-wiki-memory-wiki] skipped ${document.sourcePath}: duplicate_content`);
+        return false;
+      });
       const needsMirrorMigration = journal.version !== JOURNAL_VERSION;
-      let uploaded = 0; let unchanged = 0; let failed = 0;
+      let uploaded = 0; let unchanged = 0; let failed = scanFailures;
       for (const document of documents) {
         try {
           if (!needsMirrorMigration && journal.completed[document.sourcePath] === document.sourceDigest) {
@@ -112,9 +159,10 @@ export class SyncService {
       // entire vault on every degraded run.
       journal.version = JOURNAL_VERSION;
       if (failed === 0) delete journal.lastError;
+      else if (scanError) journal.lastError = scanError;
       await this.writeJournal(journal);
-      console.log(`[next-wiki-memory-wiki] sync complete: scanned=${documents.length} uploaded=${uploaded} unchanged=${unchanged} failed=${failed} skipped=${skipped}`);
-      this.status = { state: failed > 0 ? 'degraded' : 'idle', scanned: documents.length, uploaded, unchanged, failed, skipped, lastRunAt: journal.lastRunAt, lastError: journal.lastError };
+      console.log(`[next-wiki-memory-wiki] sync complete: scanned=${scannedDocuments.length} uploaded=${uploaded} unchanged=${unchanged} failed=${failed} skipped=${skipped}`);
+      this.status = { state: failed > 0 ? 'degraded' : 'idle', scanned: scannedDocuments.length, uploaded, unchanged, failed, skipped, lastRunAt: journal.lastRunAt, lastError: journal.lastError };
       return this.status;
     } catch (error) {
       console.error('[next-wiki-memory-wiki] sync run failed:', error);

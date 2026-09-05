@@ -28,7 +28,7 @@ function startOnce(cfg: Cfg, resolveSecretRef?: (ref: unknown) => Promise<string
   const registerService = vi.fn();
   const logger = { warn: vi.fn(), error: vi.fn() };
   register({
-    config: { baseUrl: 'https://wiki.example', vaultPath: process.cwd(), enabled: true, ...cfg },
+    config: { baseUrl: 'https://wiki.example', vaultPath: process.cwd(), enabled: true, agents: { defaults: { workspace: process.cwd() } }, ...cfg },
     ...(resolveSecretRef ? { resolveSecretRef: resolveSecretRef as never } : {}),
     registerTool,
     registerSkill: vi.fn(),

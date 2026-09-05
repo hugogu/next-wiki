@@ -15,8 +15,14 @@ function toSourcePath(root: string, fullPath: string): string {
   return relative(root, fullPath).split(sep).join('/');
 }
 
-export async function scanVault(vaultPath: string, maxBytes = DEFAULT_MAX_FILE_BYTES, onSkip?: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable') => void): Promise<VaultDocument[]> {
+export async function scanVault(
+  vaultPath: string,
+  maxBytes = DEFAULT_MAX_FILE_BYTES,
+  onSkip?: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable') => void,
+  additionalExcludedNames?: Iterable<string>,
+): Promise<VaultDocument[]> {
   const root = await resolve(vaultPath);
+  const excludedNames = additionalExcludedNames ? new Set([...EXCLUDED, ...additionalExcludedNames]) : EXCLUDED;
   const documents: VaultDocument[] = [];
   async function walk(directory: string): Promise<void> {
     if (!isInside(root, directory)) throw new Error('Vault path escaped root');
@@ -34,7 +40,7 @@ export async function scanVault(vaultPath: string, maxBytes = DEFAULT_MAX_FILE_B
     }
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       if (entry.name.startsWith('.') && entry.name !== '.well-known') continue;
-      if (EXCLUDED.has(entry.name)) continue;
+      if (excludedNames.has(entry.name)) continue;
       const fullPath = join(directory, entry.name);
       const sourcePath = toSourcePath(root, fullPath);
       // Each fs call is wrapped individually so a single deleted/moved/locked

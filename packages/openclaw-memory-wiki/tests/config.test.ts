@@ -1,7 +1,8 @@
-import { homedir } from 'node:os';
+import { mkdtemp, realpath } from 'node:fs/promises';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { defaultWorkspacePath, redactConfig, resolveConfig } from '../src/config.js';
+import { defaultWorkspacePath, redactConfig, resolveConfig, resolveWorkspacePath } from '../src/config.js';
 
 describe('plugin configuration', () => {
   it('requires HTTPS or loopback and resolves secrets without exposing them', async () => {
@@ -47,5 +48,11 @@ describe('plugin configuration', () => {
       '/tmp/ignored-workspace',
     );
     expect(overridden.config.memoryPath).toBe(join(homedir(), 'memory-core'));
+  });
+
+  it('rejects a workspace fallback that does not exist', async () => {
+    const workspace = await mkdtemp(join(tmpdir(), 'openclaw-workspace-'));
+    await expect(resolveWorkspacePath(workspace)).resolves.toBe(await realpath(workspace));
+    await expect(resolveWorkspacePath(join(workspace, 'missing-profile'))).rejects.toThrow('workspacePath must point to an existing directory');
   });
 });

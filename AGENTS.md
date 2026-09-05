@@ -3,7 +3,7 @@
 - Only Editor or Admin can edit page. 
 - When there is API changes, update docs via next-open-api.
 - **Commit workflow**: commit changes directly without asking. When a unit of work is ready (spec edit, task completion, fix, refactor, plan update), stage the relevant files and create a commit in the same turn. Do not wait for explicit "commit it". Do not push unless explicitly asked. Skip auto-commit only for in-progress or experimental work that the user might want to amend.
-- **OpenClaw plugin releases**: Any code, configuration, or bundled Skill change under `packages/openclaw-memory-wiki` must bump the patch version before committing. Keep the version synchronized in `package.json`, `package.json`'s `openclaw.version`, `package.json`'s `openclaw.install.npmSpec`, and `openclaw.plugin.json`; the package manifest test must enforce this consistency.
+- **OpenClaw plugin releases**: Any code, configuration, or bundled Skill change under `packages/openclaw-memory-wiki` must bump the package version before committing. Use a patch bump for fixes and a minor bump for new plugin capabilities such as a new memory source. Keep the version synchronized in `package.json`, `package.json`'s `openclaw.version`, `package.json`'s `openclaw.install.npmSpec`, and `openclaw.plugin.json`; the package manifest test must enforce this consistency.
 
 ## UI Design Principles
 

@@ -32,6 +32,28 @@ export function defaultWorkspacePath(hostConfig?: unknown): string {
   return join(homedir(), '.openclaw', profile && profile !== 'default' ? `workspace-${profile}` : 'workspace');
 }
 
+export async function resolveWorkspacePath(workspacePath: string): Promise<string> {
+  try {
+    const resolved = await realpath(expandPath(workspacePath));
+    if (!(await lstat(resolved)).isDirectory()) throw new Error('not_directory');
+    return resolved;
+  } catch {
+    throw new Error('workspacePath must point to an existing directory');
+  }
+}
+
+async function resolveOptionalDirectory(value: string, label: string): Promise<string> {
+  const expanded = expandPath(value);
+  try {
+    const resolved = await realpath(expanded);
+    if (!(await lstat(resolved)).isDirectory()) throw new Error('not_directory');
+    return resolved;
+  } catch (error) {
+    if (typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ENOENT') return expanded;
+    throw new Error(`${label} must point to a directory`);
+  }
+}
+
 export async function resolveConfig(
   input: Partial<PluginConfig>,
   resolveSecret: SecretResolver,
@@ -60,7 +82,7 @@ export async function resolveConfig(
   // Tolerate a copied API base: the client already prefixes every request path
   // with /api/v1, so a configured baseUrl carrying that suffix would double it.
   const baseUrl = input.baseUrl!.replace(/\/api(?:\/v\d+)?\/?$/u, '').replace(/\/$/u, '');
-  const memoryPath = expandPath(input.memoryPath ?? join(workspacePath, 'memory'));
+  const memoryPath = await resolveOptionalDirectory(input.memoryPath ?? join(workspacePath, 'memory'), 'memoryPath');
   return { config: { baseUrl, apiKeyRef: input.apiKeyRef, vaultPath, memoryPath, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
 }
 

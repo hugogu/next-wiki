@@ -1,5 +1,5 @@
 import { resolveRequiredConfiguredSecretRefInputString } from 'openclaw/plugin-sdk/config-runtime';
-import { defaultWorkspacePath, resolveConfig, type PluginConfig, type SecretInput, type SecretResolver } from './config.js';
+import { defaultWorkspacePath, resolveConfig, resolveWorkspacePath, type PluginConfig, type SecretInput, type SecretResolver } from './config.js';
 import { NextWikiClient } from './client.js';
 import { SyncService } from './sync-service.js';
 import { createTools } from './tools.js';
@@ -59,6 +59,8 @@ function safeStartupError(error: unknown): string {
     'vaultPath must point to an existing directory',
     'syncIntervalMinutes must be between 1 and 1440',
     'API key SecretRef resolved to an empty value',
+    'workspacePath must point to an existing directory',
+    'memoryPath must point to a directory',
   ]);
   if (knownErrors.has(message)) return message;
   if (/secret|api[ -]?key|credential|token/iu.test(message)) return 'api_key_resolution_failed';
@@ -89,10 +91,11 @@ function createRuntime(api: OpenClawPluginApi, pluginConfig: Partial<PluginConfi
         hostSecretResolver(api, `${api.id ?? 'next-wiki-memory-wiki'}.config`),
         workspacePath,
       );
+      const resolvedWorkspacePath = await resolveWorkspacePath(workspacePath);
       const client = new NextWikiClient({ baseUrl: config.baseUrl, apiKey });
       const runtime: ToolRuntime = {
         client,
-        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes, config.memoryPath, workspacePath),
+        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes, config.memoryPath, resolvedWorkspacePath),
       };
       state.runtime = runtime;
       return runtime;

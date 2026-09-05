@@ -60,10 +60,13 @@ The scanner preserves each Markdown file's bytes, frontmatter, links, and
 relative source path in immutable next-wiki Revisions. It mirrors both the
 Memory Wiki vault and memory-core's `MEMORY.md`, `memory/YYYY-MM-DD.md`, and
 nested Markdown files; memory-core paths carry a `memory-core/` source prefix
-and use a distinct Raw subtree. Re-running a scan with the same digest is
-unchanged; changing a file creates one new current Revision. Attachments and
-`.openclaw-wiki` state are excluded. A failed upload is retried with bounded
-backoff and remains visible as degraded status for manual repair.
+and use a distinct Raw subtree. Content already represented by a
+`sourceType: memory-bridge` source, including duplicate root/nested
+`MEMORY.md` files, is mirrored only once; transient `memory/working/` traces
+are excluded. Re-running a scan with the same digest is unchanged; changing a
+file creates one new current Revision. Attachments and `.openclaw-wiki` state
+are excluded. A failed upload is retried with bounded backoff and remains
+visible as degraded status for manual repair.
 
 The plugin never modifies the local vault, OpenClaw active-memory records, or
 the Memory Wiki compiler.

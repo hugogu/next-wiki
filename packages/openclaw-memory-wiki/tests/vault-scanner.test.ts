@@ -90,6 +90,13 @@ describe('scanVault', () => {
     expect(docs.map((d) => d.sourcePath)).toContain('entities/MixedCase.MD');
   });
 
+  it('ignores non-Markdown artifacts such as dreaming JSONL traces', async () => {
+    const root = await fixture();
+    await writeFile(join(root, 'entities', 'dreaming.jsonl'), '{"trace":true}\n');
+    const docs = await scanVault(root);
+    expect(docs.map((d) => d.sourcePath)).not.toContain('entities/dreaming.jsonl');
+  });
+
   it('rejects nested symlinks and reports the full sourcePath', async () => {
     const root = await fixture();
     await mkdir(join(root, 'entities', 'nested'), { recursive: true });
