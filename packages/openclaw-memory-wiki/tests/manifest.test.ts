@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 
 type Manifest = {
   id: string;
+  version: string;
   activation: { onStartup: boolean };
   configSchema: { required: string[]; properties: Record<string, unknown> };
   skills: string[];
@@ -27,8 +28,13 @@ describe('OpenClaw manifest', () => {
     ]);
 
     const packageJson = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8')) as {
-      openclaw?: { runtimeExtensions?: string[] };
+      name: string;
+      version: string;
+      openclaw?: { runtimeExtensions?: string[]; version?: string; install?: { npmSpec?: string } };
     };
     expect(packageJson.openclaw?.runtimeExtensions).toEqual(['./dist/index.js']);
+    expect(manifest.version).toBe(packageJson.version);
+    expect(packageJson.openclaw?.version).toBe(packageJson.version);
+    expect(packageJson.openclaw?.install?.npmSpec).toBe(`${packageJson.name}@${packageJson.version}`);
   });
 });

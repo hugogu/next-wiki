@@ -2,7 +2,7 @@
   "id": "next-wiki-memory-wiki",
   "name": "next-wiki Memory Wiki",
   "description": "Mirror OpenClaw Memory Wiki Markdown into next-wiki and retrieve the account knowledge base.",
-  "version": "0.1.3",
+  "version": "0.1.4",
   "activation": {
     "onStartup": true
   },
