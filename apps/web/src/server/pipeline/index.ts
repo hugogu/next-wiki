@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { unified } from 'unified';
 import type { Root, Element, Text } from 'hast';
+import type { Root as MdastRoot } from 'mdast';
 import { defaultSchema } from 'hast-util-sanitize';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
@@ -173,12 +174,31 @@ function wrapCodeBlocks(tree: Root) {
   }
 }
 
-function toHtml(body: string, restorePipes: boolean, resolveWikiLink: WikiLinkResolver): string {
+export type MarkdownLinkResolver = (href: string) => string | null;
+
+function rewriteMarkdownLinks(resolveMarkdownLink: MarkdownLinkResolver | undefined) {
+  return (tree: MdastRoot) => {
+    if (!resolveMarkdownLink) return;
+    visit(tree, 'link', (node) => {
+      if (typeof node.url !== 'string') return;
+      const resolved = resolveMarkdownLink(node.url);
+      if (resolved) node.url = resolved;
+    });
+  };
+}
+
+function toHtml(
+  body: string,
+  restorePipes: boolean,
+  resolveWikiLink: WikiLinkResolver,
+  resolveMarkdownLink?: MarkdownLinkResolver,
+): string {
   return unified()
     .use(remarkParse)
     .use(remarkMath)
     .use(remarkGfm)
     .use(() => remarkWikiLink(resolveWikiLink))
+    .use(() => rewriteMarkdownLinks(resolveMarkdownLink))
     .use(() => restoreMathPipes(restorePipes))
     // Parse raw HTML so imported Markdown can retain safe elements such as
     // `<img>`. rehypeSanitize immediately following this step is the security
@@ -206,6 +226,12 @@ export type RenderOptions = {
    * without one, targets are addressed from the site root as written.
    */
   resolveWikiLink?: WikiLinkResolver;
+  /**
+   * Optionally rewrites ordinary Markdown links at render time. The source
+   * Markdown remains byte-for-byte unchanged; integrations use this for
+   * relative links whose target has a server-owned canonical URL.
+   */
+  resolveMarkdownLink?: MarkdownLinkResolver;
 };
 
 export function renderMarkdown(source: string, options: RenderOptions = {}): { html: string; hash: string } {
@@ -217,7 +243,7 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): { h
   // author wrote one and we must not touch it".
   const protectionRan = body !== normalized;
 
-  const rendered = toHtml(body, protectionRan, resolveWikiLink);
+  const rendered = toHtml(body, protectionRan, resolveWikiLink, options.resolveMarkdownLink);
 
   // Protection is confined to table rows and restoration covers everywhere it
   // can reach, so this should not happen. If it ever does, the placeholder is
@@ -227,7 +253,7 @@ export function renderMarkdown(source: string, options: RenderOptions = {}): { h
   // ones added to Markdown later.
   const html =
     protectionRan && hasUnrestoredPlaceholder(rendered)
-      ? toHtml(normalized, false, resolveWikiLink)
+      ? toHtml(normalized, false, resolveWikiLink, options.resolveMarkdownLink)
       : rendered;
 
   const hash = createHash('sha256').update(source).digest('hex');

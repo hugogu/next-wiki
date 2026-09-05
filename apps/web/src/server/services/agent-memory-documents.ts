@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { posix } from 'node:path';
 import { and, eq, isNull } from 'drizzle-orm';
 import {
   agentMemorySourceDocumentInputSchema,
@@ -14,6 +15,8 @@ import { resolveSpace, type SpaceKind } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { env } from '@/server/config';
 import * as publicContent from '@/server/services/public-content';
+import { parseFrontmatter } from '@/server/metadata/frontmatter';
+import { agentMemoryPathSegment } from '@/server/services/agent-memory-path';
 
 const SOURCE_PROVIDER = 'agent-memory-source-document';
 
@@ -40,12 +43,30 @@ function safeSegment(value: string): string {
   return normalized || 'document';
 }
 
+function readableFilename(sourcePath: string): string {
+  const filename = sourcePath.split('/').pop()?.replace(/\.md$/iu, '') ?? 'Memory Wiki document';
+  return filename
+    .replace(/^bridge[-_ ]workspace[-_ ]+[a-z0-9]+[-_ ]+memory[-_ ]+/iu, '')
+    .replace(/(?:[-_ ]+[a-f0-9]{8,})+$/iu, '')
+    .replace(/[-_]+/gu, ' ')
+    .trim();
+}
+
 function storagePath(access: AgentMemoryAccess, sourcePath: string): string {
-  const digest = createHash('sha256').update(sourcePath.normalize('NFKC').toLocaleLowerCase()).digest('hex').slice(0, 16);
-  const withoutExtension = sourcePath.slice(0, -3);
+  // The readable namespace folder is not globally unique. Keep the namespace
+  // id in the leaf digest so two spaces with the same display name cannot
+  // collide while the tree remains readable at its first level.
+  const digest = createHash('sha256')
+    .update(`${access.namespaceId}:${sourcePath.normalize('NFKC').toLocaleLowerCase()}`)
+    .digest('hex')
+    .slice(0, 16);
+  const withoutExtension = sourcePath.replace(/\.md$/iu, '');
   const segments = withoutExtension.split('/').map(safeSegment);
-  const prefix = `agent-memory/${access.namespaceId}/memory-wiki`;
-  const leaf = `${segments.pop() ?? 'document'}-${digest}`;
+  const folder = agentMemoryPathSegment(access.namespaceName) || agentMemoryPathSegment(access.keyName) || 'memory';
+  const prefix = `agent-memory/${folder}/memory-wiki`;
+  segments.pop();
+  const compactLeaf = safeSegment(readableFilename(sourcePath)).slice(0, 96);
+  const leaf = `${compactLeaf}-${digest.slice(0, 8)}`;
   const candidate = `${prefix}/${segments.length > 0 ? `${segments.join('/')}/` : ''}${leaf}`;
   if (candidate.length <= 200) return candidate;
   return `${prefix}/${digest}`;
@@ -55,9 +76,46 @@ function readerSlug(access: AgentMemoryAccess, sourcePath: string): string {
   return storagePath(access, sourcePath);
 }
 
-function titleFor(sourcePath: string): string {
-  const filename = sourcePath.split('/').pop()?.replace(/\.md$/iu, '') ?? 'Memory Wiki document';
-  return filename.replace(/[-_]+/gu, ' ').trim().slice(0, 160) || 'Memory Wiki document';
+function titleFor(sourcePath: string, content: string): string {
+  const parsed = parseFrontmatter(content);
+  const frontmatterTitle = parsed.frontmatter?.title;
+  if (typeof frontmatterTitle === 'string' && frontmatterTitle.trim()) return frontmatterTitle.trim().slice(0, 160);
+
+  const heading = /^(?:#{1,6})\s+(.+?)\s*#*\s*$/mu.exec(parsed.body)?.[1]?.trim();
+  if (heading) return heading.slice(0, 160);
+
+  return readableFilename(sourcePath).slice(0, 160) || 'Memory Wiki document';
+}
+
+/**
+ * Resolve a relative Memory Wiki Markdown link to the mirrored Raw page. The
+ * authored Markdown is kept unchanged in the revision; only stored HTML gets
+ * the canonical next-wiki URL so index/source links remain usable in the UI.
+ */
+export function resolveSourceDocumentLink(
+  access: AgentMemoryAccess,
+  space: Awaited<ReturnType<typeof getRawSpace>>,
+  sourcePath: string,
+  href: string,
+): string | null {
+  const match = /^([^?#]*)([?#].*)?$/u.exec(href);
+  const target = match?.[1] ?? '';
+  if (
+    !target ||
+    target.startsWith('/') ||
+    /^(?:[a-z][a-z\d+.-]*:|\/\/)/iu.test(target) ||
+    !target.toLocaleLowerCase().endsWith('.md')
+  ) return null;
+
+  let decodedTarget = target;
+  try {
+    decodedTarget = decodeURIComponent(target);
+  } catch {
+    // Keep the original target when a producer emitted an invalid escape.
+  }
+  const resolved = posix.normalize(posix.join(posix.dirname(sourcePath), decodedTarget));
+  if (resolved === '..' || resolved.startsWith('../') || resolved.startsWith('/')) return null;
+  return `${canonicalSpacePath(space, storagePath(access, resolved))}${match?.[2] ?? ''}`;
 }
 
 function actualDigest(content: string): string {
@@ -134,9 +192,16 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
     if (input.idempotencyKey && metadata.deliveryIdempotencyKey === input.idempotencyKey && metadata.sourceDigest !== input.sourceDigest) {
       throw new DomainError('CONFLICT', 'The idempotency key is already associated with different content');
     }
+    const space = await getRawSpace();
+    await rawEntries.relocateMirroredEntry(rawContext(ctx), current.pageId, {
+      path: storagePath(access, input.sourcePath),
+      slug: readerSlug(access, input.sourcePath),
+      title: titleFor(input.sourcePath, input.content),
+    });
     if (metadata.sourceDigest === input.sourceDigest) return currentView(current, 'unchanged');
     const replaced = await rawEntries.replaceEntry(rawContext(ctx), current.pageId, {
       content: input.content,
+      title: titleFor(input.sourcePath, input.content),
       inputKind: 'manual-note',
       source: { provider: SOURCE_PROVIDER },
       additionalSourceMetadata: {
@@ -146,6 +211,9 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
         deliveryIdempotencyKey: input.idempotencyKey,
         recordType: 'source_document',
       },
+      renderOptions: {
+        resolveMarkdownLink: (href) => resolveSourceDocumentLink(access, space, input.sourcePath, href),
+      },
     });
     const [updated] = await db.update(schema.agentMemoryRecords).set({ currentRevisionId: replaced.versionId, updatedAt: new Date() })
       .where(eq(schema.agentMemoryRecords.id, current.id)).returning();
@@ -153,10 +221,11 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
     return currentView(updated, 'updated');
   }
 
+  const space = await getRawSpace();
   const createdPage = await rawEntries.createEntry(rawContext(ctx), {
     path: storagePath(access, input.sourcePath),
     slug: readerSlug(access, input.sourcePath),
-    title: titleFor(input.sourcePath),
+    title: titleFor(input.sourcePath, input.content),
     inputKind: 'manual-note',
     source: { provider: SOURCE_PROVIDER },
     additionalSourceMetadata: {
@@ -169,6 +238,9 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
     content: input.content,
     visibility: 'restricted',
     categoryId: undefined,
+    renderOptions: {
+      resolveMarkdownLink: (href) => resolveSourceDocumentLink(access, space, input.sourcePath, href),
+    },
   });
   try {
     const [record] = await db.insert(schema.agentMemoryRecords).values({

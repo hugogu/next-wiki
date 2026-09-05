@@ -32,6 +32,25 @@ describe('SyncService', () => {
     expect(client.mirror).toHaveBeenCalledTimes(1);
   });
 
+  it('replays an existing journal once after a mirror layout migration', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-migration-'));
+    const vault = join(parent, 'vault');
+    await mkdir(vault);
+    await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
+    const client = { mirror: vi.fn(async () => ({ outcome: 'created', sourcePath: 'WIKI.md', pageId: 'p', revisionId: 'r' })) };
+    const service = new SyncService(vault, client as never, 60);
+
+    await service.run();
+    const journalPath = join(parent, '.openclaw-wiki-next-wiki-sync.json');
+    const journal = JSON.parse(await readFile(journalPath, 'utf8')) as Record<string, unknown>;
+    delete journal.version;
+    await writeFile(journalPath, JSON.stringify(journal));
+
+    client.mirror.mockResolvedValue({ outcome: 'unchanged', sourcePath: 'WIKI.md', pageId: 'p', revisionId: 'r' });
+    await expect(new SyncService(vault, client as never, 60).run()).resolves.toMatchObject({ uploaded: 0, unchanged: 1 });
+    expect(client.mirror).toHaveBeenCalledTimes(2);
+  });
+
   it('enters degraded state without claiming failed writes succeeded', async () => {
     const vault = await mkdtemp(join(tmpdir(), 'next-wiki-sync-failure-'));
     await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');

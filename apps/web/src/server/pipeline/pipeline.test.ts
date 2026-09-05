@@ -143,6 +143,20 @@ $$`;
     expect(html).toContain('<a href="/generated/knowledge/ops/foo">ops/foo</a>');
   });
 
+  it('resolves ordinary Markdown links through the supplied resolver', () => {
+    const { html } = renderMarkdown('[Related page](../sources/related.md#details)', {
+      resolveMarkdownLink: (href) => href === '../sources/related.md#details' ? '/raw/memory/sources/related#details' : null,
+    });
+    expect(html).toContain('<a href="/raw/memory/sources/related#details">Related page</a>');
+  });
+
+  it('leaves ordinary Markdown links unchanged when the resolver declines them', () => {
+    const { html } = renderMarkdown('[External](https://example.com/page.md)', {
+      resolveMarkdownLink: () => null,
+    });
+    expect(html).toContain('<a href="https://example.com/page.md">External</a>');
+  });
+
   it('leaves wikilink syntax alone inside code', () => {
     const { html } = renderMarkdown('`[[ops/foo]]`\n\n```\n[[ops/bar]]\n```');
     expect(html).toContain('<code>[[ops/foo]]</code>');

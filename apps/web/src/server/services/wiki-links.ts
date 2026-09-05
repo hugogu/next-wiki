@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNotNull, isNull, like, or, type SQL } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { renderMarkdown } from '@/server/pipeline';
+import { renderMarkdown, type MarkdownLinkResolver } from '@/server/pipeline';
 import {
   collectWikiLinkTargets,
   encodeWikiLinkPath,
@@ -31,6 +31,8 @@ export type WikiLinkOptions = {
    * the reader back into the original language.
    */
   locale?: string | null;
+  /** Render-time resolver for ordinary Markdown links. */
+  resolveMarkdownLink?: MarkdownLinkResolver;
 };
 
 /** Postgres `LIKE` treats these as wildcards; a page path may legitimately contain them. */
@@ -148,6 +150,7 @@ export async function renderPageMarkdown(
 ): Promise<{ html: string; hash: string }> {
   return renderMarkdown(source, {
     resolveWikiLink: await createWikiLinkResolver(space, source, options),
+    resolveMarkdownLink: options.resolveMarkdownLink,
   });
 }
 

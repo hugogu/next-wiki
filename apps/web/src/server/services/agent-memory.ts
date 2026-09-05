@@ -15,6 +15,7 @@ import { env } from '@/server/config';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { agentMemoryEvidenceInputSchema } from '@next-wiki/shared';
 import type { ApiKeyScope, AgentMemoryEvidenceInput, AgentMemoryRecord, AgentMemorySaveInput } from '@next-wiki/shared';
+import { agentMemoryPathSegment } from '@/server/services/agent-memory-path';
 
 const MEMORY_PAGE_PREFIX = 'agent-memory';
 const AGENT_MEMORY_CATEGORY_SYSTEM_KEY = 'agent-memory';
@@ -22,15 +23,6 @@ const MAX_EXCERPT_LENGTH = 1_200;
 
 type MemoryRecordRow = typeof schema.agentMemoryRecords.$inferSelect;
 type EvidenceRelation = 'explicit_save' | 'automatic_capture' | 'checkpoint';
-
-function pathSegment(value: string): string {
-  return value
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[^a-z0-9_-]+/gu, '-')
-    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gu, '')
-    .slice(0, 80);
-}
 
 function memoryRawContext(ctx: PermCtx): PermCtx {
   if (ctx.actor.kind !== 'api_key') {
@@ -57,7 +49,7 @@ function memoryPath(
   // deterministic leaf digest. Agent identities are user-configured strings,
   // so normalize them to the lowercase path grammar instead of exposing a
   // UUID namespace folder or allowing path separators into the Raw tree.
-  const folder = pathSegment(agentIdentity) || pathSegment(keyName) || 'agent';
+  const folder = agentMemoryPathSegment(agentIdentity) || agentMemoryPathSegment(keyName) || 'agent';
   const keyDigest = createHash('sha256').update(`${namespaceId}:${agentIdentity}:${type}:${idempotencyKey}`).digest('hex');
   return `${MEMORY_PAGE_PREFIX}/${folder}/${type}/${keyDigest}`;
 }
@@ -68,7 +60,7 @@ function memoryPath(
  * one-way session correlation value; clients never select a Raw page path.
  */
 function conversationPath(namespaceId: string, agentIdentity: string, sessionDigest: string): string {
-  const folder = pathSegment(agentIdentity) || 'agent';
+  const folder = agentMemoryPathSegment(agentIdentity) || 'agent';
   const conversationDigest = createHash('sha256')
     .update(`${namespaceId}:${agentIdentity}:conversation:${sessionDigest}`)
     .digest('hex');

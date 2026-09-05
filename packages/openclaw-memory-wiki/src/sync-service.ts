@@ -3,7 +3,8 @@ import { join } from 'node:path';
 import { scanVault, DEFAULT_MAX_FILE_BYTES, type VaultDocument } from './vault-scanner.js';
 import { NextWikiClient } from './client.js';
 
-type Journal = { completed: Record<string, string>; lastRunAt?: string; lastError?: string };
+const JOURNAL_VERSION = 2;
+type Journal = { version: number; completed: Record<string, string>; lastRunAt?: string; lastError?: string };
 export type SyncStatus = { state: 'idle' | 'running' | 'degraded'; scanned: number; uploaded: number; unchanged: number; failed: number; skipped: number; lastRunAt?: string; lastError?: string };
 
 export class SyncService {
@@ -16,9 +17,14 @@ export class SyncService {
     try {
       const parsed = JSON.parse(await readFile(this.journalPath(), 'utf8')) as Partial<Journal>;
       if (!parsed || typeof parsed !== 'object' || !parsed.completed || typeof parsed.completed !== 'object') throw new Error('invalid_journal');
-      return { completed: parsed.completed as Record<string, string>, lastRunAt: parsed.lastRunAt, lastError: parsed.lastError };
+      return {
+        version: typeof parsed.version === 'number' ? parsed.version : 1,
+        completed: parsed.completed as Record<string, string>,
+        lastRunAt: parsed.lastRunAt,
+        lastError: parsed.lastError,
+      };
     } catch {
-      return { completed: {} };
+      return { version: JOURNAL_VERSION, completed: {} };
     }
   }
   private async writeJournal(journal: Journal): Promise<void> { const temp = `${this.journalPath()}.tmp`; await writeFile(temp, JSON.stringify(journal), { mode: 0o600 }); await rename(temp, this.journalPath()); }
@@ -36,10 +42,11 @@ export class SyncService {
         }),
         this.readJournal(),
       ]);
+      const needsMirrorMigration = journal.version !== JOURNAL_VERSION;
       let uploaded = 0; let unchanged = 0; let failed = 0;
       for (const document of documents) {
         try {
-          if (journal.completed[document.sourcePath] === document.sourceDigest) {
+          if (!needsMirrorMigration && journal.completed[document.sourcePath] === document.sourceDigest) {
             unchanged++;
             continue;
           }
@@ -51,6 +58,7 @@ export class SyncService {
         }
       }
       journal.lastRunAt = new Date().toISOString();
+      if (failed === 0) journal.version = JOURNAL_VERSION;
       if (failed === 0) delete journal.lastError;
       await this.writeJournal(journal);
       console.log(`[next-wiki-memory-wiki] sync complete: scanned=${documents.length} uploaded=${uploaded} unchanged=${unchanged} failed=${failed} skipped=${skipped}`);

@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, eq, isNull, max, sql } from 'drizzle-orm';
+import { and, eq, isNull, max, ne, sql } from 'drizzle-orm';
 import { mimeTypeSchema, pageAddressSchema, pathSchema, rawInputKindSchema, rawSourceSchema, type RawInputKind, type RawSource } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -12,7 +12,8 @@ import { addReplicationTasks, kickReplication } from '@/server/services/storage-
 import { actorKindOf } from '@/server/services/pages';
 import { getEffectiveDefaultVisibility, resolveSpace } from '@/server/services/spaces';
 import { resolveCategoryForCreate } from '@/server/services/raw-categories';
-import { renderPageMarkdown } from '@/server/services/wiki-links';
+import { setSlug } from '@/server/services/page-addresses';
+import { renderPageMarkdown, type WikiLinkOptions } from '@/server/services/wiki-links';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { DatabaseStore } from '@/server/content-store/database-store';
@@ -113,6 +114,8 @@ export async function createEntry(
     contentType?: unknown;
     originalBytes?: unknown;
     categoryId?: string;
+    /** Internal mirrors may rewrite authored relative links at render time. */
+    renderOptions?: Pick<WikiLinkOptions, 'resolveMarkdownLink'>;
   },
 ): Promise<{ pageId: string; versionId: string }> {
   const parsedPath = pathSchema.safeParse(input.path);
@@ -140,7 +143,7 @@ export async function createEntry(
   };
   const originalAssetId = originalBytes ? await storeOriginalBytes(originalBytes, contentType, userId) : null;
   const revisionId = randomUUID();
-  const { html, hash } = await renderPageMarkdown(space, contentSource);
+  const { html, hash } = await renderPageMarkdown(space, contentSource, input.renderOptions);
 
   const created = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -292,10 +295,14 @@ export async function replaceEntry(
   pageId: string,
   input: {
     content: string;
+    /** Internal mirrors may refresh the page title from the source document. */
+    title?: string;
     inputKind?: unknown;
     source?: unknown;
     additionalSourceMetadata?: Record<string, unknown>;
     contentType?: unknown;
+    /** Internal mirrors may rewrite authored relative links at render time. */
+    renderOptions?: Pick<WikiLinkOptions, 'resolveMarkdownLink'>;
   },
 ): Promise<{ pageId: string; versionId: string; versionNumber: number; unchanged: boolean }> {
   if (!input.content.trim()) throw new DomainError('BAD_REQUEST', 'Raw snapshot content is required');
@@ -308,7 +315,7 @@ export async function replaceEntry(
   const userId = assertRawWriteAccess(ctx, space);
   await assertNotMigrating();
   const contentType = resolveContentType(input.contentType, null);
-  const { html, hash } = await renderPageMarkdown(space, input.content);
+  const { html, hash } = await renderPageMarkdown(space, input.content, input.renderOptions);
   const replaced = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
     await tx.execute(sql`select id from pages where id = ${pageId} for update`);
@@ -356,6 +363,7 @@ export async function replaceEntry(
     await tx.update(schema.pages).set({
       latestVersionId: revision.id,
       currentPublishedVersionId: revision.id,
+      ...(input.title ? { title: input.title } : {}),
       updatedAt: new Date(),
     }).where(eq(schema.pages.id, page.id));
     return { pageId: page.id, versionId: revision.id, versionNumber, unchanged: false };
@@ -365,4 +373,64 @@ export async function replaceEntry(
     await reconcilePageAcrossIndexes(pageId, ctx);
   }
   return replaced;
+}
+
+/**
+ * Relocate an internal Raw mirror without creating a new page. This keeps all
+ * immutable revisions attached to the same page while allowing a corrected
+ * storage path/canonical slug to be adopted by an existing mirror. The former
+ * slug is retained through the shared page-address alias mechanism.
+ */
+export async function relocateMirroredEntry(
+  ctx: PermCtx,
+  pageId: string,
+  input: { path: string; slug: string; title?: string },
+): Promise<{ changed: boolean; path: string; slug: string }> {
+  const parsedPath = pathSchema.safeParse(input.path);
+  if (!parsedPath.success) throw new DomainError('BAD_REQUEST', parsedPath.error.issues[0]?.message ?? 'Invalid path');
+  const parsedSlug = pageAddressSchema.safeParse(input.slug);
+  if (!parsedSlug.success) throw new DomainError('BAD_REQUEST', parsedSlug.error.issues[0]?.message ?? 'Invalid slug');
+
+  const space = await rawSpace();
+  const userId = assertRawWriteAccess(ctx, space);
+  await assertNotMigrating();
+  const result = await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+    await tx.execute(sql`select id from pages where id = ${pageId} for update`);
+    const page = await tx.query.pages.findFirst({
+      where: and(eq(schema.pages.id, pageId), eq(schema.pages.spaceId, space.id), isNull(schema.pages.deletedAt)),
+    });
+    if (!page) throw new DomainError('NOT_FOUND', 'Raw entry not found');
+    if (!can(ctx, 'create', { kind: 'page', pageId }, pagePermissionOptions(space, page, { isAuthor: page.authorId === userId }))) {
+      throw new DomainError('SPACE_FORBIDDEN', 'You do not have permission to relocate this raw entry');
+    }
+
+    const conflict = await tx.query.pages.findFirst({
+      where: and(
+        eq(schema.pages.spaceId, space.id),
+        eq(schema.pages.path, parsedPath.data),
+        eq(schema.pages.locale, page.locale),
+        isNull(schema.pages.translationGroupId),
+        ne(schema.pages.id, page.id),
+      ),
+    });
+    if (conflict) throw new DomainError('CONFLICT', 'A page with this path already exists');
+
+    let changed = false;
+    if (page.slug !== parsedSlug.data) {
+      await setSlug(tx, space.id, page.id, parsedSlug.data, ctx);
+      changed = true;
+    }
+    if (page.path !== parsedPath.data || (input.title !== undefined && page.title !== input.title)) {
+      await tx.update(schema.pages).set({
+        path: parsedPath.data,
+        ...(input.title !== undefined ? { title: input.title } : {}),
+        updatedAt: new Date(),
+      }).where(eq(schema.pages.id, page.id));
+      changed = true;
+    }
+    return { changed, path: parsedPath.data, slug: parsedSlug.data };
+  });
+  if (result.changed) await reconcilePageAcrossIndexes(pageId, ctx);
+  return result;
 }
