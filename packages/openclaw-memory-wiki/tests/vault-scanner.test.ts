@@ -40,7 +40,7 @@ describe('scanVault', () => {
     expect(warnings).toEqual([['entities/Huge.md', 'too_large']]);
   });
 
-  it('still throws when the vault path escapes the root', async () => {
+  it('still throws when the vault path does not exist', async () => {
     await expect(scanVault('/nonexistent-vault-root-xyz')).rejects.toThrow();
   });
 });
