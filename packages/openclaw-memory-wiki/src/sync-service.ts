@@ -32,7 +32,7 @@ export class SyncService {
       const [documents, journal] = await Promise.all([
         scanVault(this.vaultPath, 512_000, (sourcePath, reason) => {
           skipped++;
-          console.error(`[next-wiki-memory-wiki] skipped ${sourcePath}: ${reason}`);
+          console.warn(`[next-wiki-memory-wiki] skipped ${sourcePath}: ${reason}`);
         }),
         this.readJournal(),
       ]);
