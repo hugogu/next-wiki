@@ -1,4 +1,4 @@
-import { mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -42,5 +42,25 @@ describe('scanVault', () => {
 
   it('still throws when the vault path does not exist', async () => {
     await expect(scanVault('/nonexistent-vault-root-xyz')).rejects.toThrow();
+  });
+
+  it('skips files that become unreadable mid-scan instead of aborting', async () => {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) {
+      // chmod 0o000 does not restrict reads for the root user; skip the case
+      // to avoid a false green run.
+      return;
+    }
+    const root = await fixture();
+    const lockedPath = join(root, 'entities', 'Locked.md');
+    await writeFile(lockedPath, '# Locked\n');
+    await chmod(lockedPath, 0o000);
+    const warnings: Array<[string, string]> = [];
+    try {
+      const docs = await scanVault(root, 512_000, (sourcePath, reason) => warnings.push([sourcePath, reason]));
+      expect(docs.map((d) => d.sourcePath)).toEqual(['AGENTS.md', 'entities/Alex.md']);
+      expect(warnings).toContainEqual(['entities/Locked.md', 'unreadable']);
+    } finally {
+      await chmod(lockedPath, 0o644);
+    }
   });
 });

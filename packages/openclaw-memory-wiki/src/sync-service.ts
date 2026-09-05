@@ -53,6 +53,7 @@ export class SyncService {
       journal.lastRunAt = new Date().toISOString();
       if (failed === 0) delete journal.lastError;
       await this.writeJournal(journal);
+      console.log(`[next-wiki-memory-wiki] sync complete: scanned=${documents.length} uploaded=${uploaded} unchanged=${unchanged} failed=${failed} skipped=${skipped}`);
       this.status = { state: failed > 0 ? 'degraded' : 'idle', scanned: documents.length, uploaded, unchanged, failed, skipped, lastRunAt: journal.lastRunAt, lastError: journal.lastError };
       return this.status;
     } catch (error) {

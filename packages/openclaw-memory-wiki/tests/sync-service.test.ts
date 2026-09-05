@@ -88,4 +88,25 @@ describe('SyncService', () => {
     await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, unchanged: 0, failed: 0 });
     expect(client.mirror).toHaveBeenCalledTimes(2);
   });
+
+  it('logs a successful sync complete line with scanned/uploaded/unchanged/failed/skipped counts', async () => {
+    const vault = await mkdtemp(join(tmpdir(), 'next-wiki-sync-log-'));
+    await writeFile(join(vault, 'a.md'), '# A\n');
+    const client = { mirror: vi.fn(async () => ({ outcome: 'created', sourcePath: 'a.md', pageId: 'p', revisionId: 'r' })) };
+    const service = new SyncService(vault, client as never, 60);
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => undefined);
+    try {
+      await service.run();
+      const messages = logSpy.mock.calls.map((c) => String(c[0]));
+      const complete = messages.find((m) => m.includes('[next-wiki-memory-wiki] sync complete:'));
+      expect(complete).toBeDefined();
+      expect(complete).toContain('scanned=1');
+      expect(complete).toContain('uploaded=1');
+      expect(complete).toContain('unchanged=0');
+      expect(complete).toContain('failed=0');
+      expect(complete).toContain('skipped=0');
+    } finally {
+      logSpy.mockRestore();
+    }
+  });
 });
