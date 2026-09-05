@@ -43,8 +43,11 @@ Add the plugin entry to `openclaw.json` (or install first with
 | `syncIntervalMinutes` | `1`–`1440`, default `5` | How often the mirror scan runs. |
 
 After changing config, restart the gateway (`systemctl --user restart
-openclaw-gateway.service`). Verify with the `next_wiki_status` tool, then check
-the gateway journal for `[next-wiki-memory-wiki]` scan/skip/run lines.
+openclaw-gateway.service`). Verify with the `next_wiki_status` tool, then
+check the gateway journal for `[next-wiki-memory-wiki]` lines — skip warnings
+with a reason, one-line `sync complete: scanned=… uploaded=… unchanged=…
+failed=… skipped=…` summaries on every successful run, and `error`-level
+lines on startup or sync failures.
 
 Files larger than 512 KB are **skipped with a warning** (logged and counted as
 `skipped` in status) instead of aborting the run — move or shrink oversized
