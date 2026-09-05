@@ -1,5 +1,5 @@
 import { resolveRequiredConfiguredSecretRefInputString } from 'openclaw/plugin-sdk/config-runtime';
-import { resolveConfig, type PluginConfig, type SecretInput, type SecretResolver } from './config.js';
+import { defaultWorkspacePath, resolveConfig, type PluginConfig, type SecretInput, type SecretResolver } from './config.js';
 import { NextWikiClient } from './client.js';
 import { SyncService } from './sync-service.js';
 import { createTools } from './tools.js';
@@ -8,7 +8,7 @@ import type { ToolRuntime } from './tools.js';
 
 export type OpenClawPluginApi = {
   id?: string;
-  config?: Partial<PluginConfig>;
+  config?: Partial<PluginConfig> & Record<string, unknown>;
   pluginConfig?: Partial<PluginConfig>;
   resolveSecretRef?: SecretResolver;
   registerTool: (definition: unknown, options?: unknown) => void;
@@ -83,11 +83,16 @@ function createRuntime(api: OpenClawPluginApi, pluginConfig: Partial<PluginConfi
   const ensure = async (): Promise<ToolRuntime> => {
     if (state.runtime) return state.runtime;
     state.initialization ??= (async () => {
-      const { config, apiKey } = await resolveConfig(pluginConfig, hostSecretResolver(api, `${api.id ?? 'next-wiki-memory-wiki'}.config`));
+      const workspacePath = defaultWorkspacePath(api.config);
+      const { config, apiKey } = await resolveConfig(
+        pluginConfig,
+        hostSecretResolver(api, `${api.id ?? 'next-wiki-memory-wiki'}.config`),
+        workspacePath,
+      );
       const client = new NextWikiClient({ baseUrl: config.baseUrl, apiKey });
       const runtime: ToolRuntime = {
         client,
-        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes),
+        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes, config.memoryPath, workspacePath),
       };
       state.runtime = runtime;
       return runtime;

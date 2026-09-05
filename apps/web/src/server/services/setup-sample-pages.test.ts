@@ -75,6 +75,12 @@ describe('sample page definitions (US3)', () => {
     expect(definitions.ONBOARDING_WELCOME_PAGE_SOURCE).toContain(definitions.SAMPLE_PAGE_MARKER);
   });
 
+  it('documents OpenClaw memory-core synchronization', () => {
+    expect(definitions.OPENCLAW_PAGE_SOURCE).toContain('memory-core');
+    expect(definitions.OPENCLAW_PAGE_SOURCE).toContain('memoryPath');
+    expect(definitions.OPENCLAW_PAGE_SOURCE).toContain('MEMORY.md');
+  });
+
   it('markdown syntax guide covers the supported features', () => {
     const source = definitions.MARKDOWN_SYNTAX_PAGE_SOURCE;
     expect(source).toContain('## Headings');

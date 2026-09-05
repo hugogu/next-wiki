@@ -5,6 +5,44 @@ import { describe, expect, it, vi } from 'vitest';
 import { SyncService } from '../src/sync-service.js';
 
 describe('SyncService', () => {
+  it('syncs memory-core files alongside the Memory Wiki vault with a distinct source prefix', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-memory-core-'));
+    const vault = join(parent, 'wiki');
+    const workspace = join(parent, 'workspace');
+    const memory = join(workspace, 'memory');
+    await mkdir(vault, { recursive: true });
+    await mkdir(memory, { recursive: true });
+    await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
+    await writeFile(join(workspace, 'MEMORY.md'), '# Curated memory\n');
+    await writeFile(join(memory, 'MEMORY.md'), '# Durable memory\n');
+    await writeFile(join(memory, '2026-09-05.md'), '# Daily\n');
+    const client = {
+      mirror: vi.fn(async (document: { sourcePath: string }) => ({
+        outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r',
+      })),
+    };
+    const service = new SyncService(vault, client as never, 60, memory, workspace);
+
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 4, uploaded: 4, failed: 0 });
+    expect(client.mirror.mock.calls.map(([document]) => document.sourcePath)).toEqual([
+      'WIKI.md', 'memory-core/MEMORY.md', 'memory-core/memory/2026-09-05.md', 'memory-core/memory/MEMORY.md',
+    ]);
+    const journal = JSON.parse(await readFile(join(parent, '.openclaw-wiki-next-wiki-sync.json'), 'utf8')) as { completed: Record<string, string> };
+    expect(journal.completed['memory-core/memory/MEMORY.md']).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it('treats a missing memory-core directory as an empty corpus', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-memory-core-missing-'));
+    const vault = join(parent, 'wiki');
+    const workspace = join(parent, 'workspace');
+    await mkdir(vault, { recursive: true });
+    await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
+    const client = { mirror: vi.fn(async () => ({ outcome: 'created', sourcePath: 'WIKI.md', pageId: 'p', revisionId: 'r' })) };
+
+    await expect(new SyncService(vault, client as never, 60, join(workspace, 'memory'), workspace).run())
+      .resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, failed: 0 });
+  });
+
   it('serializes a complete inventory and records restart-safe progress', async () => {
     const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-'));
     const vault = join(parent, 'vault');

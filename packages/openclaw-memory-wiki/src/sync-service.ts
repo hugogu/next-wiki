@@ -1,5 +1,6 @@
-import { readFile, rename, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { lstat, readFile, rename, writeFile } from 'node:fs/promises';
+import { basename, join, resolve } from 'node:path';
 import { scanVault, DEFAULT_MAX_FILE_BYTES, type VaultDocument } from './vault-scanner.js';
 import { NextWikiClient } from './client.js';
 
@@ -7,11 +8,26 @@ const JOURNAL_VERSION = 2;
 type Journal = { version: number; completed: Record<string, string>; lastRunAt?: string; lastError?: string };
 export type SyncStatus = { state: 'idle' | 'running' | 'degraded'; scanned: number; uploaded: number; unchanged: number; failed: number; skipped: number; lastRunAt?: string; lastError?: string };
 
+type SyncSource = { path: string; prefix: string; optional: boolean; kind: 'directory' | 'file'; sourcePath?: string };
+
+function isMissingPath(error: unknown): boolean {
+  return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ENOENT';
+}
+
 export class SyncService {
   private running = false;
   private timer: ReturnType<typeof setInterval> | undefined;
   private status: SyncStatus = { state: 'idle', scanned: 0, uploaded: 0, unchanged: 0, failed: 0, skipped: 0 };
-  constructor(private readonly vaultPath: string, private readonly client: NextWikiClient, private readonly intervalMinutes: number) {}
+  private readonly sources: SyncSource[];
+  constructor(private readonly vaultPath: string, private readonly client: NextWikiClient, private readonly intervalMinutes: number, memoryPath?: string, workspacePath?: string) {
+    this.sources = [{ path: vaultPath, prefix: '', optional: false, kind: 'directory' }];
+    if (workspacePath) {
+      this.sources.push({ path: join(workspacePath, 'MEMORY.md'), prefix: 'memory-core/', optional: true, kind: 'file', sourcePath: 'MEMORY.md' });
+    }
+    if (memoryPath && resolve(memoryPath) !== resolve(vaultPath)) {
+      this.sources.push({ path: memoryPath, prefix: 'memory-core/memory/', optional: true, kind: 'directory' });
+    }
+  }
   private journalPath() { return join(this.vaultPath, '..', '.openclaw-wiki-next-wiki-sync.json'); }
   private async readJournal(): Promise<Journal> {
     try {
@@ -28,6 +44,36 @@ export class SyncService {
     }
   }
   private async writeJournal(journal: Journal): Promise<void> { const temp = `${this.journalPath()}.tmp`; await writeFile(temp, JSON.stringify(journal), { mode: 0o600 }); await rename(temp, this.journalPath()); }
+  private async scanSource(source: SyncSource, onSkip: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable') => void): Promise<VaultDocument[]> {
+    try {
+      if (source.kind === 'file') {
+        const stat = await lstat(source.path);
+        if (stat.isSymbolicLink()) throw new Error(`Symlinks are not allowed in the OpenClaw memory workspace: ${source.sourcePath ?? source.path}`);
+        if (!stat.isFile()) return [];
+        const sourcePath = `${source.prefix}${source.sourcePath ?? basename(source.path)}`;
+        if (stat.size > DEFAULT_MAX_FILE_BYTES) {
+          onSkip(sourcePath, 'too_large');
+          return [];
+        }
+        const content = await readFile(source.path, 'utf8');
+        const after = await lstat(source.path);
+        if (after.size !== stat.size || after.mtimeMs !== stat.mtimeMs) {
+          onSkip(sourcePath, 'changed_during_scan');
+          return [];
+        }
+        return [{ sourcePath, content, sourceDigest: createHash('sha256').update(content, 'utf8').digest('hex'), sizeBytes: stat.size }];
+      }
+      const documents = await scanVault(source.path, DEFAULT_MAX_FILE_BYTES, (sourcePath, reason) => onSkip(`${source.prefix}${sourcePath}`, reason));
+      if (!source.prefix) return documents;
+      return documents.map((document) => ({ ...document, sourcePath: `${source.prefix}${document.sourcePath}` }));
+    } catch (error) {
+      // OpenClaw does not create memory/ until the first memory write. A
+      // missing memory-core root is therefore a valid empty corpus, not a
+      // degraded plugin run; an existing but unreadable root still fails loud.
+      if (source.optional && isMissingPath(error)) return [];
+      throw error;
+    }
+  }
 
   async run(): Promise<SyncStatus> {
     if (this.running) return this.status;
@@ -36,10 +82,10 @@ export class SyncService {
     try {
       let skipped = 0;
       const [documents, journal] = await Promise.all([
-        scanVault(this.vaultPath, DEFAULT_MAX_FILE_BYTES, (sourcePath, reason) => {
+        Promise.all(this.sources.map((source) => this.scanSource(source, (sourcePath, reason) => {
           skipped++;
           console.warn(`[next-wiki-memory-wiki] skipped ${sourcePath}: ${reason}`);
-        }),
+        }))).then((groups) => groups.flat()),
         this.readJournal(),
       ]);
       const needsMirrorMigration = journal.version !== JOURNAL_VERSION;

@@ -60,10 +60,11 @@ function storagePath(access: AgentMemoryAccess, sourcePath: string): string {
     .update(`${access.namespaceId}:${sourcePath.normalize('NFKC').toLocaleLowerCase()}`)
     .digest('hex')
     .slice(0, 16);
-  const withoutExtension = sourcePath.replace(/\.md$/iu, '');
-  const segments = withoutExtension.split('/').map(safeSegment);
+  const isMemoryCore = sourcePath === 'memory-core' || sourcePath.startsWith('memory-core/');
+  const relativeSourcePath = isMemoryCore ? sourcePath.slice('memory-core/'.length) : sourcePath;
+  const segments = relativeSourcePath.replace(/\.md$/iu, '').split('/').map(safeSegment);
   const folder = agentMemoryPathSegment(access.namespaceName) || agentMemoryPathSegment(access.keyName) || 'memory';
-  const prefix = `agent-memory/${folder}/memory-wiki`;
+  const prefix = `agent-memory/${folder}/${isMemoryCore ? 'memory-core' : 'memory-wiki'}`;
   segments.pop();
   const compactLeaf = safeSegment(readableFilename(sourcePath)).slice(0, 96);
   const leaf = `${compactLeaf}-${digest.slice(0, 8)}`;

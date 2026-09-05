@@ -294,7 +294,7 @@ export const OPENCLAW_PAGE_SOURCE = `# OpenClaw Integration Guide
 
 ${SAMPLE_PAGE_MARKER}
 
-OpenClaw's Memory Wiki can be mirrored into next-wiki without changing the local vault or OpenClaw's compiler. The plugin uses the same generic **Agent Memory → Page → Revision** pipeline as other memory adapters, keeping the original relative Markdown path, frontmatter, links, and bytes. Repeating an unchanged file is idempotent; every changed file becomes one new current Revision while older Revisions remain available for history.
+OpenClaw's Memory Wiki and memory-core Markdown can be mirrored into next-wiki without changing the local vault or OpenClaw's compiler. The plugin uses the same generic **Agent Memory → Page → Revision** pipeline as other memory adapters, keeping the original relative Markdown path, frontmatter, links, and bytes. It includes memory-core's root \`MEMORY.md\`, daily \`memory/YYYY-MM-DD.md\`, and nested Markdown files under a \`memory-core/\` source prefix. Repeating an unchanged file is idempotent; every changed file becomes one new current Revision while older Revisions remain available for history.
 
 ## 1. Create the Agent Memory provider key
 
@@ -324,6 +324,7 @@ Add the plugin to \`openclaw.json\` with the next-wiki origin, the Memory Wiki v
           "baseUrl": "https://kb.example.com",
           "apiKeyRef": { "source": "env", "provider": "default", "id": "NEXT_WIKI_API_KEY" },
           "vaultPath": "~/.openclaw/wiki/main",
+          "memoryPath": "~/.openclaw/workspace/memory",
           "syncIntervalMinutes": 5
         }
       }
@@ -332,7 +333,7 @@ Add the plugin to \`openclaw.json\` with the next-wiki origin, the Memory Wiki v
 }
 ~~~
 
-\`baseUrl\` is the next-wiki origin only — never append \`/api/v1\`; a copied API base is auto-normalized. \`apiKeyRef\` accepts a plain string or an \`env\`/\`file\`/\`exec\` SecretRef; keep the key out of ordinary config files. The key needs the Agent Memory \`memory.write\` scope for synchronization and \`memory.read\` plus \`view\` for the \`next_wiki_search\`/\`next_wiki_get\` tools. Restart the gateway after changing config, then verify with \`next_wiki_status\`. Files larger than 512 KB are skipped with a warning instead of stalling the whole run. The plugin scans root Markdown files and the standard \`entities/\`, \`concepts/\`, \`syntheses/\`, \`sources/\`, \`reports/\`, and \`_views/\` trees. Attachments and \`.openclaw-wiki\` state are excluded.
+\`baseUrl\` is the next-wiki origin only — never append \`/api/v1\`; a copied API base is auto-normalized. \`apiKeyRef\` accepts a plain string or an \`env\`/\`file\`/\`exec\` SecretRef; keep the key out of ordinary config files. The key needs the Agent Memory \`memory.write\` scope for synchronization and \`memory.read\` plus \`view\` for the \`next_wiki_search\`/\`next_wiki_get\` tools. Restart the gateway after changing config, then verify with \`next_wiki_status\`. If \`memoryPath\` is omitted, it follows the active OpenClaw workspace (including profile and workspace overrides) and appends \`memory/\`; the workspace-root \`MEMORY.md\` is mirrored too. Missing memory paths are treated as empty until memory-core creates them. Files larger than 512 KB are skipped with a warning instead of stalling the whole run. The plugin scans root Markdown files and the standard \`entities/\`, \`concepts/\`, \`syntheses/\`, \`sources/\`, \`reports/\`, and \`_views/\` trees, plus memory-core Markdown. Attachments and \`.openclaw-wiki\` state are excluded.
 
 ## 3. Verify and retrieve
 

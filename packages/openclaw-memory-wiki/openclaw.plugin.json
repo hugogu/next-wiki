@@ -1,8 +1,8 @@
 {
   "id": "next-wiki-memory-wiki",
   "name": "next-wiki Memory Wiki",
-  "description": "Mirror OpenClaw Memory Wiki Markdown into next-wiki and retrieve the account knowledge base.",
-  "version": "0.1.4",
+  "description": "Mirror OpenClaw Memory Wiki and memory-core Markdown into next-wiki and retrieve the account knowledge base.",
+  "version": "0.1.5",
   "activation": {
     "onStartup": true
   },
@@ -50,6 +50,10 @@
       "vaultPath": {
         "type": "string",
         "description": "Memory Wiki vault directory"
+      },
+      "memoryPath": {
+        "type": "string",
+        "description": "Optional memory-core directory; defaults to the active OpenClaw workspace memory/ directory"
       },
       "syncIntervalMinutes": {
         "type": "integer",

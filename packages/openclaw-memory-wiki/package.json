@@ -1,7 +1,7 @@
 {
   "name": "@next-wiki/openclaw-memory-wiki",
-  "version": "0.1.4",
-  "description": "OpenClaw Memory Wiki mirror and next-wiki retrieval plugin",
+  "version": "0.1.5",
+  "description": "OpenClaw Memory Wiki and memory-core mirror and next-wiki retrieval plugin",
   "type": "module",
   "license": "Apache-2.0",
   "repository": {
@@ -51,10 +51,10 @@
       "pluginSdkVersion": "2026.7.1-2"
     },
     "install": {
-      "npmSpec": "@next-wiki/openclaw-memory-wiki@0.1.4",
+      "npmSpec": "@next-wiki/openclaw-memory-wiki@0.1.5",
       "minHostVersion": ">=2026.7.1-2"
     },
-    "version": "0.1.4"
+    "version": "0.1.5"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

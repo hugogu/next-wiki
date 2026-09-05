@@ -73,6 +73,26 @@ describe('agent memory source documents', () => {
     expect(rawEntries.relocateMirroredEntry).not.toHaveBeenCalled();
   });
 
+  it('stores memory-core mirrors under a distinct Raw tree', async () => {
+    const content = '# Durable memory\n';
+    dbMock.query.pageRevisions.findFirst.mockResolvedValue({
+      id: 'revision-id',
+      contentHash: digest(content),
+      status: 'published',
+      createdAt: new Date('2026-08-30T00:00:00Z'),
+      sourceMetadata: { sourcePath: 'memory-core/MEMORY.md', sourceDigest: digest(content) },
+    });
+    const result = await upsertSourceDocument({ actor: { kind: 'api_key', scopes: ['memory.write'], keyId: 'mirror-key' } } as never, {
+      sourcePath: 'memory-core/MEMORY.md', content, sourceDigest: digest(content), idempotencyKey: `memory-core/MEMORY.md:${digest(content)}`,
+    });
+
+    expect(result).toMatchObject({ outcome: 'created', sourcePath: 'memory-core/MEMORY.md' });
+    expect(rawEntries.createEntry).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
+      path: expect.stringContaining('agent-memory/personal-memory/memory-core/'),
+      content,
+    }));
+  });
+
   it('returns unchanged for the current digest and writes a full replacement for changed content', async () => {
     const first = '# Alex\n';
     const second = '# Alex\n\nUpdated\n';

@@ -1,5 +1,7 @@
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { redactConfig, resolveConfig } from '../src/config.js';
+import { defaultWorkspacePath, redactConfig, resolveConfig } from '../src/config.js';
 
 describe('plugin configuration', () => {
   it('requires HTTPS or loopback and resolves secrets without exposing them', async () => {
@@ -26,5 +28,24 @@ describe('plugin configuration', () => {
     expect(trailing.config.baseUrl).toBe('https://wiki.example');
     const subpath = await resolveConfig({ baseUrl: 'https://wiki.example/docs', vaultPath: process.cwd(), apiKeyRef: 'a' }, resolveSecret);
     expect(subpath.config.baseUrl).toBe('https://wiki.example/docs');
+  });
+
+  it('derives memory-core from the active workspace and accepts an explicit override', async () => {
+    expect(defaultWorkspacePath({ agents: { defaults: { workspace: '~/openclaw-workspace' } } }))
+      .toBe(join(homedir(), 'openclaw-workspace'));
+
+    const resolved = await resolveConfig(
+      { baseUrl: 'https://wiki.example', vaultPath: process.cwd(), apiKeyRef: 'a' },
+      async () => 'secret',
+      '/tmp/openclaw-workspace',
+    );
+    expect(resolved.config.memoryPath).toBe('/tmp/openclaw-workspace/memory');
+
+    const overridden = await resolveConfig(
+      { baseUrl: 'https://wiki.example', vaultPath: process.cwd(), memoryPath: '~/memory-core', apiKeyRef: 'a' },
+      async () => 'secret',
+      '/tmp/ignored-workspace',
+    );
+    expect(overridden.config.memoryPath).toBe(join(homedir(), 'memory-core'));
   });
 });

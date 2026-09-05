@@ -6,6 +6,8 @@ export type PluginConfig = {
   baseUrl: string;
   apiKeyRef: SecretInput;
   vaultPath: string;
+  /** Optional override for the active OpenClaw memory-core directory. */
+  memoryPath?: string;
   syncIntervalMinutes: number;
   enabled: boolean;
 };
@@ -13,7 +15,28 @@ export type PluginConfig = {
 export type SecretInput = string | { source: 'env' | 'file' | 'exec'; provider: string; id: string };
 export type SecretResolver = (ref: SecretInput) => Promise<string>;
 
-export async function resolveConfig(input: Partial<PluginConfig>, resolveSecret: SecretResolver): Promise<{ config: PluginConfig; apiKey: string }> {
+type HostConfig = { agents?: { defaults?: { workspace?: unknown } } };
+
+function expandPath(value: string): string {
+  if (value === '~') return homedir();
+  if (value.startsWith('~/')) return join(homedir(), value.slice(2));
+  return value;
+}
+
+export function defaultWorkspacePath(hostConfig?: unknown): string {
+  const configured = (hostConfig as HostConfig | undefined)?.agents?.defaults?.workspace;
+  if (typeof configured === 'string' && configured.trim()) return expandPath(configured);
+  const environment = process.env.OPENCLAW_WORKSPACE_DIR;
+  if (environment?.trim()) return expandPath(environment);
+  const profile = process.env.OPENCLAW_PROFILE;
+  return join(homedir(), '.openclaw', profile && profile !== 'default' ? `workspace-${profile}` : 'workspace');
+}
+
+export async function resolveConfig(
+  input: Partial<PluginConfig>,
+  resolveSecret: SecretResolver,
+  workspacePath = defaultWorkspacePath(),
+): Promise<{ config: PluginConfig; apiKey: string }> {
   let url: URL | undefined;
   try { url = input.baseUrl ? new URL(input.baseUrl) : undefined; } catch { /* handled below */ }
   const loopback = url?.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1');
@@ -24,7 +47,7 @@ export async function resolveConfig(input: Partial<PluginConfig>, resolveSecret:
   if (!input.vaultPath) throw new Error('vaultPath is required');
   let vaultPath: string;
   try {
-    const configuredVaultPath = input.vaultPath === '~' ? homedir() : input.vaultPath.startsWith('~/') ? join(homedir(), input.vaultPath.slice(2)) : input.vaultPath;
+    const configuredVaultPath = expandPath(input.vaultPath);
     vaultPath = await realpath(configuredVaultPath);
     if (!(await lstat(vaultPath)).isDirectory()) throw new Error('not_directory');
   } catch {
@@ -37,7 +60,8 @@ export async function resolveConfig(input: Partial<PluginConfig>, resolveSecret:
   // Tolerate a copied API base: the client already prefixes every request path
   // with /api/v1, so a configured baseUrl carrying that suffix would double it.
   const baseUrl = input.baseUrl!.replace(/\/api(?:\/v\d+)?\/?$/u, '').replace(/\/$/u, '');
-  return { config: { baseUrl, apiKeyRef: input.apiKeyRef, vaultPath, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
+  const memoryPath = expandPath(input.memoryPath ?? join(workspacePath, 'memory'));
+  return { config: { baseUrl, apiKeyRef: input.apiKeyRef, vaultPath, memoryPath, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
 }
 
 export function redactConfig(config: PluginConfig): Omit<PluginConfig, 'apiKeyRef'> & { apiKeyRef: '[secret]' } {
