@@ -57,4 +57,34 @@ describe('plugin registration', () => {
     expect(logger.error).toHaveBeenCalledWith(expect.stringContaining('api_key_resolution_failed'));
     service.stop();
   });
+
+  it('returns the full SyncStatus contract (incl skipped: 0) when vault initialization fails', async () => {
+    const registerTool = vi.fn();
+    const registerService = vi.fn();
+    const logger = { warn: vi.fn(), error: vi.fn() };
+    const definitions = new Map<string, { execute: (...args: never[]) => Promise<{ details: unknown }> }>();
+    registerTool.mockImplementation((definition: { name: string; execute: (...args: never[]) => Promise<{ details: unknown }> }) => {
+      definitions.set(definition.name, definition);
+    });
+
+    register({
+      config: { baseUrl: 'https://wiki.example', vaultPath: '/missing/openclaw-vault', apiKeyRef: 'secret://openclaw', enabled: true },
+      resolveSecretRef: vi.fn(async () => 'secret'),
+      registerTool, registerService, logger,
+    });
+
+    const service = registerService.mock.calls[0]?.[0] as { start: () => Promise<void>; stop: () => void };
+    await service.start();
+    const status = await definitions.get('next_wiki_status')?.execute();
+    expect(status?.details).toMatchObject({
+      state: 'degraded',
+      scanned: 0,
+      uploaded: 0,
+      unchanged: 0,
+      failed: 1,
+      skipped: 0,
+      lastError: 'vaultPath must point to an existing directory',
+    });
+    service.stop();
+  });
 });
