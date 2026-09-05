@@ -49,6 +49,11 @@
   knowledge, or lets an AI agent mutate content, document the source-of-truth,
   provenance/citation model, permission re-checks, generated-content review or
   publication boundary, and how derived indexes or suggestions are rebuilt.
+- If the feature reads or writes Agent rules, configuration, memory, evidence,
+  procedures, or context packs, document the Agent identity and target scope,
+  context kinds, inheritance and precedence rules, conflict behavior,
+  non-executable retrieval boundary, secret handling, and selective-publication
+  boundary. Explain how the effective context is attributed and rebuilt.
 
 ## Project Structure
 
