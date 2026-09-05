@@ -363,7 +363,7 @@ export async function replaceEntry(
     await tx.update(schema.pages).set({
       latestVersionId: revision.id,
       currentPublishedVersionId: revision.id,
-      ...(input.title ? { title: input.title } : {}),
+      ...(input.title !== undefined ? { title: input.title } : {}),
       updatedAt: new Date(),
     }).where(eq(schema.pages.id, page.id));
     return { pageId: page.id, versionId: revision.id, versionNumber, unchanged: false };

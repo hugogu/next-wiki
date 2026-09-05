@@ -14,6 +14,13 @@ describe('renderMarkdown', () => {
     expect(html).toContain('<strong>bold</strong>');
   });
 
+  it('rewrites reference-style Markdown links', () => {
+    const { html } = renderMarkdown('[Child][child]\n\n[child]: ./child.md', {
+      resolveMarkdownLink: (href) => href === './child.md' ? '/raw/child' : null,
+    });
+    expect(html).toContain('<a href="/raw/child">Child</a>');
+  });
+
   it('renders tables from GFM', () => {
     const { html } = renderMarkdown('| A | B |\n|---|---|\n| 1 | 2 |');
     expect(html).toContain('<table data-line="1">');

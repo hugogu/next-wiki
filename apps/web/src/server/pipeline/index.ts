@@ -179,7 +179,7 @@ export type MarkdownLinkResolver = (href: string) => string | null;
 function rewriteMarkdownLinks(resolveMarkdownLink: MarkdownLinkResolver | undefined) {
   return (tree: MdastRoot) => {
     if (!resolveMarkdownLink) return;
-    visit(tree, 'link', (node) => {
+    visit(tree, ['link', 'definition'], (node) => {
       if (typeof node.url !== 'string') return;
       const resolved = resolveMarkdownLink(node.url);
       if (resolved) node.url = resolved;

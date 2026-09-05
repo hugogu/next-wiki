@@ -58,7 +58,11 @@ export class SyncService {
         }
       }
       journal.lastRunAt = new Date().toISOString();
-      if (failed === 0) journal.version = JOURNAL_VERSION;
+      // Mark the layout migration complete even when individual documents
+      // failed. Successful documents are checkpointed above, so a later run
+      // can retry only the failed or missing entries instead of replaying the
+      // entire vault on every degraded run.
+      journal.version = JOURNAL_VERSION;
       if (failed === 0) delete journal.lastError;
       await this.writeJournal(journal);
       console.log(`[next-wiki-memory-wiki] sync complete: scanned=${documents.length} uploaded=${uploaded} unchanged=${unchanged} failed=${failed} skipped=${skipped}`);

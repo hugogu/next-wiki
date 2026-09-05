@@ -51,6 +51,30 @@ describe('SyncService', () => {
     expect(client.mirror).toHaveBeenCalledTimes(2);
   });
 
+  it('does not replay successful migration entries after a partial failure', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-migration-failure-'));
+    const vault = join(parent, 'vault');
+    await mkdir(vault);
+    await writeFile(join(vault, 'a.md'), '# A\n');
+    await writeFile(join(vault, 'b.md'), '# B\n');
+    let shouldFailB = true;
+    const client = {
+      mirror: vi.fn(async (document: { sourcePath: string }) => {
+        if (document.sourcePath === 'b.md' && shouldFailB) throw new Error('temporary failure');
+        return { outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' };
+      }),
+    };
+    const journalPath = join(parent, '.openclaw-wiki-next-wiki-sync.json');
+    await writeFile(journalPath, JSON.stringify({ version: 1, completed: {} }));
+    const service = new SyncService(vault, client as never, 60);
+
+    await expect(service.run()).resolves.toMatchObject({ state: 'degraded', uploaded: 1, failed: 1 });
+    shouldFailB = false;
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', uploaded: 1, unchanged: 1, failed: 0 });
+    expect(client.mirror).toHaveBeenCalledTimes(3);
+    expect(client.mirror.mock.calls.map(([document]) => document.sourcePath)).toEqual(['a.md', 'b.md', 'b.md']);
+  });
+
   it('enters degraded state without claiming failed writes succeeded', async () => {
     const vault = await mkdtemp(join(tmpdir(), 'next-wiki-sync-failure-'));
     await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
