@@ -90,7 +90,9 @@ describe('SyncService', () => {
   });
 
   it('logs a successful sync complete line with scanned/uploaded/unchanged/failed/skipped counts', async () => {
-    const vault = await mkdtemp(join(tmpdir(), 'next-wiki-sync-log-'));
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-log-'));
+    const vault = join(parent, 'vault');
+    await mkdir(vault);
     await writeFile(join(vault, 'a.md'), '# A\n');
     const client = { mirror: vi.fn(async () => ({ outcome: 'created', sourcePath: 'a.md', pageId: 'p', revisionId: 'r' })) };
     const service = new SyncService(vault, client as never, 60);
