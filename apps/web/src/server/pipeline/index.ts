@@ -180,6 +180,7 @@ function rewriteMarkdownLinks(resolveMarkdownLink: MarkdownLinkResolver | undefi
   return (tree: MdastRoot) => {
     if (!resolveMarkdownLink) return;
     visit(tree, ['link', 'definition'], (node) => {
+      if (node.type !== 'link' && node.type !== 'definition') return;
       if (typeof node.url !== 'string') return;
       const resolved = resolveMarkdownLink(node.url);
       if (resolved) node.url = resolved;

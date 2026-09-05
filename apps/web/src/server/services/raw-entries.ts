@@ -330,7 +330,7 @@ export async function replaceEntry(
     if (!currentId) throw new DomainError('NOT_FOUND', 'Raw entry has no current revision');
     const current = await tx.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, currentId) });
     if (!current) throw new DomainError('NOT_FOUND', 'Raw entry revision not found');
-    if (current.contentHash === hash && current.contentSource === input.content) {
+    if (current.contentHash === hash && current.contentSource === input.content && current.contentHtml === html) {
       return { pageId: page.id, versionId: current.id, versionNumber: current.versionNumber, unchanged: true };
     }
     const versionRows = await tx.select({ value: max(schema.pageRevisions.versionNumber) })

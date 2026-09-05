@@ -97,6 +97,23 @@ describe('raw entries service', () => {
     expect(resource?.source).not.toHaveProperty('inputKind');
   });
 
+  it('creates a revision when render options change HTML for the same Markdown source', async () => {
+    const content = '[Child](child.md)';
+    const created = await createRawEntry(adminCtx, 'raw/rendered-link', content);
+
+    const replaced = await rawEntries.replaceEntry(adminCtx, created.pageId, {
+      content,
+      renderOptions: {
+        resolveMarkdownLink: (href) => href === 'child.md' ? '/raw/child' : null,
+      },
+    });
+
+    expect(replaced).toMatchObject({ versionNumber: 2, unchanged: false });
+    const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, replaced.versionId) });
+    expect(revision?.contentSource).toBe(content);
+    expect(revision?.contentHtml).toContain('href="/raw/child"');
+  });
+
   it('stores original bytes via content_assets referenced by original_asset_id', async () => {
     const created = await rawEntries.createEntry(adminCtx, {
       path: 'raw/report',

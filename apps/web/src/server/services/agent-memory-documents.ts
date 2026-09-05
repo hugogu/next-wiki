@@ -198,7 +198,6 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
       slug: readerSlug(access, input.sourcePath),
       title: titleFor(input.sourcePath, input.content),
     });
-    if (metadata.sourceDigest === input.sourceDigest) return currentView(current, 'unchanged');
     const replaced = await rawEntries.replaceEntry(rawContext(ctx), current.pageId, {
       content: input.content,
       title: titleFor(input.sourcePath, input.content),
@@ -215,6 +214,7 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
         resolveMarkdownLink: (href) => resolveSourceDocumentLink(access, space, input.sourcePath, href),
       },
     });
+    if (replaced.unchanged) return currentView(current, 'unchanged');
     const [updated] = await db.update(schema.agentMemoryRecords).set({ currentRevisionId: replaced.versionId, updatedAt: new Date() })
       .where(eq(schema.agentMemoryRecords.id, current.id)).returning();
     if (!updated) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The source document disappeared during update');

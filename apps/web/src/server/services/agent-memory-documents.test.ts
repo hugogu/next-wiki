@@ -46,6 +46,7 @@ describe('agent memory source documents', () => {
     dbMock.query.pages.findFirst.mockResolvedValue({ id: 'page-id', spaceId: 'raw-space', slug: 'agent-document', path: 'agent-memory/namespace-id/memory-wiki/entities/alex-abc', title: 'Alex', deletedAt: null });
     dbMock.query.pageRevisions.findFirst.mockResolvedValue({ id: 'revision-id', contentHash: 'a'.repeat(64), status: 'published', createdAt: new Date('2026-08-30T00:00:00Z'), sourceMetadata: { sourcePath: 'entities/alex.md', sourceDigest: digest('# Alex\n') } });
     rawEntries.createEntry.mockResolvedValue({ pageId: 'page-id', versionId: 'revision-id' });
+    rawEntries.replaceEntry.mockResolvedValue({ pageId: 'page-id', versionId: 'revision-id', versionNumber: 1, unchanged: true });
     rawEntries.relocateMirroredEntry.mockResolvedValue({ changed: false, path: 'agent-memory/personal-memory/memory-wiki/entities/alex-abc', slug: 'agent-memory/personal-memory/memory-wiki/entities/alex-abc' });
     dbMock.insert.mockReturnValue({ values: vi.fn(() => ({ returning: vi.fn(async () => [{ id: 'memory-record-id', namespaceId: 'namespace-id', agentIdentity: 'openclaw', recordType: 'source_document', pageId: 'page-id', currentRevisionId: 'revision-id', idempotencyKey: 'source-key', state: 'active' }]) })) });
   });
@@ -80,13 +81,13 @@ describe('agent memory source documents', () => {
     dbMock.query.pageRevisions.findFirst.mockResolvedValue({ id: 'revision-id', contentHash: digest(first), status: 'published', createdAt: new Date('2026-08-30T00:00:00Z'), sourceMetadata: { sourcePath: 'entities/alex.md', sourceDigest: digest(first), deliveryIdempotencyKey: 'entities/alex.md:' + digest(first) } });
 
     await expect(upsertSourceDocument({ actor: { kind: 'api_key', scopes: ['memory.write'], keyId: 'mirror-key' } } as never, { sourcePath: 'entities/alex.md', content: first, sourceDigest: digest(first), idempotencyKey: 'entities/alex.md:' + digest(first) })).resolves.toMatchObject({ outcome: 'unchanged' });
-    expect(rawEntries.replaceEntry).not.toHaveBeenCalled();
+    expect(rawEntries.replaceEntry).toHaveBeenCalledWith(expect.anything(), 'page-id', expect.objectContaining({ content: first, title: 'Alex' }));
     expect(rawEntries.relocateMirroredEntry).toHaveBeenCalledWith(expect.anything(), 'page-id', expect.objectContaining({
       path: expect.stringContaining('agent-memory/personal-memory/memory-wiki/entities/alex-'),
       title: 'Alex',
     }));
 
-    rawEntries.replaceEntry.mockResolvedValue({ versionId: 'revision-2' });
+    rawEntries.replaceEntry.mockResolvedValue({ pageId: 'page-id', versionId: 'revision-2', versionNumber: 2, unchanged: false });
     dbMock.query.pageRevisions.findFirst
       .mockResolvedValueOnce({ id: 'revision-id', contentHash: digest(first), status: 'published', createdAt: new Date('2026-08-30T00:00:00Z'), sourceMetadata: { sourcePath: 'entities/alex.md', sourceDigest: digest(first) } })
       .mockResolvedValueOnce({ id: 'revision-2', contentHash: digest(second), status: 'published', createdAt: new Date('2026-08-30T00:00:00Z'), sourceMetadata: { sourcePath: 'entities/alex.md', sourceDigest: digest(second) } });
