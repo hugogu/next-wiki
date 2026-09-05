@@ -25,11 +25,11 @@ function markdownBody(content: string): string {
 }
 
 function isMemoryWikiBridge(document: VaultDocument): boolean {
-  return document.sourcePath.toLocaleLowerCase().startsWith('sources/') && /^\uFEFF?---\r?\n[\s\S]*?sourceType\s*:\s*["']?memory-bridge["']?[\s\S]*?\r?\n---(?:\r?\n|$)/mu.test(document.content);
+  return document.sourcePath.toLowerCase().startsWith('sources/') && /^\uFEFF?---\r?\n[\s\S]*?sourceType\s*:\s*["']?memory-bridge["']?[\s\S]*?\r?\n---(?:\r?\n|$)/mu.test(document.content);
 }
 
 function deduplicationKey(document: VaultDocument): string | undefined {
-  if (!document.sourcePath.toLocaleLowerCase().startsWith('memory-core/') && !isMemoryWikiBridge(document)) return undefined;
+  if (!document.sourcePath.toLowerCase().startsWith('memory-core/') && !isMemoryWikiBridge(document)) return undefined;
   return createHash('sha256').update(markdownBody(document.content), 'utf8').digest('hex');
 }
 
@@ -137,6 +137,7 @@ export class SyncService {
       });
       const needsMirrorMigration = journal.version !== JOURNAL_VERSION;
       let uploaded = 0; let unchanged = 0; let failed = scanFailures;
+      let mirrorErrorRecorded = false;
       for (const document of documents) {
         try {
           if (!needsMirrorMigration && journal.completed[document.sourcePath] === document.sourceDigest) {
@@ -148,6 +149,7 @@ export class SyncService {
           if (result.outcome === 'unchanged') unchanged++; else uploaded++;
         } catch (error) {
           failed++;
+          mirrorErrorRecorded = true;
           if (needsMirrorMigration) delete journal.completed[document.sourcePath];
           journal.lastError = error instanceof Error ? error.message : 'sync_failed';
         }
@@ -159,7 +161,7 @@ export class SyncService {
       // entire vault on every degraded run.
       journal.version = JOURNAL_VERSION;
       if (failed === 0) delete journal.lastError;
-      else if (scanError) journal.lastError = scanError;
+      else if (scanError && !mirrorErrorRecorded) journal.lastError = scanError;
       await this.writeJournal(journal);
       console.log(`[next-wiki-memory-wiki] sync complete: scanned=${scannedDocuments.length} uploaded=${uploaded} unchanged=${unchanged} failed=${failed} skipped=${skipped}`);
       this.status = { state: failed > 0 ? 'degraded' : 'idle', scanned: scannedDocuments.length, uploaded, unchanged, failed, skipped, lastRunAt: journal.lastRunAt, lastError: journal.lastError };

@@ -113,6 +113,21 @@ describe('SyncService', () => {
     expect(client.mirror.mock.calls.map(([document]) => document.sourcePath)).toEqual(['WIKI.md']);
   });
 
+  it('preserves a mirror error when an optional memory source also fails', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-memory-core-error-precedence-'));
+    const vault = join(parent, 'wiki');
+    const workspace = join(parent, 'workspace');
+    await mkdir(vault, { recursive: true });
+    await mkdir(workspace, { recursive: true });
+    await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
+    const memoryAsFile = join(parent, 'memory.md');
+    await writeFile(memoryAsFile, '# not a directory\n');
+    const client = { mirror: vi.fn(async () => { throw new Error('wiki unavailable'); }) };
+
+    await expect(new SyncService(vault, client as never, 60, memoryAsFile, workspace).run())
+      .resolves.toMatchObject({ state: 'degraded', scanned: 1, failed: 2, lastError: 'wiki unavailable' });
+  });
+
   it('serializes a complete inventory and records restart-safe progress', async () => {
     const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-'));
     const vault = join(parent, 'vault');
