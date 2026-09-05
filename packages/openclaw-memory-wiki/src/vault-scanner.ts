@@ -4,6 +4,7 @@ import { join, relative, resolve, sep } from 'node:path';
 
 export type VaultDocument = { sourcePath: string; content: string; sourceDigest: string; sizeBytes: number };
 const EXCLUDED = new Set(['_attachments', '.openclaw-wiki', 'attachments', 'state']);
+export const DEFAULT_MAX_FILE_BYTES = 512_000;
 
 function isInside(root: string, candidate: string): boolean {
   const rel = relative(root, candidate);
@@ -14,12 +15,23 @@ function toSourcePath(root: string, fullPath: string): string {
   return relative(root, fullPath).split(sep).join('/');
 }
 
-export async function scanVault(vaultPath: string, maxBytes = 512_000, onSkip?: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable') => void): Promise<VaultDocument[]> {
+export async function scanVault(vaultPath: string, maxBytes = DEFAULT_MAX_FILE_BYTES, onSkip?: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable') => void): Promise<VaultDocument[]> {
   const root = await resolve(vaultPath);
   const documents: VaultDocument[] = [];
   async function walk(directory: string): Promise<void> {
     if (!isInside(root, directory)) throw new Error('Vault path escaped root');
-    const entries = await readdir(directory, { withFileTypes: true });
+    let entries;
+    try { entries = await readdir(directory, { withFileTypes: true }); }
+    catch (error) {
+      // The vault root itself being unreadable is a hard failure (caller
+      // configured a bad path) — propagate. A nested subdirectory
+      // disappearing mid-scan is a transient race; log and continue so the
+      // rest of the vault still syncs.
+      if (directory === root) throw error;
+      const message = error instanceof Error ? error.message : 'read_failed';
+      console.warn(`[next-wiki-memory-wiki] skipping unreadable subdirectory ${toSourcePath(root, directory)}: ${message}`);
+      return;
+    }
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
       if (entry.name.startsWith('.') && entry.name !== '.well-known') continue;
       if (EXCLUDED.has(entry.name)) continue;
@@ -31,9 +43,9 @@ export async function scanVault(vaultPath: string, maxBytes = 512_000, onSkip?: 
       let stat;
       try { stat = await lstat(fullPath); }
       catch { onSkip?.(sourcePath, 'unreadable'); continue; }
-      if (stat.isSymbolicLink()) throw new Error(`Symlinks are not allowed in the Memory Wiki vault: ${entry.name}`);
+      if (stat.isSymbolicLink()) throw new Error(`Symlinks are not allowed in the Memory Wiki vault: ${sourcePath}`);
       if (stat.isDirectory()) { await walk(fullPath); continue; }
-      if (!stat.isFile() || !entry.name.toLocaleLowerCase().endsWith('.md')) continue;
+      if (!stat.isFile() || !entry.name.toLowerCase().endsWith('.md')) continue;
       if (stat.size > maxBytes) { onSkip?.(sourcePath, 'too_large'); continue; }
       let content;
       try { content = await readFile(fullPath, 'utf8'); }

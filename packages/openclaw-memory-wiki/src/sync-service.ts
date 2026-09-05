@@ -1,6 +1,6 @@
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { scanVault, type VaultDocument } from './vault-scanner.js';
+import { scanVault, DEFAULT_MAX_FILE_BYTES, type VaultDocument } from './vault-scanner.js';
 import { NextWikiClient } from './client.js';
 
 type Journal = { completed: Record<string, string>; lastRunAt?: string; lastError?: string };
@@ -30,7 +30,7 @@ export class SyncService {
     try {
       let skipped = 0;
       const [documents, journal] = await Promise.all([
-        scanVault(this.vaultPath, 512_000, (sourcePath, reason) => {
+        scanVault(this.vaultPath, DEFAULT_MAX_FILE_BYTES, (sourcePath, reason) => {
           skipped++;
           console.warn(`[next-wiki-memory-wiki] skipped ${sourcePath}: ${reason}`);
         }),

@@ -1,8 +1,8 @@
 import { chmod, mkdtemp, mkdir, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
-import { scanVault } from '../src/vault-scanner.js';
+import { describe, expect, it, vi } from 'vitest';
+import { DEFAULT_MAX_FILE_BYTES, scanVault } from '../src/vault-scanner.js';
 
 async function fixture() {
   const root = await mkdtemp(join(tmpdir(), 'memory-wiki-'));
@@ -62,5 +62,43 @@ describe('scanVault', () => {
     } finally {
       await chmod(lockedPath, 0o644);
     }
+  });
+
+  it('skips unreadable subdirectories without aborting the scan', async () => {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) {
+      return;
+    }
+    const root = await fixture();
+    await mkdir(join(root, 'entities', 'Locked'), { recursive: true });
+    await writeFile(join(root, 'entities', 'Locked', 'inner.md'), '# inner');
+    await chmod(join(root, 'entities', 'Locked'), 0o000);
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    try {
+      const docs = await scanVault(root);
+      expect(docs.map((d) => d.sourcePath)).toEqual(['AGENTS.md', 'entities/Alex.md']);
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/skipping unreadable subdirectory entities\/Locked/));
+    } finally {
+      await chmod(join(root, 'entities', 'Locked'), 0o755);
+      warnSpy.mockRestore();
+    }
+  });
+
+  it('scans Markdown files regardless of filename case', async () => {
+    const root = await fixture();
+    await writeFile(join(root, 'entities', 'MixedCase.MD'), '# Mixed');
+    const docs = await scanVault(root);
+    expect(docs.map((d) => d.sourcePath)).toContain('entities/MixedCase.MD');
+  });
+
+  it('rejects nested symlinks and reports the full sourcePath', async () => {
+    const root = await fixture();
+    await mkdir(join(root, 'entities', 'nested'), { recursive: true });
+    await writeFile(join(root, 'entities', 'nested', 'safe.md'), 'safe');
+    await symlink(join(root, 'entities', 'nested', 'safe.md'), join(root, 'entities', 'nested', 'linked.md'));
+    await expect(scanVault(root)).rejects.toThrow(/entities\/nested\/linked\.md/);
+  });
+
+  it('exports DEFAULT_MAX_FILE_BYTES at 512_000', () => {
+    expect(DEFAULT_MAX_FILE_BYTES).toBe(512_000);
   });
 });
