@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, or, sql, inArray } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, or, sql, inArray, like } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -1457,7 +1457,6 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
   });
 
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be deleted');
   if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
 
   const isAuthor = page.authorId === userId;
@@ -1475,6 +1474,76 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
   invalidatePublicContentCache();
   await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
+}
+
+/**
+ * Soft-delete every page under a tree path prefix — the Navigator's "folder".
+ * Folders are virtual (derived from `pages.path`), so deleting one means
+ * soft-deleting the whole subtree, including a hybrid node's own page. The
+ * batch is all-or-nothing: every page inside is permission-checked first, and
+ * any single rejection fails the whole delete before anything is written.
+ */
+export async function removeFolder(
+  ctx: PermCtx,
+  pathPrefix: string,
+  spaceSlug?: string,
+  options: { dryRun?: boolean } = {},
+): Promise<{ deletedCount: number }> {
+  const userId = getUserId(ctx);
+  if (!userId) {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to delete pages');
+  }
+
+  const space = await resolveSpace(spaceSlug);
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
+
+  const rows = await db
+    .select({
+      id: schema.pages.id,
+      authorId: schema.pages.authorId,
+      visibility: schema.pages.visibility,
+      kind: schema.pages.kind,
+    })
+    .from(schema.pages)
+    .where(
+      and(
+        eq(schema.pages.spaceId, space.id),
+        isNull(schema.pages.deletedAt),
+        or(
+          eq(schema.pages.path, pathPrefix),
+          like(schema.pages.path, `${pathPrefix}/%`),
+        ),
+      ),
+    );
+
+  // Link pages are retired placeholders, not real content — they don't block
+  // deleting a folder and are left untouched.
+  const targets = rows.filter((row) => row.kind !== 'link');
+  for (const row of targets) {
+    const isAuthor = row.authorId === userId;
+    if (!can(ctx, 'delete', { kind: 'page', pageId: row.id }, pagePermissionOptions(space, row, { isAuthor }))) {
+      throw new DomainError('FORBIDDEN', 'You do not have permission to delete every page under this folder');
+    }
+  }
+
+  if (options.dryRun || targets.length === 0) {
+    return { deletedCount: targets.length };
+  }
+
+  await db.transaction(async (tx) => {
+    await assertNoSwitchInProgress(tx);
+    await tx
+      .update(schema.pages)
+      .set({ deletedAt: new Date() })
+      .where(inArray(schema.pages.id, targets.map((row) => row.id)));
+  });
+  invalidatePublicContentCache();
+  await notifyPublicContentChanged('publish');
+  for (const row of targets) {
+    await reconcilePageAcrossIndexes(row.id, ctx);
+  }
+  return { deletedCount: targets.length };
 }
 
 export async function create(

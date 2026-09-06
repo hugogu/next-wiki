@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as revisions from '@/server/services/revisions';
 import * as publicContent from '@/server/services/public-content';
@@ -327,7 +327,6 @@ describe('public content batch soft-delete facade (US5)', () => {
 
   afterAll(async () => {
     await cleanup();
-    await closeDb();
   });
 
   async function seedPublished(editorCtx: ReturnType<typeof buildUserCtx>, count: number, prefix: string) {
@@ -416,5 +415,66 @@ describe('public content batch soft-delete facade (US5)', () => {
     } finally {
       await clearPendingSwitch(editor.id);
     }
+  });
+});
+
+describe('public content folder delete facade', () => {
+  beforeEach(async () => {
+    await cleanup();
+    await ensurePublicApiDefaultSpace();
+  });
+
+  afterAll(async () => {
+    await cleanup();
+    await closeDb();
+  });
+
+  const deletedAtOf = async (pageId: string) =>
+    (await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) }))?.deletedAt ?? null;
+
+  it('lets an editor delete a folder of only their own pages, all-or-nothing otherwise', async () => {
+    const editor = await createPublicApiUser('folder-del-editor@example.com', 'editor');
+    const other = await createPublicApiUser('folder-del-other@example.com', 'editor');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const otherCtx = buildUserCtx(other.id, 'editor');
+
+    const ownA = await pageService.create(editorCtx, { path: 'folder-del/own/a', title: 'A', contentSource: 'A' });
+    const ownB = await pageService.create(editorCtx, { path: 'folder-del/own/nested/b', title: 'B', contentSource: 'B' });
+
+    const preview = await publicContent.deleteFolder(editorCtx, { pathPrefix: 'folder-del/own', dry_run: true });
+    expect(preview).toMatchObject({ deletedCount: 2, dryRun: true });
+    expect(await deletedAtOf(ownA.pageId)).toBeNull();
+
+    const own = await publicContent.deleteFolder(editorCtx, { pathPrefix: 'folder-del/own', dry_run: false });
+    expect(own.deletedCount).toBe(2);
+    expect(await deletedAtOf(ownA.pageId)).not.toBeNull();
+    expect(await deletedAtOf(ownB.pageId)).not.toBeNull();
+
+    // Mixed authorship: an editor cannot folder-delete someone else's page.
+    const mine = await pageService.create(editorCtx, { path: 'folder-del/mixed/mine', title: 'Mine', contentSource: 'M' });
+    const theirs = await pageService.create(otherCtx, { path: 'folder-del/mixed/theirs', title: 'Theirs', contentSource: 'T' });
+
+    await expect(
+      publicContent.deleteFolder(editorCtx, { pathPrefix: 'folder-del/mixed', dry_run: false }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(await deletedAtOf(mine.pageId)).toBeNull();
+    expect(await deletedAtOf(theirs.pageId)).toBeNull();
+
+    // An admin can.
+    const admin = await createPublicApiUser('folder-del-admin@example.com', 'admin');
+    const cleared = await publicContent.deleteFolder(buildUserCtx(admin.id, 'admin'), { pathPrefix: 'folder-del/mixed', dry_run: false });
+    expect(cleared.deletedCount).toBe(2);
+    expect(await deletedAtOf(mine.pageId)).not.toBeNull();
+    expect(await deletedAtOf(theirs.pageId)).not.toBeNull();
+  });
+
+  it('requires a signed-in actor and a known space', async () => {
+    await expect(
+      publicContent.deleteFolder(buildAnonymousCtx(), { pathPrefix: 'folder-del/none', dry_run: false }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    const admin = await createPublicApiUser('folder-del-space-admin@example.com', 'admin');
+    await expect(
+      publicContent.deleteFolder(buildUserCtx(admin.id, 'admin'), { pathPrefix: 'folder-del/none', space: 'no-such-space', dry_run: false }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 });

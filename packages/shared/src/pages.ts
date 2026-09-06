@@ -910,3 +910,20 @@ export const publicDryRunQuerySchema = z.object({
     .transform((value) => value === 'true'),
 });
 export type PublicDryRunQuery = z.infer<typeof publicDryRunQuerySchema>;
+
+export const publicFolderDeleteQuerySchema = z.object({
+  pathPrefix: pathSchema,
+  // 022: space slug; the default wiki space is used when omitted.
+  space: z.string().optional(),
+  dry_run: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => value === 'true'),
+});
+export type PublicFolderDeleteQuery = z.infer<typeof publicFolderDeleteQuerySchema>;
+
+export const publicFolderDeleteResultSchema = z.object({
+  deletedCount: z.number().int().nonnegative(),
+  dryRun: z.boolean().optional(),
+});
+export type PublicFolderDeleteResult = z.infer<typeof publicFolderDeleteResultSchema>;

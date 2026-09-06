@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import type { PublicPageTreeNode } from '@next-wiki/shared';
 import {
   ChevronRightIcon,
@@ -34,8 +34,9 @@ import {
   FunctionPlotIcon,
   MoveIcon,
   ArchiveIcon,
+  TrashIcon,
 } from '@/components/icons';
-import { getConfiguredSpaceHref, getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
+import { getConfiguredSpaceHref, getPublicApiPageUrl, getSpaceHref, getSpaceNewHref, leafTitleFromPath, type ReaderSpace } from '@/lib/path';
 import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
 import type { Actor } from '@/server/permissions';
@@ -43,6 +44,8 @@ import { NavFooterMenu } from './NavFooterMenu';
 import { AiChatHistory } from '@/components/chat/AiChatHistory';
 import type { WritingMode } from '@next-wiki/shared';
 import { CrossSpaceMigrationDialog } from '@/components/pages/CrossSpaceMigrationDialog';
+import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { apiDelete, type ApiError } from '@/lib/api/client';
 import { useResizableWidth } from '@/hooks/use-resizable-width';
 
 const NAV_SCROLL_KEY = 'nav-scroll-top';
@@ -149,6 +152,8 @@ function TreeItem({
   space,
   routePrefix,
   canMigrate,
+  canDelete,
+  onDeleted,
 }: {
   node: LazyPublicPageTreeNode;
   currentPath?: string;
@@ -170,20 +175,78 @@ function TreeItem({
   space: ReaderSpace;
   routePrefix?: string;
   canMigrate: boolean;
+  /** Whether to show the per-row delete button (mirrors server-side delete permission). */
+  canDelete: boolean;
+  /** Called after a node was successfully deleted so cached branches are pruned. */
+  onDeleted: (deletedPath: string) => void;
 }) {
+  const { t } = useTranslation();
+  const router = useRouter();
   const [migrationSelection, setMigrationSelection] = useState<
     { kind: 'page'; pageId: string } | { kind: 'folder'; sourceSpaceId: string; pathPrefix: string } | null
   >(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  // Folder deletes preview the affected page count via a dry run before the
+  // confirm button arms — a folder can hide a large subtree.
+  const [deleteCount, setDeleteCount] = useState<number | null>(null);
+  const [deletePending, setDeletePending] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const loadState = getLoadState(node);
   const showMigrate = canMigrate && space !== 'raw';
   const active = node.pageId !== null && node.path === currentPath;
   const isOpen = expanded.has(node.path);
+  // A hybrid node (page that also nests children) deletes as a folder: the
+  // folder delete covers its own page too, matching the migrate button.
+  const deleteKind: 'page' | 'folder' = node.pageId && !node.hasChildren ? 'page' : 'folder';
   // Children we can render right now: pre-expanded ones from SSR, or ones
   // the client has loaded lazily. Otherwise `node.children` stays empty.
   const visibleChildren =
     node.children.length > 0 ? node.children : loadState.status === 'ok' ? loadState.children : [];
   const hasVisibleChildren = visibleChildren.length > 0;
   const indent = { paddingLeft: `${depth * 0.6 + 0.25}rem` };
+
+  const folderDeleteParams = () => {
+    const params = new URLSearchParams({ pathPrefix: node.path });
+    if (space !== 'wiki') params.set('space', space);
+    return params.toString();
+  };
+
+  const requestDelete = () => {
+    setDeleteError(null);
+    setDeletePending(false);
+    setDeleteOpen(true);
+    if (deleteKind === 'folder') {
+      setDeleteCount(null);
+      apiDelete<{ deletedCount: number }>(`/api/v1/tree?${folderDeleteParams()}&dry_run=true`)
+        .then((result) => setDeleteCount(result.deletedCount))
+        .catch((error: ApiError) => setDeleteError(error.message || t('layout.nav.deleteError')));
+    }
+  };
+
+  const handleDelete = async () => {
+    setDeletePending(true);
+    setDeleteError(null);
+    try {
+      if (deleteKind === 'page' && node.pageId) {
+        await apiDelete<void>(getPublicApiPageUrl(node.pageId));
+      } else {
+        await apiDelete<{ deletedCount: number }>(`/api/v1/tree?${folderDeleteParams()}`);
+      }
+      setDeleteOpen(false);
+      onDeleted(node.path);
+      // Deleting the page (or an ancestor folder of it) out from under the
+      // reader leaves a 404 behind, so leave the subtree first.
+      if (currentPath && (currentPath === node.path || currentPath.startsWith(`${node.path}/`))) {
+        router.push(getSpaceHref(space));
+      }
+      router.refresh();
+    } catch (error) {
+      const apiError = error as ApiError;
+      setDeleteError(apiError.message || t('layout.nav.deleteError'));
+    } finally {
+      setDeletePending(false);
+    }
+  };
 
   return (
     <li>
@@ -247,7 +310,7 @@ function TreeItem({
           overflow from widening the sidebar, and leaving it on once expanded
           would cut off the focus outline the buttons rely on.
         */}
-        {(canCreate || showMigrate) && (
+        {(canCreate || showMigrate || canDelete) && (
           <div className="flex shrink-0 items-center lg:overflow-hidden lg:w-0 lg:opacity-0 lg:transition-opacity lg:group-hover:w-auto lg:group-hover:overflow-visible lg:group-hover:opacity-100 lg:group-focus-within:w-auto lg:group-focus-within:overflow-visible lg:group-focus-within:opacity-100">
             {canCreate && (
               <Link
@@ -271,11 +334,43 @@ function TreeItem({
                 <MoveIcon className="h-4 w-4" />
               </button>
             )}
+            {canDelete && (
+              <button
+                type="button"
+                onClick={requestDelete}
+                title={t('layout.nav.delete')}
+                aria-label={t('layout.nav.delete')}
+                className="mr-1 inline-flex h-6 w-6 shrink-0 items-center justify-center rounded text-muted transition-colors hover:text-danger hover:bg-surface-elevated"
+              >
+                <TrashIcon className="h-4 w-4" />
+              </button>
+            )}
           </div>
         )}
       </div>
 
       {migrationSelection && <CrossSpaceMigrationDialog selection={migrationSelection} sourceSpaceKind={space === 'generated' ? 'generated' : 'wiki'} title={node.title || node.segment} onClose={() => setMigrationSelection(null)} onComplete={() => { setMigrationSelection(null); window.location.reload(); }} />}
+
+      {deleteOpen && (
+        <ConfirmDialog
+          title={deleteKind === 'page' ? t('editor.delete.title') : t('layout.nav.deleteFolderTitle')}
+          message={
+            deleteKind === 'page'
+              ? t('editor.delete.message', { title: node.title || leafTitleFromPath(node.path) })
+              : deleteCount === null
+                ? t('layout.nav.deleteFolderCounting', { name: node.segment })
+                : t('layout.nav.deleteFolderMessage', { name: node.segment, count: deleteCount })
+          }
+          confirmLabel={deleteKind === 'page' ? t('editor.delete.confirm') : t('layout.nav.deleteFolderConfirm')}
+          confirmVariant="danger"
+          pending={deletePending || (deleteKind === 'folder' && deleteCount === null)}
+          error={deleteError ?? undefined}
+          onConfirm={handleDelete}
+          onCancel={() => {
+            if (!deletePending) setDeleteOpen(false);
+          }}
+        />
+      )}
 
       {node.hasChildren && isOpen && (
         <ul>
@@ -297,6 +392,8 @@ function TreeItem({
                 space={space}
                 routePrefix={routePrefix}
                 canMigrate={canMigrate}
+                canDelete={canDelete}
+                onDeleted={onDeleted}
               />
             ))
           ) : loadState.status === 'loading' ? (
@@ -350,6 +447,11 @@ export function Navigator({
   // Editors and admins may create pages, so they get the per-row "new child"
   // button that pre-fills the path prefix from the hovered node.
   const canCreatePages =
+    user.kind === 'user' &&
+    (space === 'wiki' ? user.role === 'admin' || user.role === 'editor' : user.role === 'admin');
+  // Same shape as create: raw/generated deletes are admin-only, wiki deletes
+  // are editor/admin (the server still enforces per-page authorship).
+  const canDeletePages =
     user.kind === 'user' &&
     (space === 'wiki' ? user.role === 'admin' || user.role === 'editor' : user.role === 'admin');
   const canSwitchSpaces =
@@ -662,10 +764,24 @@ export function Navigator({
     [branchCache, space],
   );
 
+  // Drop lazily-loaded branches at/under a deleted subtree so a refreshed tree
+  // doesn't keep resurrecting stale rows; `expanded` entries for gone paths are
+  // harmless (they just never match a rendered node again).
+  const handleNodeDeleted = useCallback((deletedPath: string) => {
+    const prunes = (prev: Record<string, unknown>) => {
+      const next = { ...prev };
+      for (const key of Object.keys(next)) {
+        if (key === deletedPath || key.startsWith(`${deletedPath}/`)) delete next[key];
+      }
+      return next;
+    };
+    setBranchCache((prev) => prunes(prev) as typeof prev);
+    setBranchLoad((prev) => prunes(prev) as typeof prev);
+  }, []);
+
   // Whenever a new branch is expanded for the first time, fire a fetch.
   // Collapsing does not drop the cache so re-expanding is instant.
-  useEffect(() => {
-    function findNode(
+  useEffect(() => {    function findNode(
       nodes: LazyPublicPageTreeNode[],
       target: string,
     ): LazyPublicPageTreeNode | undefined {
@@ -864,6 +980,8 @@ export function Navigator({
                       space={space}
                     routePrefix={routePrefix}
                     canMigrate={canMigrate}
+                    canDelete={canDeletePages}
+                    onDeleted={handleNodeDeleted}
                     />
                   ))}
                 </ul>

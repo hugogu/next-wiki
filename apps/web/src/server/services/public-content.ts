@@ -11,6 +11,8 @@ import type {
   PublicDanglingLink,
   PublicDraftCreateInput,
   PublicExternalLink,
+  PublicFolderDeleteQuery,
+  PublicFolderDeleteResult,
   PublicNeighborNode,
   PublicNeighborVia,
   PublicNeighborhoodResponse,
@@ -1630,6 +1632,20 @@ export async function deletePage(ctx: PermCtx, pageId: string): Promise<void> {
     throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
   }
   await pageService.remove(ctx, page.path, space.slug);
+}
+
+/**
+ * Soft-delete every page under a folder path prefix. `dry_run` reports how many
+ * pages the delete would touch without writing, so callers can confirm first.
+ */
+export async function deleteFolder(
+  ctx: PermCtx,
+  input: PublicFolderDeleteQuery,
+): Promise<PublicFolderDeleteResult> {
+  const space = await resolveSpace(input.space);
+  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  const result = await pageService.removeFolder(ctx, input.pathPrefix, space.slug, { dryRun: input.dry_run });
+  return { deletedCount: result.deletedCount, dryRun: input.dry_run || undefined };
 }
 
 export async function appendRawEntry(

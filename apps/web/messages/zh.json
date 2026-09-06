@@ -2303,6 +2303,12 @@
       "empty": "暂无已发布页面。",
       "loadError": "加载失败，点击重试。",
       "addChild": "在此新建页面",
+      "delete": "删除",
+      "deleteFolderTitle": "删除文件夹？",
+      "deleteFolderCounting": "删除文件夹“{name}”？正在统计其中的页面数量…",
+      "deleteFolderMessage": "删除文件夹“{name}”？其中的 {count} 个页面将被一并删除，此操作无法撤销。",
+      "deleteFolderConfirm": "删除文件夹",
+      "deleteError": "删除失败。",
       "resizeHandle": "拖动以调整导航栏宽度",
       "spaces": {
         "label": "内容空间",

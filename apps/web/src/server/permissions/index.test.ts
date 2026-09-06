@@ -20,17 +20,26 @@ describe('permissions space-kind matrix (022)', () => {
       expect(can(buildUserCtx('u1', 'admin'), 'create', pageList, { spaceKind: 'raw' })).toBe(true);
     });
 
-    it('edit, delete, publish, read_draft are denied for every actor', () => {
+    it('edit, publish, read_draft are denied for every actor', () => {
       const admin = buildUserCtx('u1', 'admin');
       expect(can(admin, 'edit', page, { spaceKind: 'raw' })).toBe(false);
-      expect(can(admin, 'delete', page, { spaceKind: 'raw' })).toBe(false);
       expect(can(admin, 'publish', revision, { spaceKind: 'raw' })).toBe(false);
       expect(can(admin, 'read_draft', revision, { spaceKind: 'raw' })).toBe(false);
       const adminKey = buildApiKeyCtx('u1', 'admin', ['view', 'create', 'edit', 'delete'], 'k1');
       expect(can(adminKey, 'edit', page, { spaceKind: 'raw' })).toBe(false);
-      expect(can(adminKey, 'delete', page, { spaceKind: 'raw' })).toBe(false);
       expect(can(adminKey, 'publish', revision, { spaceKind: 'raw' })).toBe(false);
       expect(can(adminKey, 'read_draft', revision, { spaceKind: 'raw' })).toBe(false);
+    });
+
+    it('delete is admin-only', () => {
+      expect(can(buildUserCtx('u1', 'admin'), 'delete', page, { spaceKind: 'raw' })).toBe(true);
+      expect(can(buildUserCtx('u1', 'editor'), 'delete', page, { spaceKind: 'raw' })).toBe(false);
+      expect(can(buildUserCtx('u1', 'reader'), 'delete', page, { spaceKind: 'raw' })).toBe(false);
+      expect(can(buildAnonymousCtx(), 'delete', page, { spaceKind: 'raw' })).toBe(false);
+      // An api_key still needs the delete scope intersecting the admin role.
+      expect(can(buildApiKeyCtx('u1', 'admin', ['delete'], 'k1'), 'delete', page, { spaceKind: 'raw' })).toBe(true);
+      expect(can(buildApiKeyCtx('u1', 'admin', ['view'], 'k1'), 'delete', page, { spaceKind: 'raw' })).toBe(false);
+      expect(can(buildApiKeyCtx('u1', 'editor', ['delete'], 'k1'), 'delete', page, { spaceKind: 'raw' })).toBe(false);
     });
 
     it('api_key still needs the matching scope (scope ∩ role)', () => {

@@ -2303,6 +2303,12 @@
       "empty": "No published pages yet.",
       "loadError": "Failed to load. Click to retry.",
       "addChild": "New page here",
+      "delete": "Delete",
+      "deleteFolderTitle": "Delete folder?",
+      "deleteFolderCounting": "Delete folder \"{name}\"? Counting the pages inside…",
+      "deleteFolderMessage": "Delete folder \"{name}\"? {count, plural, one {# page} other {# pages}} inside will be soft-deleted. This cannot be undone.",
+      "deleteFolderConfirm": "Delete folder",
+      "deleteError": "Could not delete.",
       "resizeHandle": "Drag to resize the navigator",
       "spaces": {
         "label": "Content space",

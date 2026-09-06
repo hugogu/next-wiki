@@ -2,7 +2,10 @@
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it, vi } from 'vitest';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/astronomy/supernovae' }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/astronomy/supernovae',
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
 vi.mock('@/i18n/client', () => ({ useTranslation: () => ({ t: (key: string) => key }) }));
 vi.mock('./NavFooterMenu', () => ({ NavFooterMenu: () => null }));
 
@@ -80,8 +83,7 @@ describe('Navigator hybrid node (page that also has children)', () => {
   });
 });
 
-describe('Navigator LLM Wiki space tabs', () => {
-  it('renders persistent title-bar tabs outside the scrolling navigation', () => {
+describe('Navigator LLM Wiki space tabs', () => {  it('renders persistent title-bar tabs outside the scrolling navigation', () => {
     const html = renderToStaticMarkup(
       <Navigator
         tree={[]}
@@ -101,5 +103,87 @@ describe('Navigator LLM Wiki space tabs', () => {
     expect(html).toContain('href="/spaces/generated"');
     expect(html).toContain('aria-current="page"');
     expect(html).toContain('href="/spaces/raw"');
+  });
+});
+
+describe('Navigator delete row action', () => {
+  const tree: LazyPublicPageTreeNode[] = [
+    {
+      path: 'conversations',
+      segment: 'conversations',
+      title: null,
+      pageId: null,
+      slug: null,
+      status: null,
+      hasChildren: true,
+      children: [
+        {
+          path: 'conversations/today',
+          segment: 'today',
+          title: 'Today',
+          pageId: 'pg-today',
+          slug: 'conversations/today',
+          status: 'published',
+          hasChildren: false,
+          children: [],
+        },
+      ],
+    },
+  ];
+
+  it('shows a delete button on file and folder rows for admins, including raw space', () => {
+    const html = renderToStaticMarkup(
+      <Navigator
+        tree={tree}
+        currentPath="conversations/today"
+        isOpen={false}
+        onClose={() => {}}
+        user={{ kind: 'user', userId: 'admin-1', role: 'admin' }}
+        space="raw"
+        writingMode="llm-wiki"
+      />,
+    );
+
+    // One delete button per row: the folder and the page under it.
+    expect(html.match(/aria-label="layout.nav.delete"/g)).toHaveLength(2);
+  });
+
+  it('hides the delete button from anonymous visitors and raw-space editors', () => {
+    const anonymous = renderToStaticMarkup(
+      <Navigator
+        tree={tree}
+        isOpen={false}
+        onClose={() => {}}
+        user={{ kind: 'anonymous' }}
+        space="raw"
+        writingMode="llm-wiki"
+      />,
+    );
+    expect(anonymous).not.toContain('layout.nav.delete');
+
+    const editor = renderToStaticMarkup(
+      <Navigator
+        tree={tree}
+        isOpen={false}
+        onClose={() => {}}
+        user={{ kind: 'user', userId: 'editor-1', role: 'editor' }}
+        space="raw"
+        writingMode="llm-wiki"
+      />,
+    );
+    expect(editor).not.toContain('layout.nav.delete');
+  });
+
+  it('shows the delete button to editors on wiki space', () => {
+    const html = renderToStaticMarkup(
+      <Navigator
+        tree={tree}
+        currentPath="conversations/today"
+        isOpen={false}
+        onClose={() => {}}
+        user={{ kind: 'user', userId: 'editor-1', role: 'editor' }}
+      />,
+    );
+    expect(html.match(/aria-label="layout.nav.delete"/g)).toHaveLength(2);
   });
 });
