@@ -24,19 +24,26 @@
  */
 export function htmlToText(html: string): string {
   if (!html) return '';
-  return html
-    .replace(
-      /<(br|\/p|\/div|\/li|\/h[1-6]|\/blockquote|\/tr|\/td|\/th)[^>]*>/gi,
-      '\n',
-    )
-    .replace(/<[^>]+>/g, '')
-    .replace(/&amp;/g, '&')
+  return decodeEntities(
+    html
+      .replace(
+        /<(br|\/p|\/div|\/li|\/h[1-6]|\/blockquote|\/tr|\/td|\/th)[^>]*>/gi,
+        '\n',
+      )
+      .replace(/<[^>]+>/g, ''),
+  )
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** Decode the five HTML entities the renderer actually emits. */
+function decodeEntities(value: string): string {
+  return value
     .replace(/&lt;/g, '<')
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
-    .replace(/\s+/g, ' ')
-    .trim();
+    .replace(/&amp;/g, '&');
 }
 
 /**
@@ -79,6 +86,67 @@ export function buildPageDescription(
   }
   if (acc) return clamp(acc, maxLength);
   return clamp(text, maxLength);
+}
+
+/**
+ * Drop a leading heading whose text merely repeats the page title.
+ *
+ * Wiki bodies conventionally open with an `# Title` heading that duplicates
+ * the page title. Every share surface (link preview cards, search snippets)
+ * already shows the title on its own line, so leaving the duplicate in the
+ * description wastes the whole snippet on words the reader just read.
+ *
+ * Only an *exact* (whitespace/case-normalized) repeat is removed — a genuine
+ * first section heading such as `## Overview` is left alone.
+ */
+export function stripLeadingTitleHeading(html: string, title: string): string {
+  if (!html || !title) return html;
+  const match = html.match(/^\s*<h([1-6])\b[^>]*>([\s\S]*?)<\/h\1>/i);
+  if (!match) return html;
+  if (normalizeForCompare(htmlToText(match[2] ?? '')) !== normalizeForCompare(title)) return html;
+  return html.slice(match[0].length);
+}
+
+function normalizeForCompare(value: string): string {
+  return value.replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+}
+
+/** An image referenced by rendered page HTML. */
+export interface ContentImageRef {
+  /** The `src` as authored, entity-decoded: app-relative or absolute. */
+  url: string;
+  /** The `alt` text, or null when the image carries none. */
+  alt: string | null;
+}
+
+const IMG_TAG = /<img\b[^>]*>/gi;
+const SRC_ATTR = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)')/i;
+const ALT_ATTR = /\balt\s*=\s*(?:"([^"]*)"|'([^']*)')/i;
+
+/**
+ * Collect the images a rendered page body references, in document order.
+ *
+ * Deliberately regex-based rather than a real parse: the input is our own
+ * renderer's output, and the only consumer is link-preview metadata, where a
+ * missed exotic `<img>` costs nothing. Inline `data:` sources are skipped —
+ * no crawler can fetch one — as are tags without a usable `src`.
+ *
+ * `limit` bounds how many candidates a caller has to validate downstream; the
+ * share image is virtually always the first or second image on the page.
+ */
+export function extractContentImages(html: string, limit = 8): ContentImageRef[] {
+  if (!html) return [];
+  const refs: ContentImageRef[] = [];
+  for (const [tag] of html.matchAll(IMG_TAG)) {
+    if (refs.length >= limit) break;
+    const src = tag.match(SRC_ATTR);
+    const url = decodeEntities(src?.[1] ?? src?.[2] ?? '').trim();
+    if (!url || url.startsWith('data:')) continue;
+    const alt = tag.match(ALT_ATTR);
+    const altText = decodeEntities(alt?.[1] ?? alt?.[2] ?? '').trim();
+    refs.push({ url, alt: altText || null });
+  }
+  return refs;
 }
 
 function clamp(value: string, maxLength: number): string {

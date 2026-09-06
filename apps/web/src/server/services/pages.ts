@@ -34,7 +34,7 @@ import { notifyPublicContentChanged } from '@/server/services/public-content-eve
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { normalizeTagName, parseFrontmatter } from '@/server/metadata/frontmatter';
-import { buildPageDescription } from '@/lib/seo';
+import { buildPageDescription, stripLeadingTitleHeading } from '@/lib/seo';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
@@ -383,7 +383,9 @@ export async function listPublished(
       authorDisplayName: r.authorDisplayName,
       publishedAt: r.publishedAt?.toISOString() ?? null,
       updatedAt: r.updatedAt.toISOString(),
-      description: summaryByRevisionId.get(r.revisionId) || buildPageDescription(r.contentHtml, ''),
+      description:
+        summaryByRevisionId.get(r.revisionId) ||
+        buildPageDescription(stripLeadingTitleHeading(r.contentHtml, r.title), ''),
     }));
 }
 

@@ -43,6 +43,7 @@ function toView(row: SiteRow | null): SiteSettingsView {
     siteName: row?.siteName ?? DEFAULT_SITE_NAME,
     iconUrl: ICON_ROUTE,
     hasCustomIcon: Boolean(row?.iconData),
+    iconMime: row?.iconData ? row.iconMime ?? null : null,
     footerCopyright: row?.footerCopyright ?? null,
     icp: {
       number: icpNumber,

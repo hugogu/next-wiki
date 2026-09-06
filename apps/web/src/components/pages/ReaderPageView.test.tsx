@@ -18,7 +18,11 @@ vi.mock('@/components/pages/PageSidebar', () => ({ PageSidebar: () => null }));
 vi.mock('@/components/pages/ShareButton', () => ({ ShareButton: () => null }));
 vi.mock('@/components/pages/ProvenanceIndicators', () => ({ ProvenanceIndicators: () => null }));
 vi.mock('@/lib/html', () => ({ extractHeadings: () => [], injectHeadingIds: (html: string) => html }));
-vi.mock('@/lib/seo', () => ({ buildPageDescription: () => '' }));
+vi.mock('@/lib/seo', () => ({
+  buildPageDescription: () => '',
+  stripLeadingTitleHeading: (html: string) => html,
+}));
+vi.mock('@/server/services/social-image', () => ({ resolvePageSocialImage: vi.fn(async () => null) }));
 vi.mock('@/server/services/space-routes', () => ({ canonicalSpacePath: () => '/raw' }));
 vi.mock('@/server/services/pages', () => ({
   getCachedPublishedTranslationLocales: vi.fn(),

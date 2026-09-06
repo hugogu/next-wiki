@@ -7,7 +7,8 @@ import { PageSidebar } from '@/components/pages/PageSidebar';
 import { ShareButton } from '@/components/pages/ShareButton';
 import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
-import { buildPageDescription } from '@/lib/seo';
+import { buildPageDescription, stripLeadingTitleHeading } from '@/lib/seo';
+import { resolvePageSocialImage } from '@/server/services/social-image';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { getReadablePublishedTranslationLocales, getCachedPublishedTranslationLocales } from '@/server/services/pages';
 import { getCachedPublishedPageTree, getPageTree, getRevision } from '@/server/services/public-content';
@@ -83,7 +84,8 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
     !isTranslation &&
     page.status === 'draft' &&
     (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
-  const [translationLocales, tree, rawRevision] = await Promise.all([
+  const siteUrl = env.APP_URL.replace(/\/$/, '');
+  const [translationLocales, tree, rawRevision, socialImage] = await Promise.all([
     staticPublic
       ? getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug)
       : getReadablePublishedTranslationLocales({ actor }, resolved.sourcePath, resolved.space.slug),
@@ -93,6 +95,9 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
     resolved.space.kind === 'raw'
       ? getRevision({ actor }, page.pageId, page.version)
       : Promise.resolve(null),
+    staticPublic && page.status === 'published'
+      ? resolvePageSocialImage(page.contentHtml, siteUrl)
+      : Promise.resolve(null),
   ]);
   const breadcrumbAncestors = getBreadcrumbNodes(tree.root, page.path)
     .slice(0, -1)
@@ -101,7 +106,6 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
   const rawAuthorName = rawRevision?.source && typeof rawRevision.source.apiKeyName === 'string'
     ? rawRevision.source.apiKeyName
     : null;
-  const siteUrl = env.APP_URL.replace(/\/$/, '');
   const canonicalPath = canonicalSpacePath(resolved.space, resolved.sourcePath, isTranslation ? resolved.locale : null);
   const jsonLd =
     staticPublic && page.status === 'published'
@@ -109,10 +113,11 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
           '@context': 'https://schema.org',
           '@type': 'Article',
           headline: page.title,
-          description: buildPageDescription(page.contentHtml, ''),
+          description: buildPageDescription(stripLeadingTitleHeading(page.contentHtml, page.title), ''),
           mainEntityOfPage: `${siteUrl}${canonicalPath}`,
           datePublished: page.publishedAt ?? undefined,
           dateModified: page.publishedAt ?? undefined,
+          ...(socialImage ? { image: [socialImage.url] } : {}),
           ...(page.authorDisplayName ? { author: { '@type': 'Person', name: page.authorDisplayName } } : {}),
         }
       : null;

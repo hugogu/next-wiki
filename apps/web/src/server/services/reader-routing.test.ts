@@ -19,6 +19,11 @@ const routes = vi.hoisted(() => ({
 }));
 const addresses = vi.hoisted(() => ({ resolveAddressTarget: vi.fn() }));
 const links = vi.hoisted(() => ({ findRetiredLinkTarget: vi.fn() }));
+const socialImage = vi.hoisted(() => ({
+  resolvePageSocialImage: vi.fn(),
+  toMetadataImage: (image: { url: string; alt: string | null }) =>
+    image.alt ? { url: image.url, alt: image.alt } : { url: image.url },
+}));
 const translationLocales = vi.hoisted(() => ({
   getReservedLocalePrefixes: vi.fn(),
   isReservedLocalePrefix: vi.fn((prefixes: ReadonlySet<string>, segment: string) => prefixes.has(segment)),
@@ -29,6 +34,7 @@ vi.mock('@/server/services/spaces', () => spaces);
 vi.mock('@/server/services/space-routes', () => routes);
 vi.mock('@/server/services/page-addresses', () => addresses);
 vi.mock('@/server/services/link-pages', () => links);
+vi.mock('@/server/services/social-image', () => socialImage);
 vi.mock('@/server/services/translation-locales', () => translationLocales);
 
 import { buildReaderMetadata, resolveReaderPage, type ResolvedReaderPage } from './reader-routing';
@@ -97,6 +103,7 @@ describe('buildReaderMetadata', () => {
     routes.canonicalSpacePath.mockImplementation((_space: unknown, path?: string, locale?: string | null) =>
       `/${['wiki', locale, path].filter(Boolean).join('/')}`);
     pages.getCachedPublishedTranslationLocales.mockResolvedValue([]);
+    socialImage.resolvePageSocialImage.mockResolvedValue(null);
   });
 
   it('falls back to the route-derived title and keeps the page unindexed when the page cannot be resolved', async () => {
@@ -131,6 +138,55 @@ describe('buildReaderMetadata', () => {
     expect(metadata.alternates?.canonical).toBe('https://wiki.example/wiki/welcome');
     expect(metadata.title).toBe('Welcome');
     expect(metadata.robots).toEqual({ index: false, follow: false });
+  });
+
+  it('advertises a large share card with the body illustration when the page has one', async () => {
+    socialImage.resolvePageSocialImage.mockResolvedValue({
+      url: 'https://wiki.example/api/assets/asset-1',
+      alt: 'A glowing horse',
+      kind: 'content',
+    });
+
+    const metadata = await buildReaderMetadata(resolvedOriginal, baseOptions);
+
+    expect(metadata.openGraph?.images).toEqual([
+      { url: 'https://wiki.example/api/assets/asset-1', alt: 'A glowing horse' },
+    ]);
+    expect(metadata.twitter).toMatchObject({
+      card: 'summary_large_image',
+      images: [{ url: 'https://wiki.example/api/assets/asset-1', alt: 'A glowing horse' }],
+    });
+  });
+
+  // A `summary_large_image` card with no image renders as an empty grey
+  // placeholder on X, which is what this whole path exists to avoid.
+  it('falls back to a compact card when the page has no shareable image', async () => {
+    const metadata = await buildReaderMetadata(resolvedOriginal, baseOptions);
+
+    expect(metadata.openGraph?.images).toBeUndefined();
+    expect(metadata.twitter).toMatchObject({ card: 'summary' });
+  });
+
+  it('keeps the compact card for a site-logo fallback image', async () => {
+    socialImage.resolvePageSocialImage.mockResolvedValue({
+      url: 'https://wiki.example/api/settings/site/icon',
+      alt: null,
+      kind: 'site',
+    });
+
+    const metadata = await buildReaderMetadata(resolvedOriginal, baseOptions);
+
+    expect(metadata.twitter).toMatchObject({ card: 'summary' });
+    expect(metadata.openGraph?.images).toEqual([{ url: 'https://wiki.example/api/settings/site/icon' }]);
+  });
+
+  it('drops a leading heading that only repeats the title so the card is not the same words twice', async () => {
+    const metadata = await buildReaderMetadata(
+      { ...resolvedOriginal, page: { ...page, contentHtml: '<h1>Welcome</h1><p>Hello world.</p>' } },
+      baseOptions,
+    );
+
+    expect(metadata.description).toBe('Hello world.');
   });
 });
 
