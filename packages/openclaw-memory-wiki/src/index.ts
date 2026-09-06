@@ -116,7 +116,7 @@ function createRuntime(api: OpenClawPluginApi, pluginConfig: Partial<PluginConfi
     try {
       return (await ensure()).sync.getStatus();
     } catch {
-      return { state: 'degraded', scanned: 0, uploaded: 0, unchanged: 0, failed: 1, skipped: 0, lastError: state.startupError ?? 'plugin_startup_failed' };
+      return { state: 'degraded', scanned: 0, uploaded: 0, unchanged: 0, retired: 0, failed: 1, skipped: 0, lastError: state.startupError ?? 'plugin_startup_failed' };
     }
   };
   return { ensure, start, stop, status };

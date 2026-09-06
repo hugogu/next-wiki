@@ -89,6 +89,16 @@ export const agentMemorySourceDocumentInputSchema = z.object({
   idempotencyKey: z.string().trim().min(1).max(200),
 }).strict();
 
+export const agentMemorySourceDocumentDeactivateInputSchema = z.object({
+  sourcePath: memoryWikiSourcePathSchema,
+}).strict();
+
+export const agentMemorySourceDocumentDeactivateSchema = z.object({
+  sourcePath: memoryWikiSourcePathSchema,
+  state: z.literal('forgotten'),
+  outcome: z.enum(['forgotten', 'unchanged', 'not_found']),
+});
+
 export const agentMemorySourceDocumentCitationSchema = agentMemoryCitationSchema.extend({
   sourcePath: memoryWikiSourcePathSchema,
   storagePath: z.string(),
@@ -144,3 +154,4 @@ export type AgentMemorySaveInput = z.infer<typeof agentMemorySaveInputSchema>;
 export type AgentMemoryEvidenceInput = z.infer<typeof agentMemoryEvidenceInputSchema>;
 export type AgentMemoryRecord = z.infer<typeof agentMemoryRecordSchema>;
 export type AgentMemorySourceDocumentInput = z.infer<typeof agentMemorySourceDocumentInputSchema>;
+export type AgentMemorySourceDocumentDeactivateInput = z.infer<typeof agentMemorySourceDocumentDeactivateInputSchema>;

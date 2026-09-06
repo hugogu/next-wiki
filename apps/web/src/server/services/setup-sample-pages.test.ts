@@ -79,6 +79,13 @@ describe('sample page definitions (US3)', () => {
     expect(definitions.OPENCLAW_PAGE_SOURCE).toContain('memory-core');
     expect(definitions.OPENCLAW_PAGE_SOURCE).toContain('memoryPath');
     expect(definitions.OPENCLAW_PAGE_SOURCE).toContain('MEMORY.md');
+    expect(definitions.OPENCLAW_PAGE_SOURCE).toContain('USER.md');
+  });
+
+  it('documents full-key knowledge search for Hermes', () => {
+    expect(definitions.AGENT_MEMORY_PAGE_SOURCE).toContain('next_wiki_memory_search');
+    expect(definitions.AGENT_MEMORY_PAGE_SOURCE).toContain('next_wiki_memory_get');
+    expect(definitions.AGENT_MEMORY_PAGE_SOURCE).toContain('Wiki, Raw, and Generated');
   });
 
   it('markdown syntax guide covers the supported features', () => {

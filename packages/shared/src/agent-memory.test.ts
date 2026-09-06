@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { AGENT_MEMORY_LIMITS, agentMemoryEvidenceInputSchema, agentMemoryRecallInputSchema, agentMemorySaveInputSchema, agentMemorySourceDocumentInputSchema, memoryWikiSourcePathSchema } from './agent-memory';
+import { AGENT_MEMORY_LIMITS, agentMemoryEvidenceInputSchema, agentMemoryRecallInputSchema, agentMemorySaveInputSchema, agentMemorySourceDocumentDeactivateInputSchema, agentMemorySourceDocumentInputSchema, memoryWikiSourcePathSchema } from './agent-memory';
 
 describe('Agent memory contracts', () => {
   it('bounds recall and write payloads', () => {
@@ -26,5 +26,7 @@ describe('Agent memory contracts', () => {
     expect(memoryWikiSourcePathSchema.safeParse('entities/Alex.txt').success).toBe(false);
     expect(agentMemorySourceDocumentInputSchema.safeParse({ sourcePath: 'AGENTS.md', content: '# A', sourceDigest: 'a'.repeat(64), idempotencyKey: 'AGENTS.md:a' }).success).toBe(true);
     expect(agentMemorySourceDocumentInputSchema.safeParse({ sourcePath: 'AGENTS.md', content: '# A', sourceDigest: 'a'.repeat(64) }).success).toBe(false);
+    expect(agentMemorySourceDocumentDeactivateInputSchema.safeParse({ sourcePath: 'memory-core/USER.md' }).success).toBe(true);
+    expect(agentMemorySourceDocumentDeactivateInputSchema.safeParse({ sourcePath: '../USER.md' }).success).toBe(false);
   });
 });

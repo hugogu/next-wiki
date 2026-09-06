@@ -7,11 +7,12 @@ import socket
 from dataclasses import dataclass
 from typing import Any
 from urllib.error import HTTPError, URLError
+from urllib.parse import quote, urlencode
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .config import ProviderConfig, configured_api_key
 
-PROVIDER_VERSION = "0.1.4"
+PROVIDER_VERSION = "0.2.0"
 USER_AGENT = f"next-wiki-memory/{PROVIDER_VERSION}"
 MAX_RESPONSE_BYTES = 1_000_000
 MAX_ERROR_BODY_BYTES = 64_000
@@ -97,8 +98,11 @@ class WikiApiClient:
     def diagnostics(self) -> dict[str, Any]:
         return self._request("GET", "/memory/diagnostics")
 
-    def recall(self, query: str, limit: int) -> dict[str, Any]:
-        return self._request("POST", "/memory/recall", {"query": query, "limit": limit})
+    def search_knowledge(self, query: str, limit: int) -> dict[str, Any]:
+        return self._request("GET", f"/memory/wiki/search?{urlencode({'q': query, 'limit': limit})}")
+
+    def get_knowledge_page(self, page_id: str, max_chars: int) -> dict[str, Any]:
+        return self._request("GET", f"/memory/wiki/pages/{quote(page_id, safe='')}?{urlencode({'maxChars': max_chars})}")
 
     def save(self, payload: dict[str, object]) -> dict[str, Any]:
         return self._request("POST", "/memory/records", payload)

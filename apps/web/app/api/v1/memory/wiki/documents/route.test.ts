@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const upsertSourceDocument = vi.hoisted(() => vi.fn());
+const deactivateSourceDocument = vi.hoisted(() => vi.fn());
 
 vi.mock('../../_shared', () => ({
   assertSupportedProvider: vi.fn(),
@@ -21,7 +22,7 @@ vi.mock('../../../_shared/route', () => ({
     return NextResponse.json(data, { ...init, headers });
   },
 }));
-vi.mock('@/server/services/agent-memory-documents', () => ({ upsertSourceDocument }));
+vi.mock('@/server/services/agent-memory-documents', () => ({ upsertSourceDocument, deactivateSourceDocument }));
 
 import * as route from './route';
 
@@ -61,5 +62,21 @@ describe('PUT /api/v1/memory/wiki/documents', () => {
 
     expect(response.status).toBe(422);
     expect(upsertSourceDocument).not.toHaveBeenCalled();
+  });
+});
+
+describe('DELETE /api/v1/memory/wiki/documents', () => {
+  it('soft-retires a mirrored source without deleting its Raw history', async () => {
+    deactivateSourceDocument.mockResolvedValue({ outcome: 'forgotten', sourcePath: 'memory-core/USER.md', state: 'forgotten' });
+
+    const response = await route.DELETE(new NextRequest('http://localhost/api/v1/memory/wiki/documents', {
+      method: 'DELETE',
+      headers: { 'content-type': 'application/json', 'x-next-wiki-memory-provider-version': '1' },
+      body: JSON.stringify({ sourcePath: 'memory-core/USER.md' }),
+    }), { params: Promise.resolve({}) });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({ outcome: 'forgotten', state: 'forgotten' });
+    expect(deactivateSourceDocument).toHaveBeenCalledWith(expect.anything(), { sourcePath: 'memory-core/USER.md' });
   });
 });

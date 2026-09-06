@@ -10,7 +10,7 @@ const access = {
 } as const;
 const dbMock = vi.hoisted(() => ({
   query: {
-    agentMemoryRecords: { findFirst: vi.fn() },
+    agentMemoryRecords: { findFirst: vi.fn(), findMany: vi.fn() },
     pages: { findFirst: vi.fn() },
     pageRevisions: { findFirst: vi.fn() },
   },
@@ -32,7 +32,7 @@ vi.mock('@/server/services/space-routes', () => ({ canonicalSpacePath: vi.fn(() 
 vi.mock('@/server/config', () => ({ env: { APP_URL: 'https://wiki.example' } }));
 vi.mock('@/server/services/public-content', () => publicContent);
 
-import { readKnowledgePage, searchKnowledge, upsertSourceDocument } from './agent-memory-documents';
+import { deactivateSourceDocument, readKnowledgePage, searchKnowledge, upsertSourceDocument } from './agent-memory-documents';
 
 function digest(content: string) {
   return createHash('sha256').update(content).digest('hex');
@@ -43,6 +43,7 @@ describe('agent memory source documents', () => {
     vi.clearAllMocks();
     requireAccess.mockResolvedValue(access);
     dbMock.query.agentMemoryRecords.findFirst.mockResolvedValue(undefined);
+    dbMock.query.agentMemoryRecords.findMany.mockResolvedValue([]);
     dbMock.query.pages.findFirst.mockResolvedValue({ id: 'page-id', spaceId: 'raw-space', slug: 'agent-document', path: 'agent-memory/namespace-id/memory-wiki/entities/alex-abc', title: 'Alex', deletedAt: null });
     dbMock.query.pageRevisions.findFirst.mockResolvedValue({ id: 'revision-id', contentHash: 'a'.repeat(64), status: 'published', createdAt: new Date('2026-08-30T00:00:00Z'), sourceMetadata: { sourcePath: 'entities/alex.md', sourceDigest: digest('# Alex\n') } });
     rawEntries.createEntry.mockResolvedValue({ pageId: 'page-id', versionId: 'revision-id' });
@@ -117,12 +118,36 @@ describe('agent memory source documents', () => {
     expect(rawEntries.replaceEntry).toHaveBeenCalledWith(expect.anything(), 'page-id', expect.objectContaining({ content: second, title: 'Alex' }));
   });
 
+  it('soft-retires source documents and restores a retired document when its source returns', async () => {
+    const current = { id: 'memory-record-id', namespaceId: 'namespace-id', agentIdentity: 'openclaw', recordType: 'source_document', pageId: 'page-id', currentRevisionId: 'revision-id', idempotencyKey: 'source-key', state: 'active' };
+    dbMock.query.agentMemoryRecords.findFirst.mockResolvedValue(current);
+    dbMock.update.mockReturnValue({ set: vi.fn(() => ({ where: vi.fn(async () => undefined) })) });
+
+    await expect(deactivateSourceDocument({ actor: { kind: 'api_key', scopes: ['memory.write'], keyId: 'mirror-key' } } as never, { sourcePath: 'entities/alex.md' }))
+      .resolves.toMatchObject({ outcome: 'forgotten', state: 'forgotten' });
+
+    const retired = { ...current, state: 'forgotten' as const };
+    dbMock.query.agentMemoryRecords.findFirst.mockResolvedValue(retired);
+    dbMock.query.pageRevisions.findFirst.mockResolvedValue({ id: 'revision-id', contentHash: digest('# Alex\n'), status: 'published', createdAt: new Date('2026-08-30T00:00:00Z'), sourceMetadata: { sourcePath: 'entities/alex.md', sourceDigest: digest('# Alex\n') } });
+    rawEntries.replaceEntry.mockResolvedValue({ pageId: 'page-id', versionId: 'revision-id', versionNumber: 1, unchanged: true });
+    dbMock.update.mockReturnValue({ set: vi.fn(() => ({ where: vi.fn(() => ({ returning: vi.fn(async () => [{ ...current, state: 'active' }]) })) })) });
+
+    await expect(upsertSourceDocument({ actor: { kind: 'api_key', scopes: ['memory.write'], keyId: 'mirror-key' } } as never, {
+      sourcePath: 'entities/alex.md', content: '# Alex\n', sourceDigest: digest('# Alex\n'), idempotencyKey: `entities/alex.md:${digest('# Alex\n')}`,
+    })).resolves.toMatchObject({ outcome: 'updated', sourcePath: 'entities/alex.md' });
+  });
+
   it('searches only visible current revisions and reports incomplete space coverage', async () => {
-    publicContent.searchPages.mockResolvedValue({ items: [{ page: { id: 'page-id', latestRevision: { id: 'revision-id', contentHash: 'a'.repeat(64) }, spaceSlug: 'default', title: 'Profile', path: 'profile', canonicalUrl: 'https://wiki.example/profile' }, excerpt: 'Alex', score: 1 }] });
+    publicContent.searchPages.mockResolvedValue({ items: [
+      { page: { id: 'retired-page', latestRevision: { id: 'revision-retired', contentHash: 'b'.repeat(64) }, spaceSlug: 'raw', title: 'Retired', path: 'retired', canonicalUrl: 'https://wiki.example/raw/retired' }, excerpt: 'old', score: 2 },
+      { page: { id: 'page-id', latestRevision: { id: 'revision-id', contentHash: 'a'.repeat(64) }, spaceSlug: 'default', title: 'Profile', path: 'profile', canonicalUrl: 'https://wiki.example/profile' }, excerpt: 'Alex', score: 1 },
+    ] });
+    dbMock.query.agentMemoryRecords.findMany.mockResolvedValue([{ pageId: 'retired-page' }]);
     const result = await searchKnowledge({ actor: { kind: 'api_key', scopes: ['view'], spaceAccess: ['wiki'], keyId: 'knowledge-key' } } as never, 'Alex', 8);
 
-    expect(publicContent.searchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ space: 'all', include: ['latestRevision'], status: 'published' }));
+    expect(publicContent.searchPages).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ space: 'all', include: ['latestRevision'], status: 'published', limit: 32 }));
     expect(result).toMatchObject({ coverage: { wiki: true, raw: false, generated: false, complete: false }, results: [{ revisionId: 'revision-id', space: 'wiki' }] });
+    expect(result.results).toHaveLength(1);
   });
 
   it('bounds a selected page read and keeps the current revision citation', async () => {
@@ -132,5 +157,13 @@ describe('agent memory source documents', () => {
     expect(result).toMatchObject({ pageId: 'page-id', revisionId: 'revision-id', truncated: true, content: '# Profile\n' });
     expect(result.space).toBe('wiki');
     expect(publicContent.getPageById).toHaveBeenCalledWith(expect.anything(), 'page-id', ['latestRevision']);
+  });
+
+  it('does not expose a retired source page through a direct Agent page read', async () => {
+    dbMock.query.agentMemoryRecords.findFirst.mockResolvedValue({ id: 'memory-record-id' });
+
+    await expect(readKnowledgePage({ actor: { kind: 'api_key', scopes: ['view'], spaceAccess: ['raw'], keyId: 'knowledge-key' } } as never, 'page-id', 10))
+      .rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(publicContent.getPageById).not.toHaveBeenCalled();
   });
 });

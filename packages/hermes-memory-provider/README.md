@@ -12,8 +12,9 @@ another profile's namespace through a tool argument or URL.
 
 1. Enable **LLM Wiki** writing mode so the shared Raw space is available. Then
    open **User Center → API Keys** and select **Memory provider**. Set the
-   non-secret **Agent identity** (normally `hermes`). The preset grants only `memory.read`, `memory.write`, and
-   `memory.delete`; it does not grant generic page access. Copy the secret once.
+   non-secret **Agent identity** (normally `hermes`). To search the broader
+   Wiki knowledge base, also grant `view` and select the Wiki, Raw, and/or
+   Generated spaces this agent may read. Copy the secret once.
 2. Install the provider:
 
    ```bash
@@ -99,18 +100,22 @@ key scopes until the edge returns the Wiki's normal JSON response.
 
 ## Memory behavior and privacy
 
-Hermes receives three namespaced tools:
+Hermes receives four namespaced tools:
 
-- `next_wiki_memory_search(query, limit)` recalls only the key's destination;
+- `next_wiki_memory_search(query, limit)` searches the current Wiki, Raw, and
+  Generated pages allowed by the key;
+- `next_wiki_memory_get(page_id, max_chars?)` reads the current version of a
+  selected search result;
 - `next_wiki_memory_save(content, title?, tags?)` writes an immutable Raw
   memory record; and
 - `next_wiki_memory_forget(memory_id, reason?)` hides an explicit memory record
   from future recall in that same destination. The original Raw entry is never
   changed; immutable evidence records are not deleted by this operation.
 
-Recall results contain a canonical Wiki revision citation and may have
-`type: "memory"` for an explicit save or `type: "evidence"` for a durable
-automatic capture. Automatic turn capture is disabled by default. Explicit
+Search results contain a canonical Wiki revision citation. Forgotten Agent
+Memory records and source documents retired by a mirror are hidden from these
+Agent tools, while their Raw pages and immutable revisions remain available to
+authorized human auditors. Automatic turn capture is disabled by default. Explicit
 `next_wiki_memory_save` calls still
 work when capture is off; the model must choose that tool itself. To capture
 eligible conversation turns automatically:
@@ -133,7 +138,7 @@ non-primary contexts. The Wiki worker derives one Raw conversation page from
 the destination, agent identity, and session digest. Later captures from that
 session append a new immutable revision to the same page; retries with the same
 idempotency key do not append again. Once a capture reaches `durable`, it is
-directly searchable through `next_wiki_memory_search`; its status citation
+available to `next_wiki_memory_search`; its status citation
 identifies the exact revision created by that capture. Inspect the **Agent
 Memory** category or the `agent_memory` filter in Admin → Access Log while
 testing. A normal turn does not wait for this write, so allow the worker time
@@ -154,9 +159,9 @@ versions, and verify it after every Hermes upgrade.
 
 Create a new dedicated key, re-run setup, confirm `hermes next-wiki check`,
 then revoke the old key in **User Center → API Keys**. Revocation stops future
-access immediately. Forget changes only the Hermes record's recall state, so
-the immutable Raw entry retains its original content and revisions for
-administrators according to the Wiki's Raw-space retention policy.
+access immediately. Forget removes a record from Agent retrieval while its
+immutable Raw entry and revisions remain available to administrators according
+to the Wiki's Raw-space retention policy.
 
 Back up the Wiki database and content store with the normal deployment backup
 procedure; memory pages and their revision citations are included. The normal

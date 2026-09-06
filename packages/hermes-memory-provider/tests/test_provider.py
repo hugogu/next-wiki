@@ -16,8 +16,11 @@ class _Context:
 
 
 class _Client:
-    def recall(self, query: str, limit: int):
+    def search_knowledge(self, query: str, limit: int):
         return {"results": [{"query": query, "limit": limit}]}
+
+    def get_knowledge_page(self, page_id: str, max_chars: int):
+        return {"pageId": page_id, "content": "current", "maxChars": max_chars}
 
     def save(self, payload):
         return {"record": {"memoryId": "saved"}, "idempotent": False, "payload": payload}
@@ -37,11 +40,13 @@ def test_register_and_provider_tools_are_namespaced(monkeypatch, tmp_path) -> No
     register(context)
     assert len(context.providers) == 1
     names = [schema["function"]["name"] for schema in provider.get_tool_schemas()]
-    assert names == ["next_wiki_memory_search", "next_wiki_memory_save", "next_wiki_memory_forget"]
+    assert names == ["next_wiki_memory_search", "next_wiki_memory_get", "next_wiki_memory_save", "next_wiki_memory_forget"]
     assert all("profile" not in schema["function"]["parameters"]["properties"] for schema in provider.get_tool_schemas())
 
     response = json.loads(provider.handle_tool_call("next_wiki_memory_search", {"query": "remember this", "limit": 2}))
     assert response == {"ok": True, "results": [{"query": "remember this", "limit": 2}]}
+    page = json.loads(provider.handle_tool_call("next_wiki_memory_get", {"page_id": "page-id", "max_chars": 100}))
+    assert page == {"ok": True, "pageId": "page-id", "content": "current", "maxChars": 100}
 
 
 def test_provider_tool_descriptions_identify_native_rest_transport() -> None:

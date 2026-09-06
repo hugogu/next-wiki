@@ -1,8 +1,10 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { posix } from 'node:path';
-import { and, eq, isNull } from 'drizzle-orm';
+import { and, eq, inArray, isNull } from 'drizzle-orm';
 import {
+  agentMemorySourceDocumentDeactivateInputSchema,
   agentMemorySourceDocumentInputSchema,
+  type AgentMemorySourceDocumentDeactivateInput,
   type AgentMemorySourceDocumentInput,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
@@ -169,14 +171,13 @@ async function currentView(record: typeof schema.agentMemoryRecords.$inferSelect
   };
 }
 
-async function existing(access: AgentMemoryAccess, sourcePath: string) {
+async function sourceDocumentByPath(access: AgentMemoryAccess, sourcePath: string) {
   return db.query.agentMemoryRecords.findFirst({
     where: and(
       eq(schema.agentMemoryRecords.namespaceId, access.namespaceId),
       eq(schema.agentMemoryRecords.agentIdentity, access.agentIdentity),
       eq(schema.agentMemoryRecords.recordType, 'source_document'),
       eq(schema.agentMemoryRecords.idempotencyKey, sourceKey(sourcePath)),
-      eq(schema.agentMemoryRecords.state, 'active'),
     ),
   });
 }
@@ -185,7 +186,7 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
   const input = agentMemorySourceDocumentInputSchema.parse(rawInput);
   if (actualDigest(input.content) !== input.sourceDigest) throw new DomainError('CONFLICT', 'Source digest does not match content');
   const access = await requireAgentMemoryAccess(ctx, 'memory.write', 'any');
-  const current = await existing(access, input.sourcePath);
+  const current = await sourceDocumentByPath(access, input.sourcePath);
   if (current) {
     const revision = await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.id, current.currentRevisionId) });
     const metadata = (revision?.sourceMetadata ?? {}) as Partial<SourceMetadata>;
@@ -215,8 +216,13 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
         resolveMarkdownLink: (href) => resolveSourceDocumentLink(access, space, input.sourcePath, href),
       },
     });
-    if (replaced.unchanged) return currentView(current, 'unchanged');
-    const [updated] = await db.update(schema.agentMemoryRecords).set({ currentRevisionId: replaced.versionId, updatedAt: new Date() })
+    if (replaced.unchanged && current.state === 'active') return currentView(current, 'unchanged');
+    const [updated] = await db.update(schema.agentMemoryRecords).set({
+      ...(replaced.unchanged ? {} : { currentRevisionId: replaced.versionId }),
+      state: 'active',
+      forgottenAt: null,
+      updatedAt: new Date(),
+    })
       .where(eq(schema.agentMemoryRecords.id, current.id)).returning();
     if (!updated) throw new DomainError('AGENT_MEMORY_RECORD_NOT_FOUND', 'The source document disappeared during update');
     return currentView(updated, 'updated');
@@ -256,10 +262,22 @@ export async function upsertSourceDocument(ctx: PermCtx, rawInput: AgentMemorySo
     if (!record) throw new Error('AGENT_MEMORY_SOURCE_DOCUMENT_INSERT_FAILED');
     return currentView(record, 'created');
   } catch (error) {
-    const winner = await existing(access, input.sourcePath);
+    const winner = await sourceDocumentByPath(access, input.sourcePath);
     if (winner) return currentView(winner, 'unchanged');
     throw error;
   }
+}
+
+export async function deactivateSourceDocument(ctx: PermCtx, rawInput: AgentMemorySourceDocumentDeactivateInput) {
+  const input = agentMemorySourceDocumentDeactivateInputSchema.parse(rawInput);
+  const access = await requireAgentMemoryAccess(ctx, 'memory.write', 'any');
+  const record = await sourceDocumentByPath(access, input.sourcePath);
+  if (!record) return { sourcePath: input.sourcePath, state: 'forgotten' as const, outcome: 'not_found' as const };
+  if (record.state === 'forgotten') return { sourcePath: input.sourcePath, state: 'forgotten' as const, outcome: 'unchanged' as const };
+  await db.update(schema.agentMemoryRecords)
+    .set({ state: 'forgotten', forgottenAt: new Date(), updatedAt: new Date() })
+    .where(eq(schema.agentMemoryRecords.id, record.id));
+  return { sourcePath: input.sourcePath, state: 'forgotten' as const, outcome: 'forgotten' as const };
 }
 
 export async function getMirrorConnection(ctx: PermCtx) {
@@ -282,12 +300,24 @@ export async function searchKnowledge(ctx: PermCtx, query: string, limit: number
     scope: 'all',
     status: 'published',
     space: 'all',
-    limit,
+    // Exclude retired Agent-memory pages after ranking. Fetch extra candidates
+    // so a forgotten item does not unnecessarily shrink the requested window.
+    limit: Math.min(limit * 4, 100),
     include: ['latestRevision'],
     excerptLength: 240,
     order: 'relevance',
   });
-  const items = await Promise.all(result.items.map(async (item) => ({
+  const pageIds = result.items.map((item) => item.page.id);
+  const retiredRecords = pageIds.length === 0
+    ? []
+    : await db.query.agentMemoryRecords.findMany({
+      where: and(inArray(schema.agentMemoryRecords.pageId, pageIds), eq(schema.agentMemoryRecords.state, 'forgotten')),
+      columns: { pageId: true },
+    });
+  const retiredPageIds = new Set(retiredRecords.map((record) => record.pageId));
+  const items = await Promise.all(result.items
+    .filter((item) => !retiredPageIds.has(item.page.id))
+    .map(async (item) => ({
     pageId: item.page.id,
     revisionId: item.page.latestRevision?.id ?? item.page.publishedRevision?.id,
     revisionHash: item.page.latestRevision?.contentHash ?? item.page.publishedRevision?.contentHash,
@@ -297,7 +327,7 @@ export async function searchKnowledge(ctx: PermCtx, query: string, limit: number
     excerpt: item.excerpt ?? '',
     score: item.score ?? 0,
     canonicalUrl: item.page.canonicalUrl ?? '',
-  })));
+    })));
   const actor = ctx.actor;
   const coverage = {
     wiki: true,
@@ -305,13 +335,20 @@ export async function searchKnowledge(ctx: PermCtx, query: string, limit: number
     generated: actor.kind === 'api_key' && actor.spaceAccess.includes('generated'),
   };
   return {
-    results: items.filter((item): item is typeof item & { revisionId: string; revisionHash: string } => Boolean(item.revisionId && item.revisionHash)),
+    results: items
+      .filter((item): item is typeof item & { revisionId: string; revisionHash: string } => Boolean(item.revisionId && item.revisionHash))
+      .slice(0, limit),
     coverage: { ...coverage, complete: coverage.raw && coverage.generated },
   };
 }
 
 export async function readKnowledgePage(ctx: PermCtx, pageId: string, maxChars = 8_000) {
   await requireAgentMemoryAccess(ctx, 'view', 'any');
+  const retired = await db.query.agentMemoryRecords.findFirst({
+    where: and(eq(schema.agentMemoryRecords.pageId, pageId), eq(schema.agentMemoryRecords.state, 'forgotten')),
+    columns: { id: true },
+  });
+  if (retired) throw new DomainError('NOT_FOUND', 'Page not found');
   const page = await publicContent.getPageById(ctx, pageId, ['latestRevision']);
   if (!page || !page.contentSource) throw new DomainError('NOT_FOUND', 'Page not found');
   const bounded = page.contentSource.slice(0, maxChars);

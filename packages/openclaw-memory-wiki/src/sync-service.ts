@@ -7,7 +7,7 @@ import { NextWikiClient } from './client.js';
 
 const JOURNAL_VERSION = 2;
 type Journal = { version: number; completed: Record<string, string>; lastRunAt?: string; lastError?: string };
-export type SyncStatus = { state: 'idle' | 'running' | 'degraded'; scanned: number; uploaded: number; unchanged: number; failed: number; skipped: number; lastRunAt?: string; lastError?: string };
+export type SyncStatus = { state: 'idle' | 'running' | 'degraded'; scanned: number; uploaded: number; unchanged: number; retired: number; failed: number; skipped: number; lastRunAt?: string; lastError?: string };
 
 type SyncSource = { path: string; prefix: string; optional: boolean; kind: 'directory' | 'file'; sourcePath?: string };
 
@@ -36,12 +36,13 @@ function deduplicationKey(document: VaultDocument): string | undefined {
 export class SyncService {
   private running = false;
   private timer: ReturnType<typeof setInterval> | undefined;
-  private status: SyncStatus = { state: 'idle', scanned: 0, uploaded: 0, unchanged: 0, failed: 0, skipped: 0 };
+  private status: SyncStatus = { state: 'idle', scanned: 0, uploaded: 0, unchanged: 0, retired: 0, failed: 0, skipped: 0 };
   private readonly sources: SyncSource[];
   constructor(private readonly vaultPath: string, private readonly client: NextWikiClient, private readonly intervalMinutes: number, memoryPath?: string, workspacePath?: string) {
     this.sources = [{ path: vaultPath, prefix: '', optional: false, kind: 'directory' }];
     if (workspacePath) {
       this.sources.push({ path: join(workspacePath, 'MEMORY.md'), prefix: 'memory-core/', optional: true, kind: 'file', sourcePath: 'MEMORY.md' });
+      this.sources.push({ path: join(workspacePath, 'USER.md'), prefix: 'memory-core/', optional: true, kind: 'file', sourcePath: 'USER.md' });
     }
     if (memoryPath && canonicalPath(memoryPath) !== canonicalPath(vaultPath)) {
       this.sources.push({ path: memoryPath, prefix: 'memory-core/memory/', optional: true, kind: 'directory' });
@@ -102,21 +103,24 @@ export class SyncService {
   async run(): Promise<SyncStatus> {
     if (this.running) return this.status;
     this.running = true;
-    this.status = { ...this.status, state: 'running', failed: 0, skipped: 0 };
+    this.status = { ...this.status, state: 'running', retired: 0, failed: 0, skipped: 0 };
     try {
       let skipped = 0;
       let scanFailures = 0;
       let scanError: string | undefined;
+      let inventoryComplete = true;
       const [scannedDocuments, journal] = await Promise.all([
         Promise.all(this.sources.map(async (source) => {
           try {
             return await this.scanSource(source, (sourcePath, reason) => {
               skipped++;
+              inventoryComplete = false;
               console.warn(`[next-wiki-memory-wiki] skipped ${sourcePath}: ${reason}`);
             });
           } catch (error) {
             if (!source.optional) throw error;
             scanFailures++;
+            inventoryComplete = false;
             scanError ??= 'memory_scan_failed';
             console.error(`[next-wiki-memory-wiki] optional source scan failed: ${source.path}`, error);
             return [];
@@ -136,7 +140,7 @@ export class SyncService {
         return false;
       });
       const needsMirrorMigration = journal.version !== JOURNAL_VERSION;
-      let uploaded = 0; let unchanged = 0; let failed = scanFailures;
+      let uploaded = 0; let unchanged = 0; let retired = 0; let failed = scanFailures;
       let mirrorErrorRecorded = false;
       for (const document of documents) {
         try {
@@ -154,6 +158,21 @@ export class SyncService {
           journal.lastError = error instanceof Error ? error.message : 'sync_failed';
         }
       }
+      if (inventoryComplete) {
+        const activeSourcePaths = new Set(documents.map((document) => document.sourcePath));
+        for (const sourcePath of Object.keys(journal.completed)) {
+          if (activeSourcePaths.has(sourcePath)) continue;
+          try {
+            await this.withRetry(() => this.client.retire(sourcePath));
+            delete journal.completed[sourcePath];
+            retired++;
+          } catch (error) {
+            failed++;
+            mirrorErrorRecorded = true;
+            journal.lastError = error instanceof Error ? error.message : 'sync_failed';
+          }
+        }
+      }
       journal.lastRunAt = new Date().toISOString();
       // Mark the layout migration complete even when individual documents
       // failed. Successful documents are checkpointed above, so a later run
@@ -163,8 +182,8 @@ export class SyncService {
       if (failed === 0) delete journal.lastError;
       else if (scanError && !mirrorErrorRecorded) journal.lastError = scanError;
       await this.writeJournal(journal);
-      console.log(`[next-wiki-memory-wiki] sync complete: scanned=${scannedDocuments.length} uploaded=${uploaded} unchanged=${unchanged} failed=${failed} skipped=${skipped}`);
-      this.status = { state: failed > 0 ? 'degraded' : 'idle', scanned: scannedDocuments.length, uploaded, unchanged, failed, skipped, lastRunAt: journal.lastRunAt, lastError: journal.lastError };
+      console.log(`[next-wiki-memory-wiki] sync complete: scanned=${scannedDocuments.length} uploaded=${uploaded} unchanged=${unchanged} retired=${retired} failed=${failed} skipped=${skipped}`);
+      this.status = { state: failed > 0 ? 'degraded' : 'idle', scanned: scannedDocuments.length, uploaded, unchanged, retired, failed, skipped, lastRunAt: journal.lastRunAt, lastError: journal.lastError };
       return this.status;
     } catch (error) {
       console.error('[next-wiki-memory-wiki] sync run failed:', error);
