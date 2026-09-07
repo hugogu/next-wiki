@@ -39,11 +39,16 @@ async function getRow(): Promise<SiteRow | null> {
 function toView(row: SiteRow | null): SiteSettingsView {
   const icpNumber = row?.icpNumber ?? null;
   const psNumber = row?.publicSecurityNumber ?? null;
+  // `getIcon()` serves a custom icon only when both the bytes and their MIME
+  // type are present, so the view must report one on exactly that condition.
+  // The two columns are independently nullable; a half-written row would
+  // otherwise advertise an icon the route falls back away from.
+  const iconMime = row?.iconData && row.iconMime ? row.iconMime : null;
   return {
     siteName: row?.siteName ?? DEFAULT_SITE_NAME,
     iconUrl: ICON_ROUTE,
-    hasCustomIcon: Boolean(row?.iconData),
-    iconMime: row?.iconData ? row.iconMime ?? null : null,
+    hasCustomIcon: iconMime !== null,
+    iconMime,
     footerCopyright: row?.footerCopyright ?? null,
     icp: {
       number: icpNumber,

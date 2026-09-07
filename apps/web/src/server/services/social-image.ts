@@ -21,9 +21,28 @@ import { getSiteView } from '@/server/services/site-settings';
  */
 const SHAREABLE_IMAGE_TYPES = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif']);
 
-/** The two app-relative shapes a stored asset is referenced by (see asset-references.ts). */
-const ASSET_PATH =
-  /^\/api\/(?:v1\/)?assets\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})(?:\/content)?(?:[?#]|$)/i;
+const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
+
+/**
+ * The two app-relative shapes that serve image *bytes*.
+ *
+ * Note the asymmetry: the internal route is `/api/assets/{id}`, while the
+ * public one needs the `/content` suffix — bare `/api/v1/assets/{id}` is the
+ * JSON metadata endpoint, and pointing `og:image` at JSON yields a broken
+ * card. This is stricter on purpose than `extractAssetIds` in
+ * asset-references.ts, which matches both v1 shapes because it only needs the
+ * id for reference tracking, not a fetchable image URL.
+ */
+const ASSET_IMAGE_PATH = new RegExp(
+  `^/api/(?:assets/(${UUID})|v1/assets/(${UUID})/content)(?:[?#]|$)`,
+  'i',
+);
+
+/** The asset id an image URL serves bytes for, or null when it is not one. */
+function assetIdFromImageUrl(url: string): string | null {
+  const match = url.match(ASSET_IMAGE_PATH);
+  return (match?.[1] ?? match?.[2])?.toLowerCase() ?? null;
+}
 
 export interface SocialImage {
   /** Absolute URL — crawlers do not resolve relative `og:image` values reliably. */
@@ -58,13 +77,13 @@ export async function resolvePageSocialImage(
 ): Promise<SocialImage | null> {
   const candidates = extractContentImages(contentHtml);
   const assetIds = candidates
-    .map((ref) => ref.url.match(ASSET_PATH)?.[1]?.toLowerCase())
-    .filter((id): id is string => Boolean(id));
+    .map((ref) => assetIdFromImageUrl(ref.url))
+    .filter((id): id is string => id !== null);
 
   const shareableAssetIds = assetIds.length ? await filterShareableAssets(assetIds) : new Set<string>();
 
   for (const ref of candidates) {
-    const assetId = ref.url.match(ASSET_PATH)?.[1]?.toLowerCase();
+    const assetId = assetIdFromImageUrl(ref.url);
     if (assetId) {
       if (shareableAssetIds.has(assetId)) {
         return { url: `${siteUrl}${ref.url}`, alt: ref.alt, kind: 'content' };

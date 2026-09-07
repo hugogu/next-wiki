@@ -58,6 +58,30 @@ describe('resolvePageSocialImage', () => {
     });
   });
 
+  // Regression: `/api/v1/assets/{id}` without the `/content` suffix is the
+  // JSON metadata endpoint, so accepting it would point og:image at JSON.
+  it('rejects the bare v1 asset URL, which serves metadata rather than image bytes', async () => {
+    await expect(resolvePageSocialImage(`<img src="/api/v1/assets/${PNG}">`, SITE)).resolves.toBeNull();
+    expect(db.select).not.toHaveBeenCalled();
+  });
+
+  it('still prefers a later, genuinely fetchable image over a bare v1 metadata URL', async () => {
+    const html = `<img src="/api/v1/assets/${PNG}"><img src="/api/v1/assets/${PNG}/content" alt="photo">`;
+
+    await expect(resolvePageSocialImage(html, SITE)).resolves.toMatchObject({
+      url: `${SITE}/api/v1/assets/${PNG}/content`,
+      alt: 'photo',
+    });
+  });
+
+  // The internal route serves bytes directly, so a `/content` suffix there is
+  // not a real endpoint and must not be treated as one.
+  it('rejects a /content suffix on the internal asset URL', async () => {
+    await expect(
+      resolvePageSocialImage(`<img src="/api/assets/${PNG}/content">`, SITE),
+    ).resolves.toBeNull();
+  });
+
   it('skips an asset that is no longer in the database', async () => {
     await expect(resolvePageSocialImage(`<img src="/api/assets/${GONE}">`, SITE)).resolves.toBeNull();
   });
