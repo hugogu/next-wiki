@@ -130,31 +130,4 @@ function fixPathParamExamples() {
 
 fixPathParamExamples();
 
-// The Zod `?dry_run=true|false` flag is `optional()` and missing ⇒ false at
-// runtime, but next-openapi-gen marks it required because `transform()` looks
-// like it has to run. Downgrade it to optional with a default so the doc
-// matches behavior. Narrow on `PublicFolderDeleteQuery` so we don't silently
-// change other endpoints if a similar pattern shows up later.
-function relaxFolderDeleteDryRun() {
-  const schema = document.components?.schemas?.PublicFolderDeleteQuery;
-  if (schema && Array.isArray(schema.required)) {
-    const idx = schema.required.indexOf('dry_run');
-    if (idx >= 0) schema.required.splice(idx, 1);
-    if (schema.properties?.dry_run && typeof schema.properties.dry_run === 'object') {
-      schema.properties.dry_run.default = false;
-    }
-  }
-  // The same flag is mirrored on the DELETE operation's parameter list with
-  // its own `required` flag — flip that to match.
-  const op = document.paths?.['/v1/tree']?.delete;
-  for (const param of op?.parameters ?? []) {
-    if (param?.in === 'query' && param?.name === 'dry_run') {
-      param.required = false;
-      if (param.schema && typeof param.schema === 'object') param.schema.default = false;
-    }
-  }
-}
-
-relaxFolderDeleteDryRun();
-
 fs.writeFileSync(openapiPath, `${JSON.stringify(document, null, 2)}\n`);

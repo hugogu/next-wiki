@@ -1637,6 +1637,10 @@ export async function deletePage(ctx: PermCtx, pageId: string): Promise<void> {
 /**
  * Soft-delete every page under a folder path prefix. `dry_run` reports how many
  * pages the delete would touch without writing, so callers can confirm first.
+ *
+ * The actual coarse gate (closing the existence oracle for reader/view-only
+ * callers) lives in `pages.removeFolder`, so the gate applies to every entry
+ * path — not just this v1 facade.
  */
 export async function deleteFolder(
   ctx: PermCtx,
@@ -1644,8 +1648,10 @@ export async function deleteFolder(
 ): Promise<PublicFolderDeleteResult> {
   const space = await resolveSpace(input.space);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
-  const result = await pageService.removeFolder(ctx, input.pathPrefix, space.slug, { dryRun: input.dry_run });
-  return { deletedCount: result.deletedCount, dryRun: input.dry_run || undefined };
+  const result = await pageService.removeFolder(ctx, input.pathPrefix, space.slug, {
+    dryRun: input.dry_run === 'true',
+  });
+  return { deletedCount: result.deletedCount, dryRun: input.dry_run === 'true' || undefined };
 }
 
 export async function appendRawEntry(

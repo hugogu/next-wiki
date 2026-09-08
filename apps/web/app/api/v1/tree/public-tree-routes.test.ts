@@ -79,7 +79,7 @@ describe('DELETE /api/v1/tree', () => {
     expect(response.status).toBe(200);
     expect(publicContent.deleteFolder).toHaveBeenCalledWith(
       expect.anything(),
-      { pathPrefix: 'conversations/feishu', space: 'raw', dry_run: false },
+      { pathPrefix: 'conversations/feishu', space: 'raw', dry_run: 'false' },
     );
   });
 
@@ -94,7 +94,7 @@ describe('DELETE /api/v1/tree', () => {
     expect(response.status).toBe(200);
     expect(publicContent.deleteFolder).toHaveBeenCalledWith(
       expect.anything(),
-      { pathPrefix: 'imports', dry_run: true },
+      { pathPrefix: 'imports', dry_run: 'true' },
     );
     await expect(response.json()).resolves.toMatchObject({ deletedCount: 7, dryRun: true });
   });

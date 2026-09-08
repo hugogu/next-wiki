@@ -288,15 +288,15 @@ describe('raw entries service', () => {
     const editor = await createUser('raw-folder-editor@example.com', 'editor');
 
     await expect(
-      publicContent.deleteFolder(buildUserCtx(editor.id, 'editor'), { pathPrefix: 'raw/junk', space: 'raw', dry_run: false }),
+      publicContent.deleteFolder(buildUserCtx(editor.id, 'editor'), { pathPrefix: 'raw/junk', space: 'raw', dry_run: 'false' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' });
 
-    const preview = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/junk', space: 'raw', dry_run: true });
+    const preview = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/junk', space: 'raw', dry_run: 'true' });
     expect(preview).toMatchObject({ deletedCount: 2, dryRun: true });
     // A dry run writes nothing.
     expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/junk/a') }))?.deletedAt).toBeNull();
 
-    const deleted = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/junk', space: 'raw', dry_run: false });
+    const deleted = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/junk', space: 'raw', dry_run: 'false' });
     expect(deleted.deletedCount).toBe(2);
     expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/junk/a') }))?.deletedAt).not.toBeNull();
     expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/junk/nested/b') }))?.deletedAt).not.toBeNull();
@@ -322,10 +322,10 @@ describe('raw entries service', () => {
     await createRawEntry(adminCtx, 'raw/escape_test/fooxbar/x');
     const keep = await createRawEntry(adminCtx, 'raw/escape_test/keep');
 
-    const preview = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/escape_test/foo_bar', space: 'raw', dry_run: true });
+    const preview = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/escape_test/foo_bar', space: 'raw', dry_run: 'true' });
     expect(preview.deletedCount).toBe(1);
 
-    await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/escape_test/foo_bar', space: 'raw', dry_run: false });
+    await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/escape_test/foo_bar', space: 'raw', dry_run: 'false' });
     expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/escape_test/fooxbar/x') }))?.deletedAt).toBeNull();
     expect((await db.query.pages.findFirst({ where: eq(schema.pages.id, keep.pageId) }))?.deletedAt).toBeNull();
   });

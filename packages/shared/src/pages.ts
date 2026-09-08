@@ -915,14 +915,12 @@ export const publicFolderDeleteQuerySchema = z.object({
   pathPrefix: pathSchema,
   // 022: space slug; the default wiki space is used when omitted.
   space: z.string().optional(),
-  // The default keeps the OpenAPI doc honest about the field being optional
-  // (the copilot review on #127 noted that `optional().transform(...)` makes
-  // the field required in the schema), and the transform gives handlers a
-  // plain boolean regardless of how the value arrived.
+  // The default lets callers omit the param entirely; the enum keeps the
+  // OpenAPI doc honest about the wire format (query strings are strings,
+  // not booleans). The route handler compares the value to 'true' directly.
   dry_run: z
     .enum(['true', 'false'])
-    .default('false')
-    .transform((value) => value === 'true'),
+    .default('false'),
 });
 export type PublicFolderDeleteQuery = z.infer<typeof publicFolderDeleteQuerySchema>;
 

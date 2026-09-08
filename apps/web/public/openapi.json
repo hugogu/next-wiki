@@ -4160,8 +4160,11 @@
             "type": "string"
           },
           "dry_run": {
-            "type": "boolean",
-            "default": false
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
           },
           "space": {
             "oneOf": [
@@ -4175,7 +4178,8 @@
           }
         },
         "required": [
-          "pathPrefix"
+          "pathPrefix",
+          "dry_run"
         ]
       },
       "PublicFolderDeleteResult": {
@@ -25433,10 +25437,13 @@
           {
             "in": "query",
             "name": "dry_run",
-            "required": false,
+            "required": true,
             "schema": {
-              "type": "boolean",
-              "default": false
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
             }
           },
           {

@@ -826,8 +826,9 @@ export class WikiApiClient {
    * caller's per-page delete permission with all-or-nothing semantics.
    *
    * Accepts a narrow MCP-friendly input so callers can omit `dry_run`; the
-   * shared `PublicFolderDeleteQuery` type marks it required because zod
-   * collapses `.default().transform()` chains into a non-optional output.
+   * shared `PublicFolderDeleteQuery` type requires the wire-format string
+   * (`'true'`/`'false'`), so we accept the friendlier boolean here and
+   * serialize it for the URL.
    */
   async deleteFolder(query: {
     pathPrefix: string;

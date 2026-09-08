@@ -42,6 +42,7 @@ import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind, type SpaceRow } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { createWikiLinkResolver, renderPageMarkdown } from '@/server/services/wiki-links';
+import { logger } from '@/server/logger';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 
@@ -1486,7 +1487,13 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
  * Translation rows are deliberately skipped — they share a path with the
  * source page but are managed by the Translations admin (015), matching
  * `remove()` above.
+ *
+ * Subtree size is capped at {@link MAX_FOLDER_DELETE_PAGES}. A dry run still
+ * reports the full count so a caller can decide how to narrow the prefix; the
+ * cap only blocks the actual UPDATE when the affected count exceeds it.
  */
+export const MAX_FOLDER_DELETE_PAGES = 500;
+
 export async function removeFolder(
   ctx: PermCtx,
   pathPrefix: string,
@@ -1501,6 +1508,19 @@ export async function removeFolder(
   const space = await resolveSpace(spaceSlug);
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
   await assertSpaceKindAllowed(space.kind);
+
+  // Coarse delete-capable gate. Closing this BEFORE the SELECT is what
+  // prevents the existence oracle: a reader or a `view`-only API key used to
+  // get `200 {deletedCount: 0}` for any prefix they couldn't touch and
+  // `403 FORBIDDEN` for prefixes that contained something they couldn't see,
+  // letting them probe for hidden pages.
+  const isReaderOrAnonymous = ctx.actor.kind === 'anonymous' || ctx.actor.role === 'reader';
+  if (
+    isReaderOrAnonymous ||
+    !can(ctx, 'delete', { kind: 'page_list' }, { ...spacePermissionOptions(space), isAuthor: true })
+  ) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to delete pages in this space');
+  }
 
   // `pathSchema` allows underscores, which PostgreSQL `LIKE` treats as
   // single-character wildcards — escape them so a prefix like `foo_bar` only
@@ -1539,23 +1559,48 @@ export async function removeFolder(
     }
   }
 
-  if (options.dryRun || targets.length === 0) {
+  if (options.dryRun) {
     return { deletedCount: targets.length };
   }
 
-  await db.transaction(async (tx) => {
-    await assertNoSwitchInProgress(tx);
-    await tx
-      .update(schema.pages)
-      .set({ deletedAt: new Date() })
-      .where(inArray(schema.pages.id, targets.map((row) => row.id)));
-  });
+  // Cap how many pages a single request can soft-delete. The dry run above
+  // already reports the count, so callers can narrow the prefix and retry
+  // rather than exceeding this bound.
+  if (targets.length > MAX_FOLDER_DELETE_PAGES) {
+    throw new DomainError(
+      'BAD_REQUEST',
+      `Folder delete would affect ${targets.length} pages, above the ${MAX_FOLDER_DELETE_PAGES}-page cap; narrow the prefix and retry.`,
+    );
+  }
+
+  if (targets.length === 0) {
+    return { deletedCount: 0 };
+  }
+
+  const targetIds = targets.map((row) => row.id);
+  // The `isNull(deletedAt)` predicate guards against double-counting when
+  // another caller soft-deletes a row between this SELECT and the UPDATE;
+  // `.returning()` gives the authoritative count of rows actually written.
+  const deleted = await db
+    .update(schema.pages)
+    .set({ deletedAt: new Date() })
+    .where(and(inArray(schema.pages.id, targetIds), isNull(schema.pages.deletedAt)))
+    .returning({ id: schema.pages.id });
   invalidatePublicContentCache();
   await notifyPublicContentChanged('publish');
-  for (const row of targets) {
-    await reconcilePageAcrossIndexes(row.id, ctx);
-  }
-  return { deletedCount: targets.length };
+  // Per-page reconciliation is page-independent — fan out in parallel and
+  // wrap each so a single failure (e.g. an AI index hiccup on one page) does
+  // not poison the rest. The AI index itself upserts `ai_page_index_states`
+  // with `status: 'pending'`, so even if every call here failed the next
+  // rebuild worker would still drain the deletion.
+  await Promise.allSettled(
+    deleted.map(({ id }) =>
+      reconcilePageAcrossIndexes(id, ctx).catch((error: unknown) => {
+        logger.exception('reconcilePageAcrossIndexes failed during folder delete', error, { pageId: id });
+      }),
+    ),
+  );
+  return { deletedCount: deleted.length };
 }
 
 export async function create(
