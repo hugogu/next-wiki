@@ -477,4 +477,40 @@ describe('public content folder delete facade', () => {
       publicContent.deleteFolder(buildUserCtx(admin.id, 'admin'), { pathPrefix: 'folder-del/none', space: 'no-such-space', dry_run: false }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
+
+  it('leaves translation rows alone — they are managed by the Translations admin (015)', async () => {
+    const admin = await createPublicApiUser('folder-del-translation-admin@example.com', 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+
+    const source = await pageService.create(adminCtx, {
+      path: 'folder-del/translated/source',
+      title: 'Source',
+      contentSource: '# Source',
+    });
+    // Insert a sibling row that shares the path as a translation; the folder
+    // delete must skip it, matching single-page `remove()`'s filter.
+    const defaultSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    if (!defaultSpace) throw new Error('Default space missing in fixture');
+    const [translation] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId: defaultSpace.id,
+        slug: 'folder-del/translated/source',
+        path: 'folder-del/translated/source',
+        title: 'Translated',
+        authorId: admin.id,
+        nature: 'original',
+        visibility: 'public',
+        translationGroupId: source.pageId,
+        locale: 'zh',
+      })
+      .returning();
+    if (!translation) throw new Error('Failed to insert translation fixture row');
+
+    const deleted = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'folder-del/translated', dry_run: false });
+    expect(deleted.deletedCount).toBe(1);
+
+    expect((await deletedAtOf(source.pageId))).not.toBeNull();
+    expect((await deletedAtOf(translation.id))).toBeNull();
+  });
 });

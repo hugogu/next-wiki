@@ -1482,6 +1482,10 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
  * soft-deleting the whole subtree, including a hybrid node's own page. The
  * batch is all-or-nothing: every page inside is permission-checked first, and
  * any single rejection fails the whole delete before anything is written.
+ *
+ * Translation rows are deliberately skipped — they share a path with the
+ * source page but are managed by the Translations admin (015), matching
+ * `remove()` above.
  */
 export async function removeFolder(
   ctx: PermCtx,
@@ -1517,6 +1521,7 @@ export async function removeFolder(
       and(
         eq(schema.pages.spaceId, space.id),
         isNull(schema.pages.deletedAt),
+        isNull(schema.pages.translationGroupId),
         or(
           eq(schema.pages.path, pathPrefix),
           like(schema.pages.path, `${escapedPrefix}/%`),

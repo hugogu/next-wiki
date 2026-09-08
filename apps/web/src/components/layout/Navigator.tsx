@@ -235,9 +235,11 @@ function TreeItem({
       setDeleteOpen(false);
       onDeleted(node.path);
       // Deleting the page (or an ancestor folder of it) out from under the
-      // reader leaves a 404 behind, so leave the subtree first.
+      // reader leaves a 404 behind, so leave the subtree first. The link
+      // for the surviving node uses the configured prefix when one is set,
+      // so the redirect back home must use the same root.
       if (currentPath && (currentPath === node.path || currentPath.startsWith(`${node.path}/`))) {
-        router.push(getSpaceHref(space));
+        router.push(routePrefix ? getConfiguredSpaceHref(routePrefix) : getSpaceHref(space));
       }
       router.refresh();
     } catch (error) {
