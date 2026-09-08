@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import type {
+  PublicFolderDeleteResult,
   SpaceMigrationConfirmInput,
   SpaceMigrationOperation,
   SpaceMigrationPreview,
@@ -817,6 +818,28 @@ export class WikiApiClient {
 
   async deletePage(pageId: string): Promise<void> {
     return this.request<void>(`/pages/${pageId}`, { method: 'DELETE' });
+  }
+
+  /**
+   * Soft-delete every page under a tree path prefix (a folder). Raw-space
+   * folders are deletable by admins; wiki/generated folders are gated by the
+   * caller's per-page delete permission with all-or-nothing semantics.
+   *
+   * Accepts a narrow MCP-friendly input so callers can omit `dry_run`; the
+   * shared `PublicFolderDeleteQuery` type marks it required because zod
+   * collapses `.default().transform()` chains into a non-optional output.
+   */
+  async deleteFolder(query: {
+    pathPrefix: string;
+    space?: string;
+    dry_run?: boolean;
+  }): Promise<PublicFolderDeleteResult> {
+    const params = new URLSearchParams({ pathPrefix: query.pathPrefix });
+    if (query.space) params.set('space', query.space);
+    if (query.dry_run) params.set('dry_run', 'true');
+    return this.request<PublicFolderDeleteResult>(`/tree?${params.toString()}`, {
+      method: 'DELETE',
+    });
   }
 
   async getBacklinks(pageId: string): Promise<PublicBacklinksResponse> {

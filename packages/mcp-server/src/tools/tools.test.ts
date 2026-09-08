@@ -17,6 +17,7 @@ import { getPageOutboundLinks } from './get-page-outbound-links';
 import { getNeighborhood } from './get-neighborhood';
 import { batchUpdatePages } from './batch-update-pages';
 import { batchSoftDeletePages } from './batch-soft-delete-pages';
+import { deleteFolder } from './delete-folder';
 import { listTags } from './list-tags';
 import { mergeTag } from './merge-tag';
 import { updatePageMetadata } from './update-page-metadata';
@@ -60,6 +61,7 @@ describe('tools', () => {
       getNeighborhood: vi.fn(),
       batchUpdatePages: vi.fn(),
       batchSoftDeletePages: vi.fn(),
+      deleteFolder: vi.fn(),
       listTags: vi.fn(), createTag: vi.fn(), renameTag: vi.fn(), deleteTag: vi.fn(), mergeTag: vi.fn(), getTagMutation: vi.fn(), updatePageMetadata: vi.fn(),
       ...overrides,
     } as unknown as WikiApiClient;
@@ -652,6 +654,43 @@ describe('tools', () => {
     await batchSoftDeletePages(client, { pageIds: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'], dryRun: true });
 
     expect(batchSoftDeletePagesClient).toHaveBeenCalledWith({ pageIds: ['a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11'] }, { dryRun: true });
+  });
+
+  it('delete_folder forwards pathPrefix, space, and dryRun', async () => {
+    const deleteFolderClient = vi.fn().mockResolvedValue({ deletedCount: 3, dryRun: false });
+    const client = createClient({ deleteFolder: deleteFolderClient });
+
+    const result = await deleteFolder(client, { pathPrefix: 'raw/garbage', space: 'raw' });
+
+    expect(result).toEqual({ deletedCount: 3, dryRun: false });
+    expect(deleteFolderClient).toHaveBeenCalledWith({
+      pathPrefix: 'raw/garbage',
+      space: 'raw',
+      dry_run: false,
+    });
+  });
+
+  it('delete_folder defaults dryRun to false when omitted', async () => {
+    const deleteFolderClient = vi.fn().mockResolvedValue({ deletedCount: 1 });
+    const client = createClient({ deleteFolder: deleteFolderClient });
+
+    await deleteFolder(client, { pathPrefix: 'docs/old' });
+
+    expect(deleteFolderClient).toHaveBeenCalledWith({ pathPrefix: 'docs/old', dry_run: false });
+  });
+
+  it('delete_folder forwards dryRun: true as a server-side preview', async () => {
+    const deleteFolderClient = vi.fn().mockResolvedValue({ deletedCount: 7, dryRun: true });
+    const client = createClient({ deleteFolder: deleteFolderClient });
+
+    const result = await deleteFolder(client, { pathPrefix: 'raw/junk', space: 'raw', dryRun: true });
+
+    expect(result).toEqual({ deletedCount: 7, dryRun: true });
+    expect(deleteFolderClient).toHaveBeenCalledWith({
+      pathPrefix: 'raw/junk',
+      space: 'raw',
+      dry_run: true,
+    });
   });
 
   it('forwards typed tag and metadata operations', async () => {

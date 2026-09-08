@@ -28,6 +28,7 @@ describe('createWikiMcpServer integration', () => {
     expect(toolNames).toContain('get_neighborhood');
     expect(toolNames).toContain('batch_update_pages');
     expect(toolNames).toContain('batch_soft_delete_pages');
+    expect(toolNames).toContain('delete_folder');
     const descriptions = new Map(tools.tools.map((tool) => [tool.name, tool.description]));
     for (const [name, description] of Object.entries(wikiMcpToolDescriptions)) {
       expect(descriptions.get(name)).toBe(description);

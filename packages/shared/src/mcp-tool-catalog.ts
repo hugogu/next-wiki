@@ -30,6 +30,8 @@ export const wikiMcpToolDescriptions = {
   get_neighborhood: 'Get the bounded link neighborhood of a page.',
   batch_update_pages: 'Update multiple pages in one request.',
   batch_soft_delete_pages: 'Soft-delete multiple pages in one request.',
+  delete_folder:
+    'Soft-delete every page under a tree path prefix (a folder), preserving revision history. Pass dryRun: true first to preview the affected page count; the delete is all-or-nothing when executed. Admins may use this to prune garbage from Raw space folders.',
   preview_space_migration:
     'Preview a durable page or folder migration between Wiki and AI Generation. Review mappings and warnings before starting.',
   start_space_migration:

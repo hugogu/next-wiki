@@ -3,6 +3,7 @@ import { getWikiMcpToolDescription as description } from '@next-wiki/shared';
 import type { WikiApiClient } from './api-client';
 import { createPage, createPageSchema } from './tools/create-page';
 import { deletePage, deletePageSchema } from './tools/delete-page';
+import { deleteFolder, deleteFolderSchema } from './tools/delete-folder';
 import { deleteRevision, deleteRevisionSchema } from './tools/delete-revision';
 import { getBacklinks, getBacklinksSchema } from './tools/get-backlinks';
 import { getDiff, getDiffSchema } from './tools/get-diff';
@@ -100,6 +101,15 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     }),
   );
 
+  server.tool(
+    'delete_folder',
+    description('delete_folder'),
+    deleteFolderSchema,
+    async (args) => ({
+      content: [{ type: 'text', text: JSON.stringify(await deleteFolder(client, args)) }],
+    }),
+  );
+
   server.tool('get_page', description('get_page'), getPageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await getPage(client, args)) }],
   }));
@@ -108,7 +118,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
     content: [{ type: 'text', text: JSON.stringify(await createPage(client, args)) }],
   }));
 
-  server.tool('append_raw_entry', 'Append an immutable chunk to a raw entry (extracted text, optional original bytes). Existing raw content cannot be edited or deleted.', appendRawEntrySchema, async (args) => ({
+  server.tool('append_raw_entry', 'Append an immutable chunk to a raw entry (extracted text, optional original bytes). Existing raw content cannot be edited; admins may soft-delete raw entries (including a whole folder) via delete_page and delete_folder.', appendRawEntrySchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await appendRawEntry(client, args)) }],
   }));
 
@@ -208,7 +218,7 @@ export function createWikiMcpServer(client: WikiApiClient): McpServer {
   server.tool('list_space_migration_items', description('list_space_migration_items'), listSpaceMigrationItemsSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await listSpaceMigrationItems(client, args)) }] }));
   server.tool('cancel_space_migration', description('cancel_space_migration'), cancelSpaceMigrationSchema, async (args) => ({ content: [{ type: 'text', text: JSON.stringify(await cancelSpaceMigration(client, args)) }] }));
 
-  server.tool('delete_page', 'Soft-delete a wiki page, preserving its revision history.', deletePageSchema, async (args) => ({
+  server.tool('delete_page', 'Soft-delete a page, preserving its revision history. Works for wiki, generated, and Raw entries (Raw is admin-only). Use delete_folder for a whole path prefix.', deletePageSchema, async (args) => ({
     content: [{ type: 'text', text: JSON.stringify(await deletePage(client, args)) }],
   }));
 

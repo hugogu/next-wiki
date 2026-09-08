@@ -915,11 +915,13 @@ export const publicFolderDeleteQuerySchema = z.object({
   pathPrefix: pathSchema,
   // 022: space slug; the default wiki space is used when omitted.
   space: z.string().optional(),
-  // Omitting the query param is treated as `dry_run=false` — the transform
-  // keeps callers from having to send `?dry_run=false` for every real delete.
+  // The default keeps the OpenAPI doc honest about the field being optional
+  // (the copilot review on #127 noted that `optional().transform(...)` makes
+  // the field required in the schema), and the transform gives handlers a
+  // plain boolean regardless of how the value arrived.
   dry_run: z
     .enum(['true', 'false'])
-    .optional()
+    .default('false')
     .transform((value) => value === 'true'),
 });
 export type PublicFolderDeleteQuery = z.infer<typeof publicFolderDeleteQuerySchema>;
