@@ -1,14 +1,12 @@
 import { z } from 'zod';
 import { contentSpaceSchema, type WikiApiClient } from '../api-client';
 import { deleteFolderResponse } from '../shapes';
+import { pathSchema } from '@next-wiki/shared';
 
 export const deleteFolderSchema = {
-  pathPrefix: z
-    .string()
-    .min(1)
-    .describe(
-      'Tree path prefix to delete (e.g. "raw/garbage" or "docs/old-design"). Every page at or under this path is soft-deleted.',
-    ),
+  pathPrefix: pathSchema.describe(
+    'Tree path prefix to delete (e.g. "raw/garbage" or "docs/old-design"). Every page at or under this path is soft-deleted.',
+  ),
   space: contentSpaceSchema
     .optional()
     .describe('Content space slug; defaults to the default wiki space. Pass "raw" to delete a Raw space folder (admin-only).'),

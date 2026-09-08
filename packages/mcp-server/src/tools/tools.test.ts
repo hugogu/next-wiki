@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
 import { WikiApiClient } from '../api-client';
 import { batchCreatePages } from './batch-create-pages';
 import { deletePage } from './delete-page';
@@ -17,7 +18,7 @@ import { getPageOutboundLinks } from './get-page-outbound-links';
 import { getNeighborhood } from './get-neighborhood';
 import { batchUpdatePages } from './batch-update-pages';
 import { batchSoftDeletePages } from './batch-soft-delete-pages';
-import { deleteFolder } from './delete-folder';
+import { deleteFolder, deleteFolderSchema } from './delete-folder';
 import { listTags } from './list-tags';
 import { mergeTag } from './merge-tag';
 import { updatePageMetadata } from './update-page-metadata';
@@ -704,5 +705,16 @@ describe('tools', () => {
     expect(list).toHaveBeenCalledWith({ limit: 10 });
     expect(merge).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22');
     expect(update).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', expect.objectContaining({ tags: ['devops'] }));
+  });
+
+  it('matches REST path validation before sending a folder delete request', () => {
+    // Mirrors `space-migrations.test.ts`: catch invalid paths at the MCP layer
+    // so callers see the failure as a clear validation error instead of a
+    // 422 round-trip to the public API.
+    const schema = z.object(deleteFolderSchema);
+    expect(schema.safeParse({ pathPrefix: 'Invalid/Path' }).success).toBe(false);
+    expect(schema.safeParse({ pathPrefix: 'a//b' }).success).toBe(false);
+    expect(schema.safeParse({ pathPrefix: 'raw/garbage' }).success).toBe(true);
+    expect(schema.safeParse({ pathPrefix: 'docs/old-design', space: 'raw', dryRun: true }).success).toBe(true);
   });
 });
