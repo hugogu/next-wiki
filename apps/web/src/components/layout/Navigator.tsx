@@ -781,7 +781,8 @@ export function Navigator({
 
   // Whenever a new branch is expanded for the first time, fire a fetch.
   // Collapsing does not drop the cache so re-expanding is instant.
-  useEffect(() => {    function findNode(
+  useEffect(() => {
+    function findNode(
       nodes: LazyPublicPageTreeNode[],
       target: string,
     ): LazyPublicPageTreeNode | undefined {

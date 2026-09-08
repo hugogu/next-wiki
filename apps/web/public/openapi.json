@@ -4160,7 +4160,8 @@
             "type": "string"
           },
           "dry_run": {
-            "type": "boolean"
+            "type": "boolean",
+            "default": false
           },
           "space": {
             "oneOf": [
@@ -4174,8 +4175,7 @@
           }
         },
         "required": [
-          "pathPrefix",
-          "dry_run"
+          "pathPrefix"
         ]
       },
       "PublicFolderDeleteResult": {
@@ -25433,9 +25433,10 @@
           {
             "in": "query",
             "name": "dry_run",
-            "required": true,
+            "required": false,
             "schema": {
-              "type": "boolean"
+              "type": "boolean",
+              "default": false
             }
           },
           {

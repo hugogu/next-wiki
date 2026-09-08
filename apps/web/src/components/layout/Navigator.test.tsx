@@ -83,7 +83,8 @@ describe('Navigator hybrid node (page that also has children)', () => {
   });
 });
 
-describe('Navigator LLM Wiki space tabs', () => {  it('renders persistent title-bar tabs outside the scrolling navigation', () => {
+describe('Navigator LLM Wiki space tabs', () => {
+  it('renders persistent title-bar tabs outside the scrolling navigation', () => {
     const html = renderToStaticMarkup(
       <Navigator
         tree={[]}

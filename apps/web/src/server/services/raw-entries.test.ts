@@ -314,6 +314,22 @@ describe('raw entries service', () => {
     await expect(rawEntries.createEntry(buildApiKeyCtx(adminId, 'admin', ['create'], 'admin-key'), input)).resolves.toMatchObject({ pageId: expect.any(String) });
   });
 
+  it('escapes LIKE wildcards in a folder prefix so underscores do not delete sibling subtrees', async () => {
+    // `pathSchema` allows underscores; PostgreSQL `LIKE` would otherwise treat
+    // `foo_bar` as a single-character wildcard and accidentally match
+    // `fooxbar/...`. Escape the prefix so the prefix matches exactly.
+    await createRawEntry(adminCtx, 'raw/escape_test/foo_bar/a');
+    await createRawEntry(adminCtx, 'raw/escape_test/fooxbar/x');
+    const keep = await createRawEntry(adminCtx, 'raw/escape_test/keep');
+
+    const preview = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/escape_test/foo_bar', space: 'raw', dry_run: true });
+    expect(preview.deletedCount).toBe(1);
+
+    await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/escape_test/foo_bar', space: 'raw', dry_run: false });
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/escape_test/fooxbar/x') }))?.deletedAt).toBeNull();
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.id, keep.pageId) }))?.deletedAt).toBeNull();
+  });
+
   it('filters raw listings by inputKind and categoryId independently from filterType', async () => {
     const ops = await rawCategories.createCategory(adminCtx, { name: 'Ops', slug: 'ops' });
     await rawEntries.createEntry(adminCtx, {

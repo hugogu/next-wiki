@@ -1498,6 +1498,13 @@ export async function removeFolder(
   if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
   await assertSpaceKindAllowed(space.kind);
 
+  // `pathSchema` allows underscores, which PostgreSQL `LIKE` treats as
+  // single-character wildcards — escape them so a prefix like `foo_bar` only
+  // matches that exact subtree, not `fooXbar/...`. Backslash is the default
+  // LIKE escape character; escape it first so a hostile path can't smuggle a
+  // partial wildcard past us.
+  const escapedPrefix = pathPrefix.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+
   const rows = await db
     .select({
       id: schema.pages.id,
@@ -1512,7 +1519,7 @@ export async function removeFolder(
         isNull(schema.pages.deletedAt),
         or(
           eq(schema.pages.path, pathPrefix),
-          like(schema.pages.path, `${pathPrefix}/%`),
+          like(schema.pages.path, `${escapedPrefix}/%`),
         ),
       ),
     );

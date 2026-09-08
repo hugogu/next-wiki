@@ -915,6 +915,8 @@ export const publicFolderDeleteQuerySchema = z.object({
   pathPrefix: pathSchema,
   // 022: space slug; the default wiki space is used when omitted.
   space: z.string().optional(),
+  // Omitting the query param is treated as `dry_run=false` — the transform
+  // keeps callers from having to send `?dry_run=false` for every real delete.
   dry_run: z
     .enum(['true', 'false'])
     .optional()
