@@ -38,6 +38,7 @@ export const BUILTIN_TOOL_METADATA: readonly BuiltinToolMetadata[] = [
   { name: 'merge_tag', category: 'tag', risk: 'reviewed_write', description: description('merge_tag') },
   { name: 'batch_update_pages', category: 'batch', risk: 'reviewed_write', description: description('batch_update_pages') },
   { name: 'batch_soft_delete_pages', category: 'batch', risk: 'reviewed_write', description: description('batch_soft_delete_pages') },
+  { name: 'delete_folder', category: 'batch', risk: 'reviewed_write', description: description('delete_folder') },
   { name: 'generate_image', category: 'media', risk: 'immediate_write', description: description('generate_image') },
   { name: 'get_image_generation', category: 'media', risk: 'read', description: 'Poll a private generated-image action for safe status and artifact metadata.' },
   { name: 'promote_generated_image', category: 'media', risk: 'immediate_write', description: description('promote_generated_image') },

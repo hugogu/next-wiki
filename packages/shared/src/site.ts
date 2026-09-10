@@ -23,6 +23,12 @@ export const siteSettingsViewSchema = z.object({
   siteName: z.string(),
   iconUrl: z.string(),
   hasCustomIcon: z.boolean(),
+  /**
+   * MIME type of the custom icon, or null when the shipped default (an SVG)
+   * is served. Link-preview metadata needs it to tell whether the icon is a
+   * format crawlers render.
+   */
+  iconMime: z.string().nullable(),
   footerCopyright: z.string().nullable(),
   icp: filingViewSchema,
   publicSecurity: filingViewSchema,

@@ -7,8 +7,11 @@ from next_wiki_memory.config import ProviderConfig, save_config
 
 
 class _ToolClient:
-    def recall(self, query: str, limit: int):
+    def search_knowledge(self, query: str, limit: int):
         return {"results": [{"memoryId": "one", "citation": {"revisionId": "revision"}}], "query": query, "limit": limit}
+
+    def get_knowledge_page(self, page_id: str, max_chars: int):
+        return {"pageId": page_id, "content": "current", "maxChars": max_chars}
 
     def save(self, payload):
         return {"record": {"memoryId": "one"}, "idempotent": False}
@@ -27,6 +30,12 @@ def test_tool_dispatch_rejects_unbounded_or_unknown_arguments(monkeypatch, tmp_p
     ok = json.loads(provider.handle_tool_call("next_wiki_memory_search", {"query": "decision"}))
     assert ok["ok"] is True
     assert ok["results"][0]["citation"]["revisionId"] == "revision"
+
+    page = json.loads(provider.handle_tool_call("next_wiki_memory_get", {"page_id": "page-id", "max_chars": 100}))
+    assert page == {"ok": True, "pageId": "page-id", "content": "current", "maxChars": 100}
+
+    invalid_page = json.loads(provider.handle_tool_call("next_wiki_memory_get", {"page_id": "page-id", "max_chars": 20_001}))
+    assert invalid_page["ok"] is False
 
     rejected = json.loads(provider.handle_tool_call("next_wiki_memory_search", {"query": "x" * 4_001}))
     assert rejected["ok"] is False

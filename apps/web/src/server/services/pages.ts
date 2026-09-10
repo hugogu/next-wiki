@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, or, sql, inArray } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, or, sql, inArray, like } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -34,7 +34,7 @@ import { notifyPublicContentChanged } from '@/server/services/public-content-eve
 import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { getRevisionMetadata, metadataFromInput, metadataFromSource, persistRevisionMetadata } from '@/server/services/page-metadata';
 import { normalizeTagName, parseFrontmatter } from '@/server/metadata/frontmatter';
-import { buildPageDescription } from '@/lib/seo';
+import { buildPageDescription, stripLeadingTitleHeading } from '@/lib/seo';
 import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, invalidatePublicContentCache, shouldUseDataCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
@@ -42,6 +42,7 @@ import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind, type SpaceRow } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { createWikiLinkResolver, renderPageMarkdown } from '@/server/services/wiki-links';
+import { logger } from '@/server/logger';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConceptPath, ensureOkfConformance } from '@/server/services/okf';
 
@@ -383,7 +384,9 @@ export async function listPublished(
       authorDisplayName: r.authorDisplayName,
       publishedAt: r.publishedAt?.toISOString() ?? null,
       updatedAt: r.updatedAt.toISOString(),
-      description: summaryByRevisionId.get(r.revisionId) || buildPageDescription(r.contentHtml, ''),
+      description:
+        summaryByRevisionId.get(r.revisionId) ||
+        buildPageDescription(stripLeadingTitleHeading(r.contentHtml, r.title), ''),
     }));
 }
 
@@ -1457,7 +1460,6 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
   });
 
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be deleted');
   if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
 
   const isAuthor = page.authorId === userId;
@@ -1475,6 +1477,132 @@ export async function remove(ctx: PermCtx, path: string, spaceSlug?: string): Pr
   invalidatePublicContentCache();
   await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(page.id, ctx);
+}
+
+/**
+ * Soft-delete every page under a tree path prefix — the Navigator's "folder".
+ * Folders are virtual (derived from `pages.path`), so deleting one means
+ * soft-deleting the whole subtree, including a hybrid node's own page. The
+ * batch is all-or-nothing: every page inside is permission-checked first, and
+ * any single rejection fails the whole delete before anything is written.
+ *
+ * Translation rows are deliberately skipped — they share a path with the
+ * source page but are managed by the Translations admin (015), matching
+ * `remove()` above.
+ *
+ * Subtree size is capped at {@link MAX_FOLDER_DELETE_PAGES}. A dry run still
+ * reports the full count so a caller can decide how to narrow the prefix; the
+ * cap only blocks the actual UPDATE when the affected count exceeds it.
+ */
+export const MAX_FOLDER_DELETE_PAGES = 500;
+
+export async function removeFolder(
+  ctx: PermCtx,
+  pathPrefix: string,
+  spaceSlug?: string,
+  options: { dryRun?: boolean } = {},
+): Promise<{ deletedCount: number }> {
+  const userId = getUserId(ctx);
+  if (!userId) {
+    throw new DomainError('UNAUTHORIZED', 'Sign in to delete pages');
+  }
+
+  const space = await resolveSpace(spaceSlug);
+  if (!space) throw new DomainError('NOT_FOUND', 'Default space not found');
+  await assertSpaceKindAllowed(space.kind);
+
+  // Coarse delete-capable gate. Closing this BEFORE the SELECT is what
+  // prevents the existence oracle: a reader or a `view`-only API key used to
+  // get `200 {deletedCount: 0}` for any prefix they couldn't touch and
+  // `403 FORBIDDEN` for prefixes that contained something they couldn't see,
+  // letting them probe for hidden pages.
+  const isReaderOrAnonymous = ctx.actor.kind === 'anonymous' || ctx.actor.role === 'reader';
+  if (
+    isReaderOrAnonymous ||
+    !can(ctx, 'delete', { kind: 'page_list' }, { ...spacePermissionOptions(space), isAuthor: true })
+  ) {
+    throw new DomainError('FORBIDDEN', 'You do not have permission to delete pages in this space');
+  }
+
+  // `pathSchema` allows underscores, which PostgreSQL `LIKE` treats as
+  // single-character wildcards — escape them so a prefix like `foo_bar` only
+  // matches that exact subtree, not `fooXbar/...`. Backslash is the default
+  // LIKE escape character; escape it first so a hostile path can't smuggle a
+  // partial wildcard past us.
+  const escapedPrefix = pathPrefix.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
+
+  const rows = await db
+    .select({
+      id: schema.pages.id,
+      authorId: schema.pages.authorId,
+      visibility: schema.pages.visibility,
+      kind: schema.pages.kind,
+    })
+    .from(schema.pages)
+    .where(
+      and(
+        eq(schema.pages.spaceId, space.id),
+        isNull(schema.pages.deletedAt),
+        isNull(schema.pages.translationGroupId),
+        or(
+          eq(schema.pages.path, pathPrefix),
+          like(schema.pages.path, `${escapedPrefix}/%`),
+        ),
+      ),
+    );
+
+  // Link pages are retired placeholders, not real content — they don't block
+  // deleting a folder and are left untouched.
+  const targets = rows.filter((row) => row.kind !== 'link');
+  for (const row of targets) {
+    const isAuthor = row.authorId === userId;
+    if (!can(ctx, 'delete', { kind: 'page', pageId: row.id }, pagePermissionOptions(space, row, { isAuthor }))) {
+      throw new DomainError('FORBIDDEN', 'You do not have permission to delete every page under this folder');
+    }
+  }
+
+  if (options.dryRun) {
+    return { deletedCount: targets.length };
+  }
+
+  // Cap how many pages a single request can soft-delete. The dry run above
+  // already reports the count, so callers can narrow the prefix and retry
+  // rather than exceeding this bound.
+  if (targets.length > MAX_FOLDER_DELETE_PAGES) {
+    throw new DomainError(
+      'BAD_REQUEST',
+      `Folder delete would affect ${targets.length} pages, above the ${MAX_FOLDER_DELETE_PAGES}-page cap; narrow the prefix and retry.`,
+    );
+  }
+
+  if (targets.length === 0) {
+    return { deletedCount: 0 };
+  }
+
+  const targetIds = targets.map((row) => row.id);
+  // The `isNull(deletedAt)` predicate guards against double-counting when
+  // another caller soft-deletes a row between this SELECT and the UPDATE;
+  // `.returning()` gives the authoritative count of rows actually written.
+  const deleted = await db
+    .update(schema.pages)
+    .set({ deletedAt: new Date() })
+    .where(and(inArray(schema.pages.id, targetIds), isNull(schema.pages.deletedAt)))
+    .returning({ id: schema.pages.id });
+  invalidatePublicContentCache();
+  await notifyPublicContentChanged('publish');
+  // Per-page reconciliation is page-independent — fan out in parallel and
+  // wrap each so a single failure (e.g. an AI index hiccup on one page) does
+  // not poison the rest. The AI index itself upserts `ai_page_index_states`
+  // with `status: 'pending'`, so even if every call here failed the next
+  // rebuild worker would still drain the deletion.
+  await Promise.allSettled(
+    deleted.map(({ id }) =>
+      reconcilePageAcrossIndexes(id, ctx).catch((error: unknown) => {
+        logger.exception('reconcilePageAcrossIndexes failed during folder delete', error, { pageId: id });
+      }),
+    ),
+  );
+  return { deletedCount: deleted.length };
 }
 
 export async function create(

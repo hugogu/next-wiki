@@ -13,6 +13,7 @@ import { getActiveAnalyticsScriptContent } from '@/server/services/analytics';
 import { getUserAppearance } from '@/server/services/user-appearance';
 import { buildUserAppearanceCss } from '@/server/appearance/style';
 import { getSiteName } from '@/server/services/site-settings';
+import { resolveSiteSocialImage, toMetadataImage } from '@/server/services/social-image';
 import { env } from '@/server/config';
 import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
@@ -29,6 +30,7 @@ export async function generateMetadata(): Promise<Metadata> {
   // APP_URL is validated to a URL at boot. Strip a trailing slash so it
   // composes cleanly with path joins.
   const siteUrl = env.APP_URL.replace(/\/$/, '');
+  const shareImage = await resolveSiteSocialImage(siteUrl);
   return {
     title: { default: siteName, template: `%s · ${siteName}` },
     description,
@@ -47,11 +49,15 @@ export async function generateMetadata(): Promise<Metadata> {
       title: siteName,
       description,
       locale: locale === 'zh' ? 'zh_CN' : 'en_US',
+      ...(shareImage ? { images: [toMetadataImage(shareImage)] } : {}),
     },
     twitter: {
-      card: 'summary_large_image',
+      // Compact card: the site-level image is a logo at best, and claiming a
+      // large card without a wide image renders as an empty grey placeholder.
+      card: 'summary',
       title: siteName,
       description,
+      ...(shareImage ? { images: [toMetadataImage(shareImage)] } : {}),
     },
     robots: {
       index: true,

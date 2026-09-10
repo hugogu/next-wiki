@@ -88,6 +88,33 @@ describe('site-settings service', () => {
     expect((await getSiteView()).hasCustomIcon).toBe(false);
   });
 
+  // Regression: the two icon columns are independently nullable, and getIcon()
+  // requires both. The view must not advertise an icon the route falls back
+  // away from — `iconMime` (which link-preview metadata reads) has to agree
+  // with `hasCustomIcon`.
+  it('reports no custom icon when the stored bytes have no MIME type', async () => {
+    const ctx = await createAdmin();
+    await setIcon(ctx, Buffer.from('<svg xmlns="http://www.w3.org/2000/svg"/>'), 'image/svg+xml');
+    await db
+      .update(schema.siteSettings)
+      .set({ iconMime: null })
+      .where(eq(schema.siteSettings.id, 'default'));
+
+    expect(await getIcon()).toBeNull();
+    const view = await getSiteView();
+    expect(view.hasCustomIcon).toBe(false);
+    expect(view.iconMime).toBeNull();
+  });
+
+  it('exposes the icon MIME type alongside hasCustomIcon for a complete row', async () => {
+    const ctx = await createAdmin();
+    await setIcon(ctx, Buffer.from([0x89, 0x50, 0x4e, 0x47]), 'image/png');
+
+    const view = await getSiteView();
+    expect(view.hasCustomIcon).toBe(true);
+    expect(view.iconMime).toBe('image/png');
+  });
+
   it('rejects an unsupported icon mime type', async () => {
     const ctx = await createAdmin();
     await expect(setIcon(ctx, Buffer.from('x'), 'application/pdf')).rejects.toThrow(DomainError);

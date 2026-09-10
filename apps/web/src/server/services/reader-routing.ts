@@ -2,8 +2,9 @@ import type { Metadata } from 'next';
 import type { LivePage } from '@next-wiki/shared';
 import type { PermCtx } from '@/server/permissions';
 import type { ServerTranslate } from '@/i18n/server';
-import { buildPageDescription } from '@/lib/seo';
+import { buildPageDescription, stripLeadingTitleHeading } from '@/lib/seo';
 import * as pageService from '@/server/services/pages';
+import { resolvePageSocialImage, toMetadataImage } from '@/server/services/social-image';
 import { findRetiredLinkTarget } from '@/server/services/link-pages';
 import { canonicalSpacePath, resolveSpacePrefix } from '@/server/services/space-routes';
 import { resolveAddressTarget } from '@/server/services/page-addresses';
@@ -137,11 +138,17 @@ export async function buildReaderMetadata(
 
   const isTranslation = resolved.kind === 'translation';
   const canonicalPath = canonicalSpacePath(resolved.space, resolved.sourcePath, isTranslation ? resolved.locale : null);
-  const description = buildPageDescription(page.contentHtml, t('site.description'));
+  const description = buildPageDescription(
+    stripLeadingTitleHeading(page.contentHtml, page.title),
+    t('site.description'),
+  );
 
   // hreflang alternates: the original plus every published translation in the
   // group. Original is the default alternate, never a redirect target.
-  const translatedLocales = await pageService.getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug);
+  const [translatedLocales, socialImage] = await Promise.all([
+    pageService.getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug),
+    resolvePageSocialImage(page.contentHtml, siteUrl),
+  ]);
   const languages: Record<string, string> = {
     'x-default': `${siteUrl}${canonicalSpacePath(resolved.space, resolved.sourcePath)}`,
   };
@@ -162,8 +169,16 @@ export async function buildReaderMetadata(
       locale: isTranslation && resolved.locale === 'zh' ? 'zh_CN' : locale === 'zh' ? 'zh_CN' : 'en_US',
       ...(page.publishedAt ? { publishedTime: page.publishedAt } : {}),
       ...(page.authorDisplayName ? { authors: [page.authorDisplayName] } : {}),
+      ...(socialImage ? { images: [toMetadataImage(socialImage)] } : {}),
     },
-    twitter: { card: 'summary_large_image', title: page.title, description },
+    twitter: {
+      // A large card with no image renders as an empty grey placeholder, so
+      // only claim one when there is a body illustration to fill it.
+      card: socialImage?.kind === 'content' ? 'summary_large_image' : 'summary',
+      title: page.title,
+      description,
+      ...(socialImage ? { images: [toMetadataImage(socialImage)] } : {}),
+    },
     robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
   };
 }

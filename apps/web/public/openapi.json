@@ -4153,6 +4153,65 @@
         ],
         "description": "An external (https://) Markdown link, not subject to the read-permission model."
       },
+      "PublicFolderDeleteQuery": {
+        "type": "object",
+        "properties": {
+          "pathPrefix": {
+            "type": "string"
+          },
+          "dry_run": {
+            "type": "string",
+            "enum": [
+              "true",
+              "false"
+            ]
+          },
+          "space": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "string"
+              }
+            ]
+          }
+        },
+        "required": [
+          "pathPrefix",
+          "dry_run"
+        ]
+      },
+      "PublicFolderDeleteResult": {
+        "type": "object",
+        "properties": {
+          "deletedCount": {
+            "type": "number"
+          },
+          "dryRun": {
+            "oneOf": [
+              {
+                "type": "object"
+              },
+              {
+                "type": "boolean",
+                "enum": [
+                  false
+                ]
+              },
+              {
+                "type": "boolean",
+                "enum": [
+                  true
+                ]
+              }
+            ]
+          }
+        },
+        "required": [
+          "deletedCount"
+        ]
+      },
       "PublicGeneratedArtifactIdPathParams": {
         "type": "object",
         "properties": {
@@ -25353,6 +25412,68 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicPageTreeResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-v1-tree",
+        "summary": "Soft-delete a folder subtree",
+        "description": "Soft-deletes every page at or under `pathPrefix` in the requested space",
+        "tags": [
+          "Tree"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "pathPrefix",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "dry_run",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "true",
+                "false"
+              ]
+            }
+          },
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "type": "object"
+                },
+                {
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicFolderDeleteResult"
                 }
               }
             }

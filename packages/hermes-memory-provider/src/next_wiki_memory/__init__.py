@@ -19,6 +19,8 @@ from .redaction import redact
 _MAX_TOOL_QUERY = 4_000
 _MAX_TOOL_CONTENT = 16_000
 _MAX_TOOL_REASON = 500
+_MAX_TOOL_PAGE_ID = 128
+_MAX_TOOL_PAGE_CHARS = 20_000
 
 
 class NextWikiMemoryProvider:
@@ -124,7 +126,7 @@ class NextWikiMemoryProvider:
                 "type": "function",
                 "function": {
                     "name": "next_wiki_memory_search",
-                    "description": "Search this agent identity's next-wiki memory destination through the native provider REST API (not MCP).",
+                    "description": "Search the Wiki, Raw, and Generated knowledge granted to this next-wiki key through the native provider REST API (not MCP).",
                     "parameters": {
                         "type": "object",
                         "properties": {
@@ -132,6 +134,22 @@ class NextWikiMemoryProvider:
                             "limit": {"type": "integer", "minimum": 1, "maximum": 10},
                         },
                         "required": ["query"],
+                        "additionalProperties": False,
+                    },
+                },
+            },
+            {
+                "type": "function",
+                "function": {
+                    "name": "next_wiki_memory_get",
+                    "description": "Read the current content of one selected next-wiki knowledge page through the native provider REST API (not MCP).",
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "page_id": {"type": "string", "maxLength": _MAX_TOOL_PAGE_ID},
+                            "max_chars": {"type": "integer", "minimum": 1, "maximum": _MAX_TOOL_PAGE_CHARS},
+                        },
+                        "required": ["page_id"],
                         "additionalProperties": False,
                     },
                 },
@@ -182,7 +200,14 @@ class NextWikiMemoryProvider:
                 limit = args.get("limit", self._config.recall_limit if self._config else 5)
                 if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 10:
                     raise ValueError("limit must be between 1 and 10")
-                return json.dumps({"ok": True, **client.recall(query, limit)}, ensure_ascii=False)
+                return json.dumps({"ok": True, **client.search_knowledge(query, limit)}, ensure_ascii=False)
+            if name == "next_wiki_memory_get":
+                self._reject_unknown_args(args, {"page_id", "max_chars"})
+                page_id = self._bounded_string(args.get("page_id"), _MAX_TOOL_PAGE_ID, "page_id")
+                max_chars = args.get("max_chars", 8_000)
+                if not isinstance(max_chars, int) or isinstance(max_chars, bool) or not 1 <= max_chars <= _MAX_TOOL_PAGE_CHARS:
+                    raise ValueError("max_chars must be between 1 and 20000")
+                return json.dumps({"ok": True, **client.get_knowledge_page(page_id, max_chars)}, ensure_ascii=False)
             if name == "next_wiki_memory_save":
                 self._reject_unknown_args(args, {"content", "title", "tags"})
                 content = self._bounded_string(args.get("content"), _MAX_TOOL_CONTENT, "content")

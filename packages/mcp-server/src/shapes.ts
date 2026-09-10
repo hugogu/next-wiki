@@ -16,6 +16,7 @@ import type {
   PublicRevisionResource,
   PublicSemanticSearchAction,
 } from './api-client';
+import type { PublicFolderDeleteResult } from '@next-wiki/shared';
 
 /** Flatten a raw taxonomy category for LLM comprehension. */
 export function rawCategoryShape(category: PublicRawCategory) {
@@ -436,6 +437,21 @@ export function pageTreeResponse(source: PublicPageTreeResponse): {
   return {
     root: flattenTree(source.root),
     pageCount: source.pageCount,
+  };
+}
+
+/**
+ * Flatten the `DELETE /v1/tree` response. The API returns a count plus a
+ * `dryRun` flag; the shape just passes both through so the model can decide
+ * whether to confirm a follow-up call.
+ */
+export function deleteFolderResponse(source: PublicFolderDeleteResult): {
+  deletedCount: number;
+  dryRun: boolean;
+} {
+  return {
+    deletedCount: source.deletedCount,
+    dryRun: Boolean(source.dryRun),
   };
 }
 

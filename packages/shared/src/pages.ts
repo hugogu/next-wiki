@@ -910,3 +910,22 @@ export const publicDryRunQuerySchema = z.object({
     .transform((value) => value === 'true'),
 });
 export type PublicDryRunQuery = z.infer<typeof publicDryRunQuerySchema>;
+
+export const publicFolderDeleteQuerySchema = z.object({
+  pathPrefix: pathSchema,
+  // 022: space slug; the default wiki space is used when omitted.
+  space: z.string().optional(),
+  // The default lets callers omit the param entirely; the enum keeps the
+  // OpenAPI doc honest about the wire format (query strings are strings,
+  // not booleans). The route handler compares the value to 'true' directly.
+  dry_run: z
+    .enum(['true', 'false'])
+    .default('false'),
+});
+export type PublicFolderDeleteQuery = z.infer<typeof publicFolderDeleteQuerySchema>;
+
+export const publicFolderDeleteResultSchema = z.object({
+  deletedCount: z.number().int().nonnegative(),
+  dryRun: z.boolean().optional(),
+});
+export type PublicFolderDeleteResult = z.infer<typeof publicFolderDeleteResultSchema>;

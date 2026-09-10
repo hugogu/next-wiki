@@ -264,9 +264,44 @@ describe('raw entries service', () => {
     const created = await createRawEntry(adminCtx);
     await expect(pageService.newDraft(adminCtx, 'raw/evidence', { title: 'Changed', contentSource: 'Changed' }, 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
     await expect(pageService.updateProperties(adminCtx, 'raw/evidence', { path: 'raw/renamed' }, 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
-    await expect(pageService.remove(adminCtx, 'raw/evidence', 'raw')).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
     await expect(revisions.publish(adminCtx, { path: 'raw/evidence', version: 1, space: 'raw' })).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
     await expect(publicContent.updatePageMetadata(adminCtx, created.pageId, { baseRevisionId: created.versionId, title: 'Changed' })).rejects.toMatchObject({ code: 'RAW_SPACE_IMMUTABLE' });
+  });
+
+  it('soft-deletes a raw entry as admin while other roles stay forbidden', async () => {
+    const created = await createRawEntry(adminCtx, 'raw/garbage');
+    const editor = await createUser('raw-delete-editor@example.com', 'editor');
+
+    await expect(publicContent.deletePage(buildUserCtx(editor.id, 'editor'), created.pageId)).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    await publicContent.deletePage(adminCtx, created.pageId);
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, created.pageId) });
+    expect(page?.deletedAt).not.toBeNull();
+    // Soft delete only: the revision history survives.
+    expect(await db.query.pageRevisions.findFirst({ where: eq(schema.pageRevisions.pageId, created.pageId) })).toBeTruthy();
+  });
+
+  it('soft-deletes a raw folder subtree, with a dry-run count and admin-only gating', async () => {
+    await createRawEntry(adminCtx, 'raw/junk/a');
+    await createRawEntry(adminCtx, 'raw/junk/nested/b');
+    const keep = await createRawEntry(adminCtx, 'raw/keep');
+    const editor = await createUser('raw-folder-editor@example.com', 'editor');
+
+    await expect(
+      publicContent.deleteFolder(buildUserCtx(editor.id, 'editor'), { pathPrefix: 'raw/junk', space: 'raw', dry_run: 'false' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    const preview = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/junk', space: 'raw', dry_run: 'true' });
+    expect(preview).toMatchObject({ deletedCount: 2, dryRun: true });
+    // A dry run writes nothing.
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/junk/a') }))?.deletedAt).toBeNull();
+
+    const deleted = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/junk', space: 'raw', dry_run: 'false' });
+    expect(deleted.deletedCount).toBe(2);
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/junk/a') }))?.deletedAt).not.toBeNull();
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/junk/nested/b') }))?.deletedAt).not.toBeNull();
+    // Pages outside the prefix are untouched.
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.id, keep.pageId) }))?.deletedAt).toBeNull();
   });
 
   it('denies non-admin API keys while allowing an admin-backed key', async () => {
@@ -277,6 +312,22 @@ describe('raw entries service', () => {
     await expect(rawEntries.createEntry(buildApiKeyCtx(editor.id, 'editor', ['create'], 'editor-key'), input)).rejects.toMatchObject({ code: 'SPACE_FORBIDDEN' });
     await expect(rawEntries.createEntry(buildApiKeyCtx(reader.id, 'reader', ['create'], 'reader-key'), input)).rejects.toMatchObject({ code: 'SPACE_FORBIDDEN' });
     await expect(rawEntries.createEntry(buildApiKeyCtx(adminId, 'admin', ['create'], 'admin-key'), input)).resolves.toMatchObject({ pageId: expect.any(String) });
+  });
+
+  it('escapes LIKE wildcards in a folder prefix so underscores do not delete sibling subtrees', async () => {
+    // `pathSchema` allows underscores; PostgreSQL `LIKE` would otherwise treat
+    // `foo_bar` as a single-character wildcard and accidentally match
+    // `fooxbar/...`. Escape the prefix so the prefix matches exactly.
+    await createRawEntry(adminCtx, 'raw/escape_test/foo_bar/a');
+    await createRawEntry(adminCtx, 'raw/escape_test/fooxbar/x');
+    const keep = await createRawEntry(adminCtx, 'raw/escape_test/keep');
+
+    const preview = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/escape_test/foo_bar', space: 'raw', dry_run: 'true' });
+    expect(preview.deletedCount).toBe(1);
+
+    await publicContent.deleteFolder(adminCtx, { pathPrefix: 'raw/escape_test/foo_bar', space: 'raw', dry_run: 'false' });
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.path, 'raw/escape_test/fooxbar/x') }))?.deletedAt).toBeNull();
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.id, keep.pageId) }))?.deletedAt).toBeNull();
   });
 
   it('filters raw listings by inputKind and categoryId independently from filterType', async () => {

@@ -57,9 +57,21 @@ def test_client_uses_scoped_api_routes_and_bearer_key() -> None:
     assert request.get_method() == "GET"
     assert request.full_url == "http://127.0.0.1:3000/api/v1/memory/diagnostics"
     assert request.get_header("Authorization") == "Bearer nwk_test_secret"
-    assert request.get_header("User-agent") == "next-wiki-memory/0.1.4"
-    assert request.get_header("X-next-wiki-memory-provider-version") == "0.1.4"
+    assert request.get_header("User-agent") == "next-wiki-memory/0.2.0"
+    assert request.get_header("X-next-wiki-memory-provider-version") == "0.2.0"
     assert timeout == 5.0
+
+
+def test_client_searches_and_reads_current_knowledge_pages() -> None:
+    client = WikiApiClient(ProviderConfig("http://127.0.0.1:3000/api/v1"), api_key="nwk_test_secret")
+    transport = _TransportFixture({"results": []})
+    client._opener = transport  # type: ignore[assignment]
+
+    assert client.search_knowledge("personal profile", 5) == {"results": []}
+    assert client.get_knowledge_page("page/id", 1_200) == {"results": []}
+
+    assert transport.requests[0][0].full_url == "http://127.0.0.1:3000/api/v1/memory/wiki/search?q=personal+profile&limit=5"
+    assert transport.requests[1][0].full_url == "http://127.0.0.1:3000/api/v1/memory/wiki/pages/page%2Fid?maxChars=1200"
 
 
 def test_client_never_echoes_an_error_response_body() -> None:

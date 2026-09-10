@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -15,6 +15,7 @@ describe('SyncService', () => {
     await mkdir(memory, { recursive: true });
     await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
     await writeFile(join(workspace, 'MEMORY.md'), '# Curated memory\n');
+    await writeFile(join(workspace, 'USER.md'), '# User preferences\n');
     await writeFile(join(memory, 'MEMORY.md'), '# Durable memory\n');
     await writeFile(join(memory, '2026-09-05.md'), '# Daily\n');
     const client = {
@@ -24,9 +25,9 @@ describe('SyncService', () => {
     };
     const service = new SyncService(vault, client as never, 60, memory, workspace);
 
-    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 4, uploaded: 4, failed: 0 });
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 5, uploaded: 5, failed: 0 });
     expect(client.mirror.mock.calls.map(([document]) => document.sourcePath)).toEqual([
-      'WIKI.md', 'memory-core/MEMORY.md', 'memory-core/memory/2026-09-05.md', 'memory-core/memory/MEMORY.md',
+      'WIKI.md', 'memory-core/MEMORY.md', 'memory-core/USER.md', 'memory-core/memory/2026-09-05.md', 'memory-core/memory/MEMORY.md',
     ]);
     const journal = JSON.parse(await readFile(join(parent, '.openclaw-wiki-next-wiki-sync.json'), 'utf8')) as { completed: Record<string, string> };
     expect(journal.completed['memory-core/memory/MEMORY.md']).toMatch(/^[a-f0-9]{64}$/);
@@ -42,6 +43,28 @@ describe('SyncService', () => {
 
     await expect(new SyncService(vault, client as never, 60, join(workspace, 'memory'), workspace).run())
       .resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, failed: 0 });
+  });
+
+  it('retires a disappeared source but restores it when the same path returns', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-retire-'));
+    const vault = join(parent, 'vault');
+    const source = join(vault, 'WIKI.md');
+    await mkdir(vault);
+    await writeFile(source, '# Wiki\n');
+    const client = {
+      mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })),
+      retire: vi.fn(async (sourcePath: string) => ({ outcome: 'forgotten', sourcePath, state: 'forgotten' })),
+    };
+    const service = new SyncService(vault, client as never, 60);
+
+    await service.run();
+    await unlink(source);
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 0, retired: 1, failed: 0 });
+    expect(client.retire).toHaveBeenCalledWith('WIKI.md');
+
+    await writeFile(source, '# Wiki restored\n');
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', uploaded: 1, retired: 0, failed: 0 });
+    expect(client.mirror).toHaveBeenCalledTimes(2);
   });
 
   it('deduplicates memory-core content already represented by a Memory Wiki bridge source', async () => {

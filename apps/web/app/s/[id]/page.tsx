@@ -9,7 +9,8 @@ import * as pageService from '@/server/services/pages';
 import { getPageHref } from '@/lib/path';
 import { getDictionary, getLocale } from '@/i18n/server';
 import { getSiteName } from '@/server/services/site-settings';
-import { buildPageDescription } from '@/lib/seo';
+import { buildPageDescription, stripLeadingTitleHeading } from '@/lib/seo';
+import { resolvePageSocialImage, toMetadataImage } from '@/server/services/social-image';
 import { env } from '@/server/config';
 
 export const dynamic = 'force-dynamic';
@@ -24,13 +25,37 @@ export async function generateMetadata({ params }: { params: ShareParams }): Pro
   }
   const t = getDictionary(await getLocale());
   const siteUrl = env.APP_URL.replace(/\/$/, '');
-  const description = buildPageDescription(page.contentHtml, t('site.description'));
+  const description = buildPageDescription(
+    stripLeadingTitleHeading(page.contentHtml, page.title),
+    t('site.description'),
+  );
+  // A share link exists to be pasted into a chat or a timeline, so its link
+  // preview matters more here than on any other route.
+  const [siteName, socialImage] = await Promise.all([
+    getSiteName(),
+    resolvePageSocialImage(page.contentHtml, siteUrl),
+  ]);
+  const images = socialImage ? [toMetadataImage(socialImage)] : undefined;
   return {
     title: page.title,
     description,
     // Canonical points at the primary page so the share link never competes
     // with it for indexing; the share route itself stays noindex.
     alternates: { canonical: `${siteUrl}${getPageHref(page.slug)}` },
+    openGraph: {
+      type: 'article',
+      url: `${siteUrl}/s/${id}`,
+      title: page.title,
+      description,
+      siteName,
+      ...(images ? { images } : {}),
+    },
+    twitter: {
+      card: socialImage?.kind === 'content' ? 'summary_large_image' : 'summary',
+      title: page.title,
+      description,
+      ...(images ? { images } : {}),
+    },
     robots: { index: false, follow: true },
   };
 }

@@ -1,5 +1,6 @@
 export type ClientOptions = { baseUrl: string; apiKey: string; fetchImpl?: typeof fetch };
 export type MirrorResult = { outcome: 'created' | 'updated' | 'unchanged'; sourcePath: string; revisionId: string; pageId: string };
+export type RetireResult = { outcome: 'forgotten' | 'unchanged' | 'not_found'; sourcePath: string; state: 'forgotten' };
 
 export class NextWikiClient {
   private readonly fetchImpl: typeof fetch;
@@ -21,6 +22,10 @@ export class NextWikiClient {
 
   async mirror(document: { sourcePath: string; content: string; sourceDigest: string; sourceVersion?: string; idempotencyKey: string }): Promise<MirrorResult> {
     return this.request('/api/v1/memory/wiki/documents', { method: 'PUT', body: JSON.stringify(document) });
+  }
+
+  async retire(sourcePath: string): Promise<RetireResult> {
+    return this.request('/api/v1/memory/wiki/documents', { method: 'DELETE', body: JSON.stringify({ sourcePath }) });
   }
 
   async search(q: string, limit = 8): Promise<unknown> {

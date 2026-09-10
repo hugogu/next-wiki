@@ -173,6 +173,45 @@ describe('WikiApiClient', () => {
     expect(treeUrl.toString()).toContain('filter%5Btype%5D=concept');
   });
 
+  it('soft-deletes a folder subtree via DELETE /v1/tree with the expected query', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ deletedCount: 4, dryRun: false }), { status: 200 }),
+    );
+    globalThis.fetch = fetchMock;
+    const client = createClient();
+
+    const result = await client.deleteFolder({
+      pathPrefix: 'raw/garbage',
+      space: 'raw',
+      dry_run: true,
+    });
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(url.pathname).toBe('/api/v1/tree');
+    expect(url.searchParams.get('pathPrefix')).toBe('raw/garbage');
+    expect(url.searchParams.get('space')).toBe('raw');
+    expect(url.searchParams.get('dry_run')).toBe('true');
+    expect(init.method).toBe('DELETE');
+    expect(result).toEqual({ deletedCount: 4, dryRun: false });
+  });
+
+  it('omits the space and dry_run query params when they are not provided', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ deletedCount: 0 }), { status: 200 }),
+    );
+    globalThis.fetch = fetchMock;
+    const client = createClient();
+
+    await client.deleteFolder({ pathPrefix: 'docs/old' });
+
+    const [url, init] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    expect(url.pathname).toBe('/api/v1/tree');
+    expect(url.searchParams.get('pathPrefix')).toBe('docs/old');
+    expect(url.searchParams.has('space')).toBe(false);
+    expect(url.searchParams.has('dry_run')).toBe(false);
+    expect(init.method).toBe('DELETE');
+  });
+
   it('posts raw appends and scopes stats to the requested space', async () => {
     const fetchMock = vi.fn().mockImplementation(async () => new Response(JSON.stringify({}), { status: 201 }));
     globalThis.fetch = fetchMock;

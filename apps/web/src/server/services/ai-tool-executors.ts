@@ -319,6 +319,14 @@ const createTagArgs = z.object({ name: z.string().min(1).max(100) });
 const renameTagArgs = z.object({ tagId: z.string().uuid(), name: z.string().min(1).max(100) });
 const tagIdArgs = z.object({ tagId: z.string().uuid() });
 const mergeTagArgs = z.object({ tagId: z.string().uuid(), targetTagId: z.string().uuid() });
+
+// Folder delete is destructive and irreversible (soft-delete only); surface a
+// proposal for human review before the in-product AI runs it.
+const deleteFolderArgs = z.object({
+  pathPrefix: z.string().min(1).max(200),
+  space: z.enum(['default', 'raw', 'generated']).optional(),
+  dryRun: z.boolean().optional(),
+});
 const imageSourceArgs = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('page') }),
   // Hashes are generated server-side. A model can copy source text faithfully,
@@ -1121,6 +1129,47 @@ async function execMergeTag(
   });
 }
 
+async function execDeleteFolder(
+  ctx: PermCtx,
+  rawArgs: unknown,
+  execCtx: ToolExecutionContext,
+): Promise<ToolExecutionResult> {
+  const args = deleteFolderArgs.parse(rawArgs);
+  // Always preview first so the proposal shows the affected page count — a
+  // folder delete can hide a large subtree, and the dry-run is the only way
+  // to surface that before a human reviews the action.
+  const preview = await content.deleteFolder(ctx, {
+    pathPrefix: args.pathPrefix,
+    space: args.space,
+    dry_run: 'true',
+  });
+  return proposeOrApply(execCtx, {
+    // Folder deletes do not fit any existing proposal kind cleanly (tag_update
+    // / metadata_update / batch_update all describe page-level edits), so we
+    // use the catch-all `other` kind and rely on the title for clarity.
+    kind: 'other',
+    title: `Delete folder "${args.pathPrefix}" (${preview.deletedCount} page${preview.deletedCount === 1 ? '' : 's'})`,
+    items: [
+      {
+        resourceKind: 'page',
+        resourceId: args.pathPrefix,
+        beforeState: { pathPrefix: args.pathPrefix, space: args.space ?? 'default' },
+        afterState: { deletedCount: preview.deletedCount },
+      },
+    ],
+    immediateTarget: args.pathPrefix,
+    toolName: 'delete_folder',
+    applyImmediately: async () => {
+      const result = await content.deleteFolder(ctx, {
+        pathPrefix: args.pathPrefix,
+        space: args.space,
+        dry_run: 'false',
+      });
+      return `Deleted folder "${args.pathPrefix}": ${result.deletedCount} page${result.deletedCount === 1 ? '' : 's'} soft-deleted.`;
+    },
+  });
+}
+
 // ---- Skills (028) -----------------------------------------------------------
 
 const loadSkillArgs = z.object({
@@ -1403,6 +1452,7 @@ const EXECUTORS: Record<string, Executor> = {
   rename_tag: execRenameTag,
   delete_tag: execDeleteTag,
   merge_tag: execMergeTag,
+  delete_folder: execDeleteFolder,
   generate_image: (ctx, args) => execGenerateImage(ctx, args),
   promote_generated_image: (ctx, args) => execPromoteGeneratedImage(ctx, args),
   insert_generated_images: (ctx, args) => execInsertGeneratedImages(ctx, args),

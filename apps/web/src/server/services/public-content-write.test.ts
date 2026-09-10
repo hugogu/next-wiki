@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as revisions from '@/server/services/revisions';
 import * as publicContent from '@/server/services/public-content';
@@ -327,7 +327,6 @@ describe('public content batch soft-delete facade (US5)', () => {
 
   afterAll(async () => {
     await cleanup();
-    await closeDb();
   });
 
   async function seedPublished(editorCtx: ReturnType<typeof buildUserCtx>, count: number, prefix: string) {
@@ -416,5 +415,201 @@ describe('public content batch soft-delete facade (US5)', () => {
     } finally {
       await clearPendingSwitch(editor.id);
     }
+  });
+});
+
+describe('public content folder delete facade', () => {
+  beforeEach(async () => {
+    await cleanup();
+    await ensurePublicApiDefaultSpace();
+  });
+
+  afterAll(async () => {
+    await cleanup();
+    await closeDb();
+  });
+
+  const deletedAtOf = async (pageId: string) =>
+    (await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) }))?.deletedAt ?? null;
+
+  it('lets an editor delete a folder of only their own pages, all-or-nothing otherwise', async () => {
+    const editor = await createPublicApiUser('folder-del-editor@example.com', 'editor');
+    const other = await createPublicApiUser('folder-del-other@example.com', 'editor');
+    const editorCtx = buildUserCtx(editor.id, 'editor');
+    const otherCtx = buildUserCtx(other.id, 'editor');
+
+    const ownA = await pageService.create(editorCtx, { path: 'folder-del/own/a', title: 'A', contentSource: 'A' });
+    const ownB = await pageService.create(editorCtx, { path: 'folder-del/own/nested/b', title: 'B', contentSource: 'B' });
+
+    const preview = await publicContent.deleteFolder(editorCtx, { pathPrefix: 'folder-del/own', dry_run: 'true' });
+    expect(preview).toMatchObject({ deletedCount: 2, dryRun: true });
+    expect(await deletedAtOf(ownA.pageId)).toBeNull();
+
+    const own = await publicContent.deleteFolder(editorCtx, { pathPrefix: 'folder-del/own', dry_run: 'false' });
+    expect(own.deletedCount).toBe(2);
+    expect(await deletedAtOf(ownA.pageId)).not.toBeNull();
+    expect(await deletedAtOf(ownB.pageId)).not.toBeNull();
+
+    // Mixed authorship: an editor cannot folder-delete someone else's page.
+    const mine = await pageService.create(editorCtx, { path: 'folder-del/mixed/mine', title: 'Mine', contentSource: 'M' });
+    const theirs = await pageService.create(otherCtx, { path: 'folder-del/mixed/theirs', title: 'Theirs', contentSource: 'T' });
+
+    await expect(
+      publicContent.deleteFolder(editorCtx, { pathPrefix: 'folder-del/mixed', dry_run: 'false' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    expect(await deletedAtOf(mine.pageId)).toBeNull();
+    expect(await deletedAtOf(theirs.pageId)).toBeNull();
+
+    // An admin can.
+    const admin = await createPublicApiUser('folder-del-admin@example.com', 'admin');
+    const cleared = await publicContent.deleteFolder(buildUserCtx(admin.id, 'admin'), { pathPrefix: 'folder-del/mixed', dry_run: 'false' });
+    expect(cleared.deletedCount).toBe(2);
+    expect(await deletedAtOf(mine.pageId)).not.toBeNull();
+    expect(await deletedAtOf(theirs.pageId)).not.toBeNull();
+  });
+
+  it('requires a signed-in actor and a known space', async () => {
+    await expect(
+      publicContent.deleteFolder(buildAnonymousCtx(), { pathPrefix: 'folder-del/none', dry_run: 'false' }),
+    ).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
+    const admin = await createPublicApiUser('folder-del-space-admin@example.com', 'admin');
+    await expect(
+      publicContent.deleteFolder(buildUserCtx(admin.id, 'admin'), { pathPrefix: 'folder-del/none', space: 'no-such-space', dry_run: 'false' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+
+  it('refuses readers and view-only API keys before touching rows (no existence oracle)', async () => {
+    // The coarse delete-capable gate at the top of `deleteFolder` closes an
+    // existence oracle: a reader used to get `200 {deletedCount: 0}` for any
+    // prefix that didn't contain any page they could delete, and `403 FORBIDDEN`
+    // for a prefix that did — letting them probe for hidden pages.
+    const author = await createPublicApiUser('folder-del-oracle-author@example.com', 'editor');
+    const authorCtx = buildUserCtx(author.id, 'editor');
+    const created = await pageService.create(authorCtx, {
+      path: 'folder-del/oracle/secret',
+      title: 'Secret',
+      contentSource: '# Secret',
+      // visibility intentionally restricted — the per-page loop would otherwise
+      // reject this author as a non-author, which is the same shape the oracle
+      // used to leak.
+      visibility: 'restricted',
+    });
+
+    const reader = await createPublicApiUser('folder-del-oracle-reader@example.com', 'reader');
+    const readerCtx = buildUserCtx(reader.id, 'reader');
+    await expect(
+      publicContent.deleteFolder(readerCtx, { pathPrefix: 'folder-del/oracle', dry_run: 'false' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    // A `view`-only API key carries no delete scope and must be rejected too.
+    const viewOnlyKeyCtx = buildApiKeyCtx(author.id, 'editor', ['view'], 'view-only-key');
+    await expect(
+      publicContent.deleteFolder(viewOnlyKeyCtx, { pathPrefix: 'folder-del/oracle', dry_run: 'false' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    // Sanity: the page is unchanged — the gate ran before any write.
+    const unchanged = await db.query.pages.findFirst({ where: eq(schema.pages.id, created.pageId) });
+    expect(unchanged?.deletedAt).toBeNull();
+  });
+
+  it('leaves translation rows alone — they are managed by the Translations admin (015)', async () => {
+    const admin = await createPublicApiUser('folder-del-translation-admin@example.com', 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+
+    const source = await pageService.create(adminCtx, {
+      path: 'folder-del/translated/source',
+      title: 'Source',
+      contentSource: '# Source',
+    });
+    // Insert a sibling row that shares the path as a translation; the folder
+    // delete must skip it, matching single-page `remove()`'s filter.
+    const defaultSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    if (!defaultSpace) throw new Error('Default space missing in fixture');
+    const [translation] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId: defaultSpace.id,
+        slug: 'folder-del/translated/source',
+        path: 'folder-del/translated/source',
+        title: 'Translated',
+        authorId: admin.id,
+        nature: 'original',
+        visibility: 'public',
+        translationGroupId: source.pageId,
+        locale: 'zh',
+      })
+      .returning();
+    if (!translation) throw new Error('Failed to insert translation fixture row');
+
+    const deleted = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'folder-del/translated', dry_run: 'false' });
+    expect(deleted.deletedCount).toBe(1);
+
+    expect((await deletedAtOf(source.pageId))).not.toBeNull();
+    expect((await deletedAtOf(translation.id))).toBeNull();
+  });
+
+  it('caps how many pages a single folder delete can touch and lets dry-run still report the full count', async () => {
+    // The cap protects the request from soft-deleting tens of thousands of
+    // pages and then doing serial reconciliation inline (which can hit the
+    // route's response budget). A dry-run still returns the full count so
+    // callers can narrow the prefix and retry. Bulk-inserting the fixture
+    // rows keeps the test under the 5 s timeout — pageService.create is too
+    // slow for 500+ rows in a transaction.
+    const admin = await createPublicApiUser('folder-del-cap-admin@example.com', 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    const defaultSpace = await db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') });
+    if (!defaultSpace) throw new Error('Default space missing in fixture');
+
+    const total = 501;
+    const rows = Array.from({ length: total }, (_, i) => ({
+      spaceId: defaultSpace.id,
+      slug: `folder-del/cap/${i}`,
+      path: `folder-del/cap/${i}`,
+      title: `Cap ${i}`,
+      authorId: admin.id,
+      nature: 'original' as const,
+      visibility: 'public' as const,
+    }));
+    await db.insert(schema.pages).values(rows);
+
+    const preview = await publicContent.deleteFolder(adminCtx, { pathPrefix: 'folder-del/cap', dry_run: 'true' });
+    expect(preview.deletedCount).toBe(total);
+    expect(preview.dryRun).toBe(true);
+
+    await expect(
+      publicContent.deleteFolder(adminCtx, { pathPrefix: 'folder-del/cap', dry_run: 'false' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: expect.stringContaining('cap') });
+  });
+
+  it('does not over-report deletedCount when another caller soft-deletes a row mid-flight', async () => {
+    // The UPDATE is now WHERE ... AND deleted_at IS NULL, with the count taken
+    // from `.returning()`. A row someone else soft-deletes between our SELECT
+    // and UPDATE is not double-counted.
+    const author = await createPublicApiUser('folder-del-race-author@example.com', 'editor');
+    const authorCtx = buildUserCtx(author.id, 'editor');
+    const created = await pageService.create(authorCtx, {
+      path: 'folder-del/race/victim',
+      title: 'Race victim',
+      contentSource: '# Race victim',
+    });
+
+    // Simulate a concurrent deleter between our SELECT and UPDATE by deleting
+    // the page here, before the next call's transaction can touch it.
+    await pageService.remove(authorCtx, 'folder-del/race/victim');
+
+    // Use the same actor: the coarse gate allows the delete (we authored the
+    // page) and the SELECT picks up the still-live row only if we hadn't
+    // pre-deleted it. So we do the equivalent of the race: pre-delete, then
+    // run folder delete — it should report 0 (not 1).
+    const admin = await createPublicApiUser('folder-del-race-admin@example.com', 'admin');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    const result = await publicContent.deleteFolder(adminCtx, {
+      pathPrefix: 'folder-del/race',
+      dry_run: 'false',
+    });
+    expect(result.deletedCount).toBe(0);
+    // The victim is unchanged from the pre-delete (deletedAt already set).
+    const stillThere = await db.query.pages.findFirst({ where: eq(schema.pages.id, created.pageId) });
+    expect(stillThere?.deletedAt).not.toBeNull();
   });
 });

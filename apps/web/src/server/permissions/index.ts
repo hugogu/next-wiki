@@ -171,7 +171,6 @@ function roleAllows(
   if (spaceKind === 'raw') {
     if (
       action === 'edit' ||
-      action === 'delete' ||
       action === 'publish' ||
       action === 'read_draft' ||
       action === 'attach_file'
@@ -179,6 +178,9 @@ function roleAllows(
       return false;
     }
     if (action === 'create') return role === 'admin';
+    // Raw entries stay immutable but not undeletable: garbage captures happen,
+    // so admins may soft-delete them (history rows survive the soft delete).
+    if (action === 'delete') return role === 'admin';
     if (action === 'read' && visibility === 'restricted') return role === 'admin';
     if (action === 'read' && visibility === 'registered') return role !== 'anonymous';
   }

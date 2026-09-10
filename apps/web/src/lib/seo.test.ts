@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildPageDescription, htmlToText } from './seo';
+import {
+  buildPageDescription,
+  extractContentImages,
+  htmlToText,
+  stripLeadingTitleHeading,
+} from './seo';
 
 describe('htmlToText', () => {
   it('returns empty string for empty input', () => {
@@ -80,5 +85,75 @@ describe('buildPageDescription', () => {
     expect(out.endsWith('…')).toBe(true);
     // Should not end with stray punctuation immediately before the ellipsis.
     expect(/[.,;:!?-]…$/.test(out)).toBe(false);
+  });
+});
+
+describe('stripLeadingTitleHeading', () => {
+  it('drops a leading heading that repeats the title', () => {
+    expect(stripLeadingTitleHeading('<h1>Welcome</h1><p>Body.</p>', 'Welcome')).toBe('<p>Body.</p>');
+  });
+
+  it('ignores case and surrounding whitespace when comparing', () => {
+    expect(stripLeadingTitleHeading('\n  <h2 id="t"> welcome </h2><p>Body.</p>', 'Welcome')).toBe(
+      '<p>Body.</p>',
+    );
+  });
+
+  it('keeps a leading heading that is a real section title', () => {
+    const html = '<h2>Overview</h2><p>Body.</p>';
+    expect(stripLeadingTitleHeading(html, 'Welcome')).toBe(html);
+  });
+
+  it('only considers the first element, never a heading further down', () => {
+    const html = '<p>Body.</p><h1>Welcome</h1>';
+    expect(stripLeadingTitleHeading(html, 'Welcome')).toBe(html);
+  });
+
+  it('leaves the html untouched when there is no title to compare against', () => {
+    const html = '<h1>Welcome</h1>';
+    expect(stripLeadingTitleHeading(html, '')).toBe(html);
+  });
+});
+
+describe('extractContentImages', () => {
+  it('returns images in document order with their alt text', () => {
+    const html =
+      '<p><img src="/api/assets/one" alt="first"></p><img src="/api/v1/assets/two/content" alt="second">';
+    expect(extractContentImages(html)).toEqual([
+      { url: '/api/assets/one', alt: 'first' },
+      { url: '/api/v1/assets/two/content', alt: 'second' },
+    ]);
+  });
+
+  it('reports a missing or empty alt as null', () => {
+    expect(extractContentImages('<img src="/a.png"><img src="/b.png" alt="  ">')).toEqual([
+      { url: '/a.png', alt: null },
+      { url: '/b.png', alt: null },
+    ]);
+  });
+
+  it('skips inline data URIs, which no crawler can fetch', () => {
+    expect(extractContentImages('<img src="data:image/png;base64,AAA"><img src="/real.png">')).toEqual([
+      { url: '/real.png', alt: null },
+    ]);
+  });
+
+  it('skips images without a usable src', () => {
+    expect(extractContentImages('<img alt="broken"><img src="" alt="empty">')).toEqual([]);
+  });
+
+  it('decodes entities in attribute values', () => {
+    expect(extractContentImages('<img src="/x?a=1&amp;b=2" alt="Tom &amp; Jerry">')).toEqual([
+      { url: '/x?a=1&b=2', alt: 'Tom & Jerry' },
+    ]);
+  });
+
+  it('honors single-quoted attributes', () => {
+    expect(extractContentImages("<img src='/a.png' alt='hi'>")).toEqual([{ url: '/a.png', alt: 'hi' }]);
+  });
+
+  it('stops at the limit', () => {
+    const html = '<img src="/a.png"><img src="/b.png"><img src="/c.png">';
+    expect(extractContentImages(html, 2)).toHaveLength(2);
   });
 });

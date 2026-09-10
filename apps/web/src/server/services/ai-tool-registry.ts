@@ -551,6 +551,34 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       required: ['pageIds'],
     },
   },
+  {
+    name: 'delete_folder',
+    category: 'batch',
+    riskLevel: 'reviewed_write',
+    requiredScope: 'delete',
+    resultRetention: 'never_full_result',
+    defaultReviewPolicy: 'always_review',
+    description: mcpDescription('delete_folder'),
+    inputSchema: {
+      type: 'object',
+      properties: {
+        pathPrefix: {
+          type: 'string',
+          description: 'Tree path prefix to delete (e.g. "raw/garbage" or "docs/old").',
+        },
+        space: {
+          type: 'string',
+          enum: ['default', 'raw', 'generated'],
+          description: 'Content space slug; defaults to the default wiki space. "raw" requires an admin.',
+        },
+        dryRun: {
+          type: 'boolean',
+          description: 'If true, returns the affected page count without deleting; defaults to false.',
+        },
+      },
+      required: ['pathPrefix'],
+    },
+  },
   // --- media ---
   {
     name: 'generate_image',

@@ -41,14 +41,14 @@ Add the plugin entry to `openclaw.json` (or install first with
 | `baseUrl` | next-wiki origin | HTTPS (or loopback HTTP). **Origin only** — no `/api/v1` suffix; a copied API base is auto-normalized. |
 | `apiKeyRef` | OpenClaw SecretRef | Plain strings and `{source: "env"\|\"file\"\|\"exec\"}` refs both work. The key needs the Agent Memory `memory.write` scope for sync; `memory.read` + `view` enable `next_wiki_search`/`next_wiki_get`. |
 | `vaultPath` | Memory Wiki vault dir | `~` is expanded; must already exist. |
-| `memoryPath` | memory-core dir override | Optional; defaults to the active OpenClaw workspace's `memory/` directory. The workspace-root `MEMORY.md` is also mirrored automatically. A missing directory is treated as empty until memory-core creates it. |
+| `memoryPath` | memory-core dir override | Optional; defaults to the active OpenClaw workspace's `memory/` directory. The workspace-root `MEMORY.md` and `USER.md` are also mirrored automatically. A missing directory is treated as empty until memory-core creates it. |
 | `syncIntervalMinutes` | `1`–`1440`, default `5` | How often the mirror scan runs. |
 
 After changing config, restart the gateway (`systemctl --user restart
 openclaw-gateway.service`). Verify with the `next_wiki_status` tool, then
 check the gateway journal for `[next-wiki-memory-wiki]` lines — skip warnings
 with a reason, one-line `sync complete: scanned=… uploaded=… unchanged=…
-failed=… skipped=…` summaries on every successful run, and `error`-level
+retired=… failed=… skipped=…` summaries on every successful run, and `error`-level
 lines on startup or sync failures.
 
 Files larger than 512 KB are **skipped with a warning** (logged and counted as
@@ -58,15 +58,18 @@ their cause rather than failing silently.
 
 The scanner preserves each Markdown file's bytes, frontmatter, links, and
 relative source path in immutable next-wiki Revisions. It mirrors both the
-Memory Wiki vault and memory-core's `MEMORY.md`, `memory/YYYY-MM-DD.md`, and
-nested Markdown files; memory-core paths carry a `memory-core/` source prefix
-and use a distinct Raw subtree. Content already represented by a
+Memory Wiki vault and memory-core's root `MEMORY.md` and `USER.md`,
+`memory/YYYY-MM-DD.md`, and nested Markdown files; memory-core paths carry a
+`memory-core/` source prefix and use a distinct Raw subtree. Content already represented by a
 `sourceType: memory-bridge` source, including duplicate root/nested
 `MEMORY.md` files, is mirrored only once; transient `memory/working/` traces
 are excluded. Re-running a scan with the same digest is unchanged; changing a
-file creates one new current Revision. Attachments and `.openclaw-wiki` state
-are excluded. A failed upload is retried with bounded backoff and remains
-visible as degraded status for manual repair.
+file creates one new current Revision. When a previously mirrored source
+disappears from a complete scan, it is retired from Agent retrieval while its
+Raw page and revision history remain available for audit; a reappearing path is
+restored. Attachments and `.openclaw-wiki` state are excluded. A failed upload
+is retried with bounded backoff and remains visible as degraded status for
+manual repair.
 
 The plugin never modifies the local vault, OpenClaw active-memory records, or
 the Memory Wiki compiler.
