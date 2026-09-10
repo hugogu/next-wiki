@@ -45,6 +45,56 @@ describe('SyncService', () => {
       .resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, failed: 0 });
   });
 
+  it('skips empty and whitespace-only vault files without failing the run', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-empty-'));
+    const vault = join(parent, 'vault');
+    await mkdir(vault);
+    await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
+    await writeFile(join(vault, 'blank.md'), '');
+    await writeFile(join(vault, 'spaces.md'), '  \n');
+    const client = { mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })) };
+
+    await expect(new SyncService(vault, client as never, 60).run())
+      .resolves.toMatchObject({ state: 'idle', scanned: 1, uploaded: 1, skipped: 2, failed: 0 });
+    expect(client.mirror.mock.calls.map(([document]) => document.sourcePath)).toEqual(['WIKI.md']);
+  });
+
+  it('skips a blank workspace MEMORY.md while still syncing the vault and USER.md', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-empty-memory-core-'));
+    const vault = join(parent, 'wiki');
+    const workspace = join(parent, 'workspace');
+    const memory = join(workspace, 'memory');
+    await mkdir(vault, { recursive: true });
+    await mkdir(memory, { recursive: true });
+    await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
+    await writeFile(join(workspace, 'MEMORY.md'), '');
+    await writeFile(join(workspace, 'USER.md'), '# User preferences\n');
+    const client = { mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })) };
+
+    await expect(new SyncService(vault, client as never, 60, memory, workspace).run())
+      .resolves.toMatchObject({ state: 'idle', scanned: 2, uploaded: 2, skipped: 1, failed: 0 });
+    expect(client.mirror.mock.calls.map(([document]) => document.sourcePath)).toEqual(['WIKI.md', 'memory-core/USER.md']);
+  });
+
+  it('retires a previously mirrored source once it becomes empty', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-empty-retire-'));
+    const vault = join(parent, 'vault');
+    const source = join(vault, 'WIKI.md');
+    await mkdir(vault);
+    await writeFile(source, '# Wiki\n');
+    await writeFile(join(vault, 'KEEP.md'), '# Keep\n');
+    const client = {
+      mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })),
+      retire: vi.fn(async (sourcePath: string) => ({ outcome: 'forgotten', sourcePath, state: 'forgotten' })),
+    };
+    const service = new SyncService(vault, client as never, 60);
+
+    await service.run();
+    await writeFile(source, '   \n');
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', skipped: 1, retired: 1, unchanged: 1, failed: 0 });
+    expect(client.retire).toHaveBeenCalledWith('WIKI.md');
+  });
+
   it('retires a disappeared source but restores it when the same path returns', async () => {
     const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-retire-'));
     const vault = join(parent, 'vault');

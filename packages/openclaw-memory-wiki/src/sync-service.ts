@@ -64,7 +64,7 @@ export class SyncService {
     }
   }
   private async writeJournal(journal: Journal): Promise<void> { const temp = `${this.journalPath()}.tmp`; await writeFile(temp, JSON.stringify(journal), { mode: 0o600 }); await rename(temp, this.journalPath()); }
-  private async scanSource(source: SyncSource, onSkip: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable') => void): Promise<VaultDocument[]> {
+  private async scanSource(source: SyncSource, onSkip: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable' | 'empty') => void): Promise<VaultDocument[]> {
     try {
       if (source.kind === 'file') {
         const stat = await lstat(source.path);
@@ -79,6 +79,13 @@ export class SyncService {
         const after = await lstat(source.path);
         if (after.size !== stat.size || after.mtimeMs !== stat.mtimeMs) {
           onSkip(sourcePath, 'changed_during_scan');
+          return [];
+        }
+        // A blank MEMORY.md / USER.md (OpenClaw creates these lazily) has no
+        // snapshot to mirror and the endpoint rejects it — skip rather than
+        // fail the run, matching the vault scanner.
+        if (!content.trim()) {
+          onSkip(sourcePath, 'empty');
           return [];
         }
         return [{ sourcePath, content, sourceDigest: createHash('sha256').update(content, 'utf8').digest('hex'), sizeBytes: stat.size }];
@@ -114,7 +121,12 @@ export class SyncService {
           try {
             return await this.scanSource(source, (sourcePath, reason) => {
               skipped++;
-              inventoryComplete = false;
+              // An empty file is a fully accounted-for path, not a gap in the
+              // inventory: it is deliberately not mirrored, so a previously
+              // mirrored source that is now blank should retire like a deleted
+              // one. Only an unresolved skip (too large, unreadable, mid-scan
+              // race) leaves the inventory incomplete and must suppress retire.
+              if (reason !== 'empty') inventoryComplete = false;
               console.warn(`[next-wiki-memory-wiki] skipped ${sourcePath}: ${reason}`);
             });
           } catch (error) {

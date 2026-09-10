@@ -53,8 +53,11 @@ lines on startup or sync failures.
 
 Files larger than 512 KB are **skipped with a warning** (logged and counted as
 `skipped` in status) instead of aborting the run — move or shrink oversized
-notes and the next sync picks them up. Scan-level failures are logged with
-their cause rather than failing silently.
+notes and the next sync picks them up. Empty or whitespace-only files are
+skipped the same way; a later edit with real content is mirrored on the next
+scan, and a source that had content and is now blank is retired like a deleted
+one. Scan-level failures are logged with their cause rather than failing
+silently.
 
 The scanner preserves each Markdown file's bytes, frontmatter, links, and
 relative source path in immutable next-wiki Revisions. It mirrors both the

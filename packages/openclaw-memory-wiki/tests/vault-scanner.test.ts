@@ -40,6 +40,26 @@ describe('scanVault', () => {
     expect(warnings).toEqual([['entities/Huge.md', 'too_large']]);
   });
 
+  it('skips empty and whitespace-only files instead of emitting a blank snapshot', async () => {
+    const root = await fixture();
+    await writeFile(join(root, 'entities', 'Blank.md'), '');
+    await writeFile(join(root, 'entities', 'Whitespace.md'), '  \n\t\n');
+    const warnings: Array<[string, string]> = [];
+    const docs = await scanVault(root, 512_000, (sourcePath, reason) => warnings.push([sourcePath, reason]));
+    expect(docs.map((doc) => doc.sourcePath)).toEqual(['AGENTS.md', 'entities/Alex.md']);
+    expect(warnings).toEqual([
+      ['entities/Blank.md', 'empty'],
+      ['entities/Whitespace.md', 'empty'],
+    ]);
+  });
+
+  it('still mirrors a frontmatter-only file that has no Markdown body', async () => {
+    const root = await fixture();
+    await writeFile(join(root, 'entities', 'MetaOnly.md'), '---\nkind: person\n---\n');
+    const docs = await scanVault(root);
+    expect(docs.map((doc) => doc.sourcePath)).toContain('entities/MetaOnly.md');
+  });
+
   it('still throws when the vault path does not exist', async () => {
     await expect(scanVault('/nonexistent-vault-root-xyz')).rejects.toThrow();
   });

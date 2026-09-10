@@ -18,7 +18,7 @@ function toSourcePath(root: string, fullPath: string): string {
 export async function scanVault(
   vaultPath: string,
   maxBytes = DEFAULT_MAX_FILE_BYTES,
-  onSkip?: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable') => void,
+  onSkip?: (sourcePath: string, reason: 'too_large' | 'changed_during_scan' | 'unreadable' | 'empty') => void,
   additionalExcludedNames?: Iterable<string>,
 ): Promise<VaultDocument[]> {
   const root = await resolve(vaultPath);
@@ -63,6 +63,11 @@ export async function scanVault(
         onSkip?.(sourcePath, 'changed_during_scan');
         continue;
       }
+      // An empty or whitespace-only file carries no snapshot to mirror and the
+      // mirror endpoint rejects it. Skip it like an oversized file so one blank
+      // note never degrades the whole sync; a later edit with real content is
+      // picked up on the next scan.
+      if (!content.trim()) { onSkip?.(sourcePath, 'empty'); continue; }
       documents.push({ sourcePath, content, sourceDigest: createHash('sha256').update(content, 'utf8').digest('hex'), sizeBytes: stat.size });
     }
   }
