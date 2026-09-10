@@ -100,7 +100,30 @@ export function formatExceptionDetail(error: unknown, maxLength = 8_000): string
   return describeException(error).stack.slice(0, maxLength);
 }
 
+// Level filter so callers can opt into chatty debug output without paying
+// the cost in production. Threshold resolved once at module load; lower
+// numeric rank = more verbose.
+const LEVEL_RANK: Record<LogLevel, number> = {
+  debug: 10,
+  info: 20,
+  warn: 30,
+  error: 40,
+};
+
+const ACTIVE_LEVEL_RANK = (() => {
+  const raw = process.env.LOG_LEVEL?.toLowerCase();
+  if (raw === 'debug' || raw === 'info' || raw === 'warn' || raw === 'error') {
+    return LEVEL_RANK[raw];
+  }
+  return LEVEL_RANK[env.NODE_ENV === 'production' ? 'info' : 'debug'];
+})();
+
+function shouldEmit(level: LogLevel): boolean {
+  return LEVEL_RANK[level] >= ACTIVE_LEVEL_RANK;
+}
+
 function write(level: LogLevel, message: string, meta?: Record<string, unknown>) {
+  if (!shouldEmit(level)) return;
   const entry: LogEntry = {
     timestamp: new Date().toISOString(),
     level,

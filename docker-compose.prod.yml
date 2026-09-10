@@ -13,6 +13,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
 
   web:
@@ -33,6 +38,9 @@ services:
       CONTENT_LOCAL_BASE_PATH: ${CONTENT_LOCAL_BASE_PATH:-/data/content}
       TRANSFER_ARTIFACT_BASE_PATH: ${TRANSFER_ARTIFACT_BASE_PATH:-/data/content/transfers}
       TRANSFER_ARTIFACT_RETENTION_HOURS: ${TRANSFER_ARTIFACT_RETENTION_HOURS:-72}
+      # Application log level threshold: debug | info | warn | error.
+      # Defaults to info in production (suppresses logger.debug calls).
+      LOG_LEVEL: ${LOG_LEVEL:-info}
     ports:
       - "${WEB_PORT:-3000}:3000"
     volumes:
@@ -40,4 +48,9 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     restart: unless-stopped
