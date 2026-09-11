@@ -14,6 +14,8 @@ import { assertSetupAdmin, recordSamplePagesOutcome, recordSamplePagesSkip } fro
 import {
   AGENT_MEMORY_PAGE_SOURCE,
   AGENT_MEMORY_PAGE_TITLE,
+  CLAUDE_DESKTOP_PAGE_SOURCE,
+  CLAUDE_DESKTOP_PAGE_TITLE,
   LEGACY_AGENT_MEMORY_PAGE_PATH,
   MAIN_FEATURES_PAGE_SOURCE,
   MAIN_FEATURES_PAGE_TITLE,
@@ -217,10 +219,11 @@ async function writeSamplePage(
 }
 
 /**
- * Generate the optional welcome/markdown-syntax/main-features/Hermes integration pages through
- * the canonical page services (published revisions, normal permissions, and
- * public content cache invalidation via publish). Idempotent per page: reruns
- * skip setup-owned pages and report collisions for user-authored ones.
+ * Generate the optional welcome/markdown-syntax/main-features/Hermes/OpenClaw/
+ * Claude Desktop pages through the canonical page services (published
+ * revisions, normal permissions, and public content cache invalidation via
+ * publish). Idempotent per page: reruns skip setup-owned pages and report
+ * collisions for user-authored ones.
  */
 export async function generateSamplePages(actor: Actor): Promise<SetupSamplePagesResponse> {
   const progress = await assertSetupAdmin(actor);
@@ -299,6 +302,11 @@ async function generateSamplePagesInternal(
       path: SAMPLE_PAGE_PATHS.openClaw,
       title: OPENCLAW_PAGE_TITLE,
       contentSource: OPENCLAW_PAGE_SOURCE,
+    },
+    {
+      path: SAMPLE_PAGE_PATHS.claudeDesktop,
+      title: CLAUDE_DESKTOP_PAGE_TITLE,
+      contentSource: CLAUDE_DESKTOP_PAGE_SOURCE,
     },
   ]) {
     try {

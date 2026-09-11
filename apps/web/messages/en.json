@@ -211,7 +211,7 @@
     },
     "samplePages": {
       "title": "Generate example and help pages (optional)",
-      "description": "Create a welcome page, a Markdown syntax guide, a main features tour, Hermes and OpenClaw integration guides as normal wiki pages. You can edit or delete them later.",
+      "description": "Create a welcome page, a Markdown syntax guide, a main features tour, and Hermes, OpenClaw, and Claude Desktop integration guides as normal wiki pages. You can edit or delete them later.",
       "generate": "Generate example pages",
       "generating": "Generating...",
       "skip": "Skip example pages",

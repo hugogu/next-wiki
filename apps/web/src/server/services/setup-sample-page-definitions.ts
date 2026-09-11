@@ -19,6 +19,7 @@ export const SAMPLE_PAGE_PATHS = {
   mainFeatures: 'help/main-features',
   agentMemory: 'integrations/hermes',
   openClaw: 'integrations/openclaw',
+  claudeDesktop: 'integrations/claude-desktop',
 } as const;
 
 /** Previous setup-owned location, retained only for an idempotent first-run migration. */
@@ -29,6 +30,7 @@ export const MARKDOWN_SYNTAX_PAGE_TITLE = 'Markdown Syntax Guide';
 export const MAIN_FEATURES_PAGE_TITLE = 'Main Features Guide';
 export const AGENT_MEMORY_PAGE_TITLE = 'Hermes Integration Guide';
 export const OPENCLAW_PAGE_TITLE = 'OpenClaw Integration Guide';
+export const CLAUDE_DESKTOP_PAGE_TITLE = 'Claude Desktop Integration Guide';
 
 export const WELCOME_PAGE_SOURCE = `# Welcome to next-wiki
 
@@ -94,6 +96,7 @@ ${ONBOARDING_LINKS_MARKER}
 - Tour the product in the [Main Features Guide](/help/main-features).
 - Connect Hermes securely in the [Hermes Integration Guide](/integrations/hermes).
 - Mirror OpenClaw Memory Wiki and search your knowledge in the [OpenClaw Integration Guide](/integrations/openclaw).
+- Give Claude Desktop (or any MCP client) tool access to this Wiki in the [Claude Desktop Integration Guide](/integrations/claude-desktop).
 `;
 
 /** Welcome content used when onboarding creates the welcome page itself. */
@@ -227,6 +230,11 @@ AI is optional: the wiki is fully usable without it, and every AI feature is per
 
 Administrators manage users, AI providers and models, storage backends, site identity, and translations from the **Admin** area.
 
+## MCP client access (optional)
+
+- Any [Model Context Protocol](https://modelcontextprotocol.io) client — Claude Desktop, Claude Code, OpenCode, and others — can browse, search, and edit this Wiki as tools using the \`@next-wiki/mcp-server\` package. See the [Claude Desktop Integration Guide](/integrations/claude-desktop) to connect Claude Desktop specifically.
+- This is independent of the agent memory integrations below: MCP access reads and writes ordinary Wiki pages, while agent memory manages a separate, dedicated memory record space.
+
 ## Agent memory (optional)
 
 - Use the [Hermes Integration Guide](/integrations/hermes) to connect an agent identity to the shared Raw-space memory destination. Memory entries are immutable and indexed through the same Wiki content pipeline.
@@ -342,4 +350,62 @@ Use \`next_wiki_status\` for non-content health, and call \`next_wiki_sync\` onl
 ## 4. Rotate or repair
 
 Revoke a compromised key in User Center and provision a new Agent Memory provider key with the same scopes. Network failures are retried with bounded backoff and leave the local vault untouched; a degraded status can be repaired by restoring connectivity and running an explicit sync. Removing a local file never hard-deletes its next-wiki page or Revision history.
+`;
+
+export const CLAUDE_DESKTOP_PAGE_SOURCE = `# Claude Desktop Integration Guide
+
+${SAMPLE_PAGE_MARKER}
+
+Connect [Claude Desktop](https://claude.ai/download) to this Wiki through the [Model Context Protocol](https://modelcontextprotocol.io) so it can search, read, and edit pages as tools during a conversation. This uses the general-purpose \`@next-wiki/mcp-server\` package — the same server also works with Claude Code, OpenCode, and any other MCP-compatible client.
+
+## 1. Create a dedicated key
+
+Open **User Center → API Keys** and select **Create API key**. Name it (for example \`Claude Desktop\`), then check the scopes it should have: **View**, **Create**, and **Edit** cover browsing, drafting, and publishing pages; add **Delete** if it should remove pages, **Attachments** for file uploads, and **AI read** / **AI image generation** only when an AI provider is configured. Leave **Memory provider** unchecked — that flow is for the [Hermes](/integrations/hermes) and [OpenClaw](/integrations/openclaw) integrations, not general tool access. **Wiki** space access is included automatically; the Raw/Generated checkboxes only matter to an admin using LLM Wiki mode.
+
+Copy the key secret immediately — it is shown only once here, though it stays revealable later from the same page.
+
+## 2. Configure Claude Desktop
+
+Open Claude Desktop's configuration file, creating it if it does not exist yet:
+
+- macOS: \`~/Library/Application Support/Claude/claude_desktop_config.json\`
+- Windows: \`%APPDATA%\\Claude\\claude_desktop_config.json\`
+
+Add this Wiki under \`mcpServers\`, using this Wiki's versioned API URL ending in **/api/v1** and the key from step 1:
+
+~~~json
+{
+  "mcpServers": {
+    "next-wiki": {
+      "command": "npx",
+      "args": ["-y", "@next-wiki/mcp-server"],
+      "env": {
+        "NEXT_WIKI_API_URL": "https://wiki.example.com/api/v1",
+        "NEXT_WIKI_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+~~~
+
+Claude Desktop only passes a limited environment to the servers it launches, so the URL and key must be set in this \`env\` block rather than relied on from your shell. Save the file, then fully quit Claude Desktop (**Cmd+Q** on macOS, not just closing the window) and reopen it.
+
+## 3. Verify the connection
+
+Click the **Add files, connectors, and more** (+) icon in the chat composer and hover **Connectors** — **next-wiki** should be listed with its tools. If it is not:
+
+- Check \`~/Library/Logs/Claude/mcp*.log\` (\`%APPDATA%\\Claude\\logs\` on Windows) for the server's own stderr output and connection errors.
+- Confirm \`npx\` resolves for Claude Desktop's own process, not just your shell — a GUI app launched outside a terminal does not inherit PATH changes from \`nvm\`/\`asdf\`. Replace \`"command": "npx"\` with the absolute path from \`which npx\` if the log shows it cannot be found.
+- Test the server on its own with the [MCP Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector) before blaming Claude Desktop:
+
+~~~bash
+npx @modelcontextprotocol/inspector --cli npx -y @next-wiki/mcp-server \\
+  -e NEXT_WIKI_API_URL=https://wiki.example.com/api/v1 \\
+  -e NEXT_WIKI_API_KEY=your-api-key \\
+  --method tools/list
+~~~
+
+## 4. Use it, then rotate or revoke
+
+Ask Claude Desktop to search this Wiki, read a page, or draft one — it calls the same tools listed in the [server README](https://github.com/hugogu/next-wiki/blob/main/packages/mcp-server/README.md), including \`search_wiki\`, \`create_page\`, \`save_draft\`, and \`publish_page\`. Rotate a key by creating a new one with the same scopes, updating the config, and restarting Claude Desktop; revoke the old key from **User Center → API Keys** once the new one works. Revocation takes effect immediately; pages a key already created or edited keep their normal Revision history.
 `;

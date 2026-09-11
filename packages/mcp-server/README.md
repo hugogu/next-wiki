@@ -44,6 +44,48 @@ Add to Claude Code MCP settings:
 }
 ```
 
+### Claude Desktop
+
+Open Claude Desktop's config file, creating it if it does not exist yet:
+
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "next-wiki": {
+      "command": "npx",
+      "args": ["-y", "@next-wiki/mcp-server"],
+      "env": {
+        "NEXT_WIKI_API_URL": "http://localhost:3000/api/v1",
+        "NEXT_WIKI_API_KEY": "your-api-key"
+      }
+    }
+  }
+}
+```
+
+Claude Desktop only passes a limited environment to the servers it launches,
+so both variables must be set in this `env` block. Save the file, then fully
+quit Claude Desktop (`Cmd+Q` on macOS, not just closing the window) and reopen
+it — the server should then appear under the composer's **Connectors** menu.
+
+If it does not appear, check `~/Library/Logs/Claude/mcp*.log`
+(`%APPDATA%\Claude\logs` on Windows) for the server's stderr output, and
+verify `npx` resolves for Claude Desktop's own process — a GUI app launched
+outside a terminal does not inherit PATH changes from `nvm`/`asdf`. Replace
+`"command": "npx"` with an absolute path (from `which npx`) if the log shows
+it cannot be found. To test the server on its own first, use the
+[MCP Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector):
+
+```bash
+npx @modelcontextprotocol/inspector --cli npx -y @next-wiki/mcp-server \
+  -e NEXT_WIKI_API_URL=http://localhost:3000/api/v1 \
+  -e NEXT_WIKI_API_KEY=your-api-key \
+  --method tools/list
+```
+
 ### OpenCode
 
 Add to `opencode.json`:

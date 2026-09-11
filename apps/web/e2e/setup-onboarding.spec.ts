@@ -353,7 +353,7 @@ test.describe('US3: generate examples', () => {
     // paths and the public ISR cache legitimately serves them until the next
     // publish invalidates it.
     const rows = await withDb((sql) =>
-      sql<{ path: string }[]>`SELECT path FROM pages WHERE path IN ('help/main-features', 'help/markdown-syntax', 'integrations/hermes')`,
+      sql<{ path: string }[]>`SELECT path FROM pages WHERE path IN ('help/main-features', 'help/markdown-syntax', 'integrations/hermes', 'integrations/claude-desktop')`,
     );
     expect(rows).toEqual([]);
   });

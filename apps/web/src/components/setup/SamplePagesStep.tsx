@@ -43,8 +43,9 @@ export function SamplePageResultList({ pages }: { pages: SetupSamplePageResult[]
 
 /**
  * Optional sample/help page step: generate welcome plus Markdown, main
- * features, the Hermes guide, and the OpenClaw guide, or decline. Generation is idempotent; collisions with
- * user-authored pages are reported, never overwritten.
+ * features, the Hermes guide, the OpenClaw guide, and the Claude Desktop
+ * guide, or decline. Generation is idempotent; collisions with user-authored
+ * pages are reported, never overwritten.
  */
 export function SamplePagesStep({ state }: { state: SetupStateView }) {
   const { t } = useTranslation();
