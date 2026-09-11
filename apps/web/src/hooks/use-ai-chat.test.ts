@@ -38,6 +38,47 @@ describe('useAiChat payload helpers', () => {
     ]);
   });
 
+  it('names a completed write from a failed turn so a retry does not repeat it', () => {
+    const messages: ChatMessage[] = [
+      { id: 'u1', role: 'user', text: 'Create a page about card payment.' },
+      {
+        id: 'a1',
+        role: 'assistant',
+        text: '',
+        error: 'The AI provider is temporarily unavailable. Please retry shortly.',
+        toolCalls: [
+          {
+            toolCallId: '11111111-1111-4111-8111-111111111111',
+            sequence: 0,
+            providerKey: 'fixture',
+            toolName: 'get_neighborhood',
+            commandMarkdown: '```tool-call\ntool: get_neighborhood\n```',
+            status: 'failed',
+            requestedReview: 'none',
+            effectiveReview: 'none',
+            resultSummary: null,
+          },
+          {
+            toolCallId: '22222222-2222-4222-8222-222222222222',
+            sequence: 1,
+            providerKey: 'fixture',
+            toolName: 'create_page',
+            commandMarkdown: '```tool-call\ntool: create_page\n```',
+            status: 'succeeded',
+            requestedReview: 'none',
+            effectiveReview: 'none',
+            resultSummary: 'Created draft page "卡支付 (Card Payment)".',
+          },
+        ],
+      },
+    ];
+
+    const answer = buildConversationContext(messages)[0]?.answer;
+    expect(answer).toContain('already completed successfully and must not be repeated');
+    expect(answer).toContain('create_page: Created draft page "卡支付 (Card Payment)".');
+    expect(answer).not.toContain('get_neighborhood');
+  });
+
   it('does not keep a bare tool protocol as if it were an assistant answer', () => {
     const messages: ChatMessage[] = [
       { id: 'u1', role: 'user', text: '创建笔记。' },
