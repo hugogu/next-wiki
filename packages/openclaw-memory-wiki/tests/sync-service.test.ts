@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, readFile, unlink, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, readFile, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -93,6 +93,35 @@ describe('SyncService', () => {
     await writeFile(source, '   \n');
     await expect(service.run()).resolves.toMatchObject({ state: 'idle', skipped: 1, retired: 1, unchanged: 1, failed: 0 });
     expect(client.retire).toHaveBeenCalledWith('WIKI.md');
+  });
+
+  it('does not retire pages under a subdirectory that is transiently unreadable', async () => {
+    if (typeof process.getuid === 'function' && process.getuid() === 0) {
+      // chmod 0o000 does not restrict reads for the root user; skip the case
+      // to avoid a false green run.
+      return;
+    }
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-locked-dir-'));
+    const vault = join(parent, 'vault');
+    const lockedDir = join(vault, 'entities');
+    await mkdir(lockedDir, { recursive: true });
+    await writeFile(join(lockedDir, 'inner.md'), '# Inner\n');
+    const client = {
+      mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })),
+      retire: vi.fn(async (sourcePath: string) => ({ outcome: 'forgotten', sourcePath, state: 'forgotten' })),
+    };
+    const service = new SyncService(vault, client as never, 60);
+
+    await expect(service.run()).resolves.toMatchObject({ state: 'idle', uploaded: 1, failed: 0 });
+    await chmod(lockedDir, 0o000);
+    try {
+      // A directory that merely failed to list this run must not be read as
+      // "everything under it is gone" — the scan is incomplete, not empty.
+      await expect(service.run()).resolves.toMatchObject({ state: 'idle', skipped: 1, retired: 0, failed: 0 });
+    } finally {
+      await chmod(lockedDir, 0o755);
+    }
+    expect(client.retire).not.toHaveBeenCalled();
   });
 
   it('retires a disappeared source but restores it when the same path returns', async () => {

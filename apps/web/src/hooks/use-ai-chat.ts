@@ -106,15 +106,48 @@ export function buildConversationContext(messages: ChatMessage[]): { question: s
       if (answer && !isBareToolProtocol) {
         turns.push({ question: pendingQuestion, answer });
       } else if (message.error || message.toolCalls?.length || isBareToolProtocol) {
-        turns.push({
-          question: pendingQuestion,
-          answer: 'The previous assistant turn did not produce a usable final answer. Preserve and continue the user\'s underlying request rather than interpreting a short follow-up as a new topic.',
-        });
+        turns.push({ question: pendingQuestion, answer: unfinishedTurnContext(message) });
       }
       pendingQuestion = null;
     }
   }
   return turns.slice(-6);
+}
+
+/**
+ * Categories whose tool calls are safe to run again on retry: rereading or
+ * reconsulting doesn't duplicate a side effect, and their full results are
+ * never replayed into the retry's context (only a short summary was ever
+ * kept), so the model may genuinely need to redo them to make progress.
+ * Everything else is a write, and naming it stops the retry from repeating
+ * it (e.g. creating a second page). A missing category is treated as a write
+ * — better to over-warn than to silently allow a duplicate.
+ */
+const REPEATABLE_TOOL_CATEGORIES = new Set(['read', 'web', 'skill']);
+
+/**
+ * A "Retry" click re-asks the original question as a brand-new action; the
+ * failed turn's own tool calls are never replayed to the model. Without
+ * naming what already completed, a retry has no way to know e.g. that
+ * `create_page` already ran, and can create a duplicate page. List completed
+ * writes explicitly so the model continues from that state instead of
+ * repeating them.
+ */
+function unfinishedTurnContext(message: ChatMessage): string {
+  const completed = (message.toolCalls ?? [])
+    .filter((call) =>
+      call.status === 'succeeded' &&
+      call.resultSummary &&
+      !REPEATABLE_TOOL_CATEGORIES.has(call.category ?? ''))
+    .map((call) => `- ${call.toolName}: ${call.resultSummary}`);
+  if (completed.length === 0) {
+    return 'The previous assistant turn did not produce a usable final answer. Preserve and continue the user\'s underlying request rather than interpreting a short follow-up as a new topic.';
+  }
+  return [
+    'The previous assistant turn did not produce a usable final answer, but these actions already completed successfully and must not be repeated:',
+    ...completed.slice(0, 10),
+    'Continue the user\'s underlying request from this state instead of redoing them.',
+  ].join('\n').slice(0, 4_000);
 }
 
 export function buildToolEnabledQuestionPayload(input: {
