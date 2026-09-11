@@ -35,7 +35,11 @@ export async function scanVault(
       // rest of the vault still syncs.
       if (directory === root) throw error;
       const message = error instanceof Error ? error.message : 'read_failed';
-      console.warn(`[next-wiki-memory-wiki] skipping unreadable subdirectory ${toSourcePath(root, directory)}: ${message}`);
+      const sourcePath = toSourcePath(root, directory);
+      console.warn(`[next-wiki-memory-wiki] skipping unreadable subdirectory ${sourcePath}: ${message}`);
+      // The caller must learn the scan is incomplete, or it will treat every
+      // page whose file lives under this directory as deleted and retire it.
+      onSkip?.(sourcePath, 'unreadable');
       return;
     }
     for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
