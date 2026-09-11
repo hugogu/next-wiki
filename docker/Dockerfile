@@ -83,6 +83,11 @@ COPY --from=builder /tmp/migrate.mjs ./apps/web/scripts/migrate.mjs
 # layout at startup. These small source files are runtime metadata, not a
 # replacement for the traced standalone server bundle.
 COPY --from=builder /app/apps/web/app ./apps/web/app
+# The shipped skill packages are read from disk at runtime by path, so Next's
+# dependency tracing cannot see them and the standalone bundle leaves them out.
+# Without this copy the three built-in skills silently vanish in the image
+# while still working under `pnpm dev`.
+COPY --from=builder /app/apps/web/src/server/skills ./apps/web/src/server/skills
 COPY docker/start.mjs ./start.mjs
 
 ENV NODE_ENV=production
