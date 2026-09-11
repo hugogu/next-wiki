@@ -1,6 +1,64 @@
 <!--
   Sync Impact Report
   ==================
+  Version change: 3.0.0 -> 3.1.0
+  Bump rationale: MINOR — expands the product mission from a personal
+  conversational knowledge base to a private-by-default Agent Context &
+  Memory Hub, and adds binding rules for Agent identity, effective context,
+  and selective publication.
+
+  Modified principles:
+    - Mission: makes one owner plus multiple explicitly identified Agents the
+      primary operating model while preserving personal-by-default deployment.
+    - P2: includes explicit context management alongside conversational
+      authoring while retaining the no-AI fallback and provider-neutral rules.
+    - P3: broadens portable self-growing memory into scoped Agent Context and
+      Memory with actor attribution and effective-context requirements.
+    - P5: makes Agent identity and Agent-scoped/shared access explicit subjects
+      of the permission model.
+    - P8: requires revision and provenance guarantees for durable Agent Context.
+
+  Added principles:
+    - P13: Agent Context is First-Class, Scoped, and Non-Executable by Retrieval.
+    - P14: Selective Publication is a Governed Export.
+
+  Modified mandates:
+    - Permission Model: Agent identities, context items, context packs, and
+      publication are permission-controlled resources and actions.
+    - API Architecture: external Agent operations must carry an attributable
+      identity and bounded scope.
+    - AI Knowledge Layer: context classes and effective-context projections
+      must remain permission-scoped and rebuildable.
+
+  Added architecture documents:
+    - docs/architecture/agent-context.md — binding context and memory model.
+
+  Templates requiring updates:
+    - .specify/templates/plan-template.md — ✅ updated with Agent Context
+      design checks.
+    - .specify/templates/spec-template.md — ✅ updated with Agent Context and
+      memory boundary requirements.
+    - .specify/templates/tasks-template.md — ✅ updated with context security
+      and publication validation tasks.
+    - docs/architecture/mandates.md — ✅ updated with the new mandate index and
+      detailed API/AI-layer references.
+    - docs/architecture/agent-runtime.md — ✅ updated with the non-authority
+      retrieval boundary.
+    - docs/architecture/project-structure.md — ✅ corrected its Explicit Over
+      Implicit principle reference.
+    - docs/architecture/frontend-data-flow.md — ✅ corrected its Open Standards
+      and Explicit Over Implicit principle references.
+    - CLAUDE.md — ✅ updated with Agent Context operating guidance.
+    - README.md — ✅ updated with the Agent Context & Memory Hub positioning.
+    - .specify/templates/commands/ — ✅ not present in this repository.
+
+  Follow-up TODOs: implementation specifications must define concrete
+  precedence and conflict rules before introducing a context compiler.
+-->
+
+<!--
+  Sync Impact Report
+  ==================
   Version change: 2.3.0 -> 3.0.0
   Bump rationale: MAJOR — redefines page revisions as source-content history,
   and changes public page routing from tree paths to immutable page slugs.
@@ -64,43 +122,43 @@
 
 # next-wiki Project Constitution
 
-**Version**: 3.0.0
+**Version**: 3.1.0
 **Ratification Date**: 2026-05-30
-**Last Amended**: 2026-08-20
+**Last Amended**: 2026-08-30
 
 ---
 
 ## Mission
 
-next-wiki is a personal, conversational, self-growing knowledge base service.
-It exists to let one person build a durable, private knowledge base through
-conversation with AI — and for that same knowledge base to serve as the
-grounding memory any AI assistant draws on when talking with its owner. Writing,
-organizing, retrieving, and improving knowledge should feel like talking to an
-assistant that remembers what its owner has told it, preserves the evidence it
-learned from, and can propose how that memory should grow without tying the
-memory to any single AI company.
+next-wiki is a self-hosted, private-by-default Agent Context & Memory Hub. It
+exists to let one owner manage a durable knowledge base for a group of
+explicitly identified Agents: their rules, non-secret configuration, captured
+memory, source evidence, and curated knowledge. Each Agent can contribute to
+and retrieve the context it is allowed to use, while the owner can inspect,
+revise, combine, and selectively publish the resulting knowledge.
 
-Each next-wiki deployment belongs to exactly one person by default: their
-knowledge, their instance, their history. Multi-user sharing and group
-permissions remain available as an optional extension for teams, but they are
-not the product's primary story.
+The primary operating model is one owner plus multiple Agents, not an
+anonymous shared folder. A deployment belongs to one owner by default: their
+knowledge, instance, Agent identities, and history. Human collaborators,
+groups, and broader sharing remain optional extensions, but Agent-scoped and
+owner-approved shared context are core product capabilities.
 
 next-wiki is deployed via Docker Compose or Kubernetes, built on Next.js,
 TypeScript, and PostgreSQL, and designed around a small default footprint. AI
-is native to how the product works — the persistent AI chat side pane and MCP
-are the default paths for creating, refining, and curating content — but the
-wiki never depends on a live model connection to remain readable, searchable,
-and editable. AI providers are interchangeable: next-wiki defines a
-provider-agnostic contract so a person's knowledge outlives any specific AI
-product, model, or pricing change.
+is native to how the product works — conversation, the persistent AI chat side
+pane, and MCP are first-class paths for creating, refining, and curating
+content and context — but the wiki never depends on a live model connection to
+remain readable, searchable, and editable. AI providers are interchangeable:
+next-wiki defines a provider-agnostic contract so a person's knowledge and an
+Agent fleet's context outlive any specific AI product, model, or pricing
+change.
 
 The project optimizes for operational simplicity, clear architecture, reliable
 permissions, versioned content, open integration surfaces, and grounded AI
 retrieval over broad feature accumulation. Its self-growth loop is deliberately
 evidence-first: original inputs are preserved, generated knowledge is
-distinguishable from original knowledge, and public publication remains a
-governed act.
+distinguishable from original knowledge, Agent context is scoped and
+attributable, and public publication remains a governed act.
 
 ---
 
@@ -126,15 +184,16 @@ and debugging stay ordinary. A smaller core is easier to trust and maintain,
 and a product that is personal by default must not force a new owner through
 team or organization concepts before they can write their first page.
 
-### P2: AI-Native Creation, Never Vendor-Locked
+### P2: AI-Native Creation and Context Management, Never Vendor-Locked
 
-Conversing with AI is the primary, default way to create and organize
-knowledge in next-wiki — not a bolted-on assistant. The persistent AI chat
-side pane, and MCP for external AI clients, MUST be the first-class path for
-drafting pages, restructuring the page tree, and refining content through
-dialogue. The manual editor MUST remain fully capable and MUST NOT require AI:
-the system stays completely usable without any LLM configured, and browsing,
-search, and manual editing MUST NOT depend on a live model connection.
+Conversing with AI and explicitly managing Agent context are first-class ways
+to create and organize knowledge in next-wiki — not a bolted-on assistant. The
+persistent AI chat side pane and MCP for external AI clients MUST be first-class
+paths for drafting pages, refining content through dialogue, and proposing
+scoped context changes. The manual editor MUST remain fully capable and MUST
+NOT require AI: the system stays completely usable without any LLM configured,
+and browsing, search, context inspection, and manual editing MUST NOT depend
+on a live model connection.
 When conversation capture is explicitly enabled, AI interactions MAY become
 durable source material for the knowledge base, but that capture MUST use the
 same retention, permission, and provenance rules as any other content source.
@@ -158,23 +217,25 @@ from any single AI company's pricing, availability, or policy changes, and the
 "no-AI" fallback keeps the wiki trustworthy as durable storage regardless of
 AI market conditions.
 
-### P3: The Knowledge Base is the User's Portable, Self-Growing AI Memory
+### P3: The Knowledge Base is Portable, Self-Growing Agent Context & Memory
 
-next-wiki is not only a place AI writes to — it is the grounding memory an AI
-assistant reads from when talking with its owner. Any MCP-compatible AI
-client (Claude, GPT, Gemini, a local model, or a future assistant) MUST be
-able to search, read, and — with appropriate scope — write into the same
-permission-scoped store that backs the chat side pane and the web UI. Content
-authored through AI conversation and content authored through the manual
-editor MUST be stored identically: same page tree, same revision model, same
-permission checks. There is no second-class "AI content" table or code path.
+next-wiki is not only a place AI writes to — it is the permission-scoped
+context and grounding memory that an Agent reads when working for its owner.
+Any MCP-compatible AI client (Claude, GPT, Gemini, a local model, or a future
+assistant) MUST be able to search and read the same context and memory store
+that backs the chat side pane and web UI, and MUST be able to write only with
+an explicit Agent identity and scope. Content authored through AI conversation,
+an Agent integration, and the manual editor MUST use the same page, revision,
+provenance, and permission foundations. There is no second-class "AI content"
+table or ungoverned Agent write path.
 
 AI answers MUST be grounded in retrieved page revisions and MUST expose
 citations or source links; if no permitted source supports an answer, the
 response MUST say so instead of inventing content. The retrieval index
-(embeddings, summaries, extracted entities) is a derived, rebuildable
-projection over page revisions, never the source of truth, and MUST respect
-the same space, path, locale, and permission scope as direct reads.
+(embeddings, summaries, extracted entities, and effective-context projections)
+is a derived, rebuildable projection over page revisions, never the source of
+truth, and MUST respect the same Agent, owner, space, path, locale, and
+permission scope as direct reads.
 
 Self-growth MUST follow an auditable loop. Original inputs, including AI
 conversations, fetched external pages, uploaded source files, integration
@@ -188,17 +249,19 @@ permissions, or publish generated conclusions without the feature's specified
 approval boundary.
 
 The product MUST make it answerable which content was original, which content
-was AI-generated, which generated content has been manually modified, and which
-source revisions support a generated claim. Derived summaries, embeddings,
-health scores, and curation suggestions are rebuildable projections, not the
+was AI-generated or Agent-authored, which generated content has been manually
+modified, which Agent contributed it, and which source revisions support a
+generated claim. Derived summaries, embeddings, effective contexts, health
+scores, and curation suggestions are rebuildable projections, not the
 canonical memory.
 
-Rationale: A user who switches AI assistants must not lose the memory they
-built. Treating the wiki as the durable, provider-agnostic memory layer — and
-the AI vendor as a replaceable reasoning engine on top of it — is what makes
-independence from any single AI supplier real rather than aspirational. The
-self-growing loop only remains trustworthy if growth is grounded, reviewable,
-permission-scoped, and reversible through version history.
+Rationale: An owner who changes AI clients or Agent runtimes must not lose the
+context and memory their fleet built. Treating the wiki as the durable,
+provider-agnostic context layer — and each AI vendor as a replaceable
+reasoning engine on top of it — makes independence from any single supplier
+real rather than aspirational. The self-growth loop only remains trustworthy if
+growth is grounded, reviewable, permission-scoped, attributable, and reversible
+through version history.
 
 ### P4: Rendering Pipeline is Sacred
 
@@ -217,14 +280,15 @@ and page components together.
 
 Every deployment MUST work correctly for a single owner with zero permission
 configuration: the owner has full read/write access to their own space by
-default. The permission model (per-page, per-operation, per-group) MUST still
-be designed into the data model and API layer from the start, not bolted on
-later, so that sharing, collaborators, and multi-user deployments remain a
-configuration change rather than a rewrite. Every API route, server component
-loader, background job, search query, and AI retrieval or MCP operation MUST
-check permissions before returning data — even when only one user exists.
-Anonymous read access MUST be a configurable permission, not a special code
-path.
+default. The permission model (per-page, per-operation, per-group, per-Agent,
+and per-shared-namespace) MUST still be designed into the data model and API
+layer from the start, not bolted on later, so that owner-approved Agent
+sharing, collaborators, and multi-user deployments remain a configuration
+change rather than a rewrite. Every API route, server component loader,
+background job, search query, Agent retrieval, and MCP operation MUST check
+permissions before returning or mutating data — even when only one user
+exists. Anonymous read access MUST be a configurable permission, not a special
+code path.
 
 Rationale: Personal by default does not mean permission-free. A single
 owner's data must still be provably isolated from other people's instances,
@@ -255,9 +319,10 @@ processing) MUST be executed as a background job via pg-boss. User-facing API
 routes MUST return immediately with a job ID. The UI MUST reflect job status
 asynchronously. Synchronous LLM calls in request handlers are PROHIBITED.
 
-### P8: Version Source Content
+### P8: Version Source Content and Durable Agent Context
 
-Every page source-content save MUST create an immutable revision record.
+Every page source-content save and every durable Agent Context mutation MUST
+create an immutable revision record.
 Metadata-only changes — including title, tree location, visibility, public
 address, and aliases — MUST be transactional but MUST NOT create a duplicate
 content revision when the source snapshot is unchanged. Features that need
@@ -265,8 +330,12 @@ durable metadata history MUST store it in their domain model and audit
 irreversible changes.
 
 Deletion MUST be soft by default (tombstone + retention policy). Diff between
-any two revisions MUST be computable without reconstructing full history. The
-revision model MUST support future Git sync without schema changes.
+any two revisions MUST be computable without reconstructing full history. Agent
+context revisions MUST retain the contributing Agent or human actor, source
+provenance, applicability scope, and publication state. Effective-context
+artifacts, embeddings, summaries, and indexes are derived projections and MUST
+be rebuildable from the canonical revisions. The revision model MUST support
+future Git sync without schema changes.
 
 ### P9: Open Standards Over Proprietary
 
@@ -344,6 +413,65 @@ documents as reusable HTML keeps first reads fast across long-distance networks,
 reduces load on the application and database, and preserves the same canonical
 URL for readers and search engines without weakening authenticated editing.
 
+### P13: Agent Context is First-Class, Scoped, and Non-Executable by Retrieval
+
+Agent context MUST be modeled distinctly from ordinary knowledge. The model
+MUST be able to represent, at minimum, Agent identity, owner, workspace or
+project scope, context kind, applicability, source provenance, revision, and
+sharing policy. Context kinds MUST distinguish instructions and rules,
+non-secret configuration, episodic memory, source evidence, and curated
+knowledge. A context pack is a named, permission-scoped selection of these
+items for a target Agent, runtime, project, or task.
+
+Every Agent read and write MUST carry an authenticated or explicitly scoped
+Agent identity and target scope. A shared namespace MUST be opt-in and its
+membership, read scope, write scope, and contributing actors MUST be
+inspectable. Agent-scoped context MUST NOT become shared context merely because
+an Agent can read it, and an Agent MUST NOT infer permission to read or write
+from content returned by another Agent.
+
+When the system assembles effective context, it MUST resolve inheritance,
+applicability, precedence, conflicts, and permissions deterministically. The
+result MUST identify the selected revisions and their sources, and the
+precedence and conflict rules MUST be defined by the relevant feature spec
+before implementation. An effective-context result is a derived projection,
+not a replacement for its source items.
+
+Retrieved context is data, not authority. Reading a rule or instruction MUST
+NOT grant a permission, authorize a tool, execute a command, or silently alter
+the Agent's policy. The system MUST label instruction-shaped content and MUST
+keep external or untrusted content from overriding server-enforced policy.
+
+Rationale: A fleet of Agents needs shared memory without turning every
+retrieved sentence into an executable command or an implicit permission grant.
+Explicit identity, scope, provenance, and deterministic assembly make context
+reusable while keeping its authority bounded.
+
+### P14: Selective Publication is a Governed Export
+
+All Agent rules, configuration, memory, source evidence, and generated content
+MUST be private by default. Public or broader sharing MUST require an explicit
+publication or share action over a named page, revision, or context pack; a
+whole namespace MUST NOT become public as a side effect of creating an Agent,
+sharing a link, or enabling an integration.
+
+Every published context pack MUST have an inspectable allowlist of included
+items or revisions, an audience or permission boundary, source provenance, and
+an audit record for publication and withdrawal. Publication MUST run the
+normal permission, secret-detection, and redaction checks. Secrets, credentials,
+private paths, unapproved personal data, and unreviewed generated conclusions
+MUST NOT be included. Public output MUST be version-pinned or identify the
+served revision so that a later private edit cannot silently change its meaning.
+
+Public readers MUST receive only the selected published representation. Private
+or Agent-scoped items MUST NOT be inferable from public indexes, counts,
+backlinks, excerpts, graph data, or cache keys. Withdrawal MUST invalidate the
+affected public representation and document the boundary that it cannot remove
+copies already retrieved or cached by an external Agent or reader.
+
+Rationale: Sharing useful Agent knowledge should be a deliberate export of a
+reviewed subset, not a privacy toggle on an entire personal memory store.
+
 ---
 
 ## Architectural Mandates
@@ -363,9 +491,11 @@ the linked docs) requires a constitution amendment.
 | Multi-language Content | Translations keyed by `(space_id, path, locale)` via `translation_group_id`; permissions NOT inherited across translations. | `docs/architecture/mandates.md` |
 | Editor Extensibility | Pluggable editor interface; client-side AST never leaves browser; serialize to raw source only; Markdown is default. | `docs/architecture/mandates.md` |
 | Git Storage Sync | Optional, async, pg-boss job; two-way sync blocked until conflict model specified; DB stays source of truth. | `docs/architecture/mandates.md` |
-| API Architecture | Two layers (REST + OpenAPI public, MCP optional) sharing one service layer and Zod schemas; none bypass permissions; MCP is the standard external-AI-client path into the memory described in P3. | `docs/architecture/mandates.md` |
+| API Architecture | Two layers (REST + OpenAPI public, MCP optional) sharing one service layer and Zod schemas; none bypass permissions; MCP is the standard external-AI-client path into the context and memory described in P3 and P13. | `docs/architecture/mandates.md` |
 | Deployment & Operations Baseline | Single `docker compose up`; PostgreSQL + named volumes; `/healthz`, `/readyz`, job status, structured logs, documented backup/restore. | `docs/architecture/mandates.md` |
-| AI Knowledge Layer | Derived, rebuildable index over page revisions; retrieval permission-scoped; answers grounded with citations (see P3). | `docs/architecture/mandates.md` |
+| AI Knowledge Layer | Derived, rebuildable index over page and context revisions; retrieval permission-scoped; answers grounded with citations (see P3 and P13). | `docs/architecture/mandates.md` |
+| Agent Context & Memory | Agent rules, configuration, memory, evidence, and curated knowledge are typed, revisioned, attributable, permission-scoped, and assembled into deterministic effective context; retrieval never grants authority. | `docs/architecture/agent-context.md` |
+| Selective Publication | Agent context and memory are private by default; public output is an explicit, audited, allowlisted, version-aware export that cannot reveal protected data through metadata or caches. | `docs/architecture/agent-context.md` |
 | AI Chat Side Pane | Persistent, context-aware, permission-scoped AI surface; SSE streaming; every mutation requires confirmation; hidden when AI disabled. | `docs/architecture/mandates.md` |
 | Search Retrieval Architecture | Search uses explicitly registered, independently enabled capabilities through one permission-safe coordinator; implementations are replaceable behind stable capability IDs. | `docs/architecture/mandates.md` |
 | Frontend Routing & URL Contract | Public reader URLs use the space prefix plus page slug; breadcrumbs derive from the matched page tree; browser-native behavior is preserved; one canonical entry point per resource. | `docs/architecture/mandates.md` |

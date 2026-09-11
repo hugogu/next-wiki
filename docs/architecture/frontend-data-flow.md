@@ -1,7 +1,7 @@
 # Frontend Data Flow
 
-**Status**: Constitutionally binding. Referenced by Core Principles P8 (Open
-Standards Over Proprietary) and P9 (Explicit Over Implicit) in
+**Status**: Constitutionally binding. Referenced by Core Principles P9 (Open
+Standards Over Proprietary) and P10 (Explicit Over Implicit) in
 `.specify/memory/constitution.md`.
 **Change control**: These rules are NON-NEGOTIABLE. Violations are architecture
 defects. A deviation requires a constitution amendment.

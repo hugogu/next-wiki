@@ -158,6 +158,11 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] TXXX Security hardening
 - [ ] TXXX Validate public-content ISR/static generation and mutation-driven
   invalidation when the feature changes anonymously readable published content
+- [ ] TXXX Validate Agent identity, scope isolation, context precedence/conflict
+  behavior, and non-executable retrieval when the feature handles Agent context
+- [ ] TXXX Validate secret references, selective publication allowlists, public
+  metadata isolation, revision pins, withdrawal, and cache invalidation when
+  the feature exports or shares context
 - [ ] TXXX Run quickstart.md validation
 
 ---
