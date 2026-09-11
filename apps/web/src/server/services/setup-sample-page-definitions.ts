@@ -362,7 +362,7 @@ Connect [Claude Desktop](https://claude.ai/download) to this Wiki through the [M
 
 Open **User Center → API Keys** and select **Create API key**. Name it (for example \`Claude Desktop\`), then check the scopes it should have: **View**, **Create**, and **Edit** cover browsing, drafting, and publishing pages; add **Delete** if it should remove pages, **Attachments** for file uploads, and **AI read** / **AI image generation** only when an AI provider is configured. Leave **Memory provider** unchecked — that flow is for the [Hermes](/integrations/hermes) and [OpenClaw](/integrations/openclaw) integrations, not general tool access. **Wiki** space access is included automatically; the Raw/Generated checkboxes only matter to an admin using LLM Wiki mode.
 
-Copy the key secret immediately — it is shown only once here, though it stays revealable later from the same page.
+Copy the key secret immediately — this is the only time it displays automatically, though you can manually reveal it again later from the same page.
 
 ## 2. Configure Claude Desktop
 
@@ -395,7 +395,7 @@ Claude Desktop only passes a limited environment to the servers it launches, so 
 Click the **Add files, connectors, and more** (+) icon in the chat composer and hover **Connectors** — **next-wiki** should be listed with its tools. If it is not:
 
 - Check \`~/Library/Logs/Claude/mcp*.log\` (\`%APPDATA%\\Claude\\logs\` on Windows) for the server's own stderr output and connection errors.
-- Confirm \`npx\` resolves for Claude Desktop's own process, not just your shell — a GUI app launched outside a terminal does not inherit PATH changes from \`nvm\`/\`asdf\`. Replace \`"command": "npx"\` with the absolute path from \`which npx\` if the log shows it cannot be found.
+- Confirm \`npx\` resolves for Claude Desktop's own process, not just your shell — a GUI app launched outside a terminal does not inherit PATH changes from \`nvm\`/\`asdf\`. Replace \`"command": "npx"\` with the absolute path from \`which npx\` (macOS/Linux) or \`where npx\` (Windows) if the log shows it cannot be found.
 - Test the server on its own with the [MCP Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector) before blaming Claude Desktop:
 
 ~~~bash

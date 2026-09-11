@@ -75,8 +75,9 @@ If it does not appear, check `~/Library/Logs/Claude/mcp*.log`
 (`%APPDATA%\Claude\logs` on Windows) for the server's stderr output, and
 verify `npx` resolves for Claude Desktop's own process — a GUI app launched
 outside a terminal does not inherit PATH changes from `nvm`/`asdf`. Replace
-`"command": "npx"` with an absolute path (from `which npx`) if the log shows
-it cannot be found. To test the server on its own first, use the
+`"command": "npx"` with an absolute path (from `which npx` on macOS/Linux, or
+`where npx` on Windows) if the log shows it cannot be found. To test the
+server on its own first, use the
 [MCP Inspector](https://modelcontextprotocol.io/docs/2026-07-28/tools/inspector):
 
 ```bash
