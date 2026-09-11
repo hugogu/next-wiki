@@ -52,6 +52,7 @@ describe('useAiChat payload helpers', () => {
             sequence: 0,
             providerKey: 'fixture',
             toolName: 'get_neighborhood',
+            category: 'read',
             commandMarkdown: '```tool-call\ntool: get_neighborhood\n```',
             status: 'failed',
             requestedReview: 'none',
@@ -63,6 +64,7 @@ describe('useAiChat payload helpers', () => {
             sequence: 1,
             providerKey: 'fixture',
             toolName: 'create_page',
+            category: 'page_draft',
             commandMarkdown: '```tool-call\ntool: create_page\n```',
             status: 'succeeded',
             requestedReview: 'none',
@@ -77,6 +79,37 @@ describe('useAiChat payload helpers', () => {
     expect(answer).toContain('already completed successfully and must not be repeated');
     expect(answer).toContain('create_page: Created draft page "卡支付 (Card Payment)".');
     expect(answer).not.toContain('get_neighborhood');
+  });
+
+  it('does not flag a succeeded read-only tool call as something to avoid repeating', () => {
+    const messages: ChatMessage[] = [
+      { id: 'u1', role: 'user', text: 'What does the payment gateway page say?' },
+      {
+        id: 'a1',
+        role: 'assistant',
+        text: '',
+        error: 'The AI provider is temporarily unavailable. Please retry shortly.',
+        toolCalls: [
+          {
+            toolCallId: '33333333-3333-4333-8333-333333333333',
+            sequence: 0,
+            providerKey: 'fixture',
+            toolName: 'search_wiki',
+            category: 'read',
+            commandMarkdown: '```tool-call\ntool: search_wiki\n```',
+            status: 'succeeded',
+            requestedReview: 'none',
+            effectiveReview: 'none',
+            resultSummary: 'Found 3 matching pages.',
+          },
+        ],
+      },
+    ];
+
+    const answer = buildConversationContext(messages)[0]?.answer;
+    expect(answer).toContain('did not produce a usable final answer');
+    expect(answer).not.toContain('must not be repeated');
+    expect(answer).not.toContain('search_wiki');
   });
 
   it('does not keep a bare tool protocol as if it were an assistant answer', () => {
