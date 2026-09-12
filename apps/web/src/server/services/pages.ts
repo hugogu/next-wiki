@@ -1363,26 +1363,23 @@ export async function getById(ctx: PermCtx, pageId: string): Promise<LivePage | 
 }
 
 /**
- * Fetch a page's *published* revision by id for the public share link, with
- * NO permission gating. This intentionally bypasses `anonymousRead` so a
- * shared link is fully public — but only ever exposes the currently published
- * revision. Drafts, unpublished pages, and soft-deleted pages return null, so
- * nothing pre-publication or private can leak through the share URL.
+ * Resolve a public share by page id in its actual space, using the same
+ * anonymous read permissions and published revision as the normal reader.
  */
-export async function getPublishedForShare(pageId: string): Promise<LivePage | null> {
-  const space = await resolveSpace();
-  if (!space) return null;
-
+export async function getPublishedForShare(pageId: string): Promise<(LivePage & { canonicalPath: string }) | null> {
   const page = await db.query.pages.findFirst({
     where: and(
-      eq(schema.pages.spaceId, space.id),
       eq(schema.pages.id, pageId),
       isNull(schema.pages.deletedAt),
+      isNull(schema.pages.translationGroupId),
     ),
   });
 
-  if (!page || !page.currentPublishedVersionId || space.kind !== 'wiki' || page.visibility !== 'public') return null;
-  return getLive(buildAnonymousCtx(), page.path);
+  if (!page?.currentPublishedVersionId || page.visibility !== 'public') return null;
+  const space = await getSpaceById(page.spaceId);
+  if (!space) return null;
+  const live = await livePageForRow(buildAnonymousCtx(), space, page);
+  return live ? { ...live, canonicalPath: canonicalSpacePath(space, live.slug) } : null;
 }
 
 /**

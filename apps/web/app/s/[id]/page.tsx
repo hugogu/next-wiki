@@ -6,7 +6,6 @@ import { PageMetadata } from '@/components/pages/PageMetadata';
 import { ShareButton } from '@/components/pages/ShareButton';
 import { TagList } from '@/components/pages/TagList';
 import * as pageService from '@/server/services/pages';
-import { getPageHref } from '@/lib/path';
 import { getDictionary, getLocale } from '@/i18n/server';
 import { getSiteName } from '@/server/services/site-settings';
 import { buildPageDescription, stripLeadingTitleHeading } from '@/lib/seo';
@@ -41,7 +40,7 @@ export async function generateMetadata({ params }: { params: ShareParams }): Pro
     description,
     // Canonical points at the primary page so the share link never competes
     // with it for indexing; the share route itself stays noindex.
-    alternates: { canonical: `${siteUrl}${getPageHref(page.slug)}` },
+    alternates: { canonical: `${siteUrl}${page.canonicalPath}` },
     openGraph: {
       type: 'article',
       url: `${siteUrl}/s/${id}`,
