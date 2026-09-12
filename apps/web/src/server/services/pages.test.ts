@@ -558,6 +558,43 @@ describe('getPublishedForShare', () => {
   it('returns null for an unknown id', async () => {
     expect(await pageService.getPublishedForShare('00000000-0000-0000-0000-000000000000')).toBeNull();
   });
+
+  it.each(['wiki', 'generated', 'raw'] as const)('shares a public page in a non-default %s space', async (kind) => {
+    const editor = await createUser(`share-${kind}@example.com`, 'editor');
+    const ctx = buildUserCtx(editor.id, 'editor');
+    const pageId = await publish(ctx, `share-${kind}`, `${kind} shared`, 'Published content');
+    const [space] = await db.insert(schema.spaces).values({
+      slug: `share-${kind}`, name: kind, kind, routePrefix: `shared-${kind}`, anonymousRead: false,
+    }).returning();
+    await db.update(schema.pages).set({ spaceId: space!.id, slug: `public-${kind}` }).where(eq(schema.pages.id, pageId));
+    await db.update(schema.pageAddresses).set({ spaceId: space!.id }).where(eq(schema.pageAddresses.pageId, pageId));
+    // A same-path page in the default space must never replace the requested id.
+    await publish(ctx, `share-${kind}`, 'Wrong page', 'Wrong content');
+
+    const shared = await pageService.getPublishedForShare(pageId);
+    expect(shared).toMatchObject({
+      pageId, title: `${kind} shared`, status: 'published',
+      canonicalPath: `/shared-${kind}/public-${kind}`,
+    });
+    expect(shared?.contentHtml).toContain('Published content');
+  });
+
+  it.each(['registered', 'restricted'] as const)('does not share a %s published page', async (visibility) => {
+    const editor = await createUser(`share-${visibility}@example.com`, 'editor');
+    const pageId = await publish(buildUserCtx(editor.id, 'editor'), `share-${visibility}`, 'Private', 'Private body');
+    await db.update(schema.pages).set({ visibility }).where(eq(schema.pages.id, pageId));
+    expect(await pageService.getPublishedForShare(pageId)).toBeNull();
+  });
+
+  it('shares only the published revision when a newer draft exists', async () => {
+    const editor = await createUser('share-new-draft@example.com', 'editor');
+    const ctx = buildUserCtx(editor.id, 'editor');
+    const pageId = await publish(ctx, 'share-new-draft', 'Published', 'Published body');
+    await pageService.newDraft(ctx, 'share-new-draft', { title: 'Published', contentSource: 'Private draft body' });
+    const shared = await pageService.getPublishedForShare(pageId);
+    expect(shared?.contentHtml).toContain('Published body');
+    expect(shared?.contentHtml).not.toContain('Private draft body');
+  });
 });
 
 describe('page metadata projections', () => {
