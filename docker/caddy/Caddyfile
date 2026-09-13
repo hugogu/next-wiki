@@ -2,11 +2,45 @@
 	auto_https off
 }
 
+# The new host is the canonical public origin. APP_URL in next-wiki should be
+# the same origin without the /wiki content-space prefix.
 {$CADDY_HOST}:80 {
-	redir https://{host}:{$CADDY_HTTPS_PORT}{uri}
+	redir {$CADDY_CANONICAL_URL}{uri}
 }
 
 {$CADDY_HOST}:443 {
 	tls {$CADDY_CERT_PATH} {$CADDY_KEY_PATH}
 	reverse_proxy {$UPSTREAM_HOST}:{$UPSTREAM_PORT}
+}
+
+# Wiki.js used the bare path (and optionally a leading language segment),
+# while next-wiki addresses the default Wiki space under /wiki. Keep this
+# redirect at the edge so old links change both host and path in one hop.
+(legacy_wiki_redirect) {
+	# /zh and /en are language-only Wiki.js entry points. The destination is
+	# the next-wiki home because /wiki/ by itself is not a page address.
+	@legacy_locale_root path_regexp legacy_locale_root ^/(?:{$CADDY_LEGACY_LANGUAGE_PATTERN})/?$
+	redir @legacy_locale_root {$CADDY_CANONICAL_URL}/ {$CADDY_LEGACY_REDIRECT_CODE}
+
+	# Strip the optional Wiki.js language prefix before adding next-wiki's
+	# canonical /wiki space prefix, e.g. /zh/tech/foo -> /wiki/tech/foo.
+	@legacy_localized_page path_regexp legacy_localized_page ^/(?:{$CADDY_LEGACY_LANGUAGE_PATTERN})/(.+)$
+	redir @legacy_localized_page {$CADDY_CANONICAL_URL}/{$CADDY_WIKI_PREFIX}/{re.legacy_localized_page.1} {$CADDY_LEGACY_REDIRECT_CODE}
+
+	# The old root is the old service home, not a next-wiki page slug.
+	@legacy_root path /
+	redir @legacy_root {$CADDY_CANONICAL_URL}/ {$CADDY_LEGACY_REDIRECT_CODE}
+
+	# All other old Wiki.js page paths receive the canonical /wiki prefix.
+	@legacy_page path_regexp legacy_page ^/(.+)$
+	redir @legacy_page {$CADDY_CANONICAL_URL}/{$CADDY_WIKI_PREFIX}/{re.legacy_page.1} {$CADDY_LEGACY_REDIRECT_CODE}
+}
+
+{$CADDY_LEGACY_HOST}:80 {
+	import legacy_wiki_redirect
+}
+
+{$CADDY_LEGACY_HOST}:443 {
+	tls {$CADDY_CERT_PATH} {$CADDY_KEY_PATH}
+	import legacy_wiki_redirect
 }
