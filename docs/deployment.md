@@ -8,16 +8,16 @@ Cloudflare Tunnel, Nginx, Caddy) outside of this project.
 
 The optional `docker-compose.caddy.yml` overlay supports the migration from a
 legacy Wiki.js host to the canonical next-wiki host. Set `APP_URL` to the new
-origin only, for example `https://kb.hugogu.cn`; `/wiki` is next-wiki's default
+origin only, for example `https://kb.example.com`; `/wiki` is next-wiki's default
 content-space prefix and must not be included in `APP_URL`.
 
 With the overlay's default migration settings, both of these legacy URLs are
 redirected to the same canonical page:
 
 ```text
-https://wiki.hugogu.cn/tech/patterns/outbox
-https://wiki.hugogu.cn/zh/tech/patterns/outbox
-  -> https://kb.hugogu.cn/wiki/tech/patterns/outbox
+https://wiki.example.com/tech/patterns/outbox
+https://wiki.example.com/zh/tech/patterns/outbox
+  -> https://kb.example.com/wiki/tech/patterns/outbox
 ```
 
 The language matcher defaults to `en|zh`; extend

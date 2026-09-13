@@ -19,21 +19,57 @@
 (legacy_wiki_redirect) {
 	# /zh and /en are language-only Wiki.js entry points. The destination is
 	# the next-wiki home because /wiki/ by itself is not a page address.
-	@legacy_locale_root path_regexp legacy_locale_root ^/(?:{$CADDY_LEGACY_LANGUAGE_PATTERN})/?$
-	redir @legacy_locale_root {$CADDY_CANONICAL_URL}/ {$CADDY_LEGACY_REDIRECT_CODE}
+	@legacy_locale_root_query {
+		path_regexp legacy_locale_root_query ^/(?:{$CADDY_LEGACY_LANGUAGE_PATTERN})/?$
+		not query ""
+	}
+	redir @legacy_locale_root_query {$CADDY_CANONICAL_URL}/?{http.request.uri.query} {$CADDY_LEGACY_REDIRECT_CODE}
+
+	@legacy_locale_root_no_query {
+		path_regexp legacy_locale_root_no_query ^/(?:{$CADDY_LEGACY_LANGUAGE_PATTERN})/?$
+		query ""
+	}
+	redir @legacy_locale_root_no_query {$CADDY_CANONICAL_URL}/ {$CADDY_LEGACY_REDIRECT_CODE}
 
 	# Strip the optional Wiki.js language prefix before adding next-wiki's
 	# canonical /wiki space prefix, e.g. /zh/tech/foo -> /wiki/tech/foo.
-	@legacy_localized_page path_regexp legacy_localized_page ^/(?:{$CADDY_LEGACY_LANGUAGE_PATTERN})/(.+)$
-	redir @legacy_localized_page {$CADDY_CANONICAL_URL}/{$CADDY_WIKI_PREFIX}/{re.legacy_localized_page.1} {$CADDY_LEGACY_REDIRECT_CODE}
+	@legacy_localized_page_query {
+		path_regexp legacy_localized_page_query ^/(?:{$CADDY_LEGACY_LANGUAGE_PATTERN})/(.+)$
+		not query ""
+	}
+	redir @legacy_localized_page_query {$CADDY_CANONICAL_URL}/{$CADDY_WIKI_PREFIX}/{re.legacy_localized_page_query.1}?{http.request.uri.query} {$CADDY_LEGACY_REDIRECT_CODE}
+
+	@legacy_localized_page_no_query {
+		path_regexp legacy_localized_page_no_query ^/(?:{$CADDY_LEGACY_LANGUAGE_PATTERN})/(.+)$
+		query ""
+	}
+	redir @legacy_localized_page_no_query {$CADDY_CANONICAL_URL}/{$CADDY_WIKI_PREFIX}/{re.legacy_localized_page_no_query.1} {$CADDY_LEGACY_REDIRECT_CODE}
 
 	# The old root is the old service home, not a next-wiki page slug.
-	@legacy_root path /
-	redir @legacy_root {$CADDY_CANONICAL_URL}/ {$CADDY_LEGACY_REDIRECT_CODE}
+	@legacy_root_query {
+		path /
+		not query ""
+	}
+	redir @legacy_root_query {$CADDY_CANONICAL_URL}/?{http.request.uri.query} {$CADDY_LEGACY_REDIRECT_CODE}
+
+	@legacy_root_no_query {
+		path /
+		query ""
+	}
+	redir @legacy_root_no_query {$CADDY_CANONICAL_URL}/ {$CADDY_LEGACY_REDIRECT_CODE}
 
 	# All other old Wiki.js page paths receive the canonical /wiki prefix.
-	@legacy_page path_regexp legacy_page ^/(.+)$
-	redir @legacy_page {$CADDY_CANONICAL_URL}/{$CADDY_WIKI_PREFIX}/{re.legacy_page.1} {$CADDY_LEGACY_REDIRECT_CODE}
+	@legacy_page_query {
+		path_regexp legacy_page_query ^/(.+)$
+		not query ""
+	}
+	redir @legacy_page_query {$CADDY_CANONICAL_URL}/{$CADDY_WIKI_PREFIX}/{re.legacy_page_query.1}?{http.request.uri.query} {$CADDY_LEGACY_REDIRECT_CODE}
+
+	@legacy_page_no_query {
+		path_regexp legacy_page_no_query ^/(.+)$
+		query ""
+	}
+	redir @legacy_page_no_query {$CADDY_CANONICAL_URL}/{$CADDY_WIKI_PREFIX}/{re.legacy_page_no_query.1} {$CADDY_LEGACY_REDIRECT_CODE}
 }
 
 {$CADDY_LEGACY_HOST}:80 {
