@@ -22,9 +22,10 @@ https://wiki.example.com/zh/tech/patterns/outbox
 
 The language matcher defaults to `en|zh`; extend
 `CADDY_LEGACY_LANGUAGE_PATTERN` for every language prefix used by the old
-Wiki.js deployment. Use `CADDY_LEGACY_REDIRECT_CODE=302` during validation and
-switch to `301` after the migration is confirmed. The TLS certificate mounted
-into Caddy must cover both the canonical and legacy hosts.
+Wiki.js deployment. The redirect code defaults to `301`; set
+`CADDY_LEGACY_REDIRECT_CODE=302` only during staged validation if needed. The
+TLS certificate mounted into Caddy must cover both the canonical and legacy
+hosts.
 
 ## What the deploy pipeline does
 
