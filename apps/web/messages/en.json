@@ -1063,6 +1063,13 @@
           "warning": "Warnings",
           "failed": "Errors"
         },
+        "outcome": {
+          "title": "Outcome",
+          "created": "Created",
+          "replaced": "Replaced",
+          "skipped": "Skipped",
+          "converted": "Converted"
+        },
         "options": {
           "title": "Run options",
           "includeHistory": "Full page history",

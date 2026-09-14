@@ -1063,6 +1063,13 @@
           "warning": "警告",
           "failed": "错误"
         },
+        "outcome": {
+          "title": "执行结果",
+          "created": "新建",
+          "replaced": "替换",
+          "skipped": "跳过",
+          "converted": "转换"
+        },
         "options": {
           "title": "运行参数",
           "includeHistory": "完整页面历史",

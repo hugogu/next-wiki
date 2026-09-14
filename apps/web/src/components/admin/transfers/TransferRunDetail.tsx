@@ -18,6 +18,38 @@ const PAGE_SIZE = 20;
 const TERMINAL: TransferRunView['status'][] = ['completed', 'completed_with_warnings', 'failed', 'cancelled'];
 
 /**
+ * Outcome counters only carry meaning for the preview/import kinds. A source
+ * test or an export records processed/total but leaves every outcome counter
+ * at zero, where "0 created · 0 replaced" would read as a result rather than
+ * as the absence of one.
+ */
+const OUTCOME_KINDS: TransferRunView['kind'][] = [
+  'archive_preview',
+  'archive_import',
+  'wikijs_preview',
+  'wikijs_import',
+];
+
+/**
+ * What the run actually did, per page. created/replaced/skipped are shown even
+ * at zero — a run that reports "0 created, 0 replaced, 1 skipped" is precisely
+ * the case someone opens this page to explain — while `converted` is omitted
+ * when unused, since only an HTML source ever needs that pass.
+ */
+export function runOutcomeCounts(run: TransferRunView, t: TranslateFunction): { label: string; value: number }[] {
+  if (!OUTCOME_KINDS.includes(run.kind)) return [];
+  const counts = [
+    { label: t('admin.transfers.detail.outcome.created'), value: run.createdItems },
+    { label: t('admin.transfers.detail.outcome.replaced'), value: run.replacedItems },
+    { label: t('admin.transfers.detail.outcome.skipped'), value: run.skippedItems },
+  ];
+  if (run.convertedItems > 0) {
+    counts.push({ label: t('admin.transfers.detail.outcome.converted'), value: run.convertedItems });
+  }
+  return counts;
+}
+
+/**
  * `TransferRunView.options` is a free-form jsonb blob whose shape varies by
  * run kind (e.g. site export also allows `space`/`format`). This only
  * surfaces the `includeHistory`/`historyLimit`/`conflictStrategy` keys the
@@ -204,6 +236,23 @@ export function TransferRunDetail({
             {run.reportArtifactId && <TransferArtifactDownloadButton url={`/api/transfer-artifacts/${run.reportArtifactId}/content`} />}
           </div>
         </div>
+        {(() => {
+          const counts = runOutcomeCounts(run, t);
+          if (counts.length === 0) return null;
+          return (
+            <div className="mt-md border-t border-border pt-md">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted">{t('admin.transfers.detail.outcome.title')}</p>
+              <dl className="mt-xs flex flex-wrap gap-x-lg gap-y-xs text-sm">
+                {counts.map(({ label, value }) => (
+                  <div key={label} className="flex items-baseline gap-xs">
+                    <dt className="text-muted">{label}</dt>
+                    <dd className="font-medium tabular-nums">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          );
+        })()}
         {(() => {
           const options = runOptionsSummary(run.options, t);
           if (options.length === 0) return null;
