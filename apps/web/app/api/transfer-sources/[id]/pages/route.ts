@@ -20,6 +20,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
  * @summary List the pages a Wiki.js source currently publishes
  * @tag Transfers
  * @auth bearer
+ * @pathParams TransferSourceIdPathParams
  * @response WikiJsSourcePageList
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

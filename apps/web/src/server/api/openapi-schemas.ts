@@ -724,6 +724,10 @@ export const TransferSourceList = z
   })
   .describe('List of configured Wiki.js transfer sources.');
 
+export const TransferSourceIdPathParams = z.object({
+  id: z.string().uuid().describe('Transfer source identifier.'),
+});
+
 export const WikiJsSourcePageView = z
   .object({
     id: z.number().int().describe('Wiki.js page identifier in the source instance.'),

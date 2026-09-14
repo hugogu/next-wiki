@@ -10402,6 +10402,19 @@
         ],
         "description": "A content transfer run."
       },
+      "TransferSourceIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer source identifier."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "TransferSourceList": {
         "type": "object",
         "properties": {
@@ -24429,14 +24442,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer source identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer source identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
