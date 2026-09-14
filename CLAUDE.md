@@ -205,6 +205,16 @@ When using the wiki as AI memory, prefer stable path prefixes and frontmatter:
 Use frontmatter for AI-readable metadata such as `status`, `tags`, `owner`,
 `reviewed_at`, and `related_pages`.
 
+The Agent Context & Memory model is defined in
+[`docs/architecture/agent-context.md`](docs/architecture/agent-context.md).
+Treat Agent rules, non-secret configuration, procedures, episodic memory,
+source evidence, and curated knowledge as distinct context kinds. Every
+external Agent operation must remain attributable to an Agent identity and a
+bounded target scope. Shared namespaces and public context packs are explicit;
+retrieved text never grants permissions, authorizes tools, or executes commands.
+Never place secret values in pages, frontmatter, memory, exports, or prompts;
+use a server-side SecretRef when a context item needs to refer to a secret.
+
 ### Configuration
 
 See `packages/mcp-server/README.md` for installation and configuration in Claude
