@@ -419,6 +419,12 @@ export const AgentMemorySourceDocument = z.object({
   citation: z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), title: z.string(), canonicalUrl: z.string().url(), createdAt: z.string().datetime(), sourcePath: z.string(), storagePath: z.string() }),
 });
 
+export const AgentMemorySourceDocumentDeactivate = z.object({
+  sourcePath: z.string(),
+  state: z.literal('forgotten'),
+  outcome: z.enum(['forgotten', 'unchanged', 'not_found']).describe('forgotten when this call retired the document, unchanged when it was already retired, not_found when no mirrored document matched the path.'),
+});
+
 export const AgentMemoryWikiSearchQuery = z.object({ q: z.string().min(1).max(4_000), limit: z.coerce.number().int().min(1).max(20).default(10) });
 export const AgentMemoryWikiSearchResponse = z.object({
   results: z.array(z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), space: z.enum(['wiki', 'raw', 'generated']), title: z.string(), path: z.string(), excerpt: z.string(), score: z.number(), canonicalUrl: z.string().url() })),

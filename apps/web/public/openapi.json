@@ -658,7 +658,34 @@
           "citation"
         ]
       },
-      "AgentMemorySourceDocumentDeactivate": {},
+      "AgentMemorySourceDocumentDeactivate": {
+        "type": "object",
+        "properties": {
+          "sourcePath": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string",
+            "enum": [
+              "forgotten"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "forgotten",
+              "unchanged",
+              "not_found"
+            ],
+            "description": "forgotten when this call retired the document, unchanged when it was already retired, not_found when no mirrored document matched the path."
+          }
+        },
+        "required": [
+          "sourcePath",
+          "state",
+          "outcome"
+        ]
+      },
       "AgentMemorySourceDocumentInput": {
         "type": "object",
         "properties": {
