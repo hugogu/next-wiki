@@ -461,7 +461,12 @@ export async function retry(ctx: PermCtx, id: string): Promise<TransferRunAccept
               ? ({
                   kind: 'wikijs_preview',
                   sourceId: row.sourceId!,
-                  options: row.options as { conflictStrategy: 'skip' | 'replace'; includeHistory: boolean; historyLimit: number },
+                  options: row.options as {
+                    conflictStrategy: 'skip' | 'replace';
+                    includeHistory: boolean;
+                    historyLimit: number;
+                    pageIds?: number[];
+                  },
                 } as const)
               : ({ kind: 'wikijs_source_test', sourceId: row.sourceId! } as const);
   return create(ctx, input);

@@ -1022,7 +1022,27 @@
         "previewNotRun": "No preview has been run yet.",
         "previewCounts": "{created} created, {replaced} replaced, {skipped} skipped",
         "importDisabledHint": "Run a preview first — import is only available once a preview has completed.",
-        "usingOlderPreview": "The latest preview attempt did not complete successfully; import will use an earlier successful preview from {time}."
+        "usingOlderPreview": "The latest preview attempt did not complete successfully; import will use an earlier successful preview from {time}.",
+        "scope": "Pages",
+        "scopeHelp": "By default every page the source publishes is previewed and imported. Choose specific pages to import just those instead — useful for re-importing one page that changed without re-syncing the whole wiki.",
+        "scopeAll": "All pages",
+        "scopeSelected": "{count} selected",
+        "choosePages": "Choose pages…",
+        "pickerTitle": "Choose pages to import",
+        "pickerDescription": "Only the selected pages are previewed and imported. Clear the selection to import every page the source publishes.",
+        "pickerSearch": "Filter by path or title",
+        "pickerLoadFailed": "Could not load pages from this source",
+        "pickerEmpty": "This source publishes no pages.",
+        "pickerNoMatches": "No pages match this filter.",
+        "pickerSelectAll": "Select all shown",
+        "pickerClear": "Clear selection",
+        "pickerSelectedCount": "{count} of {total} selected",
+        "pickerSelectAllHint": "No pages selected — every page will be imported.",
+        "pickerLimitReached": "Selection limit reached ({limit} pages). Clear the selection to import everything instead.",
+        "pickerStalePruned": "{count} previously selected page(s) are no longer published by this source and were removed from the selection.",
+        "pickerApply": "Use selection",
+        "importScopeAll": "This preview covers every page the source publishes.",
+        "importScopeSelected": "This preview covers {count} selected page(s)."
       },
       "history": {
         "empty": "No transfer runs yet."

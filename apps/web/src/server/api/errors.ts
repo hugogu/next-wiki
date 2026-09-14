@@ -113,6 +113,8 @@ export function mapDomainError(error: DomainError): NextResponse {
       return apiError(code, message, 504);
     case 'WIKIJS_HISTORY_FORBIDDEN':
       return apiError(code, message, 403);
+    case 'WIKIJS_PAGE_NOT_FOUND':
+      return apiError(code, message, 404);
     case 'INVALID_TRANSLATION_INPUT':
       return apiError(code, message, 400);
     case 'TRANSLATION_NOT_FOUND':

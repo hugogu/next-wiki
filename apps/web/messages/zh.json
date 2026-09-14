@@ -1022,7 +1022,27 @@
         "previewNotRun": "尚未运行过预览。",
         "previewCounts": "新建 {created} 个，替换 {replaced} 个，跳过 {skipped} 个",
         "importDisabledHint": "请先运行预览——只有预览完成后才能导入。",
-        "usingOlderPreview": "最近一次预览未成功完成，导入将使用 {time} 的较早一次成功预览结果。"
+        "usingOlderPreview": "最近一次预览未成功完成，导入将使用 {time} 的较早一次成功预览结果。",
+        "scope": "页面范围",
+        "scopeHelp": "默认会预览并导入来源发布的全部页面。也可以只选择特定页面，仅导入这些页面——适合在某个页面变更后单独重新导入，而不必整站同步。",
+        "scopeAll": "全部页面",
+        "scopeSelected": "已选 {count} 个",
+        "choosePages": "选择页面…",
+        "pickerTitle": "选择要导入的页面",
+        "pickerDescription": "仅预览并导入所选页面。清空选择则导入来源发布的全部页面。",
+        "pickerSearch": "按路径或标题筛选",
+        "pickerLoadFailed": "无法从该来源获取页面列表",
+        "pickerEmpty": "该来源没有已发布的页面。",
+        "pickerNoMatches": "没有符合筛选条件的页面。",
+        "pickerSelectAll": "全选当前结果",
+        "pickerClear": "清空选择",
+        "pickerSelectedCount": "已选 {count} / {total}",
+        "pickerSelectAllHint": "未选择任何页面——将导入全部页面。",
+        "pickerLimitReached": "已达选择上限（{limit} 个页面）。如需导入全部内容，请清空选择。",
+        "pickerStalePruned": "有 {count} 个此前选中的页面已不再由该来源发布，已从选择中移除。",
+        "pickerApply": "使用所选页面",
+        "importScopeAll": "该预览覆盖来源发布的全部页面。",
+        "importScopeSelected": "该预览覆盖所选的 {count} 个页面。"
       },
       "history": {
         "empty": "暂无导入导出运行记录。"

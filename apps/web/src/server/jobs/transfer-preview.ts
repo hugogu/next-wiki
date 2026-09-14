@@ -12,6 +12,7 @@ import {
   computeWikiJsPageFingerprint,
   normalizeHistoryLimit,
   selectHistoryWindow,
+  selectRequestedPages,
 } from '@/server/transfers/wikijs-client';
 import { getTransferConverter } from '@/server/transfers/registry';
 import { getSpaceByKind, resolveSpace } from '@/server/services/spaces';
@@ -261,10 +262,18 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
   if (!run.sourceId) throw new Error('Wiki.js source is missing');
   const source = await getRuntimeSource(run.sourceId);
   const client = new WikiJsClient(source.baseUrl, source.apiToken, source.allowPrivateNetwork);
-  const inventory = await client.listPages();
   const space = await resolveSpace();
   if (!space) throw new Error('Default space not found');
-  const options = run.options as { conflictStrategy?: string; includeHistory?: boolean; historyLimit?: number };
+  const options = run.options as {
+    conflictStrategy?: string;
+    includeHistory?: boolean;
+    historyLimit?: number;
+    pageIds?: number[];
+  };
+  // A scoped run previews only the selected pages; the import that follows
+  // works from these plan items, so the scope carries through without the
+  // import needing to know about it.
+  const inventory = selectRequestedPages(await client.listPages(), options.pageIds);
   const strategy = options.conflictStrategy ?? 'skip';
   const includeHistory = Boolean(options.includeHistory);
   const historyLimit = normalizeHistoryLimit(options.historyLimit);

@@ -3,6 +3,7 @@ import type {
   TransferSourceCreate,
   TransferSourceUpdate,
   TransferSourceView,
+  WikijsSourcePage,
 } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -32,6 +33,24 @@ export async function test(ctx: PermCtx, input: Omit<TransferSourceCreate, 'name
       errorMessage: error instanceof Error ? error.message.slice(0, 500) : 'Connection test failed',
     };
   }
+}
+
+/** The source's own page inventory, for choosing which pages a scoped import
+ * should cover. Hits the live Wiki.js instance on every call — the selection
+ * must reflect what is there now, not what it held when a source was added. */
+export async function listSourcePages(ctx: PermCtx, id: string): Promise<WikijsSourcePage[]> {
+  assertCanManageTransfers(ctx);
+  const source = await getRuntimeSource(id);
+  const client = new WikiJsClient(source.baseUrl, source.apiToken, source.allowPrivateNetwork);
+  const pages = await client.listPages();
+  return pages.map((page) => ({
+    id: page.id,
+    path: page.path,
+    locale: page.locale,
+    title: page.title,
+    contentType: page.contentType ?? null,
+    updatedAt: page.updatedAt ?? null,
+  }));
 }
 
 export function assertCanManageTransfers(ctx: PermCtx): string {

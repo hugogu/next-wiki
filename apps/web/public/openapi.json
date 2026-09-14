@@ -11600,6 +11600,66 @@
         ],
         "description": "Wiki AI runtime settings, with stored prompt overrides and effective defaults."
       },
+      "WikiJsSourcePageList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/WikiJsSourcePageView"
+            },
+            "description": "Pages currently published in the source instance."
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "description": "Inventory of a Wiki.js source, for selecting the pages an import should cover."
+      },
+      "WikiJsSourcePageView": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "description": "Wiki.js page identifier in the source instance."
+          },
+          "path": {
+            "type": "string",
+            "description": "Page path in the source instance."
+          },
+          "locale": {
+            "type": "string",
+            "description": "Page locale in the source instance."
+          },
+          "title": {
+            "type": "string",
+            "description": "Page title."
+          },
+          "contentType": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Source content type, or null if unknown."
+          },
+          "updatedAt": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Timestamp of the last edit in the source, or null if unknown."
+          }
+        },
+        "required": [
+          "id",
+          "path",
+          "locale",
+          "title",
+          "contentType",
+          "updatedAt"
+        ],
+        "description": "One page of a Wiki.js source inventory."
+      },
       "WritingModeSettingsView": {
         "type": "object",
         "properties": {
@@ -24352,6 +24412,45 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TransferArtifactView"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/transfer-sources/{id}/pages": {
+      "get": {
+        "operationId": "get-transfer-sources-{id}-pages",
+        "summary": "List the pages a Wiki.js source currently publishes",
+        "description": "",
+        "tags": [
+          "Transfers"
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "number"
+            },
+            "example": 123,
+            "description": "Path parameter: id"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WikiJsSourcePageList"
                 }
               }
             }

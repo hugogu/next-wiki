@@ -119,6 +119,7 @@ async function buildWikiJsPreviewRun(opts: {
   historyLimit?: number;
   historyAccessError?: Error;
   requestCancellationAfterHistoryForPageId?: number;
+  pageIds?: number[];
 }) {
   mocks.WikiJsClient.mockImplementation(() => ({
     listPages: vi.fn(async () =>
@@ -159,6 +160,7 @@ async function buildWikiJsPreviewRun(opts: {
         conflictStrategy: opts.conflictStrategy ?? 'skip',
         includeHistory: Boolean(opts.includeHistory),
         historyLimit: opts.historyLimit ?? 300,
+        ...(opts.pageIds ? { pageIds: opts.pageIds } : {}),
       },
       expiresAt: new Date(Date.now() + 3_600_000),
     })
@@ -611,6 +613,57 @@ describe('runTransferPreview (wikijs_preview) address prediction (035 T069)', ()
     expect(metadata.address).not.toBe('docs/wikijs-preview-taken');
     expect(metadata.address).toMatch(/^docs\/wikijs-preview-taken-\d+$/);
     expect(metadata.addressAdjustmentReason).toBe('taken');
+  });
+});
+
+describe('previewWikiJs page selection', () => {
+  it('plans only the selected pages, leaving the rest of the inventory untouched', async () => {
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [
+        { id: 300, path: 'docs/scoped-one' },
+        { id: 301, path: 'docs/scoped-two' },
+        { id: 302, path: 'docs/scoped-three' },
+      ],
+      pageIds: [302, 300],
+    });
+
+    await runTransferPreview(run.id);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
+    expect(updated).toMatchObject({ status: 'completed', totalItems: 2, processedItems: 2, createdItems: 2 });
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    expect(items.map((item) => item.sourceKey).sort()).toEqual(['300', '302']);
+  });
+
+  it('previews the whole inventory when no pages are selected', async () => {
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [
+        { id: 310, path: 'docs/unscoped-one' },
+        { id: 311, path: 'docs/unscoped-two' },
+      ],
+    });
+
+    await runTransferPreview(run.id);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
+    expect(updated).toMatchObject({ status: 'completed', totalItems: 2 });
+  });
+
+  it('fails the run when a selected page is no longer in the source inventory', async () => {
+    const { run } = await buildWikiJsPreviewRun({
+      pages: [{ id: 320, path: 'docs/still-here' }],
+      pageIds: [320, 999],
+    });
+
+    await runTransferPreview(run.id);
+
+    const updated = await db.query.transferRuns.findFirst({ where: eq(schema.transferRuns.id, run.id) });
+    expect(updated?.status).toBe('failed');
+    expect(updated?.errorCode).toBe('WIKIJS_PAGE_NOT_FOUND');
+    expect(updated?.errorMessage).toContain('999');
+    // Nothing is planned from a partially-valid selection.
+    const items = await db.query.transferItems.findMany({ where: eq(schema.transferItems.runId, run.id) });
+    expect(items).toHaveLength(0);
   });
 });
 

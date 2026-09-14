@@ -724,6 +724,23 @@ export const TransferSourceList = z
   })
   .describe('List of configured Wiki.js transfer sources.');
 
+export const WikiJsSourcePageView = z
+  .object({
+    id: z.number().int().describe('Wiki.js page identifier in the source instance.'),
+    path: z.string().describe('Page path in the source instance.'),
+    locale: z.string().describe('Page locale in the source instance.'),
+    title: z.string().describe('Page title.'),
+    contentType: z.string().nullable().describe('Source content type, or null if unknown.'),
+    updatedAt: z.string().nullable().describe('Timestamp of the last edit in the source, or null if unknown.'),
+  })
+  .describe('One page of a Wiki.js source inventory.');
+
+export const WikiJsSourcePageList = z
+  .object({
+    items: z.array(WikiJsSourcePageView).describe('Pages currently published in the source instance.'),
+  })
+  .describe('Inventory of a Wiki.js source, for selecting the pages an import should cover.');
+
 export const TransferArtifactView = z
   .object({
     id: z.string().uuid().describe('Transfer artifact identifier.'),

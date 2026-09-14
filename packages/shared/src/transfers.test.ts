@@ -22,6 +22,28 @@ describe('wikijsTransferOptionsSchema', () => {
     expect(() => wikijsTransferOptionsSchema.parse({ historyLimit: 0 })).toThrow();
     expect(() => wikijsTransferOptionsSchema.parse({ historyLimit: 2001 })).toThrow();
   });
+
+  it('leaves pageIds absent by default, so an unscoped run still means a full sync', () => {
+    expect(wikijsTransferOptionsSchema.parse({})).not.toHaveProperty('pageIds');
+  });
+
+  it('accepts an explicit page selection', () => {
+    expect(wikijsTransferOptionsSchema.parse({ pageIds: [7, 12] })).toEqual({
+      conflictStrategy: 'skip',
+      includeHistory: false,
+      historyLimit: 300,
+      pageIds: [7, 12],
+    });
+  });
+
+  it('rejects malformed or oversized page selections', () => {
+    expect(() => wikijsTransferOptionsSchema.parse({ pageIds: [0] })).toThrow();
+    expect(() => wikijsTransferOptionsSchema.parse({ pageIds: [1.5] })).toThrow();
+    expect(() => wikijsTransferOptionsSchema.parse({ pageIds: ['3'] })).toThrow();
+    expect(() =>
+      wikijsTransferOptionsSchema.parse({ pageIds: Array.from({ length: 501 }, (_, i) => i + 1) }),
+    ).toThrow();
+  });
 });
 
 describe('transferRunCreateSchema wikijs_preview branch', () => {

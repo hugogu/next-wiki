@@ -192,6 +192,33 @@ export function selectHistoryWindow<T>(
   return { keep, truncated: true };
 }
 
+/**
+ * Narrow a source inventory to an explicit set of page ids — a scoped import,
+ * as opposed to a full sync. An absent or empty selection returns the whole
+ * inventory unchanged, which is what every run created before scoped imports
+ * existed does. A requested id the inventory does not contain (deleted,
+ * unpublished, or not readable by this token) throws rather than being
+ * dropped: importing fewer pages than asked for while reporting success is
+ * the one outcome the caller cannot detect.
+ */
+export function selectRequestedPages<T extends { id: number }>(
+  inventory: T[],
+  pageIds: readonly number[] | undefined,
+): T[] {
+  if (!pageIds?.length) return inventory;
+  const requested = new Set(pageIds);
+  const selected = inventory.filter((page) => requested.has(page.id));
+  const found = new Set(selected.map((page) => page.id));
+  const missing = [...requested].filter((id) => !found.has(id));
+  if (missing.length > 0) {
+    throw new DomainError(
+      'WIKIJS_PAGE_NOT_FOUND',
+      `Selected Wiki.js page(s) are no longer available from this source: ${missing.join(', ')}. They may have been deleted or unpublished, or this API token can no longer read them. Reselect the pages and run the preview again.`,
+    );
+  }
+  return selected;
+}
+
 export class WikiJsClient {
   constructor(
     readonly baseUrl: string,

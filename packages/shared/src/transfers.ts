@@ -85,9 +85,15 @@ export type TransferOptions = z.infer<typeof transferOptionsSchema>;
 
 const historyLimitSchema = z.number().int().min(1).max(2000).default(300);
 
+/** Optional per-page scope for a Wiki.js preview: the source page ids to
+ * import instead of the whole inventory. Absent (or empty) means a full sync,
+ * which is the historical behaviour of every run created before this existed. */
+const wikijsPageIdsSchema = z.array(z.number().int().positive()).max(500).optional();
+
 export const wikijsTransferOptionsSchema = transferOptionsSchema.extend({
   includeHistory: z.boolean().default(false),
   historyLimit: historyLimitSchema,
+  pageIds: wikijsPageIdsSchema,
 });
 export type WikijsTransferOptions = z.infer<typeof wikijsTransferOptionsSchema>;
 
@@ -150,6 +156,24 @@ export const transferSourceViewSchema = z.object({
   updatedAt: isoDateSchema,
 });
 export type TransferSourceView = z.infer<typeof transferSourceViewSchema>;
+
+/** One page of a Wiki.js source's inventory, as offered to the admin UI when
+ * choosing which pages a scoped import should cover. Read-only projection of
+ * the source's own page list — nothing here is persisted. */
+export const wikijsSourcePageSchema = z.object({
+  id: z.number().int(),
+  path: z.string(),
+  locale: z.string(),
+  title: z.string(),
+  contentType: z.string().nullable(),
+  updatedAt: z.string().nullable(),
+});
+export type WikijsSourcePage = z.infer<typeof wikijsSourcePageSchema>;
+
+export const wikijsSourcePageListSchema = z.object({
+  items: z.array(wikijsSourcePageSchema),
+});
+export type WikijsSourcePageList = z.infer<typeof wikijsSourcePageListSchema>;
 
 export const transferArtifactReserveSchema = z.object({
   kind: z.literal('source_archive'),

@@ -4,6 +4,7 @@ import {
   computeWikiJsPageFingerprint,
   normalizeHistoryLimit,
   selectHistoryWindow,
+  selectRequestedPages,
   wikiJsTagNames,
   WikiJsClient,
   type WikiJsHistoryEntry,
@@ -99,6 +100,29 @@ describe('selectHistoryWindow', () => {
     const { keep, truncated } = selectHistoryWindow(trail, 1);
     expect(truncated).toBe(true);
     expect(keep).toEqual([]);
+  });
+});
+
+describe('selectRequestedPages', () => {
+  const inventory = [{ id: 1 }, { id: 2 }, { id: 3 }];
+
+  it('returns the whole inventory when no pages are selected', () => {
+    expect(selectRequestedPages(inventory, undefined)).toBe(inventory);
+    expect(selectRequestedPages(inventory, [])).toBe(inventory);
+  });
+
+  it('keeps only the selected pages, in inventory order', () => {
+    expect(selectRequestedPages(inventory, [3, 1])).toEqual([{ id: 1 }, { id: 3 }]);
+  });
+
+  it('throws rather than silently importing fewer pages than were selected', () => {
+    expect(() => selectRequestedPages(inventory, [1, 42])).toThrow(DomainError);
+    try {
+      selectRequestedPages(inventory, [1, 42]);
+    } catch (error) {
+      expect((error as DomainError).code).toBe('WIKIJS_PAGE_NOT_FOUND');
+      expect((error as DomainError).message).toContain('42');
+    }
   });
 });
 

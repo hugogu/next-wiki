@@ -15,6 +15,7 @@ import { ModalDialog } from '@/components/ui/ModalDialog';
 import { LinkIcon, InfoIcon, PlusIcon, TrashIcon } from '@/components/icons';
 import { apiDelete, apiPatch, apiPost } from '@/lib/api/client';
 import { TransferRunList } from './TransferRunList';
+import { WikiJsPagePicker } from './WikiJsPagePicker';
 
 const TERMINAL: TransferRunView['status'][] = ['completed', 'completed_with_warnings', 'failed', 'cancelled'];
 
@@ -66,7 +67,21 @@ function formatTime(value: string | null | undefined): string {
   return value ? new Date(value).toLocaleString() : '';
 }
 
-type WikiJsRunOptions = { includeHistory: boolean; historyLimit: number; conflictStrategy: 'skip' | 'replace' };
+/** How many pages a preview was scoped to. The import writes exactly what its
+ * preview planned, so this — not the Step 1 selection, which may have changed
+ * since — is what the Import button is about to act on. 0 means every page. */
+function previewScopeSize(run: TransferRunView): number {
+  const pageIds = (run.options as { pageIds?: unknown }).pageIds;
+  return Array.isArray(pageIds) ? pageIds.length : 0;
+}
+
+type WikiJsRunOptions = {
+  includeHistory: boolean;
+  historyLimit: number;
+  conflictStrategy: 'skip' | 'replace';
+  /** Wiki.js page ids to import. Empty means every page the source publishes. */
+  pageIds: number[];
+};
 
 function historyOptionsStorageKey(sourceId: string): string {
   return `next-wiki:wikijs-import-options:${sourceId}`;
@@ -78,7 +93,11 @@ function isWikiJsRunOptions(value: unknown): value is WikiJsRunOptions {
   return (
     typeof candidate.includeHistory === 'boolean' &&
     typeof candidate.historyLimit === 'number' &&
-    (candidate.conflictStrategy === 'skip' || candidate.conflictStrategy === 'replace')
+    (candidate.conflictStrategy === 'skip' || candidate.conflictStrategy === 'replace') &&
+    // Absent in options stored before scoped imports existed — those restore
+    // as a full sync, which is exactly what they were.
+    (candidate.pageIds === undefined ||
+      (Array.isArray(candidate.pageIds) && candidate.pageIds.every((id) => typeof id === 'number')))
   );
 }
 
@@ -128,7 +147,8 @@ export function WikiJsSourcePanel({
 
   const [testStatus, setTestStatus] = useState<'idle' | 'running' | 'success' | 'error'>('idle');
   const [testMessage, setTestMessage] = useState<string | null>(null);
-  const defaultRunOptions: WikiJsRunOptions = { includeHistory: false, historyLimit: 300, conflictStrategy: 'skip' };
+  const [pickerSourceId, setPickerSourceId] = useState<string | null>(null);
+  const defaultRunOptions: WikiJsRunOptions = { includeHistory: false, historyLimit: 300, conflictStrategy: 'skip', pageIds: [] };
   // Step 1's options live only in this component's state and would otherwise
   // reset to defaults on every page refresh; restore them from localStorage
   // on init so a refresh doesn't lose what the user configured.
@@ -140,7 +160,7 @@ export function WikiJsSourcePanel({
       if (!raw) continue;
       try {
         const parsed = JSON.parse(raw);
-        if (isWikiJsRunOptions(parsed)) restored[source.id] = parsed;
+        if (isWikiJsRunOptions(parsed)) restored[source.id] = { ...parsed, pageIds: parsed.pageIds ?? [] };
       } catch {
         // ignore malformed storage
       }
@@ -215,10 +235,16 @@ export function WikiJsSourcePanel({
   async function start(kind: 'wikijs_source_test' | 'wikijs_preview', sourceId: string) {
     setBusy(true);
     try {
-      const { includeHistory, historyLimit, conflictStrategy } = historyOptionsFor(sourceId);
+      const { includeHistory, historyLimit, conflictStrategy, pageIds } = historyOptionsFor(sourceId);
       await apiPost<Record<string, unknown>, TransferRunAccepted>('/api/transfers',
         kind === 'wikijs_preview'
-          ? { kind, sourceId, options: { conflictStrategy, includeHistory, historyLimit } }
+          ? {
+              kind,
+              sourceId,
+              // Omit an empty selection entirely: the option's absence is what
+              // the schema reads as "every page".
+              options: { conflictStrategy, includeHistory, historyLimit, ...(pageIds.length ? { pageIds } : {}) },
+            }
           : { kind, sourceId });
       router.refresh();
     } finally {
@@ -298,7 +324,7 @@ export function WikiJsSourcePanel({
       )}
 
       {sources.map((source) => {
-        const { includeHistory, historyLimit, conflictStrategy } = historyOptionsFor(source.id);
+        const { includeHistory, historyLimit, conflictStrategy, pageIds } = historyOptionsFor(source.id);
         const latestPreview = latestRunOf(runs, source.id, 'wikijs_preview');
         const importablePreview = latestPreview && (latestPreview.status === 'completed' || latestPreview.status === 'completed_with_warnings')
           ? latestPreview
@@ -338,6 +364,30 @@ export function WikiJsSourcePanel({
                 <div className="min-w-0 flex-1 pb-md">
                   <p className="text-sm font-semibold">{t('admin.transfers.wikijs.stepConfigure')}</p>
                   <div className="mt-xs flex flex-wrap items-center gap-sm text-sm">
+                    {/* Import scope. Empty selection = every page the source
+                        publishes, which is what this flow did before scoped
+                        imports existed. */}
+                    <div className="flex items-center gap-xs">
+                      <span className="whitespace-nowrap text-muted">{t('admin.transfers.wikijs.scope')}</span>
+                      <span className="whitespace-nowrap font-medium">
+                        {pageIds.length === 0
+                          ? t('admin.transfers.wikijs.scopeAll')
+                          : t('admin.transfers.wikijs.scopeSelected', { count: pageIds.length })}
+                      </span>
+                      <Button
+                        variant="secondary"
+                        className="px-sm py-xs text-sm"
+                        disabled={busy}
+                        onClick={() => setPickerSourceId(source.id)}
+                      >
+                        {t('admin.transfers.wikijs.choosePages')}
+                      </Button>
+                      <Tooltip label={t('admin.transfers.wikijs.scopeHelp')}>
+                        <span className="inline-flex text-muted" tabIndex={0} role="img" aria-label={t('admin.transfers.wikijs.scopeHelp')}>
+                          <InfoIcon className="h-4 w-4" />
+                        </span>
+                      </Tooltip>
+                    </div>
                     <div className="flex items-center gap-xs">
                       <label className="flex items-center gap-xs">
                         <input
@@ -448,6 +498,13 @@ export function WikiJsSourcePanel({
                     {!importablePreview && (
                       <p className="text-muted">{t('admin.transfers.wikijs.importDisabledHint')}</p>
                     )}
+                    {importablePreview && (
+                      <p className="text-muted">
+                        {previewScopeSize(importablePreview) === 0
+                          ? t('admin.transfers.wikijs.importScopeAll')
+                          : t('admin.transfers.wikijs.importScopeSelected', { count: previewScopeSize(importablePreview) })}
+                      </p>
+                    )}
                     {usingOlderPreview && importablePreview && (
                       <p className="text-warning">
                         {t('admin.transfers.wikijs.usingOlderPreview', { time: formatTime(importablePreview.finishedAt ?? importablePreview.queuedAt) })}
@@ -461,6 +518,19 @@ export function WikiJsSourcePanel({
           </div>
         );
       })}
+
+      {pickerSourceId && (
+        <WikiJsPagePicker
+          sourceId={pickerSourceId}
+          selected={historyOptionsFor(pickerSourceId).pageIds}
+          onClose={() => setPickerSourceId(null)}
+          onApply={(nextPageIds) => {
+            setHistoryOptionsFor(pickerSourceId, { pageIds: nextPageIds });
+            setPickerSourceId(null);
+          }}
+        />
+      )}
+
       <TransferRunList runs={runs} />
     </section>
   );
