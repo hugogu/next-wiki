@@ -50,6 +50,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
  * @summary Get a Wiki.js transfer source
  * @tag Transfers
  * @auth bearer
+ * @pathParams TransferSourceIdPathParams
  * @response TransferSourceView
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
@@ -58,6 +59,7 @@ export const GET = withApiAudit(handleGET as unknown as RouteHandler);
  * @summary Update a Wiki.js transfer source
  * @tag Transfers
  * @auth bearer
+ * @pathParams TransferSourceIdPathParams
  * @response TransferSourceView
  */
 export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);
@@ -66,6 +68,7 @@ export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);
  * @summary Delete a Wiki.js transfer source
  * @tag Transfers
  * @auth bearer
+ * @pathParams TransferSourceIdPathParams
  * @response 204
  */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);
