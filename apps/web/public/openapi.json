@@ -658,6 +658,7 @@
           "citation"
         ]
       },
+      "AgentMemorySourceDocumentDeactivate": {},
       "AgentMemorySourceDocumentInput": {
         "type": "object",
         "properties": {
@@ -12289,6 +12290,32 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/AgentMemorySourceDocument"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "delete-v1-memory-wiki-documents",
+        "summary": "Retire one disappeared source document",
+        "description": "Stops Agent retrieval of a source document while retaining its restricted Raw page and immutable revision history for audit.",
+        "tags": [
+          "Agent Memory Wiki"
+        ],
+        "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemorySourceDocumentDeactivate"
                 }
               }
             }
