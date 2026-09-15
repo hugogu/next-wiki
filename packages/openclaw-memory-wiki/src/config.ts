@@ -8,6 +8,8 @@ export type PluginConfig = {
   vaultPath: string;
   /** Optional override for the active OpenClaw memory-core directory. */
   memoryPath?: string;
+  /** Optional OpenClaw agent id whose real (non-heartbeat, non-spawned) session transcripts are archived into the wiki. Omit to disable session archiving. */
+  sessionsAgentId?: string;
   syncIntervalMinutes: number;
   enabled: boolean;
 };
@@ -83,7 +85,8 @@ export async function resolveConfig(
   // with /api/v1, so a configured baseUrl carrying that suffix would double it.
   const baseUrl = input.baseUrl!.replace(/\/api(?:\/v\d+)?\/?$/u, '').replace(/\/$/u, '');
   const memoryPath = await resolveOptionalDirectory(input.memoryPath ?? join(workspacePath, 'memory'), 'memoryPath');
-  return { config: { baseUrl, apiKeyRef: input.apiKeyRef, vaultPath, memoryPath, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
+  const sessionsAgentId = input.sessionsAgentId?.trim() || undefined;
+  return { config: { baseUrl, apiKeyRef: input.apiKeyRef, vaultPath, memoryPath, sessionsAgentId, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
 }
 
 export function redactConfig(config: PluginConfig): Omit<PluginConfig, 'apiKeyRef'> & { apiKeyRef: '[secret]' } {
