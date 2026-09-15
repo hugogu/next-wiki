@@ -95,7 +95,7 @@ function createRuntime(api: OpenClawPluginApi, pluginConfig: Partial<PluginConfi
       const client = new NextWikiClient({ baseUrl: config.baseUrl, apiKey });
       const runtime: ToolRuntime = {
         client,
-        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes, config.memoryPath, resolvedWorkspacePath, config.sessionsAgentId),
+        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes, config.memoryPath, resolvedWorkspacePath, config.sessionsAgentId, config.sessionsIncludeToolCalls),
       };
       state.runtime = runtime;
       return runtime;

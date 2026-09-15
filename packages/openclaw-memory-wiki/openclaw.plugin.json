@@ -59,6 +59,11 @@
         "type": "string",
         "description": "Optional OpenClaw agent id whose real session transcripts (excluding heartbeat/cron and sub-agent sessions) are archived into the wiki. Omit to disable session archiving."
       },
+      "sessionsIncludeToolCalls": {
+        "type": "boolean",
+        "default": false,
+        "description": "Include full tool-call arguments and tool-result content in archived sessions. Off by default because tool calls (e.g. exec) routinely carry live credentials verbatim."
+      },
       "syncIntervalMinutes": {
         "type": "integer",
         "minimum": 1,

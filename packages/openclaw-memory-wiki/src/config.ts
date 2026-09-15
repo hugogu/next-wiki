@@ -8,8 +8,10 @@ export type PluginConfig = {
   vaultPath: string;
   /** Optional override for the active OpenClaw memory-core directory. */
   memoryPath?: string;
-  /** Optional OpenClaw agent id whose real (non-heartbeat, non-spawned) session transcripts are archived into the wiki. Omit to disable session archiving. */
+  /** Optional OpenClaw agent id whose real (non-heartbeat, non-cron, non-spawned) session transcripts are archived into the wiki. Omit to disable session archiving. */
   sessionsAgentId?: string;
+  /** Include full tool-call arguments and tool-result content in archived sessions. Defaults to false: tool calls/results routinely carry live credentials (e.g. exec arguments), so they are omitted from the archive unless explicitly enabled. */
+  sessionsIncludeToolCalls?: boolean;
   syncIntervalMinutes: number;
   enabled: boolean;
 };
@@ -86,7 +88,8 @@ export async function resolveConfig(
   const baseUrl = input.baseUrl!.replace(/\/api(?:\/v\d+)?\/?$/u, '').replace(/\/$/u, '');
   const memoryPath = await resolveOptionalDirectory(input.memoryPath ?? join(workspacePath, 'memory'), 'memoryPath');
   const sessionsAgentId = input.sessionsAgentId?.trim() || undefined;
-  return { config: { baseUrl, apiKeyRef: input.apiKeyRef, vaultPath, memoryPath, sessionsAgentId, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
+  const sessionsIncludeToolCalls = input.sessionsIncludeToolCalls ?? false;
+  return { config: { baseUrl, apiKeyRef: input.apiKeyRef, vaultPath, memoryPath, sessionsAgentId, sessionsIncludeToolCalls, syncIntervalMinutes, enabled: input.enabled ?? true }, apiKey };
 }
 
 export function redactConfig(config: PluginConfig): Omit<PluginConfig, 'apiKeyRef'> & { apiKeyRef: '[secret]' } {

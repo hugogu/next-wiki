@@ -420,7 +420,7 @@ describe('SyncService', () => {
     ];
     const sessionDeps: SessionArchiveDeps = { listSessionEntries: () => entries, resolveSessionFilePath: (_id, entry) => entry.sessionFile! };
     const client = { mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })) };
-    const service = new SyncService(vault, client as never, 60, undefined, undefined, 'main', sessionDeps);
+    const service = new SyncService(vault, client as never, 60, undefined, undefined, 'main', false, sessionDeps);
 
     await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 2, uploaded: 2, failed: 0 });
     expect(client.mirror.mock.calls.map(([document]) => document.sourcePath).sort()).toEqual(['WIKI.md', 'sessions/real-id/001.md']);
@@ -442,7 +442,7 @@ describe('SyncService', () => {
       mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })),
       retire: vi.fn(async (sourcePath: string) => ({ outcome: 'forgotten', sourcePath, state: 'forgotten' })),
     };
-    const service = new SyncService(vault, client as never, 60, undefined, undefined, 'main', sessionDeps);
+    const service = new SyncService(vault, client as never, 60, undefined, undefined, 'main', false, sessionDeps);
 
     await expect(service.run()).resolves.toMatchObject({ state: 'idle', uploaded: 2, retired: 0, failed: 0 });
     expect(client.mirror.mock.calls.map(([document]) => document.sourcePath).sort()).toEqual(['sessions/shrink-id/001.md', 'sessions/shrink-id/002.md']);
@@ -452,5 +452,29 @@ describe('SyncService', () => {
     await writeFile(sessionFile, `${header}\n${bigTurn('e1', 'a')}\n`);
     await expect(service.run()).resolves.toMatchObject({ state: 'idle', retired: 1, failed: 0 });
     expect(client.retire).toHaveBeenCalledWith('sessions/shrink-id/002.md');
+  });
+
+  it('threads sessionsIncludeToolCalls end to end: off by default, on when configured', async () => {
+    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-sessions-toolcalls-'));
+    const vault = join(parent, 'vault');
+    await mkdir(vault);
+    const sessionsDir = await mkdtemp(join(tmpdir(), 'openclaw-sessions-toolcalls-'));
+    const sessionFile = join(sessionsDir, 's.jsonl');
+    const header = JSON.stringify({ type: 'session', version: 3, id: 'sess', timestamp: '2026-09-14T08:00:00.000Z', cwd: '/x' });
+    const toolCallLine = JSON.stringify({
+      type: 'message', id: 'e1', parentId: null, timestamp: '2026-09-14T08:00:01.000Z',
+      message: { role: 'assistant', content: [{ type: 'toolCall', id: 't1', name: 'exec', arguments: { cmd: 'echo SECRET' } }], timestamp: Date.parse('2026-09-14T08:00:01.000Z') },
+    });
+    await writeFile(sessionFile, `${header}\n${toolCallLine}\n`);
+    const entries: Array<{ sessionKey: string; entry: SessionStoreEntry }> = [{ sessionKey: 'main', entry: { sessionId: 'tool-id', sessionFile } }];
+    const sessionDeps: SessionArchiveDeps = { listSessionEntries: () => entries, resolveSessionFilePath: (_id, entry) => entry.sessionFile! };
+
+    const redactedClient = { mirror: vi.fn(async (document: { sourcePath: string; content: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })) };
+    await new SyncService(vault, redactedClient as never, 60, undefined, undefined, 'main', false, sessionDeps).run();
+    expect(redactedClient.mirror.mock.calls[0]?.[0].content).not.toContain('SECRET');
+
+    const fullClient = { mirror: vi.fn(async (document: { sourcePath: string; content: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })) };
+    await new SyncService(vault, fullClient as never, 60, undefined, undefined, 'main', true, sessionDeps).run();
+    expect(fullClient.mirror.mock.calls[0]?.[0].content).toContain('SECRET');
   });
 });
