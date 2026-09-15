@@ -3,13 +3,16 @@ import { realpathSync } from 'node:fs';
 import { lstat, readFile, rename, writeFile } from 'node:fs/promises';
 import { basename, join, resolve } from 'node:path';
 import { scanVault, DEFAULT_MAX_FILE_BYTES, type VaultDocument } from './vault-scanner.js';
+import { scanSessions, defaultSessionArchiveDeps, type SessionArchiveDeps } from './session-archive.js';
 import { NextWikiClient } from './client.js';
 
 const JOURNAL_VERSION = 2;
 type Journal = { version: number; completed: Record<string, string>; lastRunAt?: string; lastError?: string };
 export type SyncStatus = { state: 'idle' | 'running' | 'degraded'; scanned: number; uploaded: number; unchanged: number; retired: number; failed: number; skipped: number; lastRunAt?: string; lastError?: string };
 
-type SyncSource = { path: string; prefix: string; optional: boolean; kind: 'directory' | 'file'; sourcePath?: string };
+type SyncSource =
+  | { kind: 'directory' | 'file'; path: string; prefix: string; optional: boolean; sourcePath?: string }
+  | { kind: 'sessions'; prefix: string; optional: boolean; sessionsAgentId: string; sessionsIncludeToolCalls: boolean };
 
 function isMissingPath(error: unknown): boolean {
   return typeof error === 'object' && error !== null && 'code' in error && (error as { code?: unknown }).code === 'ENOENT';
@@ -38,7 +41,7 @@ export class SyncService {
   private timer: ReturnType<typeof setInterval> | undefined;
   private status: SyncStatus = { state: 'idle', scanned: 0, uploaded: 0, unchanged: 0, retired: 0, failed: 0, skipped: 0 };
   private readonly sources: SyncSource[];
-  constructor(private readonly vaultPath: string, private readonly client: NextWikiClient, private readonly intervalMinutes: number, memoryPath?: string, workspacePath?: string) {
+  constructor(private readonly vaultPath: string, private readonly client: NextWikiClient, private readonly intervalMinutes: number, memoryPath?: string, workspacePath?: string, sessionsAgentId?: string, sessionsIncludeToolCalls = false, private readonly sessionDeps: SessionArchiveDeps = defaultSessionArchiveDeps) {
     this.sources = [{ path: vaultPath, prefix: '', optional: false, kind: 'directory' }];
     if (workspacePath) {
       this.sources.push({ path: join(workspacePath, 'MEMORY.md'), prefix: 'memory-core/', optional: true, kind: 'file', sourcePath: 'MEMORY.md' });
@@ -46,6 +49,9 @@ export class SyncService {
     }
     if (memoryPath && canonicalPath(memoryPath) !== canonicalPath(vaultPath)) {
       this.sources.push({ path: memoryPath, prefix: 'memory-core/memory/', optional: true, kind: 'directory' });
+    }
+    if (sessionsAgentId) {
+      this.sources.push({ kind: 'sessions', prefix: 'sessions/', optional: true, sessionsAgentId, sessionsIncludeToolCalls });
     }
   }
   private journalPath() { return join(this.vaultPath, '..', '.openclaw-wiki-next-wiki-sync.json'); }
@@ -89,6 +95,10 @@ export class SyncService {
           return [];
         }
         return [{ sourcePath, content, sourceDigest: createHash('sha256').update(content, 'utf8').digest('hex'), sizeBytes: stat.size }];
+      }
+      if (source.kind === 'sessions') {
+        const documents = await scanSessions({ agentId: source.sessionsAgentId, includeToolCalls: source.sessionsIncludeToolCalls }, (sourcePath, reason) => onSkip(`${source.prefix}${sourcePath}`, reason), this.sessionDeps);
+        return documents.map((document) => ({ ...document, sourcePath: `${source.prefix}${document.sourcePath}` }));
       }
       const documents = await scanVault(
         source.path,
@@ -134,7 +144,7 @@ export class SyncService {
             scanFailures++;
             inventoryComplete = false;
             scanError ??= 'memory_scan_failed';
-            console.error(`[next-wiki-memory-wiki] optional source scan failed: ${source.path}`, error);
+            console.error(`[next-wiki-memory-wiki] optional source scan failed: ${source.kind === 'sessions' ? `sessions:${source.sessionsAgentId}` : source.path}`, error);
             return [];
           }
         })).then((groups) => groups.flat()),
