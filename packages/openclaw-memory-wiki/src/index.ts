@@ -95,7 +95,7 @@ function createRuntime(api: OpenClawPluginApi, pluginConfig: Partial<PluginConfi
       const client = new NextWikiClient({ baseUrl: config.baseUrl, apiKey });
       const runtime: ToolRuntime = {
         client,
-        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes, config.memoryPath, resolvedWorkspacePath),
+        sync: new SyncService(config.vaultPath, client, config.syncIntervalMinutes, config.memoryPath, resolvedWorkspacePath, config.sessionsAgentId, config.sessionsIncludeToolCalls),
       };
       state.runtime = runtime;
       return runtime;
@@ -147,4 +147,4 @@ export function register(api: OpenClawPluginApi): void {
   }
 }
 
-export default definePluginEntry({ id: 'next-wiki-memory-wiki', name: 'next-wiki Memory Wiki', description: 'Mirror OpenClaw Memory Wiki into next-wiki and retrieve account knowledge.', register: (api) => register(api as unknown as OpenClawPluginApi) });
+export default definePluginEntry({ id: 'next-wiki-memory-wiki', name: 'next-wiki Memory Wiki', description: 'Mirror OpenClaw Memory Wiki and, optionally, session transcripts into next-wiki and retrieve account knowledge.', register: (api) => register(api as unknown as OpenClawPluginApi) });

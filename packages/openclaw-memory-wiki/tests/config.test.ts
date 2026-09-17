@@ -50,6 +50,18 @@ describe('plugin configuration', () => {
     expect(overridden.config.memoryPath).toBe(join(homedir(), 'memory-core'));
   });
 
+  it('trims sessionsAgentId and leaves it undefined when omitted, disabling session archiving', async () => {
+    const resolveSecret = vi.fn(async (ref) => String(ref));
+    const disabled = await resolveConfig({ baseUrl: 'https://wiki.example', vaultPath: process.cwd(), apiKeyRef: 'a' }, resolveSecret);
+    expect(disabled.config.sessionsAgentId).toBeUndefined();
+
+    const enabled = await resolveConfig({ baseUrl: 'https://wiki.example', vaultPath: process.cwd(), apiKeyRef: 'a', sessionsAgentId: '  main  ' }, resolveSecret);
+    expect(enabled.config.sessionsAgentId).toBe('main');
+
+    const blank = await resolveConfig({ baseUrl: 'https://wiki.example', vaultPath: process.cwd(), apiKeyRef: 'a', sessionsAgentId: '   ' }, resolveSecret);
+    expect(blank.config.sessionsAgentId).toBeUndefined();
+  });
+
   it('rejects a workspace fallback that does not exist', async () => {
     const workspace = await mkdtemp(join(tmpdir(), 'openclaw-workspace-'));
     await expect(resolveWorkspacePath(workspace)).resolves.toBe(await realpath(workspace));
