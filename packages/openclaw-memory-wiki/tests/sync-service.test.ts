@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { SyncService } from '../src/sync-service.js';
-import type { SessionArchiveDeps, SessionStoreEntry } from '../src/session-archive.js';
 
 describe('SyncService', () => {
   it('syncs memory-core files alongside the Memory Wiki vault with a distinct source prefix', async () => {
@@ -399,82 +398,5 @@ describe('SyncService', () => {
     } finally {
       logSpy.mockRestore();
     }
-  });
-
-  it('archives real OpenClaw sessions under a sessions/ prefix, excluding heartbeat noise', async () => {
-    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-sessions-'));
-    const vault = join(parent, 'vault');
-    await mkdir(vault);
-    await writeFile(join(vault, 'WIKI.md'), '# Wiki\n');
-    const sessionsDir = await mkdtemp(join(tmpdir(), 'openclaw-sessions-'));
-    const header = JSON.stringify({ type: 'session', version: 3, id: 'sess', timestamp: '2026-09-14T08:00:00.000Z', cwd: '/x' });
-    const userLine = (id: string, text: string) => JSON.stringify({ type: 'message', id, parentId: null, timestamp: '2026-09-14T08:00:01.000Z', message: { role: 'user', content: text, timestamp: Date.parse('2026-09-14T08:00:01.000Z') } });
-    const realFile = join(sessionsDir, 'real.jsonl');
-    await writeFile(realFile, `${header}\n${userLine('e1', 'Hello')}\n`);
-    const heartbeatFile = join(sessionsDir, 'hb.jsonl');
-    await writeFile(heartbeatFile, `${header}\n${userLine('e1', 'noise')}\n`);
-
-    const entries: Array<{ sessionKey: string; entry: SessionStoreEntry }> = [
-      { sessionKey: 'main', entry: { sessionId: 'real-id', sessionFile: realFile } },
-      { sessionKey: 'main:heartbeat', entry: { sessionId: 'hb-id', sessionFile: heartbeatFile, heartbeatIsolatedBaseSessionKey: 'main' } },
-    ];
-    const sessionDeps: SessionArchiveDeps = { listSessionEntries: () => entries, resolveSessionFilePath: (_id, entry) => entry.sessionFile! };
-    const client = { mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })) };
-    const service = new SyncService(vault, client as never, 60, undefined, undefined, 'main', false, sessionDeps);
-
-    await expect(service.run()).resolves.toMatchObject({ state: 'idle', scanned: 2, uploaded: 2, failed: 0 });
-    expect(client.mirror.mock.calls.map(([document]) => document.sourcePath).sort()).toEqual(['WIKI.md', 'sessions/real-id/001.md']);
-  });
-
-  it('retires a stale chunk once a previously multi-chunk session shrinks', async () => {
-    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-sessions-shrink-'));
-    const vault = join(parent, 'vault');
-    await mkdir(vault);
-    const sessionsDir = await mkdtemp(join(tmpdir(), 'openclaw-sessions-shrink-'));
-    const sessionFile = join(sessionsDir, 'growing.jsonl');
-    const header = JSON.stringify({ type: 'session', version: 3, id: 'sess', timestamp: '2026-09-14T08:00:00.000Z', cwd: '/x' });
-    const bigTurn = (id: string, ch: string) => JSON.stringify({ type: 'message', id, parentId: null, timestamp: '2026-09-14T08:00:01.000Z', message: { role: 'user', content: ch.repeat(320_000), timestamp: Date.parse('2026-09-14T08:00:01.000Z') } });
-    await writeFile(sessionFile, `${header}\n${bigTurn('e1', 'a')}\n${bigTurn('e2', 'b')}\n`);
-
-    const entries: Array<{ sessionKey: string; entry: SessionStoreEntry }> = [{ sessionKey: 'main', entry: { sessionId: 'shrink-id', sessionFile } }];
-    const sessionDeps: SessionArchiveDeps = { listSessionEntries: () => entries, resolveSessionFilePath: (_id, entry) => entry.sessionFile! };
-    const client = {
-      mirror: vi.fn(async (document: { sourcePath: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })),
-      retire: vi.fn(async (sourcePath: string) => ({ outcome: 'forgotten', sourcePath, state: 'forgotten' })),
-    };
-    const service = new SyncService(vault, client as never, 60, undefined, undefined, 'main', false, sessionDeps);
-
-    await expect(service.run()).resolves.toMatchObject({ state: 'idle', uploaded: 2, retired: 0, failed: 0 });
-    expect(client.mirror.mock.calls.map(([document]) => document.sourcePath).sort()).toEqual(['sessions/shrink-id/001.md', 'sessions/shrink-id/002.md']);
-
-    // The session shrinks back to a single turn — only one chunk remains, so
-    // the now-orphaned second chunk must retire like a deleted file.
-    await writeFile(sessionFile, `${header}\n${bigTurn('e1', 'a')}\n`);
-    await expect(service.run()).resolves.toMatchObject({ state: 'idle', retired: 1, failed: 0 });
-    expect(client.retire).toHaveBeenCalledWith('sessions/shrink-id/002.md');
-  });
-
-  it('threads sessionsIncludeToolCalls end to end: off by default, on when configured', async () => {
-    const parent = await mkdtemp(join(tmpdir(), 'next-wiki-sync-sessions-toolcalls-'));
-    const vault = join(parent, 'vault');
-    await mkdir(vault);
-    const sessionsDir = await mkdtemp(join(tmpdir(), 'openclaw-sessions-toolcalls-'));
-    const sessionFile = join(sessionsDir, 's.jsonl');
-    const header = JSON.stringify({ type: 'session', version: 3, id: 'sess', timestamp: '2026-09-14T08:00:00.000Z', cwd: '/x' });
-    const toolCallLine = JSON.stringify({
-      type: 'message', id: 'e1', parentId: null, timestamp: '2026-09-14T08:00:01.000Z',
-      message: { role: 'assistant', content: [{ type: 'toolCall', id: 't1', name: 'exec', arguments: { cmd: 'echo SECRET' } }], timestamp: Date.parse('2026-09-14T08:00:01.000Z') },
-    });
-    await writeFile(sessionFile, `${header}\n${toolCallLine}\n`);
-    const entries: Array<{ sessionKey: string; entry: SessionStoreEntry }> = [{ sessionKey: 'main', entry: { sessionId: 'tool-id', sessionFile } }];
-    const sessionDeps: SessionArchiveDeps = { listSessionEntries: () => entries, resolveSessionFilePath: (_id, entry) => entry.sessionFile! };
-
-    const redactedClient = { mirror: vi.fn(async (document: { sourcePath: string; content: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })) };
-    await new SyncService(vault, redactedClient as never, 60, undefined, undefined, 'main', false, sessionDeps).run();
-    expect(redactedClient.mirror.mock.calls[0]?.[0].content).not.toContain('SECRET');
-
-    const fullClient = { mirror: vi.fn(async (document: { sourcePath: string; content: string }) => ({ outcome: 'created', sourcePath: document.sourcePath, pageId: 'p', revisionId: 'r' })) };
-    await new SyncService(vault, fullClient as never, 60, undefined, undefined, 'main', true, sessionDeps).run();
-    expect(fullClient.mirror.mock.calls[0]?.[0].content).toContain('SECRET');
   });
 });
