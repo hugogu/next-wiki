@@ -93,6 +93,18 @@
 - **FR-004**: System MUST [data requirement, e.g., "persist user preferences"]
 - **FR-005**: System MUST [behavior, e.g., "log all security events"]
 
+### Agent Context & Memory Boundary *(required when the feature handles Agent context or memory)*
+
+- Identify the Agent identity, owner, and target scope for every read, write,
+  synchronization event, and generated projection.
+- Distinguish instructions/rules, non-secret configuration, procedures,
+  episodic memory, source evidence, curated knowledge, and derived context.
+- Define the source-of-truth, revision/provenance model, permission re-checks,
+  inheritance/precedence/conflict behavior, and the fact that retrieved content
+  does not grant authority or execute operations.
+- Define secret handling and the explicit, allowlisted, version-aware boundary
+  for any shared or public context pack.
+
 ### Public Content Delivery *(required when a feature changes anonymously readable published content)*
 
 - State whether the page body, public metadata, or public navigation changes.
