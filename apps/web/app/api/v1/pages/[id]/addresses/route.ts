@@ -12,16 +12,16 @@ const releaseQuerySchema = z.object({ release: z.enum(['true']).optional() });
  *
  * @openapi
  * @summary List page addresses
- * @description Returns the page's canonical address plus every retained and manually added alias.
+ * @description Returns the page's canonical address plus every retained and manually added alias. Requires the same read access as reading the page itself; a page the caller cannot read returns 404 NOT_FOUND, exactly like a missing page.
  * @tag Pages
  * @auth bearer
  * @pathParams PublicPageIdPathParams
  * @response PublicPageAddressList
  */
-export const GET = withPublicApi<{ id: string }>(async (_request, { params }) => {
+export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {
   const parsedParams = paramsSchema.safeParse(await params);
   if (!parsedParams.success) return validationError(parsedParams.error);
-  return publicJson(await publicContent.listPageAddresses(parsedParams.data.id));
+  return publicJson(await publicContent.listPageAddresses(ctx, parsedParams.data.id));
 });
 
 /**

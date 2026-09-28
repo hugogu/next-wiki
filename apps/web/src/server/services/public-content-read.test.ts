@@ -1,8 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
+import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx, type PermCtx } from '@/server/permissions';
 import * as pageService from '@/server/services/pages';
 import * as revisions from '@/server/services/revisions';
 import { setModeInternal } from '@/server/services/writing-mode';
@@ -319,13 +320,88 @@ describe('public content read facade', () => {
       path: 'concepts/addresses-generated', title: 'Generated addresses', contentSource: '# Generated',
     }, 'generated');
 
-    const addresses = await publicContent.listPageAddresses(created.pageId);
+    const addresses = await publicContent.listPageAddresses(adminCtx, created.pageId);
     expect(addresses.canonical).toMatchObject({
       address: 'concepts/addresses-generated',
       url: '/generated/concepts/addresses-generated',
     });
 
     await setModeInternal('copilot', admin.id);
+  });
+
+  // listPageAddresses used to skip the read check entirely, so any key could
+  // enumerate the URL and former addresses of a page it cannot read.
+  describe('listPageAddresses read access', () => {
+    const pageNotFound = { code: 'NOT_FOUND', message: 'Page not found' };
+
+    async function createPageWithAlias(
+      adminCtx: PermCtx,
+      path: string,
+      alias: string,
+      options: { visibility?: 'public' | 'registered' | 'restricted'; draftOnly?: boolean } = {},
+    ): Promise<string> {
+      const { pageId } = await pageService.create(adminCtx, {
+        path, title: path, contentSource: `# ${path}`, visibility: options.visibility,
+      });
+      if (!options.draftOnly) await revisions.publish(adminCtx, { path, version: 1 });
+      await publicContent.addPageAddressAlias(adminCtx, pageId, alias);
+      return pageId;
+    }
+
+    it('returns the canonical address and every alias of a page the caller can read', async () => {
+      const admin = await createPublicApiUser('addresses-readable-admin@example.com', 'admin');
+      const reader = await createPublicApiUser('addresses-readable-reader@example.com', 'reader');
+      const pageId = await createPageWithAlias(buildUserCtx(admin.id, 'admin'), 'docs/addresses-readable', 'addresses-readable-alias');
+
+      const addresses = await publicContent.listPageAddresses(buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key'), pageId);
+
+      expect(addresses.canonical.address).toBe('docs/addresses-readable');
+      expect(addresses.aliases).toEqual([expect.objectContaining({ address: 'addresses-readable-alias', kind: 'manual' })]);
+    });
+
+    it('rejects a restricted page for a key without access exactly like a missing page', async () => {
+      const admin = await createPublicApiUser('addresses-restricted-admin@example.com', 'admin');
+      const editor = await createPublicApiUser('addresses-restricted-editor@example.com', 'editor');
+      const pageId = await createPageWithAlias(
+        buildUserCtx(admin.id, 'admin'), 'docs/addresses-restricted', 'addresses-restricted-alias', { visibility: 'restricted' },
+      );
+      const editorKeyCtx = buildApiKeyCtx(editor.id, 'editor', ['view', 'edit'], 'editor-key');
+
+      await expect(publicContent.listPageAddresses(editorKeyCtx, randomUUID())).rejects.toMatchObject(pageNotFound);
+      await expect(publicContent.listPageAddresses(editorKeyCtx, pageId)).rejects.toMatchObject(pageNotFound);
+    });
+
+    it('rejects every page GET /pages/{id} hides, not only restricted ones', async () => {
+      const admin = await createPublicApiUser('addresses-hidden-admin@example.com', 'admin');
+      const reader = await createPublicApiUser('addresses-hidden-reader@example.com', 'reader');
+      const adminCtx = buildUserCtx(admin.id, 'admin');
+      const registeredId = await createPageWithAlias(adminCtx, 'docs/addresses-registered', 'addresses-registered-alias', { visibility: 'registered' });
+      const draftOnlyId = await createPageWithAlias(adminCtx, 'docs/addresses-draft-only', 'addresses-draft-only-alias', { draftOnly: true });
+      const publicId = await createPageWithAlias(adminCtx, 'docs/addresses-public', 'addresses-public-alias');
+
+      const hidden: Array<[PermCtx, string]> = [
+        [buildAnonymousCtx(), registeredId],
+        [buildApiKeyCtx(reader.id, 'reader', ['view'], 'reader-key'), draftOnlyId],
+        // Without the `view` scope a key cannot read any page.
+        [buildApiKeyCtx(reader.id, 'reader', ['create'], 'create-only-key'), publicId],
+      ];
+      for (const [ctx, pageId] of hidden) {
+        await expect(publicContent.getPageById(ctx, pageId)).resolves.toBeNull();
+        await expect(publicContent.listPageAddresses(ctx, pageId)).rejects.toMatchObject(pageNotFound);
+      }
+    });
+
+    it('still lists a restricted page\'s addresses for an admin key', async () => {
+      const admin = await createPublicApiUser('addresses-admin-admin@example.com', 'admin');
+      const pageId = await createPageWithAlias(
+        buildUserCtx(admin.id, 'admin'), 'docs/addresses-admin', 'addresses-admin-alias', { visibility: 'restricted' },
+      );
+
+      const addresses = await publicContent.listPageAddresses(buildApiKeyCtx(admin.id, 'admin', ['view'], 'admin-key'), pageId);
+
+      expect(addresses.canonical.address).toBe('docs/addresses-admin');
+      expect(addresses.aliases.map((alias) => alias.address)).toEqual(['addresses-admin-alias']);
+    });
   });
 
   it('hides draft-only pages from reader API keys', async () => {

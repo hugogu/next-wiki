@@ -887,11 +887,17 @@ function toWireAddress(address: { id: string; address: string; kind: 'retained' 
 }
 
 // 035 (US4): a page's canonical address and every alias (FR-020).
-export async function listPageAddresses(pageId: string): Promise<PublicPageAddressList> {
+// Gated on the same visibility as GET /pages/{id}: a page the caller cannot
+// see is reported exactly like a missing one, so its addresses never
+// disclose that it exists.
+export async function listPageAddresses(ctx: PermCtx, pageId: string): Promise<PublicPageAddressList> {
   const page = await getPageRowById(pageId);
   if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
   const space = await getPageSpace(page);
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
+  if (!(await visiblePageResource(ctx, space, page, { includeContent: false, include: [] }))) {
+    throw new DomainError('NOT_FOUND', 'Page not found');
+  }
   const { canonical, aliases } = await pageAddresses.listAddresses(pageId);
   return {
     canonical: { address: canonical, url: canonicalSpacePath(space, canonical) },

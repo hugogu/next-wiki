@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 const publicContent = vi.hoisted(() => ({
   listPages: vi.fn(),
   getPageById: vi.fn(),
+  listPageAddresses: vi.fn(),
 }));
 
 vi.mock('@/server/api/audit-wrapper', () => ({
@@ -14,8 +15,10 @@ vi.mock('@/server/api/session', () => ({
 }));
 vi.mock('@/server/services/public-content', () => publicContent);
 
+import { DomainError } from '@/server/errors';
 import * as listRoute from './route';
 import * as idRoute from './[id]/route';
+import * as addressesRoute from './[id]/addresses/route';
 
 describe('Public Wiki read routes', () => {
   it('GET /api/v1/pages validates query and delegates to the public content service', async () => {
@@ -48,6 +51,26 @@ describe('Public Wiki read routes', () => {
       { params: Promise.resolve({ id: '00000000-0000-0000-0000-000000000000' }) },
     );
     expect(missing.status).toBe(404);
+  });
+
+  it('GET /api/v1/pages/[id]/addresses checks access with the caller context and returns hidden pages as 404', async () => {
+    const id = '00000000-0000-0000-0000-000000000000';
+    const request = () => addressesRoute.GET(
+      new NextRequest(`http://localhost/api/v1/pages/${id}/addresses`),
+      { params: Promise.resolve({ id }) },
+    );
+
+    publicContent.listPageAddresses.mockResolvedValue({ canonical: { address: 'docs/intro', url: '/wiki/docs/intro' }, aliases: [] });
+    expect((await request()).status).toBe(200);
+    expect(publicContent.listPageAddresses).toHaveBeenCalledWith(
+      { actor: { kind: 'api_key', userId: 'reader', role: 'reader', scopes: ['view'], keyId: 'key' } },
+      id,
+    );
+
+    publicContent.listPageAddresses.mockRejectedValue(new DomainError('NOT_FOUND', 'Page not found'));
+    const hidden = await request();
+    expect(hidden.status).toBe(404);
+    expect(await hidden.json()).toEqual({ code: 'NOT_FOUND', message: 'Page not found' });
   });
 
   it('GET /api/v1/pages?path= delegates the exact path filter to listPages', async () => {
