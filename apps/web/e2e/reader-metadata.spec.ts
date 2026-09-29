@@ -113,7 +113,16 @@ test.describe('reader page metadata', () => {
     expect(sitemap.ok()).toBe(true);
     const xml = await sitemap.text();
     expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
-    const entry = xml.match(new RegExp(`<url><loc>[^<]*/wiki/${path}</loc>[\\s\\S]*?</url>`))?.[0];
-    expect(entry).toContain(`<image:loc>${ogImage}</image:loc>`);
+    const imageUrls = await page.evaluate(({ xml, path }) => {
+      const document = new DOMParser().parseFromString(xml, 'application/xml');
+      const sitemapNamespace = 'http://www.sitemaps.org/schemas/sitemap/0.9';
+      const imageNamespace = 'http://www.google.com/schemas/sitemap-image/1.1';
+      const entry = Array.from(document.getElementsByTagNameNS(sitemapNamespace, 'url'))
+        .find((url) => url.getElementsByTagNameNS(sitemapNamespace, 'loc')[0]?.textContent?.endsWith(`/wiki/${path}`));
+      return entry
+        ? Array.from(entry.getElementsByTagNameNS(imageNamespace, 'loc')).map((image) => image.textContent)
+        : [];
+    }, { xml, path });
+    expect(imageUrls).toContain(ogImage);
   });
 });
