@@ -14,6 +14,10 @@ import { env } from '@/server/config';
 // out of static generation.
 export const dynamic = 'force-dynamic';
 
+// Bound HTML parsing and asset-validation queries while keeping sitemap
+// generation parallel enough for large wikis.
+const PAGE_IMAGE_RESOLUTION_CONCURRENCY = 4;
+
 /**
  * /sitemap.xml — list every page visible to anonymous visitors, plus the
  * site root and the index page.
@@ -35,14 +39,19 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   })));
   const pages = pagesBySpace.flatMap(({ space, pages }) => pages.map((page) => ({ space, page })));
 
-  const entries: MetadataRoute.Sitemap = await Promise.all(pages.map(async ({ space, page }) => {
-    const image = await resolvePageSocialImage(page.contentHtml, siteUrl, false);
-    return {
-      url: `${siteUrl}${canonicalSpacePath(space, page.slug)}`,
-      lastModified: page.updatedAt ?? page.publishedAt ?? undefined,
-      ...(image?.kind === 'content' ? { images: [image.url] } : {}),
-    };
-  }));
+  const entries: MetadataRoute.Sitemap = [];
+  for (let index = 0; index < pages.length; index += PAGE_IMAGE_RESOLUTION_CONCURRENCY) {
+    const batch = pages.slice(index, index + PAGE_IMAGE_RESOLUTION_CONCURRENCY);
+    const batchEntries = await Promise.all(batch.map(async ({ space, page }) => {
+      const image = await resolvePageSocialImage(page.contentHtml, siteUrl, false);
+      return {
+        url: `${siteUrl}${canonicalSpacePath(space, page.slug)}`,
+        lastModified: page.updatedAt ?? page.publishedAt ?? undefined,
+        ...(image?.kind === 'content' ? { images: [image.url] } : {}),
+      };
+    }));
+    entries.push(...batchEntries);
+  }
 
   const latestUpdate = pages.reduce<string | undefined>((latest, { page }) => {
     const modified = page.updatedAt ?? page.publishedAt ?? undefined;

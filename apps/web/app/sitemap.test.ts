@@ -94,4 +94,35 @@ describe('sitemap route', () => {
     expect(entries[0]?.url).toBe('https://wiki.example.test/');
     expect(entries[1]?.url).toBe('https://wiki.example.test/pages');
   });
+
+  it('bounds concurrent image resolution and preserves published page order', async () => {
+    spacesService.listSpaces.mockResolvedValue([DEFAULT_SPACE]);
+    const pages = Array.from({ length: 9 }, (_, index) => ({
+      path: `page-${index}`,
+      slug: `page-${index}`,
+      title: `Page ${index}`,
+      authorDisplayName: 'Author',
+      publishedAt: null,
+      updatedAt: null,
+      contentHtml: '<p>Page content</p>',
+    }));
+    pagesService.listPublished.mockResolvedValue(pages);
+
+    let inFlight = 0;
+    let maxInFlight = 0;
+    socialImageService.resolvePageSocialImage.mockImplementation(async () => {
+      inFlight += 1;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+      inFlight -= 1;
+      return null;
+    });
+
+    const entries = await sitemap();
+
+    expect(maxInFlight).toBe(4);
+    expect(entries.slice(2).map((entry) => entry.url)).toEqual(
+      pages.map((page) => `https://wiki.example.test/wiki/${page.slug}`),
+    );
+  });
 });
