@@ -107,5 +107,13 @@ test.describe('reader page metadata', () => {
     expect(metaContent(html, 'name', 'twitter:card')).toBe('summary_large_image');
     expect(metaContent(html, 'name', 'twitter:image')).toBe(ogImage);
     expect(metaContent(html, 'property', 'og:description')).toBe('Body paragraph for the share card.');
+    expect(metaContent(html, 'name', 'googlebot')).toContain('max-image-preview:large');
+
+    const sitemap = await request.get('/sitemap.xml');
+    expect(sitemap.ok()).toBe(true);
+    const xml = await sitemap.text();
+    expect(xml).toContain('xmlns:image="http://www.google.com/schemas/sitemap-image/1.1"');
+    const entry = xml.match(new RegExp(`<url><loc>[^<]*/wiki/${path}</loc>[\\s\\S]*?</url>`))?.[0];
+    expect(entry).toContain(`<image:loc>${ogImage}</image:loc>`);
   });
 });

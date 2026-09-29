@@ -312,12 +312,19 @@ export interface ListPublishedOptions {
   order?: 'path' | 'recent';
   /** Stable internal space slug; omitted retains the Wiki list behavior. */
   spaceSlug?: string;
+  /** Include rendered HTML for sitemap image discovery. */
+  includeContentHtml?: boolean;
 }
 
+export function listPublished(
+  ctx: PermCtx,
+  options: ListPublishedOptions & { includeContentHtml: true },
+): Promise<Array<PageSummary & { contentHtml: string }>>;
+export function listPublished(ctx: PermCtx, options?: ListPublishedOptions): Promise<PageSummary[]>;
 export async function listPublished(
   ctx: PermCtx,
   options: ListPublishedOptions = {},
-): Promise<PageSummary[]> {
+): Promise<Array<PageSummary & { contentHtml?: string }>> {
   const space = await resolveSpace(options.spaceSlug);
   if (!space) return [];
 
@@ -387,6 +394,7 @@ export async function listPublished(
       description:
         summaryByRevisionId.get(r.revisionId) ||
         buildPageDescription(stripLeadingTitleHeading(r.contentHtml, r.title), ''),
+      ...(options.includeContentHtml ? { contentHtml: r.contentHtml } : {}),
     }));
 }
 

@@ -62,7 +62,7 @@ export async function generateMetadata(): Promise<Metadata> {
     robots: {
       index: true,
       follow: true,
-      googleBot: { index: true, follow: true },
+      googleBot: { index: true, follow: true, 'max-image-preview': 'large' },
     },
   };
 }

@@ -74,6 +74,7 @@ export function toMetadataImage(image: SocialImage): { url: string; alt?: string
 export async function resolvePageSocialImage(
   contentHtml: string,
   siteUrl: string,
+  fallbackToSite = true,
 ): Promise<SocialImage | null> {
   const candidates = extractContentImages(contentHtml);
   const assetIds = candidates
@@ -97,7 +98,7 @@ export async function resolvePageSocialImage(
     }
   }
 
-  return resolveSiteSocialImage(siteUrl);
+  return fallbackToSite ? resolveSiteSocialImage(siteUrl) : null;
 }
 
 /**

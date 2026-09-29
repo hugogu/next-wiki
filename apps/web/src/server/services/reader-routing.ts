@@ -179,6 +179,8 @@ export async function buildReaderMetadata(
       description,
       ...(socialImage ? { images: [toMetadataImage(socialImage)] } : {}),
     },
-    robots: indexable ? { index: true, follow: true } : { index: false, follow: false },
+    robots: indexable
+      ? { index: true, follow: true, googleBot: { 'max-image-preview': 'large' } }
+      : { index: false, follow: false },
   };
 }

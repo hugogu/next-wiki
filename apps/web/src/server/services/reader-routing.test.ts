@@ -126,7 +126,9 @@ describe('buildReaderMetadata', () => {
     expect(metadata.description).toBe('Hello world.');
     expect(metadata.alternates?.canonical).toBe('https://wiki.example/wiki/welcome');
     expect(metadata.openGraph).toMatchObject({ url: 'https://wiki.example/wiki/welcome', title: 'Welcome' });
-    expect(metadata.robots).toEqual({ index: true, follow: true });
+    expect(metadata.robots).toEqual({
+      index: true, follow: true, googleBot: { 'max-image-preview': 'large' },
+    });
   });
 
   // Regression test: the authenticated-user proxy route (registered-reader)

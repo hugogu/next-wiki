@@ -3,6 +3,7 @@ import * as pageService from '@/server/services/pages';
 import { buildAnonymousCtx } from '@/server/permissions';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { listSpaces } from '@/server/services/spaces';
+import { resolvePageSocialImage } from '@/server/services/social-image';
 import { env } from '@/server/config';
 
 // `sitemap` reads from PostgreSQL via `pageService.listPublished`. Prerendering
@@ -30,31 +31,32 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const spaces = await listSpaces();
   const pagesBySpace = await Promise.all(spaces.map(async (space) => ({
     space,
-    pages: await pageService.listPublished(ctx, { spaceSlug: space.slug }),
+    pages: await pageService.listPublished(ctx, { spaceSlug: space.slug, includeContentHtml: true }),
   })));
   const pages = pagesBySpace.flatMap(({ space, pages }) => pages.map((page) => ({ space, page })));
 
-  const entries: MetadataRoute.Sitemap = pages.map(({ space, page }) => ({
-    url: `${siteUrl}${canonicalSpacePath(space, page.slug)}`,
-    lastModified: page.updatedAt ?? page.publishedAt ?? undefined,
-    changeFrequency: 'weekly',
-    priority: 0.7,
+  const entries: MetadataRoute.Sitemap = await Promise.all(pages.map(async ({ space, page }) => {
+    const image = await resolvePageSocialImage(page.contentHtml, siteUrl, false);
+    return {
+      url: `${siteUrl}${canonicalSpacePath(space, page.slug)}`,
+      lastModified: page.updatedAt ?? page.publishedAt ?? undefined,
+      ...(image?.kind === 'content' ? { images: [image.url] } : {}),
+    };
   }));
 
-  // Surface the homepage and the alphabetical page index ahead of individual
-  // pages so search engines prefer the curated entry points.
+  const latestUpdate = pages.reduce<string | undefined>((latest, { page }) => {
+    const modified = page.updatedAt ?? page.publishedAt ?? undefined;
+    return modified && (!latest || modified > latest) ? modified : latest;
+  }, undefined);
+
   entries.unshift(
     {
       url: `${siteUrl}/`,
-      lastModified: pages[0]?.page.updatedAt ?? pages[0]?.page.publishedAt ?? new Date(),
-      changeFrequency: 'daily',
-      priority: 1.0,
+      ...(latestUpdate ? { lastModified: latestUpdate } : {}),
     },
     {
       url: `${siteUrl}/pages`,
-      lastModified: pages[0]?.page.updatedAt ?? pages[0]?.page.publishedAt ?? new Date(),
-      changeFrequency: 'daily',
-      priority: 0.8,
+      ...(latestUpdate ? { lastModified: latestUpdate } : {}),
     },
   );
 

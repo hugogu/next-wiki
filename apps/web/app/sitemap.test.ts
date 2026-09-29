@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const pagesService = vi.hoisted(() => ({
   listPublished: vi.fn(),
@@ -12,16 +12,21 @@ const configModule = vi.hoisted(() => ({
 const spacesService = vi.hoisted(() => ({
   listSpaces: vi.fn(),
 }));
+const socialImageService = vi.hoisted(() => ({ resolvePageSocialImage: vi.fn() }));
 
 vi.mock('@/server/services/pages', () => pagesService);
 vi.mock('@/server/config', () => configModule);
 vi.mock('@/server/services/spaces', () => spacesService);
+vi.mock('@/server/services/social-image', () => socialImageService);
 
 import sitemap, { dynamic } from './sitemap';
 
 const DEFAULT_SPACE = { id: 'space-1', kind: 'wiki' as const, routePrefix: null, slug: 'default' };
 
 describe('sitemap route', () => {
+  beforeEach(() => {
+    socialImageService.resolvePageSocialImage.mockResolvedValue(null);
+  });
   it('opts out of static prerendering so the route can be built without a database', () => {
     expect(dynamic).toBe('force-dynamic');
   });
@@ -36,6 +41,7 @@ describe('sitemap route', () => {
         authorDisplayName: 'Author',
         publishedAt: '2026-06-01T00:00:00.000Z',
         updatedAt: '2026-06-02T00:00:00.000Z',
+        contentHtml: '<img src="/api/assets/first">',
       },
       {
         path: 'docs/b',
@@ -44,34 +50,37 @@ describe('sitemap route', () => {
         authorDisplayName: 'Author',
         publishedAt: null,
         updatedAt: '2026-06-03T00:00:00.000Z',
+        contentHtml: '<p>No image</p>',
       },
     ]);
+    socialImageService.resolvePageSocialImage.mockResolvedValueOnce({
+      url: 'https://wiki.example.test/api/assets/first', kind: 'content', alt: null,
+    });
 
     const entries = await sitemap();
 
     expect(entries[0]).toMatchObject({
       url: 'https://wiki.example.test/',
-      changeFrequency: 'daily',
-      priority: 1.0,
+      lastModified: '2026-06-03T00:00:00.000Z',
     });
     expect(entries[1]).toMatchObject({
       url: 'https://wiki.example.test/pages',
-      changeFrequency: 'daily',
-      priority: 0.8,
+      lastModified: '2026-06-03T00:00:00.000Z',
     });
     // Addressed by the space's resolved route prefix ("wiki" — the default
     // space's own no-prefix fallback), not a bare path.
     expect(entries[2]).toMatchObject({
       url: 'https://wiki.example.test/wiki/docs/a',
       lastModified: '2026-06-02T00:00:00.000Z',
-      changeFrequency: 'weekly',
-      priority: 0.7,
+      images: ['https://wiki.example.test/api/assets/first'],
     });
     expect(entries[3]).toMatchObject({
       url: 'https://wiki.example.test/wiki/docs/b',
       lastModified: '2026-06-03T00:00:00.000Z',
-      changeFrequency: 'weekly',
-      priority: 0.7,
+    });
+    expect(entries[3]).not.toHaveProperty('images');
+    expect(pagesService.listPublished).toHaveBeenCalledWith(expect.anything(), {
+      spaceSlug: 'default', includeContentHtml: true,
     });
   });
 

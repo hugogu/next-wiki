@@ -101,6 +101,11 @@ describe('resolvePageSocialImage', () => {
     expect(db.select).not.toHaveBeenCalled();
   });
 
+  it('omits the site icon when resolving an image for a sitemap', async () => {
+    await expect(resolvePageSocialImage('<p>Text only.</p>', SITE, false)).resolves.toBeNull();
+    expect(siteSettings.getSiteView).not.toHaveBeenCalled();
+  });
+
   it('falls back to a raster site icon when the body has no usable image', async () => {
     siteSettings.getSiteView.mockResolvedValue({
       iconUrl: '/api/settings/site/icon',
