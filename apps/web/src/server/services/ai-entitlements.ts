@@ -53,9 +53,11 @@ function assertAdmin(ctx: PermCtx): void {
   }
 }
 
-async function availabilityReasons(): Promise<string[]> {
-  const settings = await getAiSettings();
-  if (!settings.enabled) return ['AI_DISABLED'];
+async function availabilityReasons(
+  settings?: Awaited<ReturnType<typeof getAiSettings>>,
+): Promise<string[]> {
+  const effectiveSettings = settings ?? await getAiSettings();
+  if (!effectiveSettings.enabled) return ['AI_DISABLED'];
   const rows = await db.select().from(schema.aiPurposeAssignments);
   const purposes = new Set(rows.map((row) => row.purpose));
   const reasons = [];
@@ -129,11 +131,18 @@ export async function getMyEntitlements(ctx: PermCtx): Promise<AiEntitlementView
   const row = await db.query.userAiEntitlements.findFirst({
     where: eq(schema.userAiEntitlements.userId, userId),
   });
-  const reasons = await availabilityReasons();
+  const settings = await getAiSettings();
+  const reasons = await availabilityReasons(settings);
   const researchAvailable = await webResearchAvailable();
+  const accountEntitlements = row ?? defaultEntitlementsFor(user.role);
   return {
     userId,
-    ...(row ?? defaultEntitlementsFor(user.role)),
+    ...accountEntitlements,
+    // The visitor switch grants baseline question access to every active
+    // account too. Per-user AI toggles continue to control the other features.
+    questionAnsweringEnabled:
+      accountEntitlements.questionAnsweringEnabled ||
+      (settings.enabled && settings.anonymousWikiAiEnabled),
     webResearchPreference: user.webResearchPreference,
     webResearchAvailable: researchAvailable,
     aiEnabled: !reasons.includes('AI_DISABLED'),

@@ -2020,7 +2020,7 @@
           "title": "AI runtime parameters",
           "description": "Tune the Wiki AI tool loop. A per-provider tool policy limit still takes precedence over the max tool calls set here.",
           "anonymousWikiAi": "Allow Wiki AI for visitors",
-          "anonymousWikiAiHint": "Lets people who are not signed in ask Wiki AI questions. Their conversations are not saved to account history.",
+          "anonymousWikiAiHint": "Lets visitors who are not signed in and active accounts ask Wiki AI questions. Anonymous conversations are not saved to account history.",
           "answerLanguage": "Answer language",
           "answerLanguageHint": "Applies to every generated answer, including bots.",
           "answerLanguageModelDefault": "Default (no constraint)",
