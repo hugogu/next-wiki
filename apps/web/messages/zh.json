@@ -2020,7 +2020,7 @@
           "title": "AI 运行参数",
           "description": "调整 Wiki AI 工具循环。此处设置的最大工具调用次数会被单个提供方的工具策略上限覆盖。",
           "anonymousWikiAi": "向未登录访客提供 Wiki AI",
-          "anonymousWikiAiHint": "允许未登录用户向 Wiki AI 提问；这些对话不会保存到账号历史中。",
+          "anonymousWikiAiHint": "允许未登录访客和已启用的注册账号向 Wiki AI 提问；未登录访客的对话不会保存到账号历史中。",
           "answerLanguage": "回答语言",
           "answerLanguageHint": "对所有生成的回答生效，包括机器人。",
           "answerLanguageModelDefault": "默认（不控制）",
