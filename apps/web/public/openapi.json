@@ -5397,6 +5397,24 @@
         ],
         "description": "Page re-render result."
       },
+      "PublicPageResolveQuery": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Absolute same-origin reader URL or relative reader address."
+          },
+          "include": {
+            "type": "string",
+            "description": "Comma-separated latestRevision,publishedRevision."
+          }
+        },
+        "required": [
+          "url"
+        ]
+      },
       "PublicPageResource": {
         "type": "object",
         "properties": {
@@ -20208,6 +20226,57 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicBatchCreateResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/resolve": {
+      "get": {
+        "operationId": "get-v1-pages-resolve",
+        "summary": "Resolve a Wiki reader URL",
+        "description": "Resolve an absolute same-origin URL or relative reader address using the reader's configured space prefixes, canonical slugs, translations, and retained aliases. Returns readable Markdown and the stable page id. Query strings and fragments do not affect resolution. Missing or inaccessible pages return 404.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "url",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "description": "Absolute same-origin reader URL or relative reader address."
+            },
+            "description": "Absolute same-origin reader URL or relative reader address."
+          },
+          {
+            "in": "query",
+            "name": "include",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "description": "Comma-separated latestRevision,publishedRevision."
+            },
+            "description": "Comma-separated latestRevision,publishedRevision."
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageResource"
                 }
               }
             }

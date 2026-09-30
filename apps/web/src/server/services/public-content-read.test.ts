@@ -34,6 +34,7 @@ vi.mock('@/server/services/public-ai', () => semanticSearch);
 vi.mock('@/server/services/search-analytics', () => searchAnalytics);
 
 import * as publicContent from '@/server/services/public-content';
+import { getPageByReference } from './public-page-reference';
 import {
   createPublicApiUser,
   ensurePublicApiDefaultSpace,
@@ -49,6 +50,7 @@ async function cleanup() {
   await db.delete(schema.searchRecords);
   await db.delete(schema.searchSettings);
   await db.delete(schema.pageRevisions);
+  await db.delete(schema.pageAddresses);
   await db.delete(schema.pages);
   await db.delete(schema.sessions);
   await db.delete(schema.users);
@@ -75,6 +77,42 @@ describe('public content read facade', () => {
   afterAll(async () => {
     await cleanup();
     await closeDb();
+  });
+
+  it('resolves reader URLs by slug and retained alias rather than storage path', async () => {
+    const admin = await createPublicApiUser('url-admin@example.com', 'admin');
+    const reader = await createPublicApiUser('url-reader@example.com', 'reader');
+    const adminCtx = buildUserCtx(admin.id, 'admin');
+    const readerCtx = buildApiKeyCtx(reader.id, 'reader', ['view'], 'url-key');
+    const created = await publicContent.createPage(adminCtx, {
+      path: 'storage/article', slug: 'old-article', title: 'Article', contentSource: '# Article',
+    });
+    await revisions.publish(adminCtx, { path: 'storage/article', version: 1 });
+    await publicContent.updateProperties(adminCtx, created.id, { slug: 'new-article' });
+    for (const address of ['/wiki/new-article', '/old-article?source=chat#section']) {
+      await expect(getPageByReference(readerCtx, `https://kb.hugogu.cn${address}`, 'https://kb.hugogu.cn', ['publishedRevision']))
+        .resolves.toMatchObject({ id: created.id, path: 'storage/article', slug: 'new-article', contentSource: '# Article' });
+    }
+    await expect(getPageByReference(readerCtx, '/wiki/storage/article', 'https://kb.hugogu.cn')).resolves.toBeNull();
+    await db.update(schema.pages).set({ visibility: 'restricted' }).where(eq(schema.pages.id, created.id));
+    await expect(getPageByReference(readerCtx, '/wiki/new-article', 'https://kb.hugogu.cn')).resolves.toBeNull();
+    await expect(getPageByReference(readerCtx, '/old-article', 'https://kb.hugogu.cn')).resolves.toBeNull();
+  });
+
+  it('resolves reader URLs in Generated while retaining API-key space grants', async () => {
+    await ensurePrivateSpaces();
+    const admin = await createPublicApiUser('url-generated-admin@example.com', 'admin');
+    const ctx = buildUserCtx(admin.id, 'admin');
+    await setModeInternal('llm-wiki', admin.id);
+    await pageService.create(ctx, { path: 'generated-storage/article', title: 'Generated article', contentSource: '# Generated' }, 'generated');
+    await revisions.publish(ctx, { path: 'generated-storage/article', version: 1, space: 'generated' });
+    const created = await publicContent.getPageByPath(ctx, 'generated-storage/article', [], 'generated');
+    await publicContent.updateProperties(ctx, created!.id, { slug: 'ten-theses-ai-future-2026' });
+    const allowed = buildApiKeyCtx(admin.id, 'admin', ['view'], 'allowed-key', ['wiki', 'generated']);
+    await expect(getPageByReference(allowed, '/generated/ten-theses-ai-future-2026', 'https://kb.hugogu.cn'))
+      .resolves.toMatchObject({ id: created!.id, spaceSlug: 'generated', contentSource: expect.stringContaining('# Generated') });
+    const wikiOnly = buildApiKeyCtx(admin.id, 'admin', ['view'], 'wiki-only-key');
+    await expect(getPageByReference(wikiOnly, '/generated/ten-theses-ai-future-2026', 'https://kb.hugogu.cn')).resolves.toBeNull();
   });
 
   it('returns published page metadata and Markdown source to a reader API key', async () => {

@@ -1,3 +1,4 @@
+import { readerReferencePath } from '@next-wiki/shared';
 import { z } from 'zod';
 import type {
   PublicFolderDeleteResult,
@@ -713,6 +714,12 @@ export class WikiApiClient {
   // publishedRevisionId, which the API omits by default (see shapes.ts getPageResponse).
   async getPage(id: string): Promise<PublicPageResource> {
     return this.request<PublicPageResource>(`/pages/${id}?include=latestRevision,publishedRevision`);
+  }
+
+  async getPageByUrl(url: string): Promise<PublicPageResource> {
+    const pathname = readerReferencePath(url, this.baseUrl);
+    const params = new URLSearchParams({ url: pathname, include: 'latestRevision,publishedRevision' });
+    return this.request<PublicPageResource>(`/pages/resolve?${params.toString()}`);
   }
 
   // 035 (US4): a page's canonical address plus every retained/manual alias.

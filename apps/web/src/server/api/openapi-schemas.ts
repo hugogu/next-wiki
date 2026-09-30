@@ -2565,3 +2565,8 @@ export const AiToolProposalApplyOutput = z
       .describe('Per-item application results.'),
   })
   .describe('Result of applying an approved tool change proposal.');
+
+export const PublicPageResolveQuery = z.object({
+  url: z.string().min(1).max(2048).describe('Absolute same-origin reader URL or relative reader address.'),
+  include: z.string().optional().describe('Comma-separated latestRevision,publishedRevision.'),
+});

@@ -18,7 +18,7 @@ export const wikiMcpToolDescriptions = {
   delete_tag: 'Retire a reusable wiki tag.',
   merge_tag: 'Merge one wiki tag into an existing destination tag.',
   update_page_metadata: 'Update page title, date, tags, and summary as a new draft revision.',
-  get_page: 'Get a readable wiki page by ID, including its Markdown source.',
+  get_page: 'Get a readable wiki page and its Markdown source by pageId or url. When the user supplies a Wiki link, pass it directly as url; do not search or paginate list_pages to discover an ID. URL reads resolve canonical slugs, translations, and retained aliases across content spaces.',
   create_page: 'Create a new wiki page with an initial revision.',
   save_draft:
     "Replace an existing wiki page's entire Markdown body with a new draft revision. contentSource must be the complete final Markdown document, never an edit instruction, patch, selector, or placeholder.",
