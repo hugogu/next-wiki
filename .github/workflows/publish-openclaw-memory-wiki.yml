@@ -44,6 +44,6 @@ jobs:
       - run: pnpm --filter @next-wiki/openclaw-memory-wiki build
       - name: Publish to npm
         working-directory: packages/openclaw-memory-wiki
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --loglevel=verbose
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
