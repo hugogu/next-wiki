@@ -24,6 +24,19 @@ function createToolsFromResolver(resolveRuntime: ToolRuntimeResolver, getStatus:
     next_wiki_status: { name: 'next_wiki_status', label: 'next-wiki status', description: 'Show sync health without content or secrets.', parameters: Type.Object({}, { additionalProperties: false }), execute: async () => output(await getStatus()) },
     next_wiki_sync: { name: 'next_wiki_sync', label: 'sync next-wiki', description: 'Run an explicitly requested Memory Wiki mirror scan.', parameters: Type.Object({}, { additionalProperties: false }), execute: async () => output(await (await resolveRuntime()).sync.run()) },
     next_wiki_search: { name: 'next_wiki_search', label: 'search next-wiki', description: 'Search currently readable next-wiki Wiki, Raw, and Generated knowledge.', parameters: Type.Object({ query: Type.String({ minLength: 1, maxLength: 4000 }), limit: Type.Optional(Type.Integer({ minimum: 1, maximum: 20 })) }, { additionalProperties: false }), execute: async (_id: string, input: { query: string; limit?: number }) => { const { client } = await resolveRuntime(); return output(await client.search(input.query, input.limit ?? 8)); } },
-    next_wiki_get: { name: 'next_wiki_get', label: 'read next-wiki page', description: 'Read one selected next-wiki search result and return its citation.', parameters: Type.Object({ pageId: Type.String({ minLength: 1 }), maxChars: Type.Optional(Type.Integer({ minimum: 1, maximum: 20_000 })) }, { additionalProperties: false }), execute: async (_id: string, input: { pageId: string; maxChars?: number }) => { const { client } = await resolveRuntime(); return output(await client.get(input.pageId, input.maxChars ?? 8_000)); } },
+    next_wiki_get: {
+      name: 'next_wiki_get', label: 'read next-wiki page',
+      description: 'Read a next-wiki page by pageId or url and return its citation. Pass a user-provided Wiki URL directly as url, without searching for an ID.',
+      parameters: Type.Object({
+        pageId: Type.Optional(Type.String({ minLength: 1 })),
+        url: Type.Optional(Type.String({ minLength: 1, maxLength: 2048 })),
+        maxChars: Type.Optional(Type.Integer({ minimum: 1, maximum: 20_000 })),
+      }, { additionalProperties: false, oneOf: [{ required: ['pageId'] }, { required: ['url'] }] }),
+      execute: async (_id: string, input: { pageId?: string; url?: string; maxChars?: number }) => {
+        if (Boolean(input.pageId) === Boolean(input.url)) throw new Error('Provide exactly one of pageId or url.');
+        const { client } = await resolveRuntime();
+        return output(input.url ? await client.getByUrl(input.url, input.maxChars ?? 8_000) : await client.get(input.pageId!, input.maxChars ?? 8_000));
+      },
+    },
   };
 }

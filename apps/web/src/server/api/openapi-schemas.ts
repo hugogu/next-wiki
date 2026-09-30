@@ -2570,3 +2570,8 @@ export const PublicPageResolveQuery = z.object({
   url: z.string().min(1).max(2048).describe('Absolute same-origin reader URL or relative reader address.'),
   include: z.string().optional().describe('Comma-separated latestRevision,publishedRevision.'),
 });
+
+export const AgentMemoryWikiPageResolveQuery = z.object({
+  url: z.string().min(1).max(2048).describe('Absolute same-origin reader URL or relative reader address.'),
+  maxChars: z.coerce.number().int().min(1).max(20_000).default(8_000),
+});

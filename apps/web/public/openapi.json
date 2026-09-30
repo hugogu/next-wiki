@@ -896,6 +896,27 @@
           "maxChars"
         ]
       },
+      "AgentMemoryWikiPageResolveQuery": {
+        "type": "object",
+        "properties": {
+          "url": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "description": "Absolute same-origin reader URL or relative reader address."
+          },
+          "maxChars": {
+            "default": 8000,
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 20000
+          }
+        },
+        "required": [
+          "url",
+          "maxChars"
+        ]
+      },
       "AgentMemoryWikiSearchQuery": {
         "type": "object",
         "properties": {
@@ -12500,6 +12521,58 @@
           "Agent Memory Wiki"
         ],
         "parameters": [
+          {
+            "in": "query",
+            "name": "maxChars",
+            "required": true,
+            "schema": {
+              "default": 8000,
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 20000
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentMemoryWikiPage"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/memory/wiki/pages/resolve": {
+      "get": {
+        "operationId": "get-v1-memory-wiki-pages-resolve",
+        "summary": "Read next-wiki knowledge by reader URL",
+        "description": "Resolves a same-origin reader URL or relative address with the normal reader routing rules. Requires a bound integration key and retains page permissions, space grants, forgotten-record filtering, bounded content, and revision citations.",
+        "tags": [
+          "Agent Memory Wiki"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "url",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "description": "Absolute same-origin reader URL or relative reader address."
+            },
+            "description": "Absolute same-origin reader URL or relative reader address."
+          },
           {
             "in": "query",
             "name": "maxChars",

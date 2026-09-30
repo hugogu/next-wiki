@@ -104,8 +104,8 @@ Hermes receives four namespaced tools:
 
 - `next_wiki_memory_search(query, limit)` searches the current Wiki, Raw, and
   Generated pages allowed by the key;
-- `next_wiki_memory_get(page_id, max_chars?)` reads the current version of a
-  selected search result;
+- `next_wiki_memory_get(page_id?, url?, max_chars?)` reads a selected result or a
+  user-provided Wiki link directly. Supply exactly one of `page_id` or `url`;
 - `next_wiki_memory_save(content, title?, tags?)` writes an immutable Raw
   memory record; and
 - `next_wiki_memory_forget(memory_id, reason?)` hides an explicit memory record
@@ -168,3 +168,11 @@ procedure; memory pages and their revision citations are included. The normal
 [deployment guide](../../docs/deployment.md) covers the shared backup and
 reverse-proxy procedures. This README is the canonical Hermes integration guide
 shipped with the provider and linked from the Wiki's first-run integration page.
+
+For a shared Wiki link, call `next_wiki_memory_get` with
+`{"url":"https://kb.example.com/generated/article"}` directly. Relative reader
+addresses also work. No search or page-ID discovery is needed. This requires
+`GET /api/v1/memory/wiki/pages/resolve` on the Wiki server; the bound integration
+key, page permissions, space grants, forgotten-record filtering, content bounds,
+and citations still apply. Generic MCP users should update
+`@next-wiki/mcp-server` to 0.8.0 or later and pass `url` to `get_page`.

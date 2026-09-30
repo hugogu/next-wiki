@@ -4,6 +4,7 @@ import io
 import json
 from typing import Any
 from urllib.error import HTTPError
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -57,8 +58,8 @@ def test_client_uses_scoped_api_routes_and_bearer_key() -> None:
     assert request.get_method() == "GET"
     assert request.full_url == "http://127.0.0.1:3000/api/v1/memory/diagnostics"
     assert request.get_header("Authorization") == "Bearer nwk_test_secret"
-    assert request.get_header("User-agent") == "next-wiki-memory/0.2.0"
-    assert request.get_header("X-next-wiki-memory-provider-version") == "0.2.0"
+    assert request.get_header("User-agent") == "next-wiki-memory/0.3.0"
+    assert request.get_header("X-next-wiki-memory-provider-version") == "0.3.0"
     assert timeout == 5.0
 
 
@@ -112,3 +113,17 @@ def test_client_classifies_http_failures_without_raw_details(status: int, code: 
 
     assert error.value.code == code
     assert "nwk_do_not_echo" not in str(error.value)
+
+
+def test_client_reads_shared_url_only_through_bound_resolve_route() -> None:
+    client = WikiApiClient(ProviderConfig("https://wiki.example.com/api/v1"), api_key="nwk_test_secret")
+    transport = _TransportFixture({"pageId": "resolved-id", "content": "article"})
+    client._opener = transport  # type: ignore[assignment]
+    url = "https://wiki.example.com/generated/article?source=chat#section"
+    assert client.get_knowledge_page_by_url(url, 1200)["pageId"] == "resolved-id"
+    request = transport.requests[0][0]
+    parsed = urlsplit(request.full_url)
+    assert parsed.netloc == "wiki.example.com"
+    assert parsed.path == "/api/v1/memory/wiki/pages/resolve"
+    assert parse_qs(parsed.query) == {"url": [url], "maxChars": ["1200"]}
+    assert request.get_header("Authorization") == "Bearer nwk_test_secret"

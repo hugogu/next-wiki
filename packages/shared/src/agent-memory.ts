@@ -155,3 +155,7 @@ export type AgentMemoryEvidenceInput = z.infer<typeof agentMemoryEvidenceInputSc
 export type AgentMemoryRecord = z.infer<typeof agentMemoryRecordSchema>;
 export type AgentMemorySourceDocumentInput = z.infer<typeof agentMemorySourceDocumentInputSchema>;
 export type AgentMemorySourceDocumentDeactivateInput = z.infer<typeof agentMemorySourceDocumentDeactivateInputSchema>;
+
+export const agentMemoryWikiPageResolveInputSchema = agentMemoryWikiPageReadInputSchema.extend({
+  url: z.string().min(1).max(2048),
+});

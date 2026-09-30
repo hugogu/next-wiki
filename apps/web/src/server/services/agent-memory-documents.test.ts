@@ -19,6 +19,8 @@ const dbMock = vi.hoisted(() => ({
 }));
 const requireAccess = vi.hoisted(() => vi.fn(async () => access));
 const rawEntries = vi.hoisted(() => ({ createEntry: vi.fn(), replaceEntry: vi.fn(), relocateMirroredEntry: vi.fn() }));
+const resolveReference = vi.hoisted(() => vi.fn());
+vi.mock('./public-page-reference', () => ({ getPageByReference: resolveReference }));
 const publicContent = vi.hoisted(() => ({ searchPages: vi.fn(), getPageById: vi.fn() }));
 const resolveSpace = vi.hoisted(() => vi.fn(async (slug?: string) => slug === 'raw'
   ? { id: 'raw-space', kind: 'raw' as const, slug: 'raw' }
@@ -32,7 +34,7 @@ vi.mock('@/server/services/space-routes', () => ({ canonicalSpacePath: vi.fn(() 
 vi.mock('@/server/config', () => ({ env: { APP_URL: 'https://wiki.example' } }));
 vi.mock('@/server/services/public-content', () => publicContent);
 
-import { deactivateSourceDocument, readKnowledgePage, searchKnowledge, upsertSourceDocument } from './agent-memory-documents';
+import { deactivateSourceDocument, readKnowledgePage, readKnowledgePageByUrl, searchKnowledge, upsertSourceDocument } from './agent-memory-documents';
 
 function digest(content: string) {
   return createHash('sha256').update(content).digest('hex');
@@ -166,4 +168,25 @@ describe('agent memory source documents', () => {
       .rejects.toMatchObject({ code: 'NOT_FOUND' });
     expect(publicContent.getPageById).not.toHaveBeenCalled();
   });
+  it('resolves a URL through the bound key and retains bounded content and citations', async () => {
+    const ctx = { actor: { kind: 'api_key', scopes: ['view'], spaceAccess: ['wiki'], keyId: 'knowledge-key' } } as never;
+    resolveReference.mockResolvedValue({ id: 'page-id' });
+    publicContent.getPageById.mockResolvedValue({ id: 'page-id', spaceSlug: 'default', path: 'article', title: 'Article', contentSource: '# Article body', latestRevision: { id: 'revision-id', contentHash: 'hash' } });
+    const result = await readKnowledgePageByUrl(ctx, '/wiki/old-address', 9);
+    expect(requireAccess).toHaveBeenCalledWith(ctx, 'view', 'any');
+    expect(resolveReference).toHaveBeenCalledWith(ctx, '/wiki/old-address', 'https://wiki.example');
+    expect(result).toMatchObject({ pageId: 'page-id', content: '# Article', truncated: true, revisionId: 'revision-id', revisionHash: 'hash' });
+  });
+
+  it('does not let URLs recover forgotten knowledge or bypass a missing binding', async () => {
+    resolveReference.mockResolvedValue({ id: 'forgotten-page' });
+    dbMock.query.agentMemoryRecords.findFirst.mockResolvedValue({ id: 'retired-record' });
+    await expect(readKnowledgePageByUrl({} as never, '/wiki/old-address')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    expect(publicContent.getPageById).not.toHaveBeenCalled();
+    resolveReference.mockClear();
+    requireAccess.mockRejectedValueOnce(new Error('No bound key'));
+    await expect(readKnowledgePageByUrl({} as never, '/wiki/article')).rejects.toThrow('No bound key');
+    expect(resolveReference).not.toHaveBeenCalled();
+  });
+
 });

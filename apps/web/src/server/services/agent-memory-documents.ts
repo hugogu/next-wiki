@@ -17,6 +17,7 @@ import { resolveSpace, type SpaceKind } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { env } from '@/server/config';
 import * as publicContent from '@/server/services/public-content';
+import { getPageByReference } from './public-page-reference';
 import { parseFrontmatter } from '@/server/metadata/frontmatter';
 import { agentMemoryPathSegment } from '@/server/services/agent-memory-path';
 
@@ -364,4 +365,12 @@ export async function readKnowledgePage(ctx: PermCtx, pageId: string, maxChars =
     revisionId: revision?.id ?? null,
     revisionHash: revision?.contentHash ?? null,
   };
+}
+
+/** URL reads retain the same bound-key and forgotten-record checks as ID reads. */
+export async function readKnowledgePageByUrl(ctx: PermCtx, url: string, maxChars = 8_000) {
+  await requireAgentMemoryAccess(ctx, 'view', 'any');
+  const page = await getPageByReference(ctx, url, env.APP_URL);
+  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
+  return readKnowledgePage(ctx, page.id, maxChars);
 }

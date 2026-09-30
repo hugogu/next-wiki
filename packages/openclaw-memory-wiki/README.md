@@ -119,3 +119,12 @@ the producer's to own and not the transport's:
 Version 0.4.0 briefly implemented session archiving inside this plugin; it was
 removed in 0.5.0 because it put producer responsibilities in the transport
 layer. See the repository history for the full reasoning.
+
+## Read a user-provided Wiki link
+
+Call `next_wiki_get` with `url` instead of `pageId` to read a shared link directly,
+for example `{"url":"https://kb.example.com/generated/article","maxChars":8000}`.
+Relative reader addresses also work. This requires a Wiki server supporting
+`GET /api/v1/memory/wiki/pages/resolve`. URL reads use the same bound key,
+space grants, forgotten-record filtering, content bounds, and citations as ID
+reads. Search remains useful for questions without a specific link.

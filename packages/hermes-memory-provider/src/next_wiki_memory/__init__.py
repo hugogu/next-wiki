@@ -142,14 +142,15 @@ class NextWikiMemoryProvider:
                 "type": "function",
                 "function": {
                     "name": "next_wiki_memory_get",
-                    "description": "Read the current content of one selected next-wiki knowledge page through the native provider REST API (not MCP).",
+                    "description": "Read a next-wiki knowledge page by page_id or url. Pass a user-provided Wiki link directly as url without searching for an ID. Uses the native provider REST API (not MCP).",
                     "parameters": {
                         "type": "object",
                         "properties": {
                             "page_id": {"type": "string", "maxLength": _MAX_TOOL_PAGE_ID},
+                            "url": {"type": "string", "minLength": 1, "maxLength": 2048},
                             "max_chars": {"type": "integer", "minimum": 1, "maximum": _MAX_TOOL_PAGE_CHARS},
                         },
-                        "required": ["page_id"],
+                        "oneOf": [{"required": ["page_id"]}, {"required": ["url"]}],
                         "additionalProperties": False,
                     },
                 },
@@ -202,12 +203,16 @@ class NextWikiMemoryProvider:
                     raise ValueError("limit must be between 1 and 10")
                 return json.dumps({"ok": True, **client.search_knowledge(query, limit)}, ensure_ascii=False)
             if name == "next_wiki_memory_get":
-                self._reject_unknown_args(args, {"page_id", "max_chars"})
-                page_id = self._bounded_string(args.get("page_id"), _MAX_TOOL_PAGE_ID, "page_id")
+                self._reject_unknown_args(args, {"page_id", "url", "max_chars"})
+                if ("page_id" in args) == ("url" in args):
+                    raise ValueError("Provide exactly one of page_id or url")
+                field = "url" if "url" in args else "page_id"
+                reference = self._bounded_string(args.get(field), 2048 if field == "url" else _MAX_TOOL_PAGE_ID, field)
                 max_chars = args.get("max_chars", 8_000)
                 if not isinstance(max_chars, int) or isinstance(max_chars, bool) or not 1 <= max_chars <= _MAX_TOOL_PAGE_CHARS:
                     raise ValueError("max_chars must be between 1 and 20000")
-                return json.dumps({"ok": True, **client.get_knowledge_page(page_id, max_chars)}, ensure_ascii=False)
+                result = client.get_knowledge_page_by_url(reference, max_chars) if field == "url" else client.get_knowledge_page(reference, max_chars)
+                return json.dumps({"ok": True, **result}, ensure_ascii=False)
             if name == "next_wiki_memory_save":
                 self._reject_unknown_args(args, {"content", "title", "tags"})
                 content = self._bounded_string(args.get("content"), _MAX_TOOL_CONTENT, "content")
