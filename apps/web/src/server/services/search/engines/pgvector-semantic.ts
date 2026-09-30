@@ -21,6 +21,8 @@ export function createSemanticEngine(): SearchEngine {
         try {
           const accepted = await publicAi.submitSemanticSearch(ctx, {
             q: query.q,
+            includeAiGenerated: query.includeAiGenerated,
+            includeAiAssisted: query.includeAiAssisted,
             limit: query.limit,
             scope: 'all',
             // 023: a single requested space is passed through so semantic

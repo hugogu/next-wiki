@@ -11,6 +11,8 @@ export const IMMEDIATE_CAPABILITY_IDS = ['full_text', 'fuzzy'] as const satisfie
 export type CapabilitySnapshot = Record<SearchCapabilityId, boolean>;
 
 export type SearchEngineQuery = {
+  includeAiGenerated?: boolean;
+  includeAiAssisted?: boolean;
   /** Normalized (trimmed) query shared by every enabled capability. */
   q: string;
   /** Maximum candidates one engine may contribute before fusion. */

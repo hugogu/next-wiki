@@ -181,6 +181,7 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
               <span className="flex items-center gap-xs">
                 <span aria-hidden="true">/</span>
                 <span className="text-foreground" aria-current="page">{page.title}</span>
+                <ProvenanceIndicators aiContentLevel={page.aiContentLevel} />
               </span>
             </nav>
             <PageMetadata
@@ -197,7 +198,6 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
               <div className="flex flex-wrap items-center gap-sm">
                 <span>{t('page.read.createdOn', { date: formatter.dateTime(createdAt, resolved.space.kind === 'raw' ? 'shortWithSeconds' : 'short') })}
                 {t('page.read.authorSuffix', { name: rawAuthorName ?? page.authorDisplayName ?? t('common.unknownAuthor') })}</span>
-                <ProvenanceIndicators pageId={page.pageId} />
               </div>
             </footer>
           </article>

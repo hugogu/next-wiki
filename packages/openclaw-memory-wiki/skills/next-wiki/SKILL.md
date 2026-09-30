@@ -29,3 +29,9 @@ space/account/namespace to bypass this boundary.
 `next_wiki_status` reports synchronization health only and must not be used to
 infer or disclose vault contents. `next_wiki_sync` has side effects and should
 be called only when the user explicitly asks to synchronize now.
+
+Search results include `aiContentLevel`: `generated`, `assisted`, or `null`.
+When the user asks to exclude AI-generated material, use
+`includeAiGenerated: false`; exclude AI-assisted material independently with
+`includeAiAssisted: false`. Both flags default to true. Do not assume original
+Raw evidence was AI-authored just because an agent mirrored it.

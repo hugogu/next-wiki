@@ -470,7 +470,9 @@
     },
     "indicators": {
       "linkedFromGenerated": "Linked from generated",
-      "generatedHumanModified": "Generated, then human-modified"
+      "generatedHumanModified": "Generated, then human-modified",
+      "aiGenerated": "AI generated",
+      "aiAssisted": "AI assisted"
     },
     "metadata": {
       "date": "Date",

@@ -306,6 +306,8 @@ export const translationKeys = [
   "page.share.discord",
   "page.indicators.linkedFromGenerated",
   "page.indicators.generatedHumanModified",
+  "page.indicators.aiGenerated",
+  "page.indicators.aiAssisted",
   "page.metadata.date",
   "page.metadata.tags",
   "page.metadata.summary",

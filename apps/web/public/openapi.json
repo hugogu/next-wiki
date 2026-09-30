@@ -870,6 +870,16 @@
       "AgentMemoryWikiPage": {
         "type": "object",
         "properties": {
+          "aiContentLevel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "generated",
+              "assisted"
+            ]
+          },
           "pageId": {
             "type": "string",
             "format": "uuid"
@@ -976,6 +986,12 @@
       "AgentMemoryWikiSearchQuery": {
         "type": "object",
         "properties": {
+          "includeAiGenerated": {
+            "type": "boolean"
+          },
+          "includeAiAssisted": {
+            "type": "boolean"
+          },
           "q": {
             "type": "string",
             "minLength": 1,
@@ -1001,6 +1017,16 @@
             "items": {
               "type": "object",
               "properties": {
+                "aiContentLevel": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "generated",
+                    "assisted"
+                  ]
+                },
                 "pageId": {
                   "type": "string",
                   "format": "uuid"
@@ -3449,6 +3475,12 @@
       "HybridSearchQueryInput": {
         "type": "object",
         "properties": {
+          "includeAiGenerated": {
+            "type": "boolean"
+          },
+          "includeAiAssisted": {
+            "type": "boolean"
+          },
           "kind": {
             "type": "string",
             "enum": [
@@ -5758,6 +5790,17 @@
       "PublicPageResource": {
         "type": "object",
         "properties": {
+          "aiContentLevel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "generated",
+              "assisted"
+            ],
+            "description": "Page-level AI attribution: generated, assisted after human editing, or null for human/original content."
+          },
           "id": {
             "type": "string",
             "format": "uuid",
@@ -6020,6 +6063,14 @@
       "PublicPageSearchQueryParams": {
         "type": "object",
         "properties": {
+          "includeAiGenerated": {
+            "type": "boolean",
+            "description": "Include AI-generated pages; defaults to true."
+          },
+          "includeAiAssisted": {
+            "type": "boolean",
+            "description": "Include AI-assisted pages; defaults to true."
+          },
           "q": {
             "type": "string",
             "minLength": 1,
@@ -7185,6 +7236,16 @@
       "PublicSemanticSearchResultItem": {
         "type": "object",
         "properties": {
+          "aiContentLevel": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "generated",
+              "assisted"
+            ]
+          },
           "pageId": {
             "type": "string",
             "format": "uuid",
@@ -7228,6 +7289,12 @@
       "PublicSemanticSearchSubmitInput": {
         "type": "object",
         "properties": {
+          "includeAiGenerated": {
+            "type": "boolean"
+          },
+          "includeAiAssisted": {
+            "type": "boolean"
+          },
           "q": {
             "type": "string",
             "minLength": 1,
@@ -13124,6 +13191,22 @@
           "Agent Memory Wiki"
         ],
         "parameters": [
+          {
+            "in": "query",
+            "name": "includeAiGenerated",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeAiAssisted",
+            "required": false,
+            "schema": {
+              "type": "boolean"
+            }
+          },
           {
             "in": "query",
             "name": "q",
@@ -22356,6 +22439,26 @@
           "Search"
         ],
         "parameters": [
+          {
+            "in": "query",
+            "name": "includeAiGenerated",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include AI-generated pages; defaults to true."
+            },
+            "description": "Include AI-generated pages; defaults to true."
+          },
+          {
+            "in": "query",
+            "name": "includeAiAssisted",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "description": "Include AI-assisted pages; defaults to true."
+            },
+            "description": "Include AI-assisted pages; defaults to true."
+          },
           {
             "in": "query",
             "name": "q",

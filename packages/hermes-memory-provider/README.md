@@ -176,3 +176,16 @@ addresses also work. No search or page-ID discovery is needed. This requires
 key, page permissions, space grants, forgotten-record filtering, content bounds,
 and citations still apply. Generic MCP users should update
 `@next-wiki/mcp-server` to 0.8.0 or later and pass `url` to `get_page`.
+
+## AI content attribution
+
+Page-level AI attribution is returned as `aiContentLevel`: `generated` for
+AI-generated pages, `assisted` after a human content revision, and `null` for
+human/original content. Publishing or changing a page address does not count
+as a human content edit. Later machine revisions preserve human contributions.
+Original Raw evidence remains unmarked even when mirrored by an agent.
+
+`next_wiki_memory_search` accepts optional `include_ai_generated` and
+`include_ai_assisted` booleans. Both default to inclusion. Set both to `false`
+to search only unmarked content. The plugin maps them to the REST API's
+`includeAiGenerated` and `includeAiAssisted` query parameters.

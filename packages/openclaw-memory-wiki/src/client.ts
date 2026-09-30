@@ -28,8 +28,11 @@ export class NextWikiClient {
     return this.request('/api/v1/memory/wiki/documents', { method: 'DELETE', body: JSON.stringify({ sourcePath }) });
   }
 
-  async search(q: string, limit = 8): Promise<unknown> {
-    return this.request(`/api/v1/memory/wiki/search?q=${encodeURIComponent(q)}&limit=${limit}`, { method: 'GET' });
+  async search(q: string, limit = 8, filters: { includeAiGenerated?: boolean; includeAiAssisted?: boolean } = {}): Promise<unknown> {
+    const params = new URLSearchParams({ q, limit: String(limit) });
+    if (filters.includeAiGenerated !== undefined) params.set('includeAiGenerated', String(filters.includeAiGenerated));
+    if (filters.includeAiAssisted !== undefined) params.set('includeAiAssisted', String(filters.includeAiAssisted));
+    return this.request(`/api/v1/memory/wiki/search?${params}`, { method: 'GET' });
   }
 
   async getByUrl(url: string, maxChars = 8_000): Promise<unknown> {

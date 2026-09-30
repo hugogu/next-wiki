@@ -294,10 +294,11 @@ export async function getMirrorConnection(ctx: PermCtx) {
   };
 }
 
-export async function searchKnowledge(ctx: PermCtx, query: string, limit: number) {
+export async function searchKnowledge(ctx: PermCtx, query: string, limit: number, filters: { includeAiGenerated?: boolean; includeAiAssisted?: boolean } = {}) {
   await requireAgentMemoryAccess(ctx, 'view', 'any');
   const result = await publicContent.searchPages(ctx, {
     q: query,
+    ...filters,
     scope: 'all',
     status: 'published',
     space: 'all',
@@ -320,6 +321,7 @@ export async function searchKnowledge(ctx: PermCtx, query: string, limit: number
     .filter((item) => !retiredPageIds.has(item.page.id))
     .map(async (item) => ({
     pageId: item.page.id,
+    aiContentLevel: item.page.aiContentLevel ?? null,
     revisionId: item.page.latestRevision?.id ?? item.page.publishedRevision?.id,
     revisionHash: item.page.latestRevision?.contentHash ?? item.page.publishedRevision?.contentHash,
     space: await resolvePageSpaceKind(item.page.spaceSlug),
@@ -356,6 +358,7 @@ export async function readKnowledgePage(ctx: PermCtx, pageId: string, maxChars =
   const revision = page.latestRevision ?? page.publishedRevision;
   return {
     pageId: page.id,
+    aiContentLevel: page.aiContentLevel ?? null,
     space: await resolvePageSpaceKind(page.spaceSlug),
     path: page.path,
     title: page.title,

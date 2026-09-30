@@ -131,6 +131,8 @@ class NextWikiMemoryProvider:
                         "type": "object",
                         "properties": {
                             "query": {"type": "string", "maxLength": _MAX_TOOL_QUERY},
+                            "include_ai_generated": {"type": "boolean", "description": "Include AI-generated pages; defaults to true"},
+                            "include_ai_assisted": {"type": "boolean", "description": "Include AI-assisted pages; defaults to true"},
                             "limit": {"type": "integer", "minimum": 1, "maximum": 10},
                         },
                         "required": ["query"],
@@ -196,12 +198,18 @@ class NextWikiMemoryProvider:
                 raise ValueError("tool arguments must be an object")
             client = self._client()
             if name == "next_wiki_memory_search":
-                self._reject_unknown_args(args, {"query", "limit"})
+                self._reject_unknown_args(args, {"query", "limit", "include_ai_generated", "include_ai_assisted"})
+                filters = {}
+                for flag in ("include_ai_generated", "include_ai_assisted"):
+                    if flag in args:
+                        if not isinstance(args[flag], bool):
+                            raise ValueError(f"{flag} must be a boolean")
+                        filters[flag] = args[flag]
                 query = self._bounded_string(args.get("query"), _MAX_TOOL_QUERY, "query")
                 limit = args.get("limit", self._config.recall_limit if self._config else 5)
                 if not isinstance(limit, int) or isinstance(limit, bool) or not 1 <= limit <= 10:
                     raise ValueError("limit must be between 1 and 10")
-                return json.dumps({"ok": True, **client.search_knowledge(query, limit)}, ensure_ascii=False)
+                return json.dumps({"ok": True, **client.search_knowledge(query, limit, **filters)}, ensure_ascii=False)
             if name == "next_wiki_memory_get":
                 self._reject_unknown_args(args, {"page_id", "url", "max_chars"})
                 if ("page_id" in args) == ("url" in args):

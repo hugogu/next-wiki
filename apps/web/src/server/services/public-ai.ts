@@ -1,6 +1,8 @@
 import { and, desc, eq, inArray, isNull } from 'drizzle-orm';
 import type { AiActionStatus, AiSearchResult, PublicSemanticSearchAction, PublicSemanticSearchStatus, PublicSemanticSearchSubmitInput } from '@next-wiki/shared';
 import { db } from '@/server/db';
+import { aiContentFilterSql, aiContentLevelSql, type AiSearchIncludes } from './ai-content-level';
+import { readActionInput } from './ai-actions';
 import * as schema from '@/server/db/schema';
 import { can, getActorUserId, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
@@ -62,6 +64,8 @@ export async function submitSemanticSearch(ctx: PermCtx, input: PublicSemanticSe
   // otherwise unused.
   const searchInput: SemanticSearchInput = {
     query: input.q,
+    includeAiGenerated: input.includeAiGenerated,
+    includeAiAssisted: input.includeAiAssisted,
     limit: input.limit,
     pathPrefix: input.pathPrefix,
     frontmatterFilters: extractFrontmatterFilters(input),
@@ -104,19 +108,20 @@ function usageFrom(metadata: Record<string, unknown>): { inputTokens?: number; r
  * receive excerpts from restricted raw/generated pages its owner may read but
  * the key itself may not. Pages deleted since the action ran are dropped.
  */
-async function filterReadableSearchResults(ctx: PermCtx, results: AiSearchResult[]): Promise<AiSearchResult[]> {
+async function filterReadableSearchResults(ctx: PermCtx, results: AiSearchResult[], filters: AiSearchIncludes = {}): Promise<AiSearchResult[]> {
   if (results.length === 0) return results;
   const pageIds = [...new Set(results.map((result) => result.pageId))];
   const rows = await db
     .select({
       pageId: schema.pages.id,
+      aiContentLevel: aiContentLevelSql(),
       visibility: schema.pages.visibility,
       spaceKind: schema.spaces.kind,
       anonymousRead: schema.spaces.anonymousRead,
     })
     .from(schema.pages)
     .innerJoin(schema.spaces, eq(schema.pages.spaceId, schema.spaces.id))
-    .where(and(inArray(schema.pages.id, pageIds), isNull(schema.pages.deletedAt)));
+    .where(and(inArray(schema.pages.id, pageIds), isNull(schema.pages.deletedAt), aiContentFilterSql(filters)));
   const pageById = new Map(rows.map((row) => [row.pageId, row]));
   return results.filter((result) => {
     const page = pageById.get(result.pageId);
@@ -126,7 +131,7 @@ async function filterReadableSearchResults(ctx: PermCtx, results: AiSearchResult
       anonymousRead: page.anonymousRead,
       visibility: page.visibility,
     });
-  });
+  }).map((result) => ({ ...result, aiContentLevel: pageById.get(result.pageId)?.aiContentLevel ?? null }));
 }
 
 export async function getSemanticSearchResults(ctx: PermCtx, actionId: string): Promise<PublicSemanticSearchAction> {
@@ -166,12 +171,14 @@ export async function getSemanticSearchResults(ctx: PermCtx, actionId: string): 
     orderBy: desc(schema.aiActionEvents.id),
   });
   const results = ((event?.payload as { results?: AiSearchResult[] } | undefined)?.results) ?? [];
-  const visibleResults = await filterReadableSearchResults(ctx, results);
+  const input = await readActionInput<SemanticSearchInput>(actionId);
+  const visibleResults = await filterReadableSearchResults(ctx, results, input ?? {});
 
   return {
     ...base,
     items: visibleResults.map((result) => ({
       pageId: result.pageId,
+      aiContentLevel: result.aiContentLevel,
       path: result.path,
       title: result.title,
       score: result.score,

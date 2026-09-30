@@ -10,7 +10,7 @@ vi.mock('../../../_shared/route', () => ({
   withPublicApi: (handler: (request: NextRequest, context: unknown, ctx: unknown) => unknown) => (request: NextRequest, context: unknown) => handler(request, context, {}),
   parsePublicQuery: (request: NextRequest, schema: { safeParse: (value: unknown) => { success: boolean; data?: unknown } }) => {
     const params = new URL(request.url).searchParams;
-    const parsed = schema.safeParse({ q: params.get('q'), limit: params.get('limit') ?? undefined });
+    const parsed = schema.safeParse({ q: params.get('q'), limit: params.get('limit') ?? undefined, includeAiGenerated: params.get('includeAiGenerated') ?? undefined, includeAiAssisted: params.get('includeAiAssisted') ?? undefined });
     return parsed.success
       ? { ok: true, data: parsed.data }
       : { ok: false, response: NextResponse.json({ error: 'VALIDATION_FAILED' }, { status: 422 }) };
@@ -41,7 +41,7 @@ describe('GET /api/v1/memory/wiki/search', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('cache-control')).toBe('private, no-store');
     await expect(response.json()).resolves.toMatchObject({ coverage: { complete: false }, results: [{ pageId: 'page-id' }] });
-    expect(searchKnowledge).toHaveBeenCalledWith(expect.anything(), 'profile', 5);
+    expect(searchKnowledge).toHaveBeenCalledWith(expect.anything(), 'profile', 5, { includeAiGenerated: undefined, includeAiAssisted: undefined });
   });
 
   it('rejects an empty query before invoking the knowledge service', async () => {
@@ -50,4 +50,13 @@ describe('GET /api/v1/memory/wiki/search', () => {
     expect(response.status).toBe(422);
     expect(searchKnowledge).not.toHaveBeenCalled();
   });
+});
+
+it('forwards explicit false inclusion flags and rejects malformed values', async () => {
+  searchKnowledge.mockResolvedValue({ results: [] });
+  const response = await route.GET(new NextRequest('http://localhost/api/v1/memory/wiki/search?q=test&includeAiGenerated=false&includeAiAssisted=true'), { params: Promise.resolve({}) });
+  expect(response.status).toBe(200);
+  expect(searchKnowledge).toHaveBeenCalledWith(expect.anything(), 'test', 10, { includeAiGenerated: false, includeAiAssisted: true });
+  const invalid = await route.GET(new NextRequest('http://localhost/api/v1/memory/wiki/search?q=test&includeAiGenerated=0'), { params: Promise.resolve({}) });
+  expect(invalid.status).toBe(422);
 });

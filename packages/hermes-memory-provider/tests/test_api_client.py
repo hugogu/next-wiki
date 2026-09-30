@@ -58,8 +58,8 @@ def test_client_uses_scoped_api_routes_and_bearer_key() -> None:
     assert request.get_method() == "GET"
     assert request.full_url == "http://127.0.0.1:3000/api/v1/memory/diagnostics"
     assert request.get_header("Authorization") == "Bearer nwk_test_secret"
-    assert request.get_header("User-agent") == "next-wiki-memory/0.3.0"
-    assert request.get_header("X-next-wiki-memory-provider-version") == "0.3.0"
+    assert request.get_header("User-agent") == "next-wiki-memory/0.4.0"
+    assert request.get_header("X-next-wiki-memory-provider-version") == "0.4.0"
     assert timeout == 5.0
 
 
@@ -127,3 +127,13 @@ def test_client_reads_shared_url_only_through_bound_resolve_route() -> None:
     assert parsed.path == "/api/v1/memory/wiki/pages/resolve"
     assert parse_qs(parsed.query) == {"url": [url], "maxChars": ["1200"]}
     assert request.get_header("Authorization") == "Bearer nwk_test_secret"
+
+
+def test_search_forwards_independent_ai_inclusion_flags() -> None:
+    client = WikiApiClient(ProviderConfig("http://127.0.0.1:3000/api/v1"), api_key="nwk_test_secret")
+    transport = _TransportFixture({"results": []})
+    client._opener = transport
+    client.search_knowledge("knowledge", 2, include_ai_generated=False, include_ai_assisted=True)
+    params = parse_qs(urlsplit(transport.requests[0][0].full_url).query)
+    assert params["includeAiGenerated"] == ["false"]
+    assert params["includeAiAssisted"] == ["true"]

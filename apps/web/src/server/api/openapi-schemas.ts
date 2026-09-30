@@ -435,9 +435,9 @@ export const AgentMemorySourceDocumentDeactivate = z.object({
   outcome: z.enum(['forgotten', 'unchanged', 'not_found']).describe('forgotten when this call retired the document, unchanged when it was already retired, not_found when no mirrored document matched the path.'),
 });
 
-export const AgentMemoryWikiSearchQuery = z.object({ q: z.string().min(1).max(4_000), limit: z.coerce.number().int().min(1).max(20).default(10) });
+export const AgentMemoryWikiSearchQuery = z.object({ includeAiGenerated: z.boolean().optional(), includeAiAssisted: z.boolean().optional(), q: z.string().min(1).max(4_000), limit: z.coerce.number().int().min(1).max(20).default(10) });
 export const AgentMemoryWikiSearchResponse = z.object({
-  results: z.array(z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), space: z.enum(['wiki', 'raw', 'generated']), title: z.string(), path: z.string(), excerpt: z.string(), score: z.number(), canonicalUrl: z.string().url() })),
+  results: z.array(z.object({ aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional(), pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), space: z.enum(['wiki', 'raw', 'generated']), title: z.string(), path: z.string(), excerpt: z.string(), score: z.number(), canonicalUrl: z.string().url() })),
   coverage: z.object({ wiki: z.boolean(), raw: z.boolean(), generated: z.boolean(), complete: z.boolean() }),
 });
 export const AgentMemoryWikiPageIdPathParams = z.object({
@@ -445,6 +445,7 @@ export const AgentMemoryWikiPageIdPathParams = z.object({
 }).describe('Agent memory wiki page path parameters.');
 export const AgentMemoryWikiPageReadQuery = z.object({ maxChars: z.coerce.number().int().min(1).max(20_000).default(8_000) });
 export const AgentMemoryWikiPage = z.object({
+  aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional(),
   pageId: z.string().uuid(), space: z.enum(['wiki', 'raw', 'generated']), path: z.string(), title: z.string(), content: z.string(), truncated: z.boolean(), canonicalUrl: z.string().url(), revisionId: z.string().uuid().nullable(), revisionHash: z.string().nullable(),
 });
 
@@ -1125,6 +1126,7 @@ export const PublicPageIncludeValue = z
 
 export const PublicPageResource = z
   .object({
+    aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional().describe('Page-level AI attribution: generated, assisted after human editing, or null for human/original content.'),
     id: z.string().uuid().describe('Stable public page identifier.'),
     spaceSlug: z.string().describe('Slug of the wiki space the page belongs to.'),
     path: PublicPagePath,
@@ -1610,6 +1612,8 @@ export const PublicPageRenderingResult = z
 // for `PublicPageListQueryParams` above.
 export const PublicPageSearchQueryParams = z
   .object({
+    includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true.'),
+    includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages; defaults to true.'),
     q: z.string().min(1).max(200).describe('Free-text search query.'),
     scope: z
       .enum(['path', 'title', 'content', 'all'])
@@ -1726,6 +1730,8 @@ export const PublicPageSearchResponse = z
 
 export const HybridSearchQueryInput = z
   .object({
+    includeAiGenerated: z.boolean().optional(),
+    includeAiAssisted: z.boolean().optional(),
     kind: z.literal('query').describe('Selects the idempotent query operation.'),
     searchRecordId: z.string().uuid().describe('Client-generated idempotency key for one search attempt; retries reuse it.'),
     searchSessionId: z.string().uuid().describe('Client-generated overlay session identifier owning this attempt.'),
@@ -1796,6 +1802,8 @@ export const HybridPageSearchResponse = z
 
 export const PublicSemanticSearchSubmitInput = z
   .object({
+    includeAiGenerated: z.boolean().optional(),
+    includeAiAssisted: z.boolean().optional(),
     q: z.string().trim().min(1).max(8_000).describe('Free-text semantic search query.'),
     limit: z.number().int().min(1).max(50).optional().default(10).describe('Maximum number of results to return (1-50). Defaults to 10.'),
     pathPrefix: z.string().optional().describe('Directory prefix to restrict matching to pages under a subtree.'),
@@ -1831,6 +1839,7 @@ export const PublicSemanticSearchCitation = z
 
 export const PublicSemanticSearchResultItem = z
   .object({
+    aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional(),
     pageId: z.string().uuid().describe('Identifier of the matched page.'),
     path: PublicPagePath,
     title: z.string().describe('Title of the matched page.'),

@@ -428,7 +428,7 @@ describe('tools', () => {
       expect.objectContaining({
         path: 'news/2026/07/2026-07-21-morning',
         space: 'generated',
-        nature: undefined,
+        nature: 'generated',
       }),
     );
   });
@@ -717,4 +717,14 @@ describe('tools', () => {
     expect(schema.safeParse({ pathPrefix: 'raw/garbage' }).success).toBe(true);
     expect(schema.safeParse({ pathPrefix: 'docs/old-design', space: 'raw', dryRun: true }).success).toBe(true);
   });
+});
+
+it('forwards AI inclusion filters through keyword and semantic tools', async () => {
+  const searchPages = vi.fn().mockResolvedValue({ items: [], nextCursor: null });
+  const submitSemanticSearchClient = vi.fn().mockResolvedValue({ id: 'action', status: 'queued' });
+  const client = { searchPages, submitSemanticSearch: submitSemanticSearchClient } as unknown as WikiApiClient;
+  await searchWiki(client, { query: 'test', includeAiGenerated: false, includeAiAssisted: true });
+  expect(searchPages).toHaveBeenCalledWith(expect.objectContaining({ includeAiGenerated: false, includeAiAssisted: true }));
+  await submitSemanticSearch(client, { query: 'test', includeAiGenerated: true, includeAiAssisted: false });
+  expect(submitSemanticSearchClient).toHaveBeenCalledWith(expect.objectContaining({ includeAiGenerated: true, includeAiAssisted: false }));
 });

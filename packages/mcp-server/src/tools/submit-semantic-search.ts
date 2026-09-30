@@ -3,6 +3,8 @@ import type { WikiApiClient } from '../api-client';
 import { submitSemanticSearchResponse } from '../shapes';
 
 export const submitSemanticSearchSchema = {
+  includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true'),
+  includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages; defaults to true'),
   query: z.string().min(1).max(8_000).describe('Natural-language query'),
   limit: z.number().int().min(1).max(50).optional().describe('Max results; defaults to 10'),
   pathPrefix: z.string().optional().describe('Restrict matching to a directory subtree'),
@@ -16,6 +18,8 @@ export type SubmitSemanticSearchInput = z.infer<z.ZodObject<typeof submitSemanti
 export async function submitSemanticSearch(client: WikiApiClient, args: SubmitSemanticSearchInput) {
   const response = await client.submitSemanticSearch({
     q: args.query,
+    includeAiGenerated: args.includeAiGenerated,
+    includeAiAssisted: args.includeAiAssisted,
     limit: args.limit ?? 10,
     pathPrefix: args.pathPrefix,
     filterTag: args.filterTag,

@@ -19,6 +19,8 @@ import {
 } from './types';
 
 export type CoordinatedSearchInput = {
+  includeAiGenerated?: boolean;
+  includeAiAssisted?: boolean;
   /** Normalized (trimmed) query shared by every enabled capability. */
   q: string;
   /** Bounded UI result limit (feature 013: at most 20). */
@@ -114,6 +116,12 @@ export async function runCoordinatedSearch(
   // count, excerpt, or fused result exists (FR-006).
   const readable = await projectReadableCandidatePages(ctx, fused.map((candidate) => candidate.pageId), input.spaceIds);
 
+  for (const [pageId, entry] of readable) {
+    const level = entry.page.aiContentLevel;
+    if ((level === 'generated' && input.includeAiGenerated === false)
+      || (level === 'assisted' && input.includeAiAssisted === false)) readable.delete(pageId);
+  }
+
   const readableCounts = new Map<SearchCapabilityId, number>();
   for (const { capability, candidates } of contributions) {
     readableCounts.set(capability, new Set(candidates.filter((c) => readable.has(c.pageId)).map((c) => c.pageId)).size);
@@ -196,6 +204,8 @@ async function executeEngine(
 
   return engine.run(ctx, {
     q: input.q,
+    includeAiGenerated: input.includeAiGenerated,
+    includeAiAssisted: input.includeAiAssisted,
     limit: input.limit,
     deadlineMs: input.immediateSearchTimeoutMs,
     spaceIds: input.spaceIds,

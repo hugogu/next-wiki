@@ -144,7 +144,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
                   </span>
                 );
               })}
-              <ProvenanceIndicators pageId={page.id} className="flex items-center gap-xs" />
+              <ProvenanceIndicators aiContentLevel={page.aiContentLevel} className="flex items-center gap-xs" />
               {conversation && <ConversationStatusBadge status={conversation.status} className="ml-auto" />}
             </nav>
             <PageMetadata

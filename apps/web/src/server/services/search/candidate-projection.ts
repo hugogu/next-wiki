@@ -1,3 +1,4 @@
+import { aiContentLevelSql } from '../ai-content-level';
 import { and, eq, inArray, isNotNull, isNull } from 'drizzle-orm';
 import { rawConversationSourceMetadataSchema, type PublicPageResource } from '@next-wiki/shared';
 import { db } from '@/server/db';
@@ -82,6 +83,7 @@ export async function projectReadableCandidatePages(
   const rows = await db
     .select({
       page: schema.pages,
+      aiContentLevel: aiContentLevelSql(),
       contentSource: schema.pageRevisions.contentSource,
       revisionId: schema.pageRevisions.id,
       revisionHash: schema.pageRevisions.contentHash,
@@ -151,6 +153,7 @@ export async function projectReadableCandidatePages(
       revisionHash: row.revisionHash,
       page: {
         id: row.page.id,
+        aiContentLevel: row.aiContentLevel ?? null,
         spaceSlug: space.slug,
         path: row.page.path,
         slug: effectiveSlug,

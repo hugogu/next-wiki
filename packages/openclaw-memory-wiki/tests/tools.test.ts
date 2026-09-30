@@ -8,7 +8,7 @@ describe('plugin tools', () => {
     const tools = createTools(client as never, sync as never);
     await tools.next_wiki_search.execute('id', { query: 'personal context', limit: 3 });
     await tools.next_wiki_get.execute('id', { pageId: 'page-id' });
-    expect(client.search).toHaveBeenCalledWith('personal context', 3);
+    expect(client.search).toHaveBeenCalledWith('personal context', 3, { includeAiGenerated: undefined, includeAiAssisted: undefined });
     expect(client.get).toHaveBeenCalledWith('page-id', 8_000);
     expect(tools.next_wiki_status.description).toContain('without content');
   });
@@ -22,7 +22,7 @@ describe('plugin tools', () => {
     await tools.next_wiki_get.execute('id', { pageId: 'p1', maxChars: 1200 });
     const syncResult = await tools.next_wiki_sync.execute();
 
-    expect(client.search).toHaveBeenCalledWith('profile', 20);
+    expect(client.search).toHaveBeenCalledWith('profile', 20, { includeAiGenerated: undefined, includeAiAssisted: undefined });
     expect(client.get).toHaveBeenCalledWith('p1', 1200);
     expect(sync.run).toHaveBeenCalledOnce();
     expect(syncResult.content[0]?.text).toContain('uploaded');

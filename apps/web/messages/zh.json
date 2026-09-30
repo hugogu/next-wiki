@@ -470,7 +470,9 @@
     },
     "indicators": {
       "linkedFromGenerated": "链接到生成内容",
-      "generatedHumanModified": "已生成，后经人工修改"
+      "generatedHumanModified": "已生成，后经人工修改",
+      "aiGenerated": "AI生成",
+      "aiAssisted": "AI辅助"
     },
     "metadata": {
       "date": "日期",

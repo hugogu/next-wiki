@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { aiContentLevelSchema, aiSearchIncludeSchema } from './pages';
 
 export const AGENT_MEMORY_LIMITS = {
   maxRecallResults: 10,
@@ -124,11 +125,14 @@ export const agentMemoryWikiCoverageSchema = z.object({
 });
 
 export const agentMemoryWikiSearchInputSchema = z.object({
+  includeAiGenerated: aiSearchIncludeSchema,
+  includeAiAssisted: aiSearchIncludeSchema,
   q: z.string().trim().min(1).max(4_000),
   limit: z.coerce.number().int().min(1).max(20).optional(),
 }).strict();
 
 export const agentMemoryWikiSearchResultSchema = z.object({
+  aiContentLevel: aiContentLevelSchema.nullable().optional(),
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   revisionHash: z.string(),

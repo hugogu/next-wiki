@@ -12,7 +12,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .config import ProviderConfig, configured_api_key
 
-PROVIDER_VERSION = "0.3.0"
+PROVIDER_VERSION = "0.4.0"
 USER_AGENT = f"next-wiki-memory/{PROVIDER_VERSION}"
 MAX_RESPONSE_BYTES = 1_000_000
 MAX_ERROR_BODY_BYTES = 64_000
@@ -98,8 +98,12 @@ class WikiApiClient:
     def diagnostics(self) -> dict[str, Any]:
         return self._request("GET", "/memory/diagnostics")
 
-    def search_knowledge(self, query: str, limit: int) -> dict[str, Any]:
-        return self._request("GET", f"/memory/wiki/search?{urlencode({'q': query, 'limit': limit})}")
+    def search_knowledge(self, query: str, limit: int, *, include_ai_generated: bool | None = None, include_ai_assisted: bool | None = None) -> dict[str, Any]:
+        params: dict[str, str | int] = {"q": query, "limit": limit}
+        for name, value in (("includeAiGenerated", include_ai_generated), ("includeAiAssisted", include_ai_assisted)):
+            if value is not None:
+                params[name] = str(value).lower()
+        return self._request("GET", f"/memory/wiki/search?{urlencode(params)}")
 
     def get_knowledge_page(self, page_id: str, max_chars: int) -> dict[str, Any]:
         return self._request("GET", f"/memory/wiki/pages/{quote(page_id, safe='')}?{urlencode({'maxChars': max_chars})}")

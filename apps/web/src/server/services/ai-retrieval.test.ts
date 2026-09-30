@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { encryptAiJson, hashAiPayload } from '@/server/crypto/ai-encryption';
 import { eq } from 'drizzle-orm';
 import type { AiSearchResult } from '@next-wiki/shared';
 import { db } from '@/server/db';
@@ -50,6 +51,23 @@ describe('AI vector retrieval', () => {
     const grouped = await retrieve(buildUserCtx(userId, 'admin'), generation!.id, [1, 0, 0], 1);
     expect(grouped).toHaveLength(1);
     expect(grouped[0]).toMatchObject({ pageId: ids[0]!.page, excerpt: 'content 0' });
+
+    await db.update(schema.pages).set({ nature: 'generated' }).where(eq(schema.pages.id, ids[0]!.page));
+    await db.update(schema.pageRevisions).set({ actorKind: 'machine' }).where(eq(schema.pageRevisions.id, ids[0]!.revision));
+    const withoutGenerated = await exactCosineSearch(generation!.id, [1, 0, 0], 1, { includeAiGenerated: false });
+    expect(withoutGenerated.map((row) => row.pageId)).toEqual([ids[1]!.page]);
+    const humanRevisionId = randomUUID();
+    await db.insert(schema.pageRevisions).values({
+      id: humanRevisionId, pageId: ids[0]!.page, versionNumber: 2, contentSource: 'human revision',
+      contentHtml: '<p>human revision</p>', contentHash: 'human-hash', authorId: userId,
+      status: 'draft', actorKind: 'human',
+    });
+    const withoutAssisted = await exactCosineSearch(generation!.id, [1, 0, 0], 1, { includeAiAssisted: false });
+    expect(withoutAssisted.map((row) => row.pageId)).toEqual([ids[1]!.page]);
+    const assistedStillIncluded = await retrieve(buildUserCtx(userId, 'admin'), generation!.id, [1, 0, 0], 1, { includeAiGenerated: false });
+    expect(assistedStillIncluded[0]?.pageId).toBe(ids[0]!.page);
+    await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.id, humanRevisionId));
+
 
     await clearAiData();
     for (const id of ids) {
@@ -492,6 +510,24 @@ describe('public-ai semantic search facade (US3)', () => {
       action!.id,
     );
     expect(rawKeyView.items).toHaveLength(2);
+
+    await db.update(schema.pages).set({ nature: 'generated' }).where(eq(schema.pages.id, wiki.pageId));
+    await db.update(schema.pageRevisions).set({ actorKind: 'machine' }).where(eq(schema.pageRevisions.id, wiki.revisionId));
+    const input = { query: 'test', limit: 10, includeAiGenerated: false };
+    await db.insert(schema.aiActionInputs).values({
+      actionId: action!.id, payloadEncrypted: encryptAiJson(input), payloadHash: hashAiPayload(input), expiresAt,
+    });
+    const excludedView = await publicAi.getSemanticSearchResults(buildUserCtx(userId, 'admin'), action!.id);
+    expect(excludedView.items?.map((item) => item.pageId)).toEqual([raw.pageId]);
+    const reviewedRevision = randomUUID();
+    await db.insert(schema.pageRevisions).values({
+      id: reviewedRevision, pageId: wiki.pageId, versionNumber: 2, authorId: userId,
+      contentSource: 'human review', contentHtml: '<p>human review</p>', contentHash: 'review-hash',
+      status: 'draft', actorKind: 'human',
+    });
+    const reviewedView = await publicAi.getSemanticSearchResults(buildUserCtx(userId, 'admin'), action!.id);
+    expect(reviewedView.items?.find((item) => item.pageId === wiki.pageId)?.aiContentLevel).toBe('assisted');
+
 
     await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, wiki.pageId));
     await db.delete(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, raw.pageId));

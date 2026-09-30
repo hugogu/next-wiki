@@ -7,8 +7,8 @@ from next_wiki_memory.config import ProviderConfig, save_config
 
 
 class _ToolClient:
-    def search_knowledge(self, query: str, limit: int):
-        return {"results": [{"memoryId": "one", "citation": {"revisionId": "revision"}}], "query": query, "limit": limit}
+    def search_knowledge(self, query: str, limit: int, **filters):
+        return {"results": [{"memoryId": "one", "citation": {"revisionId": "revision"}}], "query": query, "limit": limit, "filters": filters}
 
     def get_knowledge_page(self, page_id: str, max_chars: int):
         return {"pageId": page_id, "content": "current", "maxChars": max_chars}
@@ -59,3 +59,13 @@ def test_tool_reads_user_url_without_search(monkeypatch, tmp_path) -> None:
     assert result == {"ok": True, "pageId": "resolved-id", "content": "current", "url": url, "maxChars": 1200}
     for args in ({}, {"page_id": "p", "url": url}, {"url": "x" * 2049}, {"url": url, "max_chars": 20_001}):
         assert json.loads(provider.handle_tool_call("next_wiki_memory_get", args))["ok"] is False
+
+
+def test_search_tool_validates_and_forwards_ai_flags(monkeypatch) -> None:
+    provider = NextWikiMemoryProvider()
+    monkeypatch.setattr(provider, "_client", lambda: _ToolClient())
+    result = json.loads(provider.handle_tool_call("next_wiki_memory_search", {"query": "test", "include_ai_generated": False, "include_ai_assisted": True}))
+    assert result["ok"] is True
+    assert result["filters"] == {"include_ai_generated": False, "include_ai_assisted": True}
+    invalid = json.loads(provider.handle_tool_call("next_wiki_memory_search", {"query": "test", "include_ai_generated": "false"}))
+    assert invalid["ok"] is False

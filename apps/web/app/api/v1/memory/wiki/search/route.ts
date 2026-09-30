@@ -18,5 +18,5 @@ export const GET = withPublicApi(async (request, _context, ctx) => {
     limit: agentMemoryWikiSearchInputSchema.shape.limit.default(10),
   }));
   if (!parsed.ok) return parsed.response;
-  return publicJson(await searchKnowledge(ctx, parsed.data.q, parsed.data.limit));
+  return publicJson(await searchKnowledge(ctx, parsed.data.q, parsed.data.limit, { includeAiGenerated: parsed.data.includeAiGenerated, includeAiAssisted: parsed.data.includeAiAssisted }));
 });

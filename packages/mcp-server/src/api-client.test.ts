@@ -284,3 +284,16 @@ describe('WikiApiClient', () => {
     expect(promoteInit).toMatchObject({ method: 'POST', body: JSON.stringify({ pageId }) });
   });
 });
+
+it('serializes independent AI inclusion flags including false', async () => {
+  const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ items: [], nextCursor: null })));
+  vi.stubGlobal('fetch', fetchMock);
+  try {
+    await new WikiApiClient('http://localhost:3000/api/v1', 'test-key').searchPages({ q: 'test', includeAiGenerated: false, includeAiAssisted: true });
+    const url = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(url.searchParams.get('includeAiGenerated')).toBe('false');
+    expect(url.searchParams.get('includeAiAssisted')).toBe('true');
+  } finally {
+    vi.unstubAllGlobals();
+  }
+});

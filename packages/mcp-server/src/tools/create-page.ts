@@ -39,7 +39,7 @@ export async function createPage(client: WikiApiClient, args: CreatePageInput) {
     contentSource: args.contentSource,
     locale: args.locale,
     space,
-    nature: args.nature,
+    nature: args.nature ?? 'generated',
     inputKind: args.inputKind,
     source: args.source,
     contentType: args.contentType,

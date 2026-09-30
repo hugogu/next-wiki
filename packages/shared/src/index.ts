@@ -1,6 +1,6 @@
 import { z } from 'zod';
 import { userRoleSchema, userStatusSchema } from './auth';
-import { pageVisibilitySchema } from './pages';
+import { aiContentLevelSchema, pageVisibilitySchema } from './pages';
 
 export * from './analytics';
 export * from './auth';
@@ -54,6 +54,7 @@ export const pageSummarySchema = z.object({
 export type PageSummary = z.infer<typeof pageSummarySchema>;
 
 export const livePageSchema = z.object({
+  aiContentLevel: aiContentLevelSchema.nullable().optional(),
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   path: z.string(),

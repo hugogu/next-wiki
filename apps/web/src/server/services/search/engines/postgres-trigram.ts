@@ -1,3 +1,4 @@
+import { aiContentFilterSql, type AiSearchIncludes } from '../../ai-content-level';
 import { and, eq, ilike, inArray, isNotNull, isNull, or, sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -69,12 +70,13 @@ function selection(similarity: ReturnType<typeof sql<number>>, executor: SearchD
 }
 
 /** Title fragment and near matches; predicate matches `pages_space_title_trgm_idx`. */
-export function fuzzyTitleQuery(spaceIds: readonly string[], q: string, window: number, executor: SearchDbExecutor = db) {
+export function fuzzyTitleQuery(spaceIds: readonly string[], q: string, window: number, executor: SearchDbExecutor = db, filters: AiSearchIncludes = {}) {
   const pattern = likePattern(q);
   const similarity = sql<number>`word_similarity(${q}, ${schema.pages.title})`;
   return selection(similarity, executor)
     .where(and(
       ...publishedScope(spaceIds),
+      aiContentFilterSql(filters),
       or(
         ilike(schema.pages.title, pattern),
         sql`${q} <% ${schema.pages.title}`,
@@ -90,13 +92,14 @@ export function fuzzyTitleQuery(spaceIds: readonly string[], q: string, window: 
  * matches a large share of long markdown revisions and cannot meet an
  * interactive request budget without sacrificing exact fragment results.
  */
-export function fuzzyContentQuery(spaceIds: readonly string[], q: string, window: number, executor: SearchDbExecutor = db) {
+export function fuzzyContentQuery(spaceIds: readonly string[], q: string, window: number, executor: SearchDbExecutor = db, filters: AiSearchIncludes = {}) {
   const pattern = likePattern(q);
   const exactMatch = ilike(schema.pageRevisions.contentSource, pattern);
   const similarity = sql<number>`case when ${exactMatch} then 1 else 0 end`;
   return selection(similarity, executor)
     .where(and(
       ...publishedScope(spaceIds),
+      aiContentFilterSql(filters),
       exactMatch,
     ))
     .orderBy(sql`similarity desc`, schema.pages.path)
@@ -110,7 +113,7 @@ async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidat
   const windows = [
     runBoundedLexicalWindow(
       query.deadlineMs,
-      (tx) => fuzzyTitleQuery(query.spaceIds, query.q, window, tx),
+      (tx) => fuzzyTitleQuery(query.spaceIds, query.q, window, tx, query),
       { wordSimilarityThreshold: WORD_SIMILARITY_THRESHOLD },
     ),
   ];
@@ -121,7 +124,7 @@ async function fetchCandidates(query: SearchEngineQuery): Promise<SearchCandidat
   if (hasSelectiveTrigram(query.q)) {
     windows.push(runBoundedLexicalWindow(
       query.deadlineMs,
-      (tx) => fuzzyContentQuery(query.spaceIds, query.q, window, tx),
+      (tx) => fuzzyContentQuery(query.spaceIds, query.q, window, tx, query),
       { preferIndex: true },
     ));
   }

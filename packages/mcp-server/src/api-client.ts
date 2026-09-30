@@ -124,6 +124,7 @@ export const publicPageResourceSchema = z.object({
   canonicalUrl: z.string().optional(),
   origin: publicOriginSchema.optional(),
   humanModified: z.boolean().optional(),
+  aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional(),
   visibility: z.enum(['public', 'registered', 'restricted']).optional(),
   rawCategorySystemKey: z.string().nullable().optional(),
   // 025: capture channel for a Conversation Raw page (e.g. 'feishu'); absent
@@ -258,6 +259,8 @@ export const publicPublicationInputSchema = z.object({
 export type PublicPublicationInput = z.infer<typeof publicPublicationInputSchema>;
 
 export const publicPageSearchQuerySchema = z.object({
+  includeAiGenerated: z.boolean().optional(),
+  includeAiAssisted: z.boolean().optional(),
   q: z.string().min(1).max(200),
   scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
   status: z.enum(['published', 'draft', 'all']).default('published'),
@@ -458,6 +461,8 @@ export type PublicImageGeneration = z.infer<typeof publicImageGenerationSchema>;
 // ---- 010: AI Curation API ----
 
 export const publicSemanticSearchSubmitInputSchema = z.object({
+  includeAiGenerated: z.boolean().optional(),
+  includeAiAssisted: z.boolean().optional(),
   q: z.string().trim().min(1).max(8_000),
   limit: z.number().int().min(1).max(50).default(10),
   pathPrefix: z.string().optional(),
@@ -477,6 +482,7 @@ export const publicSemanticSearchCitationSchema = z.object({
 export type PublicSemanticSearchCitation = z.infer<typeof publicSemanticSearchCitationSchema>;
 
 export const publicSemanticSearchResultItemSchema = z.object({
+  aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional(),
   pageId: z.string().uuid(),
   path: z.string(),
   title: z.string(),
@@ -652,6 +658,8 @@ export class WikiApiClient {
   ): Promise<PublicPageSearchResponse> {
     const params = new URLSearchParams();
     params.set('q', query.q ?? '');
+    if (query.includeAiGenerated !== undefined) params.set('includeAiGenerated', String(query.includeAiGenerated));
+    if (query.includeAiAssisted !== undefined) params.set('includeAiAssisted', String(query.includeAiAssisted));
     if (query.scope) params.set('scope', query.scope);
     if (query.status) params.set('status', query.status);
     if (query.pathPrefix) params.set('pathPrefix', query.pathPrefix);

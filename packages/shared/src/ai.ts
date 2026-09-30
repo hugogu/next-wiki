@@ -835,6 +835,7 @@ export const aiConversationDetailSchema = z.object({
 export type AiConversationDetail = z.infer<typeof aiConversationDetailSchema>;
 
 export const aiSearchResultSchema = wikiCitationSchema.extend({
+  aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional(),
   excerpt: z.string(),
   score: z.number().min(-1).max(1),
   // 023: lets result UIs build a space-correct link (e.g. /spaces/raw/...)
@@ -849,6 +850,8 @@ export type AiSearchResult = z.infer<typeof aiSearchResultSchema>;
 // ---- 010: AI Curation API — public semantic search ----
 
 export const publicSemanticSearchSubmitInputSchema = z.object({
+  includeAiGenerated: z.boolean().optional(),
+  includeAiAssisted: z.boolean().optional(),
   q: z.string().trim().min(1).max(8_000),
   limit: z.number().int().min(1).max(50).default(10),
   pathPrefix: z.string().optional(),
@@ -871,6 +874,7 @@ export const publicSemanticSearchCitationSchema = z.object({
 export type PublicSemanticSearchCitation = z.infer<typeof publicSemanticSearchCitationSchema>;
 
 export const publicSemanticSearchResultItemSchema = z.object({
+  aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional(),
   pageId: z.string().uuid(),
   path: z.string(),
   title: z.string(),

@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, or, sql, inArray, like } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/server/db';
+import { getAiContentLevel } from './ai-content-level';
 import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, can, type PermCtx, getActorUserId, pagePermissionOptions, spacePermissionOptions } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
@@ -808,6 +809,7 @@ async function livePageForRow(ctx: PermCtx, space: SpaceRow, page: PageRow): Pro
 
     return {
       pageId: page.id,
+      aiContentLevel: await getAiContentLevel(page),
       revisionId: revision.id,
       path: page.path,
       slug: page.slug,
@@ -843,6 +845,7 @@ async function livePageForRow(ctx: PermCtx, space: SpaceRow, page: PageRow): Pro
   const metadata = await getRevisionMetadata(draft.id);
   return {
     pageId: page.id,
+    aiContentLevel: await getAiContentLevel(page),
     revisionId: draft.id,
     path: page.path,
     slug: page.slug,
@@ -1018,6 +1021,7 @@ export async function getLiveTranslation(
     kind: 'page',
     page: {
       pageId: translation.id,
+      aiContentLevel: await getAiContentLevel(translation),
       revisionId: revision.id,
       // The reader address keeps the shared source path; the language prefix is
       // applied by the route/URL builder.
@@ -1127,6 +1131,7 @@ export async function getLiveTranslationBySlug(
     kind: 'page',
     page: {
       pageId: translation.id,
+      aiContentLevel: await getAiContentLevel(translation),
       revisionId: revision.id,
       path: source.path,
       slug: source.slug,

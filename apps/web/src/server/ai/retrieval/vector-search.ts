@@ -1,3 +1,4 @@
+import { aiContentFilterSql, type AiSearchIncludes } from '@/server/services/ai-content-level';
 import { sql } from 'drizzle-orm';
 import { db } from '@/server/db';
 
@@ -42,7 +43,7 @@ export async function exactCosineSearch(
   generationId: string,
   query: number[],
   limit: number,
-  options?: { excludeCapturedConversations?: boolean },
+  options?: AiSearchIncludes & { excludeCapturedConversations?: boolean },
 ): Promise<VectorMatch[]> {
   const vector = `[${query.join(',')}]`;
   const conversationFilter = options?.excludeCapturedConversations
@@ -99,6 +100,7 @@ export async function exactCosineSearch(
       and p.current_published_version_id = c.revision_id
       and r.status = 'published'
       ${conversationFilter}
+      and ${aiContentFilterSql(options ?? {}, { id: sql`p.id`, nature: sql`p.nature` }) ?? sql`true`}
     order by c.embedding <=> ${vector}::vector
     limit ${limit}
   `);

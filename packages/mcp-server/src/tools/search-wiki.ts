@@ -14,6 +14,8 @@ export const searchWikiSpaceSchema = z
   );
 
 export const searchWikiSchema = {
+  includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true'),
+  includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages (AI-generated content edited by a human); defaults to true'),
   query: z.string().min(1).max(200).describe('Search term'),
   scope: z.enum(['path', 'title', 'content', 'all']).optional().describe('Search scope; defaults to all'),
   pathPrefix: z.string().optional().describe('Restrict matching to pages under a directory subtree (e.g. "docs")'),
@@ -44,6 +46,8 @@ export type SearchWikiInput = z.infer<z.ZodObject<typeof searchWikiSchema>>;
 export async function searchWiki(client: WikiApiClient, args: SearchWikiInput) {
   const response = await client.searchPages({
     q: args.query,
+    includeAiGenerated: args.includeAiGenerated,
+    includeAiAssisted: args.includeAiAssisted,
     scope: args.scope,
     pathPrefix: args.pathPrefix,
     space: args.space,

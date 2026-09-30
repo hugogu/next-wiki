@@ -329,3 +329,16 @@ the stable page ID, and canonical address without listing or keyword search.
 Absolute URLs must use the configured Wiki origin. Reads retain the caller's
 normal page permissions and API-key space scopes; hidden or missing pages
 return `NOT_FOUND`. The server must support `GET /api/v1/pages/resolve`.
+
+## AI content attribution
+
+Page-level AI attribution is returned as `aiContentLevel`: `generated` for
+AI-generated pages, `assisted` after a human content revision, and `null` for
+human/original content. Publishing or changing a page address does not count
+as a human content edit. Later machine revisions preserve human contributions.
+Original Raw evidence remains unmarked even when mirrored by an agent.
+
+Search tools accept optional `includeAiGenerated` and `includeAiAssisted`
+booleans. Both default to inclusion. Set either to `false` to exclude that
+level; set both to `false` to search only unmarked content. These filters
+apply across permitted spaces, independently of the space selector.

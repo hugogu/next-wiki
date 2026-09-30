@@ -47,3 +47,12 @@ describe('NextWikiClient', () => {
   });
 
 });
+
+it('forwards independent AI inclusion flags, including false', async () => {
+  const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ results: [] })));
+  const client = new NextWikiClient({ baseUrl: 'https://wiki.example', apiKey: 'key', fetchImpl });
+  await client.search('knowledge', 2, { includeAiGenerated: false, includeAiAssisted: true });
+  const url = new URL(fetchImpl.mock.calls[0]![0] as string);
+  expect(url.searchParams.get('includeAiGenerated')).toBe('false');
+  expect(url.searchParams.get('includeAiAssisted')).toBe('true');
+});

@@ -1,5 +1,15 @@
 import { z } from 'zod';
 
+export const aiContentLevelSchema = z.enum(['generated', 'assisted']);
+export type AiContentLevel = z.infer<typeof aiContentLevelSchema>;
+
+export function deriveAiContentLevel(nature: 'original' | 'generated', humanModified: boolean): AiContentLevel | null {
+  return nature === 'generated' ? (humanModified ? 'assisted' : 'generated') : null;
+}
+
+/** Query flags accept explicit booleans without coercing the string false to true. */
+export const aiSearchIncludeSchema = z.union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')]).optional();
+
 export const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
 export type PageVisibility = z.infer<typeof pageVisibilitySchema>;
 import { wikiAiChannelSchema } from './ai';
@@ -211,6 +221,7 @@ export const publicPageResourceSchema = z.object({
     })
     .optional(),
   humanModified: z.boolean().optional(),
+  aiContentLevel: aiContentLevelSchema.nullable().optional(),
   visibility: pageVisibilitySchema.optional(),
   // 023: set only for raw pages filed under a built-in (system) category —
   // e.g. 'conversation' — so search/reader UIs can show a source-specific
@@ -541,6 +552,8 @@ export type PublicPageRenderingResult = z.infer<typeof publicPageRenderingResult
 export const publicPageSearchQuerySchema = z
   .object({
     q: z.string().min(1).max(200),
+    includeAiGenerated: aiSearchIncludeSchema,
+    includeAiAssisted: aiSearchIncludeSchema,
     scope: z.enum(['path', 'title', 'content', 'all']).default('all'),
     status: z.enum(['published', 'draft', 'all']).default('published'),
     pathPrefix: pathSchema.optional(),
@@ -593,6 +606,8 @@ export const hybridSearchSemanticStateSchema = z.enum(['pending', 'ready', 'unav
 export type HybridSearchSemanticState = z.infer<typeof hybridSearchSemanticStateSchema>;
 
 export const hybridSearchQueryInputSchema = z.object({
+  includeAiGenerated: z.boolean().optional(),
+  includeAiAssisted: z.boolean().optional(),
   kind: z.literal('query'),
   searchRecordId: z.string().uuid(),
   searchSessionId: z.string().uuid(),

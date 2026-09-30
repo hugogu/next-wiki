@@ -55,6 +55,7 @@ export type SearchWikiResult = {
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
+  aiContentLevel?: PublicPageResource['aiContentLevel'];
   /** 025: the bot channel a captured Raw Conversation result came from (e.g.
    * 'feishu'); absent/null for non-conversation results and legacy captures. */
   conversationChannel?: PublicPageResource['conversationChannel'];
@@ -68,6 +69,7 @@ function pageProvenance(source: PublicPageResource) {
     ...(source.canonicalUrl ? { canonicalUrl: source.canonicalUrl } : {}),
     ...(source.origin ? { origin: source.origin } : {}),
     ...(source.humanModified !== undefined ? { humanModified: source.humanModified } : {}),
+    ...(source.aiContentLevel !== undefined ? { aiContentLevel: source.aiContentLevel } : {}),
     ...(source.conversationChannel !== undefined ? { conversationChannel: source.conversationChannel } : {}),
   };
 }
@@ -112,6 +114,7 @@ export type PageListItem = {
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
+  aiContentLevel?: PublicPageResource['aiContentLevel'];
 };
 
 export function listPagesResponse(source: { items: PublicPageResource[]; nextCursor: string | null }): {
@@ -157,6 +160,7 @@ export function getPageResponse(
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
+  aiContentLevel?: PublicPageResource['aiContentLevel'];
   aliases?: PublicPageAddress[];
 } {
   return {
@@ -186,6 +190,7 @@ export function createPageResponse(source: PublicPageResource): {
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
+  aiContentLevel?: PublicPageResource['aiContentLevel'];
 } {
   return {
     id: source.id,
@@ -224,6 +229,7 @@ export function updatePropertiesResponse(source: PublicPageResource): {
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
+  aiContentLevel?: PublicPageResource['aiContentLevel'];
 } {
   return {
     id: source.id,
@@ -246,6 +252,7 @@ export function publishPageResponse(source: PublicPageResource): {
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
   humanModified?: boolean;
+  aiContentLevel?: PublicPageResource['aiContentLevel'];
 } {
   return {
     id: source.id,

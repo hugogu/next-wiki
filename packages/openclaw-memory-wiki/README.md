@@ -128,3 +128,16 @@ Relative reader addresses also work. This requires a Wiki server supporting
 `GET /api/v1/memory/wiki/pages/resolve`. URL reads use the same bound key,
 space grants, forgotten-record filtering, content bounds, and citations as ID
 reads. Search remains useful for questions without a specific link.
+
+## AI content attribution
+
+Page-level AI attribution is returned as `aiContentLevel`: `generated` for
+AI-generated pages, `assisted` after a human content revision, and `null` for
+human/original content. Publishing or changing a page address does not count
+as a human content edit. Later machine revisions preserve human contributions.
+Original Raw evidence remains unmarked even when mirrored by an agent.
+
+Search tools accept optional `includeAiGenerated` and `includeAiAssisted`
+booleans. Both default to inclusion. Set either to `false` to exclude that
+level; set both to `false` to search only unmarked content. These filters
+apply across permitted spaces, independently of the space selector.

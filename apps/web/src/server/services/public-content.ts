@@ -2,6 +2,8 @@ import { randomUUID } from 'node:crypto';
 import { and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
 import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
+import { deriveAiContentLevel } from '@next-wiki/shared';
+import { aiContentFilterSql, type AiSearchIncludes } from './ai-content-level';
 import * as schema from '@/server/db/schema';
 import type {
   PublicAssetResource,
@@ -351,6 +353,7 @@ async function visiblePageResource(
     canonicalUrl: canonicalSpacePath(space, effectiveSlug, page.sourcePageId ? page.locale : null),
     origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     humanModified: humanRevision !== undefined,
+    aiContentLevel: deriveAiContentLevel(page.nature, humanRevision !== undefined),
     visibility: canViewProvenance ? page.visibility : undefined,
     contentSource: options.includeContent ? content : undefined,
     frontmatter,
@@ -482,7 +485,7 @@ function matchesTypeFilter(page: PublicPageResource, filterType: string): boolea
   return typeof page.frontmatter?.type === 'string' && page.frontmatter.type === filterType;
 }
 
-type ListPagesQuery = {
+type ListPagesQuery = AiSearchIncludes & {
   status: 'published' | 'draft' | 'all' | 'deleted';
   space?: string;
   q?: string;
@@ -595,6 +598,8 @@ async function listPagesInternal(
 
   const cursor = decodePublicCursor(query.cursor);
   const conditions: SQL[] = [inArray(schema.pages.spaceId, spaces.map((s) => s.id))];
+  const aiFilter = aiContentFilterSql(query);
+  if (aiFilter) conditions.push(aiFilter);
   if (query.status === 'deleted') {
     conditions.push(isNotNull(schema.pages.deletedAt));
   } else if (query.status !== 'all') {
@@ -1118,6 +1123,8 @@ export async function searchPages(ctx: PermCtx, query: SearchPagesQuery): Promis
 
   const result = await runCoordinatedSearch(ctx, {
     q: query.q.trim(),
+    includeAiGenerated: query.includeAiGenerated,
+    includeAiAssisted: query.includeAiAssisted,
     limit: query.limit,
     snapshot: {
       full_text: settings.fullTextSearchEnabled,
@@ -1200,6 +1207,8 @@ async function searchPagesWithLegacyFilters(
       status: query.status,
       space: query.space,
       q: query.q,
+      includeAiGenerated: query.includeAiGenerated,
+      includeAiAssisted: query.includeAiAssisted,
       pathPrefix: query.pathPrefix,
       limit: fetchLimit,
       cursor: query.cursor,
@@ -1428,6 +1437,8 @@ export async function hybridSearchPages(ctx: PermCtx, input: HybridSearchQueryIn
 
   const result = await runCoordinatedSearch(ctx, {
     q: input.q.trim(),
+    includeAiGenerated: input.includeAiGenerated,
+    includeAiAssisted: input.includeAiAssisted,
     limit: input.limit,
     snapshot,
     excerpt: { windowSize: settings.excerptLength, show: settings.showExcerpts },

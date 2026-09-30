@@ -16,6 +16,8 @@ import { resolveSpace } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 
 export type SemanticSearchInput = {
+  includeAiGenerated?: boolean;
+  includeAiAssisted?: boolean;
   query: string;
   limit: number;
   pathPrefix?: string;
@@ -88,12 +90,14 @@ export async function readPermissionFilteredVectorCandidates(
   queryVector: number[],
   limit: number,
   space?: string,
-  options?: { excludeCapturedConversations?: boolean },
+  options?: { excludeCapturedConversations?: boolean; includeAiGenerated?: boolean; includeAiAssisted?: boolean },
 ): Promise<VectorMatch[]> {
   const targetSlug = space ? (await resolveSpace(space))?.slug : undefined;
   if (space && !targetSlug) return [];
   const matches = await exactCosineSearch(generationId, queryVector, Math.max(limit * 10, 100), {
     excludeCapturedConversations: options?.excludeCapturedConversations,
+    includeAiGenerated: options?.includeAiGenerated,
+    includeAiAssisted: options?.includeAiAssisted,
   });
   return matches.filter((match) => {
     if (targetSlug && match.spaceSlug !== targetSlug) return false;
@@ -111,6 +115,8 @@ export async function retrieve(
     frontmatter?: FrontmatterFilters;
     space?: string;
     excludeCapturedConversations?: boolean;
+    includeAiGenerated?: boolean;
+    includeAiAssisted?: boolean;
   },
 ): Promise<AiSearchResult[]> {
   const readable = await readPermissionFilteredVectorCandidates(
@@ -119,7 +125,11 @@ export async function retrieve(
     queryVector,
     limit,
     filters?.space,
-    { excludeCapturedConversations: filters?.excludeCapturedConversations },
+    {
+      excludeCapturedConversations: filters?.excludeCapturedConversations,
+      includeAiGenerated: filters?.includeAiGenerated,
+      includeAiAssisted: filters?.includeAiAssisted,
+    },
   );
   const chunksByPage = new Map<string, VectorMatch[]>();
   for (const match of readable) {
@@ -199,6 +209,8 @@ export async function runSemanticSearchAction(actionId: string): Promise<void> {
   });
   const results = await retrieve(ctx, generation.id, output.vectors[0]!, input.limit, {
     pathPrefix: input.pathPrefix,
+    includeAiGenerated: input.includeAiGenerated,
+    includeAiAssisted: input.includeAiAssisted,
     frontmatter: input.frontmatterFilters,
     space: input.space,
   });
