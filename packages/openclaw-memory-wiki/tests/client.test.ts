@@ -34,4 +34,16 @@ describe('NextWikiClient', () => {
     const client = new NextWikiClient({ baseUrl: 'https://wiki.example', apiKey: 'openclaw', fetchImpl });
     await expect(client.search('private')).rejects.toMatchObject({ message: 'INTERNAL_ERROR', retryable: true });
   });
+  it('sends shared URLs only to the bound Wiki resolve endpoint', async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ pageId: 'p', content: '# Article' })));
+    const client = new NextWikiClient({ baseUrl: 'https://wiki.example', apiKey: 'connection-key', fetchImpl });
+    await client.getByUrl('https://wiki.example/generated/article?source=chat#section', 1200);
+    const url = new URL(fetchImpl.mock.calls[0]![0] as string);
+    expect(url.origin).toBe('https://wiki.example');
+    expect(url.pathname).toBe('/api/v1/memory/wiki/pages/resolve');
+    expect(url.searchParams.get('url')).toBe('https://wiki.example/generated/article?source=chat#section');
+    expect(url.searchParams.get('maxChars')).toBe('1200');
+    expect(fetchImpl.mock.calls[0]![1]).toMatchObject({ headers: { authorization: 'Bearer connection-key' } });
+  });
+
 });

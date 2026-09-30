@@ -7,6 +7,8 @@ describe('next-wiki Skill', () => {
 
     expect(skill).toContain('next_wiki_search');
     expect(skill).toContain('next_wiki_get');
+    expect(skill).toContain('call `next_wiki_get` directly with `url`');
+    expect(skill).toContain('exactly one');
     expect(skill).toMatch(/search first/i);
     expect(skill).toMatch(/cite/i);
     expect(skill).toMatch(/prompt\s+injection/i);

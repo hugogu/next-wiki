@@ -13,6 +13,7 @@ import { getSpaceHref } from '@/lib/path';
 import type { PermCtx } from '@/server/permissions';
 import type { ScheduledAiJobScope } from '@next-wiki/shared';
 import * as content from '@/server/services/public-content';
+import { getPageByReference } from './public-page-reference';
 import * as tags from '@/server/services/tags';
 import { auditImmediateToolMutation } from '@/server/services/audit';
 import { createProposal } from '@/server/services/ai-tool-proposals';
@@ -228,6 +229,13 @@ const pageRefArgs = z.preprocess(
     })
     .refine((v) => v.pageId || v.node || v.path),
 );
+const urlPageRefArgs = z.object({
+  url: z.string().min(1).max(2048),
+  pageId: z.never().optional(),
+  node: z.never().optional(),
+  path: z.never().optional(),
+  contentOffset: z.number().int().min(0).optional(),
+});
 const listArgs = z
   .object({
     path: z.string().min(1).optional(),
@@ -496,12 +504,16 @@ async function execGetPage(
   rawArgs: unknown,
   execCtx?: ToolExecutionContext,
 ): Promise<ToolExecutionResult> {
-  const args = pageRefArgs.parse(rawArgs);
+  const args = rawArgs && typeof rawArgs === 'object' && 'url' in rawArgs
+    ? urlPageRefArgs.parse(rawArgs)
+    : pageRefArgs.parse(rawArgs);
   const page =
-    args.pageId || args.node
-      ? await content.getPageById(ctx, args.pageId ?? args.node!, READ_INCLUDE)
-      : await readPageByPath(ctx, args.path!, args.space);
-  if (!page) return fail('NOT_FOUND', pageRefNotFoundMessage(args));
+    'url' in args
+      ? await getPageByReference(ctx, args.url, process.env.APP_URL || 'http://localhost:3000', READ_INCLUDE)
+      : args.pageId || args.node
+        ? await content.getPageById(ctx, args.pageId ?? args.node!, READ_INCLUDE)
+        : await readPageByPath(ctx, args.path!, args.space);
+  if (!page) return fail('NOT_FOUND', 'url' in args ? 'No readable page matched that Wiki URL.' : pageRefNotFoundMessage(args));
 
   const source = page.contentSource ?? null;
   if (source === null) {

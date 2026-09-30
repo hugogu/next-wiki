@@ -314,3 +314,18 @@ provenance.
 
 Add an `NPM_TOKEN` secret to the repository with publish permission for the
 `@next-wiki` npm scope.
+
+When a user shares a Wiki link, call `get_page` directly:
+
+```json
+{"url":"https://kb.example.com/generated/ten-theses-ai-future-2026"}
+```
+
+Supply exactly one of `url` or `pageId`. `url` also accepts relative reader
+addresses such as `/generated/ten-theses-ai-future-2026`. It uses the same
+configured space prefixes, canonical slugs, locale routes, and retained aliases
+as the browser, ignoring query strings and fragments. It returns Markdown,
+the stable page ID, and canonical address without listing or keyword search.
+Absolute URLs must use the configured Wiki origin. Reads retain the caller's
+normal page permissions and API-key space scopes; hidden or missing pages
+return `NOT_FOUND`. The server must support `GET /api/v1/pages/resolve`.

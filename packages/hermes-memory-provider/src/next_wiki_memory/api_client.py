@@ -12,7 +12,7 @@ from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from .config import ProviderConfig, configured_api_key
 
-PROVIDER_VERSION = "0.2.0"
+PROVIDER_VERSION = "0.3.0"
 USER_AGENT = f"next-wiki-memory/{PROVIDER_VERSION}"
 MAX_RESPONSE_BYTES = 1_000_000
 MAX_ERROR_BODY_BYTES = 64_000
@@ -103,6 +103,9 @@ class WikiApiClient:
 
     def get_knowledge_page(self, page_id: str, max_chars: int) -> dict[str, Any]:
         return self._request("GET", f"/memory/wiki/pages/{quote(page_id, safe='')}?{urlencode({'maxChars': max_chars})}")
+
+    def get_knowledge_page_by_url(self, url: str, max_chars: int) -> dict[str, Any]:
+        return self._request("GET", f"/memory/wiki/pages/resolve?{urlencode({'url': url, 'maxChars': max_chars})}")
 
     def save(self, payload: dict[str, object]) -> dict[str, Any]:
         return self._request("POST", "/memory/records", payload)

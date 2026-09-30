@@ -123,6 +123,7 @@ export const BUILTIN_TOOLS: ToolDefinition[] = [
       type: 'object',
       properties: {
         pageId: { type: 'string', description: 'Page id returned by a previous tool call.' },
+        url: { type: 'string', description: 'Wiki reader URL or relative reader address. Pass a user-provided link directly, without searching for its pageId.' },
         path: {
           type: 'string',
           description:

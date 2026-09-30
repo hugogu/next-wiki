@@ -32,6 +32,11 @@ export class NextWikiClient {
     return this.request(`/api/v1/memory/wiki/search?q=${encodeURIComponent(q)}&limit=${limit}`, { method: 'GET' });
   }
 
+  async getByUrl(url: string, maxChars = 8_000): Promise<unknown> {
+    const params = new URLSearchParams({ url, maxChars: String(maxChars) });
+    return this.request(`/api/v1/memory/wiki/pages/resolve?${params}`, { method: 'GET' });
+  }
+
   async get(pageId: string, maxChars = 8_000): Promise<unknown> {
     return this.request(`/api/v1/memory/wiki/pages/${encodeURIComponent(pageId)}?maxChars=${maxChars}`, { method: 'GET' });
   }

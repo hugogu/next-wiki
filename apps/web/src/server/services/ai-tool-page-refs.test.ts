@@ -1,5 +1,8 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 
+const reference = vi.hoisted(() => vi.fn());
+vi.mock('./public-page-reference', () => ({ getPageByReference: reference }));
+
 const content = vi.hoisted(() => ({
   getPageByPath: vi.fn(),
   getPageById: vi.fn(),
@@ -41,8 +44,17 @@ function getPage(args: Record<string, unknown>) {
  */
 describe('get_page across spaces', () => {
   beforeEach(() => {
+    reference.mockReset();
     content.getPageByPath.mockReset();
     content.getPageById.mockReset();
+  });
+
+  it('reads a shared URL directly through reader routing', async () => {
+    reference.mockResolvedValue(page);
+    const result = await getPage({ url: '/generated/reversi' });
+    expect(result.ok).toBe(true);
+    expect(reference).toHaveBeenCalledWith(ctx, '/generated/reversi', expect.any(String), ['publishedRevision']);
+    expect(content.getPageByPath).not.toHaveBeenCalled();
   });
 
   it('reads a path in the space the caller names', async () => {

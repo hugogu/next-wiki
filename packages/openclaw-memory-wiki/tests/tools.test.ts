@@ -28,4 +28,16 @@ describe('plugin tools', () => {
     expect(syncResult.content[0]?.text).toContain('uploaded');
     expect(tools.next_wiki_sync.description).toMatch(/explicit/i);
   });
+  it('reads a shared URL directly and rejects ambiguous references', async () => {
+    const client = { getByUrl: vi.fn(async () => ({ pageId: 'p', content: '# Article' })), search: vi.fn(), get: vi.fn() };
+    const tools = createTools(client as never, {} as never);
+    const result = await tools.next_wiki_get.execute('id', { url: 'https://kb.example.com/generated/article', maxChars: 1200 });
+    expect(result.details).toMatchObject({ content: '# Article' });
+    expect(client.getByUrl).toHaveBeenCalledWith('https://kb.example.com/generated/article', 1200);
+    expect(client.get).not.toHaveBeenCalled();
+    expect(client.search).not.toHaveBeenCalled();
+    await expect(tools.next_wiki_get.execute('id', {})).rejects.toThrow('exactly one');
+    await expect(tools.next_wiki_get.execute('id', { pageId: 'p', url: '/wiki/article' })).rejects.toThrow('exactly one');
+  });
+
 });

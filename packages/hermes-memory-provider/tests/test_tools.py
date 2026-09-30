@@ -13,6 +13,9 @@ class _ToolClient:
     def get_knowledge_page(self, page_id: str, max_chars: int):
         return {"pageId": page_id, "content": "current", "maxChars": max_chars}
 
+    def get_knowledge_page_by_url(self, url: str, max_chars: int):
+        return {"pageId": "resolved-id", "content": "current", "url": url, "maxChars": max_chars}
+
     def save(self, payload):
         return {"record": {"memoryId": "one"}, "idempotent": False}
 
@@ -43,3 +46,16 @@ def test_tool_dispatch_rejects_unbounded_or_unknown_arguments(monkeypatch, tmp_p
     assert extra["ok"] is False
     unknown = json.loads(provider.handle_tool_call("memory_search", {"query": "decision"}))
     assert unknown["code"] == "unknown_tool"
+
+
+def test_tool_reads_user_url_without_search(monkeypatch, tmp_path) -> None:
+    monkeypatch.setenv("NEXT_WIKI_MEMORY_API_KEY", "nwk_test_secret")
+    save_config(tmp_path, ProviderConfig("https://wiki.example.com/api/v1"))
+    provider = NextWikiMemoryProvider()
+    provider.initialize("session", hermes_home=tmp_path)
+    monkeypatch.setattr(provider, "_client", lambda: _ToolClient())
+    url = "https://wiki.example.com/generated/article"
+    result = json.loads(provider.handle_tool_call("next_wiki_memory_get", {"url": url, "max_chars": 1200}))
+    assert result == {"ok": True, "pageId": "resolved-id", "content": "current", "url": url, "maxChars": 1200}
+    for args in ({}, {"page_id": "p", "url": url}, {"url": "x" * 2049}, {"url": url, "max_chars": 20_001}):
+        assert json.loads(provider.handle_tool_call("next_wiki_memory_get", args))["ok"] is False
