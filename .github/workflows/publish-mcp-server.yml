@@ -32,7 +32,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Setup npm with trusted publishing support
         run: npm install --global npm@11.14.1 --registry=https://registry.npmjs.org
@@ -65,5 +64,3 @@ jobs:
       - name: Publish to npm
         working-directory: packages/mcp-server
         run: npm publish --provenance --access public --loglevel=verbose
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
