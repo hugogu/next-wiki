@@ -5,7 +5,12 @@ import { formatZodError, parseJson } from '@/server/api/validate';
 import { apiError, handleApiError } from '@/server/api/errors';
 import { createImageGeneration } from '@/server/services/ai-image-generation';
 
-/** @openapi @summary Generate a private Wiki illustration preview @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary Generate a private Wiki illustration preview
+ * @tag AI
+ * @auth bearer
+ */
 export async function POST(request: NextRequest) {
   const parsed = parseJson(aiImageInputSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

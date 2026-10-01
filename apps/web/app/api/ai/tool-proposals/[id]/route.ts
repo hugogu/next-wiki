@@ -7,7 +7,12 @@ import { getProposalDetail } from '@/server/services/ai-tool-proposals';
 const idSchema = z.string().uuid();
 type Params = { params: Promise<{ id: string }> };
 
-/** @openapi @summary Get an AI tool change proposal @tag AI Tools @auth bearer */
+/**
+ * @openapi
+ * @summary Get an AI tool change proposal
+ * @tag AI Tools
+ * @auth bearer
+ */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);

@@ -5,7 +5,12 @@ import { formatZodError, parseJson } from '@/server/api/validate';
 import { apiError, handleApiError } from '@/server/api/errors';
 import { createSemanticSearch } from '@/server/services/ai-retrieval';
 
-/** @openapi @summary Start semantic Wiki search @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary Start semantic Wiki search
+ * @tag AI
+ * @auth bearer
+ */
 export async function POST(request: NextRequest) {
   const parsed = parseJson(aiSearchInputSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

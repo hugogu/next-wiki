@@ -5,7 +5,12 @@ import { createApiContext } from '@/server/api/session';
 import { handleApiError } from '@/server/api/errors';
 import { listActions } from '@/server/services/ai-actions';
 
-/** @openapi @summary List AI action audit @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary List AI action audit
+ * @tag AI
+ * @auth bearer
+ */
 export async function GET(request: NextRequest) {
   const ctx = await createApiContext();
   const params = request.nextUrl.searchParams;

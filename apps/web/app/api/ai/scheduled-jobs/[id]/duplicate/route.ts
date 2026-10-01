@@ -7,7 +7,12 @@ import { duplicateScheduledAiJob } from '@/server/services/scheduled-ai-jobs';
 
 type Params = { params: Promise<{ id: string }> };
 const idSchema = z.string().uuid();
-/** @openapi @summary Duplicate a scheduled AI job as paused @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Duplicate a scheduled AI job as paused
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);

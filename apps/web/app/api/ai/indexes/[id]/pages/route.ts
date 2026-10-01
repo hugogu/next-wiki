@@ -6,7 +6,12 @@ import { getIndex } from '@/server/services/ai-index';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 
-/** @openapi @summary List AI index page states @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary List AI index page states
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const id = (await params).id;

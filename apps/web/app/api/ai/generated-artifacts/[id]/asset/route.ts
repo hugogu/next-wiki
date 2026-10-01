@@ -8,7 +8,12 @@ import { promoteGeneratedArtifact } from '@/server/services/ai-artifacts';
 
 const idSchema = z.string().uuid();
 
-/** @openapi @summary Promote a generated image into a Wiki asset @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary Promote a generated image into a Wiki asset
+ * @tag AI
+ * @auth bearer
+ */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);

@@ -5,7 +5,12 @@ import { formatZodError, parseJson } from '@/server/api/validate';
 import { apiError, handleApiError } from '@/server/api/errors';
 import { retryIndexPages } from '@/server/services/ai-index';
 
-/** @openapi @summary Retry AI index pages @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Retry AI index pages
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const parsed = parseJson(aiIndexRetrySchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

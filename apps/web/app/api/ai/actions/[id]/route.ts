@@ -7,7 +7,13 @@ import { getAnonymousAiAccessToken } from '@/server/services/auth';
 
 const idSchema = z.string().uuid();
 
-/** @openapi @summary Get AI action @tag AI @auth bearer @response AiActionView */
+/**
+ * @openapi
+ * @summary Get AI action
+ * @tag AI
+ * @auth bearer
+ * @response AiActionView
+ */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;
@@ -19,7 +25,13 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 }
 
-/** @openapi @summary Cancel AI action @tag AI @auth bearer @response 202:AiActionView */
+/**
+ * @openapi
+ * @summary Cancel AI action
+ * @tag AI
+ * @auth bearer
+ * @response 202:AiActionView
+ */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;

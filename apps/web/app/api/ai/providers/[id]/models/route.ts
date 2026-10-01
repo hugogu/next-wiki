@@ -5,7 +5,12 @@ import { formatZodError, parseJson } from '@/server/api/validate';
 import { apiError, handleApiError } from '@/server/api/errors';
 import { createManualModel } from '@/server/services/ai-admin';
 
-/** @openapi @summary Create manual AI model @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Create manual AI model
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const parsed = parseJson(aiModelCreateSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

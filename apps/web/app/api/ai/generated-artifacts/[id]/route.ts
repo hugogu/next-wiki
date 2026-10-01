@@ -6,7 +6,12 @@ import { discardGeneratedArtifact, getGeneratedArtifact } from '@/server/service
 
 const idSchema = z.string().uuid();
 
-/** @openapi @summary Preview a private generated image @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary Preview a private generated image
+ * @tag AI
+ * @auth bearer
+ */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);
@@ -24,7 +29,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 }
 
-/** @openapi @summary Discard a private generated image @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary Discard a private generated image
+ * @tag AI
+ * @auth bearer
+ */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);

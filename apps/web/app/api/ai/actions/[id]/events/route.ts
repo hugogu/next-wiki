@@ -7,7 +7,12 @@ import { getAnonymousAiAccessToken } from '@/server/services/auth';
 
 const idSchema = z.string().uuid();
 
-/** @openapi @summary Stream AI action events @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary Stream AI action events
+ * @tag AI
+ * @auth bearer
+ */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
   const { id } = await params;

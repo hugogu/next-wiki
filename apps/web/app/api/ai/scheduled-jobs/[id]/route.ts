@@ -15,7 +15,12 @@ type Params = { params: Promise<{ id: string }> };
 const idSchema = z.string().uuid();
 const noStore = { 'cache-control': 'no-store' };
 
-/** @openapi @summary Get a scheduled AI job @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Get a scheduled AI job
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);
@@ -28,7 +33,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
   }
 }
 
-/** @openapi @summary Update a scheduled AI job @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Update a scheduled AI job
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { id } = await params;
   const parsed = parseJson(scheduledAiJobUpdateSchema, await request.json().catch(() => ({})));
@@ -44,7 +54,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
   }
 }
 
-/** @openapi @summary Retire a scheduled AI job @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Retire a scheduled AI job
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);

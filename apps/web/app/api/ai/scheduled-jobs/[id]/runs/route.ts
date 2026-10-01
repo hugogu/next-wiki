@@ -9,7 +9,12 @@ import { listScheduledAiJobRuns, runScheduledAiJobNow } from '@/server/services/
 type Params = { params: Promise<{ id: string }> };
 const idSchema = z.string().uuid();
 const noStore = { 'cache-control': 'no-store' };
-/** @openapi @summary List scheduled AI job runs @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary List scheduled AI job runs
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);
@@ -26,7 +31,12 @@ export async function GET(request: NextRequest, { params }: Params) {
     return error instanceof DomainError ? mapDomainError(error) : internalError();
   }
 }
-/** @openapi @summary Run a scheduled AI job now @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Run a scheduled AI job now
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);

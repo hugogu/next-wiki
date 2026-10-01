@@ -12714,7 +12714,7 @@
     "/ai/actions": {
       "get": {
         "operationId": "get-ai-actions",
-        "summary": "List AI action audit @tag AI @auth bearer",
+        "summary": "List AI action audit",
         "description": "",
         "tags": [
           "AI"
@@ -12742,7 +12742,7 @@
     "/ai/images": {
       "post": {
         "operationId": "post-ai-images",
-        "summary": "Generate a private Wiki illustration preview @tag AI @auth bearer",
+        "summary": "Generate a private Wiki illustration preview",
         "description": "",
         "tags": [
           "AI"
@@ -12860,7 +12860,7 @@
     "/ai/optimizations": {
       "post": {
         "operationId": "post-ai-optimizations",
-        "summary": "Optimize selected Wiki Markdown @tag AI @auth bearer",
+        "summary": "Optimize selected Wiki Markdown",
         "description": "",
         "tags": [
           "AI"
@@ -12978,7 +12978,7 @@
     "/ai/questions": {
       "post": {
         "operationId": "post-ai-questions",
-        "summary": "Ask a grounded Wiki question @tag AI @auth bearer",
+        "summary": "Ask a grounded Wiki question",
         "description": "",
         "tags": [
           "AI"
@@ -13096,7 +13096,7 @@
     "/ai/searches": {
       "post": {
         "operationId": "post-ai-searches",
-        "summary": "Start semantic Wiki search @tag AI @auth bearer",
+        "summary": "Start semantic Wiki search",
         "description": "",
         "tags": [
           "AI"
@@ -13214,7 +13214,7 @@
     "/ai/sessions": {
       "get": {
         "operationId": "get-ai-sessions",
-        "summary": "List my AI chat conversations @tag AI @auth bearer",
+        "summary": "List my AI chat conversations",
         "description": "",
         "tags": [
           "AI"
@@ -13242,7 +13242,7 @@
     "/ai/actions/{id}": {
       "get": {
         "operationId": "get-ai-actions-{id}",
-        "summary": "Get AI action @tag AI @auth bearer @response AiActionView",
+        "summary": "Get AI action",
         "description": "",
         "tags": [
           "AI"
@@ -13261,7 +13261,7 @@
         ],
         "security": [
           {
-            "bearer @response AiActionView": []
+            "BearerAuth": []
           }
         ],
         "responses": {
@@ -13279,7 +13279,7 @@
       },
       "delete": {
         "operationId": "delete-ai-actions-{id}",
-        "summary": "Cancel AI action @tag AI @auth bearer @response 202:AiActionView",
+        "summary": "Cancel AI action",
         "description": "",
         "tags": [
           "AI"
@@ -13298,7 +13298,7 @@
         ],
         "security": [
           {
-            "bearer @response 202:AiActionView": []
+            "BearerAuth": []
           }
         ],
         "responses": {
@@ -13318,7 +13318,7 @@
     "/ai/entitlements/me": {
       "get": {
         "operationId": "get-ai-entitlements-me",
-        "summary": "Get my effective AI entitlement @tag AI @auth bearer",
+        "summary": "Get my effective AI entitlement",
         "description": "",
         "tags": [
           "AI"
@@ -13346,7 +13346,7 @@
     "/ai/generated-artifacts/{id}": {
       "get": {
         "operationId": "get-ai-generated-artifacts-{id}",
-        "summary": "Preview a private generated image @tag AI @auth bearer",
+        "summary": "Preview a private generated image",
         "description": "",
         "tags": [
           "AI"
@@ -13372,7 +13372,7 @@
       },
       "delete": {
         "operationId": "delete-ai-generated-artifacts-{id}",
-        "summary": "Discard a private generated image @tag AI @auth bearer",
+        "summary": "Discard a private generated image",
         "description": "",
         "tags": [
           "AI"
@@ -13404,7 +13404,7 @@
     "/ai/sessions/{id}": {
       "get": {
         "operationId": "get-ai-sessions-{id}",
-        "summary": "Get one of my AI chat conversations @tag AI @auth bearer",
+        "summary": "Get one of my AI chat conversations",
         "description": "",
         "tags": [
           "AI"
@@ -13441,7 +13441,7 @@
       },
       "delete": {
         "operationId": "delete-ai-sessions-{id}",
-        "summary": "Permanently delete one of my AI chat conversations @tag AI @auth bearer @response 204",
+        "summary": "Permanently delete one of my AI chat conversations",
         "description": "",
         "tags": [
           "AI"
@@ -13460,7 +13460,7 @@
         ],
         "security": [
           {
-            "bearer @response 204": []
+            "BearerAuth": []
           }
         ],
         "responses": {
@@ -13473,7 +13473,7 @@
     "/ai/actions/{id}/events": {
       "get": {
         "operationId": "get-ai-actions-{id}-events",
-        "summary": "Stream AI action events @tag AI @auth bearer",
+        "summary": "Stream AI action events",
         "description": "",
         "tags": [
           "AI"
@@ -13510,7 +13510,7 @@
     "/ai/generated-artifacts/{id}/asset": {
       "post": {
         "operationId": "post-ai-generated-artifacts-{id}-asset",
-        "summary": "Promote a generated image into a Wiki asset @tag AI @auth bearer",
+        "summary": "Promote a generated image into a Wiki asset",
         "description": "",
         "tags": [
           "AI"
@@ -13549,7 +13549,7 @@
     "/ai/web-research/sources/{sourceId}/capture": {
       "post": {
         "operationId": "post-ai-web-research-sources-{sourceId}-capture",
-        "summary": "Preserve opened Web Research evidence as a Raw entry @tag AI @auth bearer",
+        "summary": "Preserve opened Web Research evidence as a Raw entry",
         "description": "",
         "tags": [
           "AI"
@@ -13604,7 +13604,7 @@
     "/ai/indexes": {
       "get": {
         "operationId": "get-ai-indexes",
-        "summary": "List AI indexes @tag AI Admin @auth bearer",
+        "summary": "List AI indexes",
         "description": "",
         "tags": [
           "AI Admin"
@@ -13630,7 +13630,7 @@
       },
       "post": {
         "operationId": "post-ai-indexes",
-        "summary": "Start AI index rebuild @tag AI Admin @auth bearer",
+        "summary": "Start AI index rebuild",
         "description": "",
         "tags": [
           "AI Admin"
@@ -13868,7 +13868,7 @@
     "/ai/models": {
       "get": {
         "operationId": "get-ai-models",
-        "summary": "List AI models @tag AI Admin @auth bearer",
+        "summary": "List AI models",
         "description": "",
         "tags": [
           "AI Admin"
@@ -13896,8 +13896,8 @@
     "/ai/providers": {
       "get": {
         "operationId": "get-ai-providers",
-        "summary": "List AI providers @description Available to authenticated users; write operations remain administrator-only. @tag AI Admin @auth bearer",
-        "description": "Available to authenticated users; write operations remain administrator-only. @tag AI Admin @auth bearer",
+        "summary": "List AI providers",
+        "description": "Available to authenticated users; write operations remain administrator-only.",
         "tags": [
           "AI Admin"
         ],
@@ -13922,7 +13922,7 @@
       },
       "post": {
         "operationId": "post-ai-providers",
-        "summary": "Create AI provider @tag AI Admin @auth bearer",
+        "summary": "Create AI provider",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14206,8 +14206,8 @@
     "/ai/scheduled-job-runs": {
       "get": {
         "operationId": "get-ai-scheduled-job-runs",
-        "summary": "List all scheduled AI job runs @description Available to authenticated users. @tag AI Admin @auth bearer",
-        "description": "Available to authenticated users. @tag AI Admin @auth bearer",
+        "summary": "List all scheduled AI job runs",
+        "description": "Available to authenticated users.",
         "tags": [
           "AI Admin"
         ],
@@ -14408,8 +14408,8 @@
     "/ai/scheduled-jobs": {
       "get": {
         "operationId": "get-ai-scheduled-jobs",
-        "summary": "List scheduled AI jobs @description Available to authenticated users; job creation remains administrator-only. @tag AI Admin @auth bearer",
-        "description": "Available to authenticated users; job creation remains administrator-only. @tag AI Admin @auth bearer",
+        "summary": "List scheduled AI jobs",
+        "description": "Available to authenticated users; job creation remains administrator-only.",
         "tags": [
           "AI Admin"
         ],
@@ -14535,7 +14535,7 @@
       },
       "post": {
         "operationId": "post-ai-scheduled-jobs",
-        "summary": "Create a scheduled AI job @tag AI Admin @auth bearer",
+        "summary": "Create a scheduled AI job",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14661,7 +14661,7 @@
     "/ai/settings": {
       "get": {
         "operationId": "get-ai-settings",
-        "summary": "Get AI settings @tag AI Admin @auth bearer",
+        "summary": "Get AI settings",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14687,7 +14687,7 @@
       },
       "patch": {
         "operationId": "patch-ai-settings",
-        "summary": "Update AI settings @tag AI Admin @auth bearer",
+        "summary": "Update AI settings",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14715,7 +14715,7 @@
     "/ai/usage": {
       "get": {
         "operationId": "get-ai-usage",
-        "summary": "AI usage statistics @tag AI Admin @auth bearer",
+        "summary": "AI usage statistics",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14782,7 +14782,7 @@
     "/ai/entitlements/{userId}": {
       "get": {
         "operationId": "get-ai-entitlements-{userId}",
-        "summary": "Get user AI entitlement @tag AI Admin @auth bearer",
+        "summary": "Get user AI entitlement",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14819,7 +14819,7 @@
       },
       "put": {
         "operationId": "put-ai-entitlements-{userId}",
-        "summary": "Update user AI entitlement @tag AI Admin @auth bearer",
+        "summary": "Update user AI entitlement",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14858,7 +14858,7 @@
     "/ai/indexes/{id}": {
       "get": {
         "operationId": "get-ai-indexes-{id}",
-        "summary": "Get AI index @tag AI Admin @auth bearer",
+        "summary": "Get AI index",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14895,7 +14895,7 @@
       },
       "delete": {
         "operationId": "delete-ai-indexes-{id}",
-        "summary": "Delete AI index @tag AI Admin @auth bearer",
+        "summary": "Delete AI index",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14927,7 +14927,7 @@
     "/ai/models/{id}": {
       "patch": {
         "operationId": "patch-ai-models-{id}",
-        "summary": "Update AI model @tag AI Admin @auth bearer",
+        "summary": "Update AI model",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14964,7 +14964,7 @@
       },
       "delete": {
         "operationId": "delete-ai-models-{id}",
-        "summary": "Delete AI model @tag AI Admin @auth bearer",
+        "summary": "Delete AI model",
         "description": "",
         "tags": [
           "AI Admin"
@@ -14996,7 +14996,7 @@
     "/ai/providers/{id}": {
       "get": {
         "operationId": "get-ai-providers-{id}",
-        "summary": "Get AI provider @tag AI Admin @auth bearer",
+        "summary": "Get AI provider",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15033,7 +15033,7 @@
       },
       "patch": {
         "operationId": "patch-ai-providers-{id}",
-        "summary": "Update AI provider @tag AI Admin @auth bearer",
+        "summary": "Update AI provider",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15102,7 +15102,7 @@
     "/ai/providers/test": {
       "post": {
         "operationId": "post-ai-providers-test",
-        "summary": "Test an AI provider connection synchronously @tag AI Admin @auth bearer",
+        "summary": "Test an AI provider connection synchronously",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15130,7 +15130,7 @@
     "/ai/scheduled-jobs/{id}": {
       "get": {
         "operationId": "get-ai-scheduled-jobs-{id}",
-        "summary": "Get a scheduled AI job @tag AI Admin @auth bearer",
+        "summary": "Get a scheduled AI job",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15265,7 +15265,7 @@
       },
       "patch": {
         "operationId": "patch-ai-scheduled-jobs-{id}",
-        "summary": "Update a scheduled AI job @tag AI Admin @auth bearer",
+        "summary": "Update a scheduled AI job",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15400,7 +15400,7 @@
       },
       "delete": {
         "operationId": "delete-ai-scheduled-jobs-{id}",
-        "summary": "Retire a scheduled AI job @tag AI Admin @auth bearer",
+        "summary": "Retire a scheduled AI job",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15565,7 +15565,7 @@
     "/ai/web-research/settings": {
       "get": {
         "operationId": "get-ai-web-research-settings",
-        "summary": "Get Web Research settings @tag AI Admin @auth bearer",
+        "summary": "Get Web Research settings",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15591,7 +15591,7 @@
       },
       "patch": {
         "operationId": "patch-ai-web-research-settings",
-        "summary": "Update Web Research settings @tag AI Admin @auth bearer",
+        "summary": "Update Web Research settings",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15619,7 +15619,7 @@
     "/ai/indexes/{id}/cancel": {
       "post": {
         "operationId": "post-ai-indexes-{id}-cancel",
-        "summary": "Cancel building AI index @tag AI Admin @auth bearer @response 204",
+        "summary": "Cancel building AI index",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15638,7 +15638,7 @@
         ],
         "security": [
           {
-            "bearer @response 204": []
+            "BearerAuth": []
           }
         ],
         "responses": {
@@ -15651,7 +15651,7 @@
     "/ai/indexes/{id}/page-retries": {
       "post": {
         "operationId": "post-ai-indexes-{id}-page-retries",
-        "summary": "Retry AI index pages @tag AI Admin @auth bearer",
+        "summary": "Retry AI index pages",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15780,7 +15780,7 @@
     "/ai/indexes/{id}/pages": {
       "get": {
         "operationId": "get-ai-indexes-{id}-pages",
-        "summary": "List AI index page states @tag AI Admin @auth bearer",
+        "summary": "List AI index page states",
         "description": "",
         "tags": [
           "AI Admin"
@@ -15858,7 +15858,7 @@
     "/ai/providers/{id}/models": {
       "post": {
         "operationId": "post-ai-providers-{id}-models",
-        "summary": "Create manual AI model @tag AI Admin @auth bearer",
+        "summary": "Create manual AI model",
         "description": "",
         "tags": [
           "AI Admin"
@@ -16178,7 +16178,7 @@
     "/ai/providers/{id}/tests": {
       "post": {
         "operationId": "post-ai-providers-{id}-tests",
-        "summary": "Test AI provider @tag AI Admin @auth bearer",
+        "summary": "Test AI provider",
         "description": "",
         "tags": [
           "AI Admin"
@@ -16307,7 +16307,7 @@
     "/ai/scheduled-jobs/{id}/duplicate": {
       "post": {
         "operationId": "post-ai-scheduled-jobs-{id}-duplicate",
-        "summary": "Duplicate a scheduled AI job as paused @tag AI Admin @auth bearer",
+        "summary": "Duplicate a scheduled AI job as paused",
         "description": "",
         "tags": [
           "AI Admin"
@@ -16444,7 +16444,7 @@
     "/ai/scheduled-jobs/{id}/runs": {
       "get": {
         "operationId": "get-ai-scheduled-jobs-{id}-runs",
-        "summary": "List scheduled AI job runs @tag AI Admin @auth bearer",
+        "summary": "List scheduled AI job runs",
         "description": "",
         "tags": [
           "AI Admin"
@@ -16655,7 +16655,7 @@
       },
       "post": {
         "operationId": "post-ai-scheduled-jobs-{id}-runs",
-        "summary": "Run a scheduled AI job now @tag AI Admin @auth bearer",
+        "summary": "Run a scheduled AI job now",
         "description": "",
         "tags": [
           "AI Admin"
@@ -16865,7 +16865,7 @@
     "/ai/models/{id}/capabilities/{capability}": {
       "put": {
         "operationId": "put-ai-models-{id}-capabilities-{capability}",
-        "summary": "Override AI model capability @tag AI Admin @auth bearer",
+        "summary": "Override AI model capability",
         "description": "",
         "tags": [
           "AI Admin"
@@ -16912,7 +16912,7 @@
       },
       "delete": {
         "operationId": "delete-ai-models-{id}-capabilities-{capability}",
-        "summary": "Remove AI model capability override @tag AI Admin @auth bearer",
+        "summary": "Remove AI model capability override",
         "description": "",
         "tags": [
           "AI Admin"
@@ -16954,7 +16954,7 @@
     "/ai/scheduled-jobs/{id}/runs/{runId}": {
       "get": {
         "operationId": "get-ai-scheduled-jobs-{id}-runs-{runId}",
-        "summary": "Get scheduled AI job run detail @tag AI Admin @auth bearer",
+        "summary": "Get scheduled AI job run detail",
         "description": "",
         "tags": [
           "AI Admin"
@@ -17245,7 +17245,7 @@
     "/ai/scheduled-jobs/{id}/runs/{runId}/cancel": {
       "post": {
         "operationId": "post-ai-scheduled-jobs-{id}-runs-{runId}-cancel",
-        "summary": "Cancel scheduled AI job run @tag AI Admin @auth bearer",
+        "summary": "Cancel scheduled AI job run",
         "description": "",
         "tags": [
           "AI Admin"
@@ -18133,7 +18133,7 @@
     "/ai/tool-proposals": {
       "get": {
         "operationId": "get-ai-tool-proposals",
-        "summary": "List AI tool change proposals @tag AI Tools @auth bearer",
+        "summary": "List AI tool change proposals",
         "description": "",
         "tags": [
           "AI Tools"
@@ -18161,8 +18161,8 @@
     "/ai/tools": {
       "get": {
         "operationId": "get-ai-tools",
-        "summary": "List AI tool providers and effective policies @description Available to authenticated users; policy changes remain administrator-only. @tag AI Tools @auth bearer",
-        "description": "Available to authenticated users; policy changes remain administrator-only. @tag AI Tools @auth bearer",
+        "summary": "List AI tool providers and effective policies",
+        "description": "Available to authenticated users; policy changes remain administrator-only.",
         "tags": [
           "AI Tools"
         ],
@@ -18189,7 +18189,7 @@
     "/ai/tool-proposals/{id}": {
       "get": {
         "operationId": "get-ai-tool-proposals-{id}",
-        "summary": "Get an AI tool change proposal @tag AI Tools @auth bearer",
+        "summary": "Get an AI tool change proposal",
         "description": "",
         "tags": [
           "AI Tools"
@@ -18228,7 +18228,7 @@
     "/ai/tools/policies": {
       "patch": {
         "operationId": "patch-ai-tools-policies",
-        "summary": "Update an AI tool policy @tag AI Tools @auth bearer",
+        "summary": "Update an AI tool policy",
         "description": "",
         "tags": [
           "AI Tools"
@@ -18256,7 +18256,7 @@
     "/ai/tool-proposals/{id}/apply": {
       "post": {
         "operationId": "post-ai-tool-proposals-{id}-apply",
-        "summary": "Apply an approved AI tool change proposal @tag AI Tools @auth bearer",
+        "summary": "Apply an approved AI tool change proposal",
         "description": "",
         "tags": [
           "AI Tools"
@@ -18295,7 +18295,7 @@
     "/ai/tool-proposals/{id}/approve": {
       "post": {
         "operationId": "post-ai-tool-proposals-{id}-approve",
-        "summary": "Approve an AI tool change proposal @tag AI Tools @auth bearer",
+        "summary": "Approve an AI tool change proposal",
         "description": "",
         "tags": [
           "AI Tools"
@@ -18334,7 +18334,7 @@
     "/ai/tool-proposals/{id}/reject": {
       "post": {
         "operationId": "post-ai-tool-proposals-{id}-reject",
-        "summary": "Reject an AI tool change proposal @tag AI Tools @auth bearer",
+        "summary": "Reject an AI tool change proposal",
         "description": "",
         "tags": [
           "AI Tools"
@@ -19218,7 +19218,7 @@
     "/settings/attachments": {
       "get": {
         "operationId": "get-settings-attachments",
-        "summary": "Get attachment settings @tag Attachments Admin @auth bearer",
+        "summary": "Get attachment settings",
         "description": "",
         "tags": [
           "Attachments Admin"
@@ -19244,7 +19244,7 @@
       },
       "patch": {
         "operationId": "patch-settings-attachments",
-        "summary": "Update attachment settings @tag Attachments Admin @auth bearer",
+        "summary": "Update attachment settings",
         "description": "",
         "tags": [
           "Attachments Admin"
@@ -22073,8 +22073,8 @@
     "/settings/search": {
       "get": {
         "operationId": "get-settings-search",
-        "summary": "Get search settings @description Available to authenticated users; updates remain administrator-only. @tag Search Admin @auth bearer",
-        "description": "Available to authenticated users; updates remain administrator-only. @tag Search Admin @auth bearer",
+        "summary": "Get search settings",
+        "description": "Available to authenticated users; updates remain administrator-only.",
         "tags": [
           "Search Admin"
         ],
@@ -22099,7 +22099,7 @@
       },
       "patch": {
         "operationId": "patch-settings-search",
-        "summary": "Update search settings @tag Search Admin @auth bearer",
+        "summary": "Update search settings",
         "description": "",
         "tags": [
           "Search Admin"

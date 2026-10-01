@@ -5,7 +5,12 @@ import { formatZodError, parseJson } from '@/server/api/validate';
 import { apiError, handleApiError } from '@/server/api/errors';
 import { testProviderConnection } from '@/server/services/ai-admin';
 
-/** @openapi @summary Test an AI provider connection synchronously @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Test an AI provider connection synchronously
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function POST(request: NextRequest) {
   const parsed = parseJson(aiProviderTestSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

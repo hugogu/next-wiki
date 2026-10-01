@@ -9,7 +9,12 @@ import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/serv
 import { hashAnonymousActionToken } from '@/server/services/ai-actions';
 import { getOrCreateAnonymousAiAccessToken } from '@/server/services/auth';
 
-/** @openapi @summary Ask a grounded Wiki question @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary Ask a grounded Wiki question
+ * @tag AI
+ * @auth bearer
+ */
 export async function POST(request: NextRequest) {
   const parsed = parseJson(aiQuestionInputSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

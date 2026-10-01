@@ -3,7 +3,12 @@ import { createApiContext } from '@/server/api/session';
 import { handleApiError } from '@/server/api/errors';
 import { deleteIndexGeneration, getIndex } from '@/server/services/ai-index';
 
-/** @openapi @summary Get AI index @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Get AI index
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     return NextResponse.json(await getIndex(await createApiContext(), (await params).id));
@@ -12,7 +17,12 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   }
 }
 
-/** @openapi @summary Delete AI index @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Delete AI index
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await deleteIndexGeneration(await createApiContext(), (await params).id);

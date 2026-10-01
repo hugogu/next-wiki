@@ -8,7 +8,12 @@ import { deleteModel, updateModel } from '@/server/services/ai-admin';
 
 const idSchema = z.string().uuid();
 
-/** @openapi @summary Update AI model @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Update AI model
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const parsed = parseJson(aiModelUpdateSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);
@@ -19,7 +24,12 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   }
 }
 
-/** @openapi @summary Delete AI model @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Delete AI model
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   if (!idSchema.safeParse(id).success) return apiError('NOT_FOUND', 'Not found', 404);

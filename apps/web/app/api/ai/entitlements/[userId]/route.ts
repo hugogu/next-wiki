@@ -6,7 +6,12 @@ import { apiError, handleApiError } from '@/server/api/errors';
 import { getUserEntitlements, updateUserEntitlements } from '@/server/services/ai-entitlements';
 
 type Params = { params: Promise<{ userId: string }> };
-/** @openapi @summary Get user AI entitlement @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Get user AI entitlement
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
     return NextResponse.json(await getUserEntitlements(await createApiContext(), (await params).userId));
@@ -14,7 +19,12 @@ export async function GET(_request: NextRequest, { params }: Params) {
     return handleApiError(error);
   }
 }
-/** @openapi @summary Update user AI entitlement @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Update user AI entitlement
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function PUT(request: NextRequest, { params }: Params) {
   const parsed = parseJson(aiEntitlementUpdateSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

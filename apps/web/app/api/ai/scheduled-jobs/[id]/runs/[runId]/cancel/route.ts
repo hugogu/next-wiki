@@ -8,7 +8,12 @@ import { cancelScheduledAiJobRun } from '@/server/services/scheduled-ai-jobs';
 type Params = { params: Promise<{ id: string; runId: string }> };
 const idSchema = z.string().uuid();
 const noStore = { 'cache-control': 'no-store' };
-/** @openapi @summary Cancel scheduled AI job run @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Cancel scheduled AI job run
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { id, runId } = await params;
   if (!idSchema.safeParse(id).success || !idSchema.safeParse(runId).success)

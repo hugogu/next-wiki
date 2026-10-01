@@ -3,7 +3,13 @@ import { createApiContext } from '@/server/api/session';
 import { handleApiError } from '@/server/api/errors';
 import { cancelIndexGeneration } from '@/server/services/ai-index';
 
-/** @openapi @summary Cancel building AI index @tag AI Admin @auth bearer @response 204 */
+/**
+ * @openapi
+ * @summary Cancel building AI index
+ * @tag AI Admin
+ * @auth bearer
+ * @response 204
+ */
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     await cancelIndexGeneration(await createApiContext(), (await params).id);

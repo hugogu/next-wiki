@@ -7,7 +7,12 @@ import { removeCapabilityOverride, setCapabilityOverride } from '@/server/servic
 
 type Params = { params: Promise<{ id: string; capability: string }> };
 
-/** @openapi @summary Override AI model capability @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Override AI model capability
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function PUT(request: NextRequest, { params }: Params) {
   const values = await params;
   const capability = aiCapabilitySchema.safeParse(values.capability);
@@ -29,7 +34,12 @@ export async function PUT(request: NextRequest, { params }: Params) {
   }
 }
 
-/** @openapi @summary Remove AI model capability override @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Remove AI model capability override
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const values = await params;
   const capability = aiCapabilitySchema.safeParse(values.capability);

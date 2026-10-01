@@ -5,7 +5,12 @@ import { formatZodError, parseJson } from '@/server/api/validate';
 import { apiError, handleApiError } from '@/server/api/errors';
 import { createIndexRebuild, listIndexes } from '@/server/services/ai-index';
 
-/** @openapi @summary List AI indexes @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary List AI indexes
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function GET() {
   try {
     return NextResponse.json({ items: await listIndexes(await createApiContext()) });
@@ -13,7 +18,12 @@ export async function GET() {
     return handleApiError(error);
   }
 }
-/** @openapi @summary Start AI index rebuild @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Start AI index rebuild
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function POST(request: NextRequest) {
   const parsed = parseJson(aiIndexCreateSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

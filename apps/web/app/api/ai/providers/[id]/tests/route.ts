@@ -3,7 +3,12 @@ import { createApiContext } from '@/server/api/session';
 import { handleApiError } from '@/server/api/errors';
 import { createProviderAction } from '@/server/services/ai-admin';
 
-/** @openapi @summary Test AI provider @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Test AI provider
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     return NextResponse.json(

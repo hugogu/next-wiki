@@ -5,7 +5,12 @@ import { formatZodError, parseQuery } from '@/server/api/validate';
 import { apiError, handleApiError } from '@/server/api/errors';
 import { listProposals } from '@/server/services/ai-tool-proposals';
 
-/** @openapi @summary List AI tool change proposals @tag AI Tools @auth bearer */
+/**
+ * @openapi
+ * @summary List AI tool change proposals
+ * @tag AI Tools
+ * @auth bearer
+ */
 export async function GET(request: NextRequest) {
   const parsed = parseQuery(aiToolProposalListQuerySchema, request.nextUrl.searchParams);
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

@@ -8,7 +8,12 @@ import { captureWebSource } from '@/server/web-research/capture';
 
 const inputSchema = z.object({ actionId: z.string().uuid() });
 
-/** @openapi @summary Preserve opened Web Research evidence as a Raw entry @tag AI @auth bearer */
+/**
+ * @openapi
+ * @summary Preserve opened Web Research evidence as a Raw entry
+ * @tag AI
+ * @auth bearer
+ */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ sourceId: string }> }) {
   const parsed = parseJson(inputSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

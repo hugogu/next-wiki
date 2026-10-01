@@ -7,7 +7,12 @@ import { getScheduledAiJobRun } from '@/server/services/scheduled-ai-jobs';
 
 type Params = { params: Promise<{ id: string; runId: string }> };
 const idSchema = z.string().uuid();
-/** @openapi @summary Get scheduled AI job run detail @tag AI Admin @auth bearer */
+/**
+ * @openapi
+ * @summary Get scheduled AI job run detail
+ * @tag AI Admin
+ * @auth bearer
+ */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id, runId } = await params;
   if (!idSchema.safeParse(id).success || !idSchema.safeParse(runId).success)

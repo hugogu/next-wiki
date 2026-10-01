@@ -11,7 +11,10 @@ import { getAnonymousAiAccessToken } from '@/server/services/auth';
  * minted by the list endpoint: a `raw_conversation_page_id` for captured
  * conversations, or `legacy:<webSessionId>` for uncaptured ones.
  *
- * @openapi @summary Get one of my AI chat conversations @tag AI @auth bearer
+ * @openapi
+ * @summary Get one of my AI chat conversations
+ * @tag AI
+ * @auth bearer
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
@@ -42,7 +45,11 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
  * Permanently delete a conversation (every turn) and any Raw Conversation
  * pages captured from it. This is not reversible.
  *
- * @openapi @summary Permanently delete one of my AI chat conversations @tag AI @auth bearer @response 204
+ * @openapi
+ * @summary Permanently delete one of my AI chat conversations
+ * @tag AI
+ * @auth bearer
+ * @response 204
  */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
