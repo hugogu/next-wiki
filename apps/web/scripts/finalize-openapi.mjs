@@ -122,6 +122,12 @@ function fixPathParamExamples() {
           param.example = UUID_EXAMPLE;
         } else if ((schema.type === 'integer' || schema.type === 'number') && typeof param.example !== 'number') {
           param.example = schema.minimum && typeof schema.minimum === 'number' ? schema.minimum : 1;
+        } else if (Array.isArray(schema.enum) && !schema.enum.includes(param.example)) {
+          // next-openapi-gen picks path-param examples by name ("example", "name", "123"),
+          // ignoring the declared enum or pattern.
+          param.example = schema.enum[0];
+        } else if (typeof schema.pattern === 'string' && !new RegExp(schema.pattern).test(String(param.example))) {
+          delete param.example;
         }
       }
     }

@@ -15219,7 +15219,7 @@
               "description": "AI purpose whose model assignment is replaced."
             },
             "description": "AI purpose whose model assignment is replaced.",
-            "example": "example"
+            "example": "wiki_text"
           }
         ],
         "security": [
@@ -17405,7 +17405,7 @@
               "description": "Model capability whose manual override is set or removed."
             },
             "description": "Model capability whose manual override is set or removed.",
-            "example": "example"
+            "example": "text_generation"
           }
         ],
         "security": [
@@ -17464,7 +17464,7 @@
               "description": "Model capability whose manual override is set or removed."
             },
             "description": "Model capability whose manual override is set or removed.",
-            "example": "example"
+            "example": "text_generation"
           }
         ],
         "security": [
@@ -20267,7 +20267,7 @@
               "description": "Integration kind."
             },
             "description": "Integration kind.",
-            "example": "example"
+            "example": "github"
           }
         ],
         "security": [
@@ -20308,7 +20308,7 @@
               "description": "Integration kind."
             },
             "description": "Integration kind.",
-            "example": "example"
+            "example": "github"
           }
         ],
         "security": [
@@ -20344,7 +20344,7 @@
               "description": "Integration kind."
             },
             "description": "Integration kind.",
-            "example": "example"
+            "example": "github"
           }
         ],
         "security": [
@@ -22909,7 +22909,7 @@
               "description": "Registered content data source key."
             },
             "description": "Registered content data source key.",
-            "example": "example"
+            "example": "ai-conversations"
           }
         ],
         "security": [
@@ -25994,8 +25994,7 @@
               "pattern": "^[a-z]{2}$",
               "description": "Two-letter ISO 639-1 language code."
             },
-            "description": "Two-letter ISO 639-1 language code.",
-            "example": "example"
+            "description": "Two-letter ISO 639-1 language code."
           }
         ],
         "security": [
@@ -26033,8 +26032,7 @@
               "pattern": "^[a-z]{2}$",
               "description": "Two-letter ISO 639-1 language code."
             },
-            "description": "Two-letter ISO 639-1 language code.",
-            "example": "example"
+            "description": "Two-letter ISO 639-1 language code."
           }
         ],
         "security": [
