@@ -12532,29 +12532,6 @@
         }
       }
     },
-    "/admin/feishu": {
-      "get": {
-        "operationId": "get-admin-feishu",
-        "summary": "Internal administrator endpoint; Feishu credentials are always write-only.",
-        "description": "",
-        "tags": [
-          "Admin"
-        ],
-        "parameters": [],
-        "responses": {
-          "200": {
-            "description": "Successful response",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/audit/all": {
       "get": {
         "operationId": "get-audit-all",
@@ -12719,8 +12696,8 @@
     "/admin/pages/stats": {
       "get": {
         "operationId": "get-admin-pages-stats",
-        "summary": "",
-        "description": "",
+        "summary": "Get page statistics for Admin",
+        "description": "Counts pages, edits, and page links in the default space for the Admin dashboard. Non-administrators get the counts for their read-only Admin scope. Session-only; not callable with a Bearer key.",
         "tags": [
           "Admin"
         ],
@@ -20226,6 +20203,29 @@
         }
       }
     },
+    "/admin/feishu": {
+      "get": {
+        "operationId": "get-admin-feishu",
+        "summary": "Get the Feishu integration configuration",
+        "description": "Returns the Feishu integration settings. Credentials are write-only and never returned. Session-only; not callable with a Bearer key.",
+        "tags": [
+          "Feishu Admin"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/admin/feishu/registration": {
       "post": {
         "operationId": "post-admin-feishu-registration",
@@ -21908,8 +21908,8 @@
     "/public-openapi.json": {
       "get": {
         "operationId": "get-public-openapi.json",
-        "summary": "",
-        "description": "",
+        "summary": "Public OpenAPI specification",
+        "description": "Returns the public subset of the generated OpenAPI 3.1 document: the /v1 paths plus the schemas and tags they reference.",
         "tags": [
           "Public-openapi.json"
         ],
@@ -22913,12 +22913,17 @@
     "/settings/raw-categories": {
       "get": {
         "operationId": "get-settings-raw-categories",
-        "summary": "Admin taxonomy for raw entries. Admin-only; unavailable in Copilot mode.",
-        "description": "",
+        "summary": "List raw categories",
+        "description": "Lists the raw-entry taxonomy with each category's entry count. Admin-scoped.",
         "tags": [
           "Settings"
         ],
         "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
           "200": {
             "description": "Successful response",
@@ -22934,12 +22939,17 @@
       },
       "post": {
         "operationId": "post-settings-raw-categories",
-        "summary": "",
-        "description": "",
+        "summary": "Create a raw category",
+        "description": "Creates a raw-entry taxonomy category. Set isDefault to apply it when a raw entry is created without a category. Admin-scoped; available only in LLM Wiki mode.",
         "tags": [
           "Settings"
         ],
         "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {
           "201": {
             "description": "Successful response",
@@ -22957,8 +22967,8 @@
     "/settings/spaces": {
       "get": {
         "operationId": "get-settings-spaces",
-        "summary": "Administrator-facing presentation configuration for all built-in spaces.",
-        "description": "",
+        "summary": "List content space configurations",
+        "description": "Returns each built-in content space's route prefix, default page visibility, and whether it is active. Administrator session only; not callable with a Bearer key.",
         "tags": [
           "Settings"
         ],
@@ -23214,8 +23224,8 @@
     "/settings/spaces/link-retirement": {
       "post": {
         "operationId": "post-settings-spaces-link-retirement",
-        "summary": "Starts or reports the idempotent, non-destructive link-page retirement.",
-        "description": "",
+        "summary": "Retire link pages",
+        "description": "Retires every active link page without deleting the page or its revision history. Idempotent: the result reports how many pages this call retired and how many already were. Administrator session only; not callable with a Bearer key.",
         "tags": [
           "Settings"
         ],
@@ -25929,12 +25939,17 @@
     "/translations/models": {
       "get": {
         "operationId": "get-translations-models",
-        "summary": "List text-generation models eligible for translation. Admin only.",
-        "description": "",
+        "summary": "List translation models",
+        "description": "Lists the text-generation models that can be used for translation. Requires translation-management permission.",
         "tags": [
           "Translations"
         ],
         "parameters": [],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
         "responses": {}
       }
     },

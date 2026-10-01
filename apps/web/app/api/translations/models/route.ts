@@ -12,5 +12,13 @@ async function handleGET() {
   }
 }
 
-/** List text-generation models eligible for translation. Admin only. */
+/**
+ * List text-generation models eligible for translation. Admin only.
+ *
+ * @openapi
+ * @summary List translation models
+ * @description Lists the text-generation models that can be used for translation. Requires translation-management permission.
+ * @tag Translations
+ * @auth bearer
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

@@ -7,7 +7,15 @@ import { createCategory, listCategories } from '@/server/services/raw-categories
 
 export const dynamic = 'force-dynamic';
 
-/** Admin taxonomy for raw entries. Admin-only; unavailable in Copilot mode. */
+/**
+ * Admin taxonomy for raw entries. Admin-only; unavailable in Copilot mode.
+ *
+ * @openapi
+ * @summary List raw categories
+ * @description Lists the raw-entry taxonomy with each category's entry count. Admin-scoped.
+ * @tag Settings
+ * @auth bearer
+ */
 export async function GET() {
   try {
     const ctx = await createApiContext();
@@ -24,6 +32,13 @@ const createInputSchema = z.object({
   isDefault: z.boolean().optional(),
 });
 
+/**
+ * @openapi
+ * @summary Create a raw category
+ * @description Creates a raw-entry taxonomy category. Set isDefault to apply it when a raw entry is created without a category. Admin-scoped; available only in LLM Wiki mode.
+ * @tag Settings
+ * @auth bearer
+ */
 export async function POST(request: Request) {
   const parsed = parseJson(createInputSchema, await request.json().catch(() => ({})));
   if (!parsed.ok) return apiError('BAD_REQUEST', formatZodError(parsed.error), 400);

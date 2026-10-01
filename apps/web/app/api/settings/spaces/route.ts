@@ -7,7 +7,14 @@ import { isLlmWikiMode } from '@/server/services/writing-mode';
 
 export const dynamic = 'force-dynamic';
 
-/** Administrator-facing presentation configuration for all built-in spaces. */
+/**
+ * Administrator-facing presentation configuration for all built-in spaces.
+ *
+ * @openapi
+ * @summary List content space configurations
+ * @description Returns each built-in content space's route prefix, default page visibility, and whether it is active. Administrator session only; not callable with a Bearer key.
+ * @tag Settings
+ */
 export async function GET() {
   try {
     const ctx = await createApiContext();

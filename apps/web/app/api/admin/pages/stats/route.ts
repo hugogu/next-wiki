@@ -16,5 +16,11 @@ async function handleGET() {
   }
 }
 
+/**
+ * @openapi
+ * @summary Get page statistics for Admin
+ * @description Counts pages, edits, and page links in the default space for the Admin dashboard. Non-administrators get the counts for their read-only Admin scope. Session-only; not callable with a Bearer key.
+ * @tag Admin
+ */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
 export const dynamic = 'force-dynamic';
