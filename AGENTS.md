@@ -15,6 +15,11 @@
 
 - pg-boss workers and other background handlers do not have a Next.js request cache context. Service boundaries called from them must use `runWithoutDataCache` before reaching code that may invoke `unstable_cache` or revalidation APIs.
 
+## Reader Page Cache Is Memory-Only
+
+- `next.config.ts` sets `experimental.isrFlushToDisk: false` and caps the in-memory cache with `cacheMaxMemorySize`. Next otherwise persists every distinct anonymous URL — 404s included — as about ten files (~0.5 MB) under `.next/server/app` and never evicts them; crawlers filled a production container's writable layer with 14 GB in two weeks. Do not re-enable the flush, or add a disk-backed cache, without a size bound. `next.config.test.ts` pins this.
+- Check cache changes against a production build, not `next dev`: the e2e server runs in dev mode and never exercises this path. Request a few hundred distinct nonexistent paths anonymously and confirm `.next/server/app` keeps its build-time file count.
+
 ## Active Technologies
 - TypeScript 5.6, Node.js 20.9+, Next.js 16, React 19, Drizzle ORM, pg-boss (004-system-ai-support)
 - PostgreSQL 16 with pgvector 0.8.x; existing Database/Local/S3 content storage (004-system-ai-support)

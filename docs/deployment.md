@@ -196,6 +196,26 @@ release, push a semver tag like `v0.1.0`: the workflow deploys
 Docker Hub image manually, set `WEB_IMAGE=hugogu/next-wiki-web:latest` (or a
 pinned tag) in `.env` and run `scripts/deploy-remote.sh`.
 
+### Page cache and disk usage
+
+Anonymous reader pages are rendered on their first visit and then served from
+a cache. That cache lives in memory only: `next.config.ts` turns off Next.js's
+disk flush (`experimental.isrFlushToDisk: false`) and caps the cache at 128 MiB
+(`cacheMaxMemorySize`). Nothing about it is written under `.next/`, so the
+container's writable layer does not grow with traffic. An evicted page, or the
+whole cache after a restart, is simply rendered again on its next request.
+
+Earlier releases persisted every distinct anonymous URL — including the
+nonexistent paths that crawlers probe — as about ten files (~0.5 MB) under
+`.next/server/app`, and never removed them; two weeks of public traffic reached
+14 GB. The deploy above recreates the `web` container, which discards that
+layer. To confirm the space came back:
+
+```bash
+docker exec next-wiki-web du -sh /app/apps/web/.next/server/app   # ~50 MB, flat over time
+docker system df                                                  # reclaimable space, if any
+```
+
 ### One-time upgrade: squashed Drizzle history
 
 The release containing the squashed `0000_init` migration requires a one-time
