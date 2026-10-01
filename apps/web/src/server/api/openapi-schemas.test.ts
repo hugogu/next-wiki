@@ -153,12 +153,13 @@ describe('openapi-schemas.ts stays structurally in sync with @next-wiki/shared',
     }).success).toBe(false);
   });
 
-  it('keeps AI path-parameter enums and the skill-name pattern identical to the runtime validators', () => {
+  it('keeps path-parameter enums and string patterns identical to the runtime validators', () => {
     expect(docSchemas.AiAssignmentPurposePathParams.shape.purpose.options).toEqual(sharedSchemas.aiPurposeSchema.options);
     expect(docSchemas.AiModelCapabilityPathParams.shape.capability.options).toEqual(sharedSchemas.aiCapabilitySchema.options);
     const constraints = (schema: z.ZodString) =>
       schema._def.checks.map((check) => ({ ...check, message: undefined, regex: 'regex' in check ? check.regex.source : undefined }));
     expect(constraints(docSchemas.AiSkillNamePathParams.shape.name)).toEqual(constraints(sharedSchemas.skillNameSchema));
+    expect(constraints(docSchemas.TranslationLanguageCodePathParams.shape.code)).toEqual(constraints(sharedSchemas.localeCodeSchema));
   });
 
   describe.each(pairs.map((p) => [p.name, p] as const))('%s <-> runtime schema', (_name, pair) => {

@@ -20,6 +20,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
  * @summary Get a translation run
  * @tag Translations
  * @auth bearer
+ * @pathParams TranslationRunIdPathParams
  * @response TranslationRunView
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

@@ -2659,6 +2659,31 @@ export const AiWebSourceIdPathParams = z
   .object({ sourceId: z.string().uuid().describe('Opened Web Research source identifier.') })
   .describe('Web Research source path parameters.');
 
+// ---- Translations path parameters --------------------------------------------
+
+export const TranslationDocumentIdPathParams = z
+  .object({ id: z.string().uuid().describe('Page id of the translated document (the translation, not its source page).') })
+  .describe('Translated document path parameters.');
+
+export const TranslationLanguageCodePathParams = z
+  .object({
+    code: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z]{2}$/)
+      .describe('Two-letter ISO 639-1 language code.'),
+  })
+  .describe('Translation language path parameters.');
+
+export const TranslationPromptIdPathParams = z
+  .object({ id: z.string().uuid().describe('Translation prompt template identifier.') })
+  .describe('Translation prompt template path parameters.');
+
+export const TranslationRunIdPathParams = z
+  .object({ id: z.string().uuid().describe('Translation run identifier.') })
+  .describe('Translation run path parameters.');
+
 export const PublicPageResolveQuery = z.object({
   url: z.string().min(1).max(2048).describe('Absolute same-origin reader URL or relative reader address.'),
   include: z.string().optional().describe('Comma-separated latestRevision,publishedRevision.'),

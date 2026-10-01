@@ -39,6 +39,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
  * @summary Update a translation target language
  * @tag Translations
  * @auth bearer
+ * @pathParams TranslationLanguageCodePathParams
  * @response TranslationLanguageView
  */
 export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);
@@ -47,5 +48,6 @@ export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);
  * @summary Retire a translation target language
  * @tag Translations
  * @auth bearer
+ * @pathParams TranslationLanguageCodePathParams
  */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

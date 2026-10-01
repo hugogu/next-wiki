@@ -48,6 +48,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
  * @summary Get a translation prompt style with versions
  * @tag Translations
  * @auth bearer
+ * @pathParams TranslationPromptIdPathParams
  * @response TranslationPromptDetail
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
@@ -56,6 +57,7 @@ export const GET = withApiAudit(handleGET as unknown as RouteHandler);
  * @summary Add a new immutable version to a prompt style
  * @tag Translations
  * @auth bearer
+ * @pathParams TranslationPromptIdPathParams
  * @response TranslationPromptDetail
  */
 export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);
@@ -64,5 +66,6 @@ export const PATCH = withApiAudit(handlePATCH as unknown as RouteHandler);
  * @summary Retire a translation prompt style
  * @tag Translations
  * @auth bearer
+ * @pathParams TranslationPromptIdPathParams
  */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

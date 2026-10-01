@@ -10841,6 +10841,34 @@
         ],
         "description": "A configured Wiki.js transfer source."
       },
+      "TranslationDocumentIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Page id of the translated document (the translation, not its source page)."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Translated document path parameters."
+      },
+      "TranslationLanguageCodePathParams": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "pattern": "^[a-z]{2}$",
+            "description": "Two-letter ISO 639-1 language code."
+          }
+        },
+        "required": [
+          "code"
+        ],
+        "description": "Translation language path parameters."
+      },
       "TranslationLanguageList": {},
       "TranslationLanguageView": {
         "type": "object",
@@ -10949,6 +10977,20 @@
           "versions"
         ]
       },
+      "TranslationPromptIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Translation prompt template identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Translation prompt template path parameters."
+      },
       "TranslationPromptTemplateList": {},
       "TranslationRunAccepted": {
         "type": "object",
@@ -10975,6 +11017,20 @@
           "targetLocale",
           "detailUrl"
         ]
+      },
+      "TranslationRunIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Translation run identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Translation run path parameters."
       },
       "TranslationRunItemList": {
         "type": "object",
@@ -25694,14 +25750,16 @@
         ],
         "parameters": [
           {
-            "name": "code",
             "in": "path",
+            "name": "code",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[a-z]{2}$",
+              "description": "Two-letter ISO 639-1 language code."
             },
-            "example": "example",
-            "description": "Path parameter: code"
+            "description": "Two-letter ISO 639-1 language code.",
+            "example": "example"
           }
         ],
         "security": [
@@ -25731,14 +25789,16 @@
         ],
         "parameters": [
           {
-            "name": "code",
             "in": "path",
+            "name": "code",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "pattern": "^[a-z]{2}$",
+              "description": "Two-letter ISO 639-1 language code."
             },
-            "example": "example",
-            "description": "Path parameter: code"
+            "description": "Two-letter ISO 639-1 language code.",
+            "example": "example"
           }
         ],
         "security": [
@@ -25763,14 +25823,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation prompt template identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation prompt template identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25800,14 +25862,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation prompt template identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation prompt template identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25837,14 +25901,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation prompt template identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation prompt template identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25869,14 +25935,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25908,14 +25976,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Page id of the translated document (the translation, not its source page)."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Page id of the translated document (the translation, not its source page).",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25947,14 +26017,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25986,14 +26058,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -26025,14 +26099,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -26064,14 +26140,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -26103,14 +26181,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Translation run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Translation run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [

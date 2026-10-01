@@ -25,6 +25,7 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
  * @summary List per-page items of a translation run
  * @tag Translations
  * @auth bearer
+ * @pathParams TranslationRunIdPathParams
  * @response TranslationRunItemList
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
