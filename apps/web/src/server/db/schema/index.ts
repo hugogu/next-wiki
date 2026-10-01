@@ -501,6 +501,26 @@ export const pageRevisions = pgTable(
   }),
 );
 
+/** Durable human declarations; source provenance and revision history stay intact. */
+export const pageAiAttributionClearances = pgTable(
+  'page_ai_attribution_clearances',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    pageId: uuid('page_id').notNull().references(() => pages.id, { onDelete: 'restrict' }),
+    revisionId: uuid('revision_id').notNull().references(() => pageRevisions.id, { onDelete: 'restrict' }),
+    versionNumber: integer('version_number').notNull(),
+    previousLevel: text('previous_level').$type<'generated' | 'assisted'>().notNull(),
+    clearedByUserId: uuid('cleared_by_user_id').notNull().references(() => users.id, { onDelete: 'restrict' }),
+    clearedAt: timestamp('cleared_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pageVersionUnique: uniqueIndex('page_ai_attribution_clearances_page_version_unique').on(t.pageId, t.versionNumber),
+    clearedAtIdx: index('page_ai_attribution_clearances_cleared_at_idx').on(t.clearedAt),
+    previousLevelCheck: check('page_ai_attribution_clearances_previous_level_check', sql`${t.previousLevel} in ('generated', 'assisted')`),
+    versionPositive: check('page_ai_attribution_clearances_version_positive', sql`${t.versionNumber} > 0`),
+  }),
+);
+
 // ---- Wiki writing modes (022) ----------------------------------------------
 
 /** Single-row writing-mode setting (id always 'default'), mirroring the

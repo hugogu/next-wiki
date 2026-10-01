@@ -2,8 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte, max, or, like, sql, type SQL } from 'drizzle-orm';
 import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
-import { deriveAiContentLevel } from '@next-wiki/shared';
-import { aiContentFilterSql, type AiSearchIncludes } from './ai-content-level';
+import { aiContentFilterSql, getAiContentLevel, type AiSearchIncludes } from './ai-content-level';
 import * as schema from '@/server/db/schema';
 import type {
   PublicAssetResource,
@@ -353,7 +352,7 @@ async function visiblePageResource(
     canonicalUrl: canonicalSpacePath(space, effectiveSlug, page.sourcePageId ? page.locale : null),
     origin: { actorKind: initialRevision?.actorKind ?? 'human', nature: page.nature },
     humanModified: humanRevision !== undefined,
-    aiContentLevel: deriveAiContentLevel(page.nature, humanRevision !== undefined),
+    aiContentLevel: await getAiContentLevel(page),
     visibility: canViewProvenance ? page.visibility : undefined,
     contentSource: options.includeContent ? content : undefined,
     frontmatter,

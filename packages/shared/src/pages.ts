@@ -10,6 +10,21 @@ export function deriveAiContentLevel(nature: 'original' | 'generated', humanModi
 /** Query flags accept explicit booleans without coercing the string false to true. */
 export const aiSearchIncludeSchema = z.union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')]).optional();
 
+export const aiAttributionClearanceInputSchema = z.object({ expectedRevisionId: z.string().uuid() }).strict();
+export type AiAttributionClearanceInput = z.infer<typeof aiAttributionClearanceInputSchema>;
+
+export const aiAttributionClearanceSchema = z.object({
+  id: z.string().uuid(),
+  pageId: z.string().uuid(),
+  revisionId: z.string().uuid(),
+  versionNumber: z.number().int().positive(),
+  previousLevel: aiContentLevelSchema,
+  clearedByUserId: z.string().uuid(),
+  clearedAt: z.string().datetime(),
+});
+export type AiAttributionClearance = z.infer<typeof aiAttributionClearanceSchema>;
+export const aiAttributionClearanceListSchema = z.object({ items: z.array(aiAttributionClearanceSchema) });
+
 export const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
 export type PageVisibility = z.infer<typeof pageVisibilitySchema>;
 import { wikiAiChannelSchema } from './ai';

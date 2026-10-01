@@ -67,6 +67,7 @@ export type Action =
   | 'read_draft'
   | 'create'
   | 'edit'
+  | 'clear_ai_attribution'
   | 'publish'
   | 'delete'
   | 'attach_file'
@@ -241,6 +242,8 @@ function roleAllows(
       // deliberately session-admin only, so a key issued for storage or
       // transfers can never publish the wiki to the internet.
       return role === 'admin';
+    case 'clear_ai_attribution':
+      return role === 'admin' || (role !== 'anonymous' && isAuthor);
     case 'manage_page_addresses':
       return role === 'admin';
     case 'manage_demo_mode':
@@ -329,6 +332,7 @@ export function can(
     // use_ai_search and use_ai_qa are now permitted when the api_key has the
     // 'ai.read' scope (see ai-permissions.test.ts for the role ∩ scope matrix).
     if (
+      action === 'clear_ai_attribution' ||
       action === 'manage_users' ||
       action === 'manage_ai' ||
       action === 'manage_translations' ||

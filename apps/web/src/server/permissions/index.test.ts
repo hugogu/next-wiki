@@ -194,3 +194,15 @@ describe('demo-readonly mode (DB-backed via setDemoReadOnlyCache)', () => {
     expect(can(admin, 'edit', page)).toBe(true);
   });
 });
+
+
+describe('AI attribution clearance', () => {
+  it('requires a human author or admin regardless of edit capability', () => {
+    expect(can(buildUserCtx('owner', 'reader'), 'clear_ai_attribution', page, { isAuthor: true })).toBe(true);
+    expect(can(buildUserCtx('owner', 'editor'), 'clear_ai_attribution', page, { isAuthor: true })).toBe(true);
+    expect(can(buildUserCtx('other', 'editor'), 'clear_ai_attribution', page)).toBe(false);
+    expect(can(buildUserCtx('admin', 'admin'), 'clear_ai_attribution', page)).toBe(true);
+    expect(can(buildAnonymousCtx(), 'clear_ai_attribution', page, { isAuthor: true })).toBe(false);
+    expect(can(buildApiKeyCtx('admin', 'admin', ['view', 'edit'], 'key'), 'clear_ai_attribution', page, { isAuthor: true })).toBe(false);
+  });
+});

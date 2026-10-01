@@ -1124,6 +1124,18 @@ export const PublicPageIncludeValue = z
   .enum(['latestRevision', 'publishedRevision'])
   .describe('Optional page relation that can be requested via ?include=.');
 
+export const AiAttributionClearanceInput = z.object({ expectedRevisionId: z.string().uuid() }).strict();
+export const AiAttributionClearance = z.object({
+  id: z.string().uuid(),
+  pageId: z.string().uuid(),
+  revisionId: z.string().uuid(),
+  versionNumber: z.number().int().positive(),
+  previousLevel: z.enum(['generated', 'assisted']),
+  clearedByUserId: z.string().uuid(),
+  clearedAt: z.string().datetime(),
+});
+export const AiAttributionClearanceList = z.object({ items: z.array(AiAttributionClearance) });
+
 export const PublicPageResource = z
   .object({
     aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional().describe('Page-level AI attribution: generated, assisted after human editing, or null for human/original content.'),

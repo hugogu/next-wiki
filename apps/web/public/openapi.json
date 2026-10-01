@@ -1286,6 +1286,78 @@
         ],
         "description": "AI model assignment path parameters."
       },
+      "AiAttributionClearance": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "pageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "revisionId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "versionNumber": {
+            "type": "integer",
+            "exclusiveMinimum": 0
+          },
+          "previousLevel": {
+            "type": "string",
+            "enum": [
+              "generated",
+              "assisted"
+            ]
+          },
+          "clearedByUserId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "clearedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "pageId",
+          "revisionId",
+          "versionNumber",
+          "previousLevel",
+          "clearedByUserId",
+          "clearedAt"
+        ]
+      },
+      "AiAttributionClearanceInput": {
+        "type": "object",
+        "properties": {
+          "expectedRevisionId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "expectedRevisionId"
+        ],
+        "additionalProperties": false
+      },
+      "AiAttributionClearanceList": {
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AiAttributionClearance"
+            }
+          }
+        },
+        "required": [
+          "items"
+        ]
+      },
       "AiConversationKeyPathParams": {
         "type": "object",
         "properties": {
@@ -21949,6 +22021,85 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ADDRESS_ALIAS_RETAINED"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/pages/{id}/ai-attribution/clearances": {
+      "get": {
+        "operationId": "get-v1-pages-{id}-ai-attribution-clearances",
+        "summary": "List durable page AI attribution declarations",
+        "description": "Session-only. The page author or Administrator can read recorded clearance times, revisions, versions, actors and previous labels for analysis.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiAttributionClearanceList"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "post-v1-pages-{id}-ai-attribution-clearances",
+        "summary": "Clear page AI attribution through a human declaration",
+        "description": "Session-only. The page author or Administrator confirms the latest revision is human-authored. Records the actor, timestamp, revision, version and previous label. API keys cannot perform this operation. A later AI revision reintroduces assisted attribution.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AiAttributionClearanceInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AiAttributionClearance"
                 }
               }
             }

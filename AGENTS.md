@@ -66,3 +66,11 @@ and confirm it reports "No schema changes, nothing to migrate"; if a
 snapshot is ever found missing, reconstruct it from the last valid snapshot
 plus the exact SQL statements and verify with a throwaway schema edit before
 reverting it.
+
+## Correlated Drizzle projections
+
+Drizzle removes bare column table qualifiers in single-table SELECT projections.
+For correlated subqueries, keep outer columns qualified using a table SQL wrapper
+and `sql.identifier(column.name)`; otherwise an inner `id` can shadow the outer
+page ID and silently change attribution/search results. Cover both single-table
+page projections and search projections with database-backed tests.

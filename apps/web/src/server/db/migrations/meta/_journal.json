@@ -169,6 +169,13 @@
       "when": 1788008074658,
       "tag": "0023_brief_warbound",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1790817279055,
+      "tag": "0024_nervous_vengeance",
+      "breakpoints": true
     }
   ]
 }

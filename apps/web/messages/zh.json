@@ -472,7 +472,13 @@
       "linkedFromGenerated": "链接到生成内容",
       "generatedHumanModified": "已生成，后经人工修改",
       "aiGenerated": "AI生成",
-      "aiAssisted": "AI辅助"
+      "aiAssisted": "AI辅助",
+      "clearAiLabel": "删除AI标记",
+      "clearAiTitle": "确认页面由人工撰写",
+      "clearAiMessage": "确认当前版本的内容已主要由人工撰写。删除AI标记会永久记录操作人、时间和版本；后续新增AI修订时会重新显示“AI辅助”。",
+      "clearAiConfirm": "确认并删除标记",
+      "clearAiError": "无法删除AI标记，请重试。",
+      "clearAiStale": "页面有更新的修订，请先查看最新版本，再删除AI标记。"
     },
     "metadata": {
       "date": "日期",

@@ -31,6 +31,7 @@ test('shows AI attribution to anonymous readers and changes it after a human edi
     await reader.goto(`/wiki/${path}`);
     const indicator = reader.getByTestId('page-provenance-indicators');
     await expect(indicator).toHaveText('AI generated');
+    await expect(reader.getByRole('button', { name: 'Clear AI attribution', exact: true })).toHaveCount(0);
     await expect(reader.locator('nav[aria-label="Breadcrumbs"]').getByTestId('page-provenance-indicators')).toBeVisible();
 
     await page.goto(`/edit/${path}`);
@@ -48,6 +49,40 @@ test('shows AI attribution to anonymous readers and changes it after a human edi
     });
     expect(search.status()).toBe(200);
     expect((await search.json()).items.some((item: { page: { id: string } }) => item.page.id === created.id)).toBe(false);
+
+    const latest = await (await page.request.get(`/api/v1/pages/${created.id}?include=latestRevision`)).json();
+    const clearanceUrl = `/api/v1/pages/${created.id}/ai-attribution/clearances`;
+    expect((await page.request.post(clearanceUrl, {
+      headers: { Authorization: `Bearer ${key.keySecret}` },
+      data: { expectedRevisionId: latest.latestRevision.id },
+    })).status()).toBe(403);
+    expect((await page.request.post(clearanceUrl, { data: { expectedRevisionId: 'invalid' } })).status()).toBe(422);
+    await page.getByRole('button', { name: 'Clear AI attribution', exact: true }).click();
+    await page.getByRole('dialog').getByRole('button', { name: 'Confirm and clear label' }).click();
+    await expect(page.getByTestId('page-provenance-indicators')).toHaveCount(0);
+    await reader.reload();
+    await expect(indicator).toHaveCount(0);
+    const historyResponse = await page.request.get(clearanceUrl);
+    expect(historyResponse.status()).toBe(200);
+    const history = await historyResponse.json();
+    expect(history.items).toHaveLength(1);
+    expect(history.items[0]).toMatchObject({ revisionId: latest.latestRevision.id, versionNumber: 2, previousLevel: 'assisted' });
+    expect(Number.isNaN(Date.parse(history.items[0].clearedAt))).toBe(false);
+    const included = await page.request.get('/api/v1/search/pages', {
+      headers: { Authorization: `Bearer ${key.keySecret}` },
+      params: { q: 'AI attribution example', includeAiGenerated: 'false', includeAiAssisted: 'false' },
+    });
+    expect((await included.json()).items.some((item: { page: { id: string } }) => item.page.id === created.id)).toBe(true);
+    const aiDraftResponse = await page.request.post(`/api/v1/pages/${created.id}/drafts`, {
+      headers: { Authorization: `Bearer ${key.keySecret}` },
+      data: { title: 'AI attribution example', contentSource: '# AI attribution example\n\nLater machine help.', baseRevisionId: latest.latestRevision.id },
+    });
+    expect(aiDraftResponse.status()).toBe(201);
+    const aiDraft = await aiDraftResponse.json();
+    expect((await page.request.post(clearanceUrl, { data: { expectedRevisionId: latest.latestRevision.id } })).status()).toBe(409);
+    expect((await page.request.post(`/api/v1/pages/${created.id}/revisions/${aiDraft.version}/publication`, { data: {} })).status()).toBe(200);
+    await reader.reload();
+    await expect(indicator).toHaveText('AI assisted');
 
     const humanPath = `${path}-human`;
     const humanResponse = await page.request.post('/api/v1/pages', {

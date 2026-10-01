@@ -17,6 +17,7 @@ import { getLatestConversationSnapshot } from '@/server/services/raw-conversatio
 import { isLlmWikiMode } from '@/server/services/writing-mode';
 import { canonicalSpacePath, resolveSpacePrefix } from '@/server/services/space-routes';
 import type { SpaceRow } from '@/server/services/spaces';
+import { can } from '@/server/permissions';
 import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { getDictionary, getStaticLocale } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
@@ -144,7 +145,14 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
                   </span>
                 );
               })}
-              <ProvenanceIndicators aiContentLevel={page.aiContentLevel} className="flex items-center gap-xs" />
+              <ProvenanceIndicators
+                key={page.latestRevision?.id}
+                aiContentLevel={page.aiContentLevel}
+                pageId={page.id}
+                revisionId={page.latestRevision?.id}
+                canClear={can({ actor }, 'clear_ai_attribution', { kind: 'page', pageId: page.id }, { isAuthor: actor.kind === 'user' && actor.userId === page.author.id })}
+                className="flex items-center gap-xs"
+              />
               {conversation && <ConversationStatusBadge status={conversation.status} className="ml-auto" />}
             </nav>
             <PageMetadata

@@ -472,7 +472,13 @@
       "linkedFromGenerated": "Linked from generated",
       "generatedHumanModified": "Generated, then human-modified",
       "aiGenerated": "AI generated",
-      "aiAssisted": "AI assisted"
+      "aiAssisted": "AI assisted",
+      "clearAiLabel": "Clear AI attribution",
+      "clearAiTitle": "Confirm human-authored content",
+      "clearAiMessage": "Confirm that the current revision is now primarily human-authored. Clearing the label permanently records who cleared it, when, and which revision was reviewed. A later AI revision will show AI assisted again.",
+      "clearAiConfirm": "Confirm and clear label",
+      "clearAiError": "Could not clear AI attribution. Please try again.",
+      "clearAiStale": "A newer page revision exists. Review the latest revision before clearing AI attribution."
     },
     "metadata": {
       "date": "Date",

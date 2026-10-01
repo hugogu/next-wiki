@@ -181,7 +181,13 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
               <span className="flex items-center gap-xs">
                 <span aria-hidden="true">/</span>
                 <span className="text-foreground" aria-current="page">{page.title}</span>
-                <ProvenanceIndicators aiContentLevel={page.aiContentLevel} />
+                <ProvenanceIndicators
+                  key={page.revisionId}
+                  aiContentLevel={page.aiContentLevel}
+                  pageId={page.pageId}
+                  revisionId={page.revisionId}
+                  canClear={can({ actor }, 'clear_ai_attribution', { kind: 'page', pageId: page.pageId }, { isAuthor })}
+                />
               </span>
             </nav>
             <PageMetadata
