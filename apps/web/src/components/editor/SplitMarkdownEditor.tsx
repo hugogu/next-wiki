@@ -34,6 +34,7 @@ import {
 } from './AiTextOptimizationDialog';
 import { AiImageGenerationDialog } from './AiImageGenerationDialog';
 import { buildAnchors, buildScrollMap, interpolatePaired, type ScrollAnchor, type ScrollPair } from './scrollSync';
+import { createPreviewScheduler, type PreviewScheduler } from './previewScheduler';
 
 const editableCompartment = new Compartment();
 const themeCompartment = new Compartment();
@@ -51,6 +52,15 @@ function readBooleanPreference(key: string, fallback: boolean): boolean {
 function writeBooleanPreference(key: string, value: boolean) {
   if (typeof window === 'undefined') return;
   window.localStorage.setItem(key, String(value));
+}
+
+async function renderPreview(source: string, signal: AbortSignal): Promise<string> {
+  const { html } = await apiPost<{ contentSource: string }, { html: string }>(
+    '/api/preview',
+    { contentSource: source },
+    { signal },
+  );
+  return html;
 }
 
 function codeMirrorTheme() {
@@ -240,18 +250,23 @@ export function SplitMarkdownEditor({
     });
   }, [disabled]);
 
+  // The scheduler owns the round trips to `/api/preview`: a request per
+  // keystroke would queue up behind the server's synchronous render and make
+  // the preview lag further the longer you type. It must be created before the
+  // effect below that feeds it (effects run in declaration order).
+  const previewSchedulerRef = useRef<PreviewScheduler | null>(null);
+
   useEffect(() => {
-    let cancelled = false;
-    apiPost<{ contentSource: string }, { html: string }>('/api/preview', { contentSource: value })
-      .then((res) => {
-        if (!cancelled) setHtml(res.html);
-      })
-      .catch(() => {
-        if (!cancelled) setHtml('');
-      });
+    const scheduler = createPreviewScheduler({ render: renderPreview, onHtml: setHtml });
+    previewSchedulerRef.current = scheduler;
     return () => {
-      cancelled = true;
+      scheduler.dispose();
+      previewSchedulerRef.current = null;
     };
+  }, []);
+
+  useEffect(() => {
+    previewSchedulerRef.current?.update(value);
   }, [value]);
 
   useEffect(() => {

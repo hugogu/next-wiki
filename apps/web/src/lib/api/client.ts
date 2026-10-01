@@ -10,15 +10,22 @@ export type ApiError = {
 
 type HttpMethod = 'GET' | 'POST' | 'PATCH' | 'PUT' | 'DELETE';
 
+type RequestOptions = {
+  /** Aborts the underlying `fetch`; the returned promise then rejects. */
+  signal?: AbortSignal;
+};
+
 async function apiFetch<TInput, TOutput>(
   path: string,
   input: TInput,
   method: HttpMethod = 'POST',
+  { signal }: RequestOptions = {},
 ): Promise<TOutput> {
   const options: RequestInit = {
     method,
     headers: { Accept: 'application/json' },
     credentials: 'same-origin',
+    signal,
   };
 
   if (method !== 'GET') {
@@ -58,8 +65,12 @@ export function useApiMutation<TInput = void, TOutput = unknown>(
   });
 }
 
-export async function apiPost<TInput, TOutput>(path: string, input: TInput): Promise<TOutput> {
-  return apiFetch<TInput, TOutput>(path, input, 'POST');
+export async function apiPost<TInput, TOutput>(
+  path: string,
+  input: TInput,
+  options?: RequestOptions,
+): Promise<TOutput> {
+  return apiFetch<TInput, TOutput>(path, input, 'POST', options);
 }
 
 export async function apiPatch<TInput, TOutput>(path: string, input: TInput): Promise<TOutput> {
