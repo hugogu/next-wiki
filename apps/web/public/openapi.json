@@ -5271,6 +5271,26 @@
         ],
         "description": "A page's canonical address plus every retained and manually added alias."
       },
+      "PublicPageAddressPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public page identifier."
+          },
+          "addressId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Alias address identifier (aliases[].id from the page address list)."
+          }
+        },
+        "required": [
+          "id",
+          "addressId"
+        ],
+        "description": "Public page address path parameters."
+      },
       "PublicPageBatchCreateInput": {
         "type": "object",
         "properties": {
@@ -21488,14 +21508,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -21525,14 +21547,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -21592,6 +21616,18 @@
               "description": "Must be exactly \"true\" to release a soft-deleted page's addresses."
             },
             "description": "Must be exactly \"true\" to release a soft-deleted page's addresses."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -22041,6 +22077,30 @@
               "description": "Required (must be exactly \"true\") to remove a retained alias; omit for a manual alias."
             },
             "description": "Required (must be exactly \"true\") to remove a retained alias; omit for a manual alias."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "in": "path",
+            "name": "addressId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Alias address identifier (aliases[].id from the page address list)."
+            },
+            "description": "Alias address identifier (aliases[].id from the page address list).",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [

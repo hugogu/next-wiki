@@ -15,6 +15,7 @@ const releaseQuerySchema = z.object({ release: z.enum(['true']).optional() });
  * @description Returns the page's canonical address plus every retained and manually added alias.
  * @tag Pages
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @response PublicPageAddressList
  */
 export const GET = withPublicApi<{ id: string }>(async (_request, { params }) => {
@@ -31,6 +32,7 @@ export const GET = withPublicApi<{ id: string }>(async (_request, { params }) =>
  * @description Registers an additional public address for the page (kind=manual). Requires edit permission on the page.
  * @tag Pages
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @body PublicPageAddressCreateInput
  * @response 201:PublicPageAddress
  * @response 409:PAGE_ADDRESS_TAKEN
@@ -51,6 +53,7 @@ export const POST = withPublicApi<{ id: string }>(async (request, { params }, ct
  * @description Space-manage only. Requires ?release=true and that the page is currently soft-deleted; returns 409 PAGE_NOT_DELETED for a live page.
  * @tag Pages
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @queryParams PageAddressReleaseQuery
  * @response PageAddressReleaseResult
  * @response 409:PAGE_NOT_DELETED
