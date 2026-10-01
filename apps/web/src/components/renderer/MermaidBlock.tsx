@@ -55,6 +55,11 @@ export function MermaidBlock({ source }: { source: string }) {
         mermaid.initialize({
           startOnLoad: false,
           theme: 'default',
+          // A diagram that fails to parse (every half-typed one in the editor
+          // preview) would otherwise leave its temporary `#d{id}` element in
+          // <body> for good: render() throws before it cleans up, and each
+          // attempt uses a fresh id. This component shows its own fallback.
+          suppressErrorRendering: true,
           themeVariables: mermaidThemeVariables(),
         });
         return mermaid.render(id, source);

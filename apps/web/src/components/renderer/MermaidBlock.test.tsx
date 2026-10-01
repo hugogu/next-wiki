@@ -132,4 +132,21 @@ describe('MermaidBlock', () => {
     expect(container.querySelector('[data-testid="code-block"]')).not.toBeNull();
     expect(container.textContent).toContain('invalid');
   });
+
+  // Mermaid builds each diagram in a temporary element on <body> and, for a
+  // source that does not parse, throws before removing it unless told to
+  // suppress error rendering. Every attempt uses a fresh id, so a half-typed
+  // diagram in the editor preview would leak one element per refresh.
+  it('asks mermaid to clean up after a failed render instead of leaking its temporary element', async () => {
+    vi.mocked(mermaid.initialize).mockClear();
+    renderMock.mockRejectedValue(new Error('parse error'));
+
+    mount(<MermaidBlock source="invalid" />);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(mermaid.initialize).toHaveBeenCalledWith(expect.objectContaining({ suppressErrorRendering: true }));
+  });
 });

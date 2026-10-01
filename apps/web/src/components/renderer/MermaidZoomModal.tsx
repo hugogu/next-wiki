@@ -52,6 +52,9 @@ export function MermaidZoomModal({
         mermaid.initialize({
           startOnLoad: false,
           theme: 'default',
+          // Same as MermaidBlock: make a failed render clean up its own
+          // temporary element instead of leaking it into <body>.
+          suppressErrorRendering: true,
           themeVariables: mermaidThemeVariables(),
         });
         return mermaid.render(id, source);
