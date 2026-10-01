@@ -14,6 +14,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Sets the page's tag list and publishes the change immediately so the live page reflects it.
  * @tag Pages
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @body PublicPageTagsInput
  * @response PublicPageResource
  */

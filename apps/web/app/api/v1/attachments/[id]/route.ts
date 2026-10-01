@@ -13,6 +13,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Removes (soft-deletes) an attachment. Requires the same edit permission as the owning page — no independent scope, unlike attaching.
  * @tag Attachments
  * @auth bearer
+ * @pathParams PublicAttachmentIdPathParams
  * @response 204
  */
 export const DELETE = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {

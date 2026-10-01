@@ -12,6 +12,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Creates a draft revision while synchronizing title, date, tags, summary, and Markdown frontmatter.
  * @tag Pages
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @body PublicPageMetadataInput
  * @response PublicPageResource
  */

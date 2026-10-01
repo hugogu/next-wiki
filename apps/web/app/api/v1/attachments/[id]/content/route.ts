@@ -23,6 +23,7 @@ function contentDispositionHeader(disposition: 'inline' | 'attachment', fileName
  * @description Streams an attachment's bytes if the caller may read its page. Browser-safe types (images, PDF) are served inline; every other type forces a download — never administrator-configurable.
  * @tag Attachments
  * @auth bearer
+ * @pathParams PublicAttachmentIdPathParams
  * @response 200
  */
 export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {

@@ -12,6 +12,7 @@ const paramsSchema = z.object({ memoryId: z.string().uuid() });
  * @summary Forget an Agent memory record
  * @description Soft-deletes a record only when it belongs to the calling API key's bound destination.
  * @tag Agent Memory
+ * @pathParams AgentMemoryRecordIdPathParams
  * @body AgentMemoryForgetInput
  * @response AgentMemoryForgetResponse
  */

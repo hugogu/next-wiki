@@ -14,6 +14,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @description Uploads a file (image, video, or document, per the wiki's configured limits) and attaches it to a page, separate from images embedded in the page body.
  * @tag Attachments
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @response 201:PublicAttachmentResource
  */
 export const POST = withPublicApi<{ id: string }>(async (request, { params }, ctx) => {
@@ -54,6 +55,7 @@ export const POST = withPublicApi<{ id: string }>(async (request, { params }, ct
  * @description Lists the files currently attached to a page. Requires the same read access as reading the page's other content — no independent permission.
  * @tag Attachments
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @response PublicAttachmentList
  */
 export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {

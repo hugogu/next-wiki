@@ -11,6 +11,7 @@ import { publicRevisionDiffQuerySchema } from '@next-wiki/shared';
  * @description Returns a unified diff and line counts between the requested version and the `against` version.
  * @tag Revisions
  * @auth bearer
+ * @pathParams PublicPageRevisionPathParams
  * @queryParams PublicRevisionDiffQuery
  * @response PublicRevisionDiffResponse
  */

@@ -9,6 +9,7 @@ import * as publicContent from '@/server/services/public-content';
  * @description Returns pages visible to the caller that contain Markdown links to the target page.
  * @tag Pages
  * @auth bearer
+ * @pathParams PublicPageIdPathParams
  * @response PublicBacklinksResponse
  */
 export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {

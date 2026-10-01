@@ -377,6 +377,9 @@ export const AgentMemoryForgetResponse = z.object({
   state: z.literal('forgotten'),
   forgottenAt: z.string().datetime(),
 });
+export const AgentMemoryRecordIdPathParams = z.object({
+  memoryId: z.string().uuid().describe('Agent memory record identifier (memoryId from recall or save results).'),
+}).describe('Agent memory record path parameters.');
 
 export const AgentMemoryEvidenceInput = z.object({
   idempotencyKey: z.string().min(1).max(128), sessionDigest: z.string().regex(/^[a-f0-9]{32,128}$/), checkpoint: z.boolean(),
@@ -394,6 +397,9 @@ export const AgentMemoryEvidenceStatus = z.object({
   evidence: z.object({ evidenceId: z.string().uuid(), citation: AgentMemoryCitation }).optional(),
   failureCode: z.string().optional(),
 });
+export const AgentMemoryCaptureIdPathParams = z.object({
+  captureId: z.string().uuid().describe('Evidence capture identifier (captureId returned when the capture was queued).'),
+}).describe('Agent memory evidence capture path parameters.');
 
 export const AgentMemoryWikiConnection = z.object({
   apiVersion: z.literal('v1'),
@@ -430,6 +436,9 @@ export const AgentMemoryWikiSearchResponse = z.object({
   results: z.array(z.object({ pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), space: z.enum(['wiki', 'raw', 'generated']), title: z.string(), path: z.string(), excerpt: z.string(), score: z.number(), canonicalUrl: z.string().url() })),
   coverage: z.object({ wiki: z.boolean(), raw: z.boolean(), generated: z.boolean(), complete: z.boolean() }),
 });
+export const AgentMemoryWikiPageIdPathParams = z.object({
+  pageId: z.string().uuid().describe('Stable public page identifier (pageId from wiki search results).'),
+}).describe('Agent memory wiki page path parameters.');
 export const AgentMemoryWikiPageReadQuery = z.object({ maxChars: z.coerce.number().int().min(1).max(20_000).default(8_000) });
 export const AgentMemoryWikiPage = z.object({
   pageId: z.string().uuid(), space: z.enum(['wiki', 'raw', 'generated']), path: z.string(), title: z.string(), content: z.string(), truncated: z.boolean(), canonicalUrl: z.string().url(), revisionId: z.string().uuid().nullable(), revisionHash: z.string().nullable(),
@@ -957,6 +966,12 @@ export const PublicAssetIdPathParams = z
     id: z.string().uuid().describe('Stable public asset identifier.'),
   })
   .describe('Public asset ID path parameters.');
+
+export const PublicAttachmentIdPathParams = z
+  .object({
+    id: z.string().uuid().describe('Stable attachment identifier (id from the page attachment list).'),
+  })
+  .describe('Public attachment ID path parameters.');
 
 export const PublicSemanticSearchIdPathParams = z
   .object({

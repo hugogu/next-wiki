@@ -35,6 +35,20 @@
         ]
       },
       "ADDRESS_ALIAS_RETAINED": {},
+      "AgentMemoryCaptureIdPathParams": {
+        "type": "object",
+        "properties": {
+          "captureId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Evidence capture identifier (captureId returned when the capture was queued)."
+          }
+        },
+        "required": [
+          "captureId"
+        ],
+        "description": "Agent memory evidence capture path parameters."
+      },
       "AgentMemoryCitation": {
         "type": "object",
         "properties": {
@@ -510,6 +524,20 @@
           "evidence"
         ]
       },
+      "AgentMemoryRecordIdPathParams": {
+        "type": "object",
+        "properties": {
+          "memoryId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Agent memory record identifier (memoryId from recall or save results)."
+          }
+        },
+        "required": [
+          "memoryId"
+        ],
+        "description": "Agent memory record path parameters."
+      },
       "AgentMemorySaveInput": {
         "type": "object",
         "properties": {
@@ -881,6 +909,20 @@
           "revisionId",
           "revisionHash"
         ]
+      },
+      "AgentMemoryWikiPageIdPathParams": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable public page identifier (pageId from wiki search results)."
+          }
+        },
+        "required": [
+          "pageId"
+        ],
+        "description": "Agent memory wiki page path parameters."
       },
       "AgentMemoryWikiPageReadQuery": {
         "type": "object",
@@ -3844,6 +3886,20 @@
           "createdAt"
         ],
         "description": "Uploaded public wiki asset metadata."
+      },
+      "PublicAttachmentIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable attachment identifier (id from the page attachment list)."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Public attachment ID path parameters."
       },
       "PublicAttachmentList": {},
       "PublicAttachmentResource": {
@@ -12313,14 +12369,16 @@
         ],
         "parameters": [
           {
-            "name": "captureId",
             "in": "path",
+            "name": "captureId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Evidence capture identifier (captureId returned when the capture was queued)."
             },
-            "example": 123,
-            "description": "Path parameter: captureId"
+            "description": "Evidence capture identifier (captureId returned when the capture was queued).",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -12347,14 +12405,16 @@
         ],
         "parameters": [
           {
-            "name": "memoryId",
             "in": "path",
+            "name": "memoryId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Agent memory record identifier (memoryId from recall or save results)."
             },
-            "example": 123,
-            "description": "Path parameter: memoryId"
+            "description": "Agent memory record identifier (memoryId from recall or save results).",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -12531,6 +12591,18 @@
               "minimum": 1,
               "maximum": 20000
             }
+          },
+          {
+            "in": "path",
+            "name": "pageId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier (pageId from wiki search results)."
+            },
+            "description": "Stable public page identifier (pageId from wiki search results).",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -18970,14 +19042,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable attachment identifier (id from the page attachment list)."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable attachment identifier (id from the page attachment list).",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19002,14 +19076,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable attachment identifier (id from the page attachment list)."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable attachment identifier (id from the page attachment list).",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19034,14 +19110,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19071,14 +19149,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -20562,14 +20642,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -20692,14 +20774,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -20781,14 +20865,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -21349,6 +21435,31 @@
               "description": "Earlier version number to diff against."
             },
             "description": "Earlier version number to diff against."
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
+            },
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991,
+              "description": "Revision version number."
+            },
+            "description": "Revision version number.",
+            "example": 1
           }
         ],
         "security": [

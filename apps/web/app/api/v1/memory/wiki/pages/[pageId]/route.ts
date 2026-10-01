@@ -9,6 +9,7 @@ import { readKnowledgePage } from '@/server/services/agent-memory-documents';
  * @description Re-authorizes the selected page against the bound integration key's current grants.
  * @tag Agent Memory Wiki
  * @auth bearer
+ * @pathParams AgentMemoryWikiPageIdPathParams
  * @queryParams AgentMemoryWikiPageReadQuery
  * @response AgentMemoryWikiPage
  */
