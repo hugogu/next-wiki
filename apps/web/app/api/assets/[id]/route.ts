@@ -78,6 +78,7 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
  * @summary Get an image
  * @description Streams the bytes of an image asset. Requires read access to a page that references it; unreadable or missing assets return 404 with no existence leak.
  * @tag Assets
+ * @pathParams PublicAssetIdPathParams
  * @response 200
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

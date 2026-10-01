@@ -650,6 +650,22 @@ export const StorageReadBackend = z
   })
   .describe('Set the preferred read backend.');
 
+export const StorageBackendIdPathParams = z
+  .object({ id: z.string().uuid().describe('Storage backend identifier.') })
+  .describe('Storage backend path parameters.');
+
+export const StorageCleanupJobIdPathParams = z
+  .object({ id: z.string().uuid().describe('Storage cleanup job identifier.') })
+  .describe('Storage cleanup job path parameters.');
+
+export const StorageMigrationIdPathParams = z
+  .object({ id: z.string().uuid().describe('Storage migration identifier.') })
+  .describe('Storage migration path parameters.');
+
+export const StaticSitePublicationIdPathParams = z
+  .object({ id: z.string().uuid().describe('Static site publication identifier.') })
+  .describe('Static site publication path parameters.');
+
 export const ReplicaSyncStatus = z
   .object({
     backendId: z.string().uuid().describe('Storage backend identifier.'),

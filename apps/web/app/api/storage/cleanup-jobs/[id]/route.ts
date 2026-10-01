@@ -28,6 +28,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
  * @description Returns the progress of a retained-backend cleanup job. Admin only.
  * @tag Storage
  * @auth bearer
+ * @pathParams StorageCleanupJobIdPathParams
  * @response CleanupJobView
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

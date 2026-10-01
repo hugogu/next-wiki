@@ -9404,6 +9404,20 @@
         "description": "One page or a folder subtree selected for cross-space migration."
       },
       "StaticSiteEligibilitySummary": {},
+      "StaticSitePublicationIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Static site publication identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Static site publication path parameters."
+      },
       "StaticSitePublicationListResponse": {
         "type": "object",
         "properties": {
@@ -9746,6 +9760,20 @@
         ],
         "description": "Enable a storage backend."
       },
+      "StorageBackendIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Storage backend identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Storage backend path parameters."
+      },
       "StorageBackendUpsert": {
         "type": "object",
         "discriminator": {
@@ -9969,6 +9997,34 @@
           "updatedAt"
         ],
         "description": "Storage backend view, as returned to the admin UI. Never includes secrets."
+      },
+      "StorageCleanupJobIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Storage cleanup job identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Storage cleanup job path parameters."
+      },
+      "StorageMigrationIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Storage migration identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Storage migration path parameters."
       },
       "StorageOverview": {
         "type": "object",
@@ -19315,14 +19371,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public asset identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public asset identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -23724,14 +23782,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Static site publication identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Static site publication identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -24143,14 +24203,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Storage cleanup job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Storage cleanup job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -24266,14 +24328,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Storage migration identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Storage migration identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -24303,14 +24367,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Storage migration identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Storage migration identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -24342,14 +24408,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Storage backend identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Storage backend identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -24390,14 +24458,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Storage backend identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Storage backend identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -24438,14 +24508,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Storage backend identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Storage backend identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [

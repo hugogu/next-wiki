@@ -25,6 +25,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
  * @description Returns one publish run for status polling. Error messages are stored redacted of credential material and are safe to display.
  * @tag StaticSite
  * @auth bearer
+ * @pathParams StaticSitePublicationIdPathParams
  * @response StaticSitePublicationView
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

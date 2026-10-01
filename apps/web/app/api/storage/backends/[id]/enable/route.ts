@@ -33,6 +33,7 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
  * @description Health-checks a configured replica and starts an idempotent Database backfill. Admin only.
  * @tag Storage
  * @auth bearer
+ * @pathParams StorageBackendIdPathParams
  * @body StorageBackendEnable
  * @response StorageBackendView
  */

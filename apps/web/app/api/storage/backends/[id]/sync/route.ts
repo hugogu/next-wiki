@@ -25,6 +25,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
  * @description Returns Database-to-replica backfill progress and errors. Admin only.
  * @tag Storage
  * @auth bearer
+ * @pathParams StorageBackendIdPathParams
  * @response ReplicaSyncStatus
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

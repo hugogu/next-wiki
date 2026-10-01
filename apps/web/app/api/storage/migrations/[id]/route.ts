@@ -40,6 +40,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
  * @description Returns the progress of a migration for polling. Admin only.
  * @tag Storage
  * @auth bearer
+ * @pathParams StorageMigrationIdPathParams
  * @response MigrationView
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
@@ -51,6 +52,7 @@ export const GET = withApiAudit(handleGET as unknown as RouteHandler);
  * @description Requests a cooperative abort; the worker stops at its next checkpoint and never cuts over after the request. Admin only.
  * @tag Storage
  * @auth bearer
+ * @pathParams StorageMigrationIdPathParams
  * @response 202:MigrationView
  */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

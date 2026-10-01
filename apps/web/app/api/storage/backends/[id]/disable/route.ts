@@ -37,6 +37,7 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
  * @description Removes a replica from read and write routing. Optionally schedules deletion of retained replica data. Admin only.
  * @tag Storage
  * @auth bearer
+ * @pathParams StorageBackendIdPathParams
  * @body StorageBackendDisable
  * @response StorageBackendView
  */
