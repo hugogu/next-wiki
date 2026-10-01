@@ -25,4 +25,11 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
   }
 }
 
+/**
+ * @openapi
+ * @summary Delete a page
+ * @description Soft-deletes a page from Admin page management. Administrator session only; not callable with a Bearer key.
+ * @tag Admin
+ * @pathParams PublicPageIdPathParams
+ */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

@@ -12,6 +12,13 @@ const idSchema = z.string().uuid();
  * page reference. `?download=1` forces an attachment disposition; otherwise the
  * bytes are served inline (so a PDF/image can render in a viewer). Never cached
  * publicly — raw content is restricted.
+ *
+ * @openapi
+ * @summary Download a raw entry's original bytes
+ * @description Streams the immutable original bytes of a raw entry's asset. Requires read access to a raw entry page that references the asset; otherwise 404. Served inline unless ?download=1 forces an attachment download.
+ * @tag Raw
+ * @auth bearer
+ * @pathParams RawAssetIdPathParams
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

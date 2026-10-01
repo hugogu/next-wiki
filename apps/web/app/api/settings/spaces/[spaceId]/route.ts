@@ -12,6 +12,13 @@ const inputSchema = z.object({
   defaultVisibility: z.enum(['public', 'registered', 'restricted']),
 });
 
+/**
+ * @openapi
+ * @summary Configure a content space
+ * @description Updates a built-in space's route prefix and default page visibility without changing its identity. Administrator session only; not callable with a Bearer key.
+ * @tag Settings
+ * @pathParams SpaceIdPathParams
+ */
 export async function PUT(request: Request, { params }: { params: Promise<{ spaceId: string }> }) {
   const parsedParams = paramsSchema.safeParse(await params);
   if (!parsedParams.success) return apiError('BAD_REQUEST', 'Invalid space id', 400);

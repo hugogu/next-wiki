@@ -9,7 +9,15 @@ export const dynamic = 'force-dynamic';
 const paramsSchema = z.object({ pageId: z.string().uuid() });
 const bodySchema = z.object({ visibility: z.enum(['public', 'registered', 'restricted']) });
 
-/** Administrator-only anonymous-read setting for one page. */
+/**
+ * Administrator-only anonymous-read setting for one page.
+ *
+ * @openapi
+ * @summary Set a page's visibility
+ * @description Sets one page's visibility to public, registered, or restricted. Administrator session only; not callable with a Bearer key.
+ * @tag Pages
+ * @pathParams PageVisibilityPathParams
+ */
 export async function PUT(request: Request, { params }: { params: Promise<{ pageId: string }> }) {
   const parsedParams = paramsSchema.safeParse(await params);
   if (!parsedParams.success) return apiError('BAD_REQUEST', 'Invalid page id', 400);

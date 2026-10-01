@@ -2731,6 +2731,47 @@ export const FeishuRegistrationIdPathParams = z
   .object({ registrationId: z.string().uuid().describe('Feishu app registration session identifier.') })
   .describe('Feishu app registration path parameters.');
 
+// ---- Page, space and raw content path parameters -------------------------------
+
+export const PageVisibilityPathParams = z
+  .object({ pageId: z.string().uuid().describe('Stable page identifier.') })
+  .describe('Page visibility path parameters.');
+
+export const AdminTagIdPathParams = z
+  .object({ tagId: z.string().uuid().describe('Tag identifier.') })
+  .describe('Admin tag path parameters.');
+
+export const SpaceIdPathParams = z
+  .object({ spaceId: z.string().uuid().describe('Content space identifier.') })
+  .describe('Content space path parameters.');
+
+export const RawCategoryIdPathParams = z
+  .object({ id: z.string().uuid().describe('Raw category identifier.') })
+  .describe('Raw category path parameters.');
+
+export const RawAssetIdPathParams = z
+  .object({ id: z.string().uuid().describe("Identifier of a raw entry's original-bytes asset.") })
+  .describe('Raw asset path parameters.');
+
+export const WikiRawMarkdownPathParams = z
+  .object({
+    path: z
+      .string()
+      .min(1)
+      .describe('Public wiki reader path, optionally prefixed with a translation locale (e.g. guides/setup or zh/guides/setup). Spans several path segments; each is URL-decoded.'),
+  })
+  .describe('Public wiki raw Markdown path parameters.');
+
+export const SpaceRawMarkdownPathParams = z
+  .object({
+    space: z.enum(['generated', 'raw']).describe('Content space holding the page.'),
+    path: z
+      .string()
+      .min(1)
+      .describe('Page path within the space. Spans several path segments; each is URL-decoded.'),
+  })
+  .describe('Generated or raw space Markdown path parameters.');
+
 export const PublicPageResolveQuery = z.object({
   url: z.string().min(1).max(2048).describe('Absolute same-origin reader URL or relative reader address.'),
   include: z.string().optional().describe('Comma-separated latestRevision,publishedRevision.'),

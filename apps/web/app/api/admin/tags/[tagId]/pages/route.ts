@@ -6,7 +6,15 @@ import { listAdminTagPages } from '@/server/services/pages';
 
 type RouteContext = { params: Promise<{ tagId: string }> };
 
-/** Related pages for a tag in the signed-in Admin read-only scope. */
+/**
+ * Related pages for a tag in the signed-in Admin read-only scope.
+ *
+ * @openapi
+ * @summary List a tag's pages in Admin
+ * @description Lists the pages carrying a tag that the signed-in user can see in Admin, optionally limited to one space with ?space=. Session-only; not callable with a Bearer key.
+ * @tag Admin
+ * @pathParams AdminTagIdPathParams
+ */
 export async function GET(request: Request, { params }: RouteContext) {
   try {
     const { tagId } = await params;

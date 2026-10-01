@@ -35,6 +35,20 @@
         ]
       },
       "ADDRESS_ALIAS_RETAINED": {},
+      "AdminTagIdPathParams": {
+        "type": "object",
+        "properties": {
+          "tagId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Tag identifier."
+          }
+        },
+        "required": [
+          "tagId"
+        ],
+        "description": "Admin tag path parameters."
+      },
       "AgentMemoryCaptureIdPathParams": {
         "type": "object",
         "properties": {
@@ -3894,6 +3908,20 @@
         ],
         "description": "The address that was removed."
       },
+      "PageVisibilityPathParams": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable page identifier."
+          }
+        },
+        "required": [
+          "pageId"
+        ],
+        "description": "Page visibility path parameters."
+      },
       "paramsSchema": {
         "type": "object",
         "properties": {
@@ -7663,6 +7691,20 @@
         ],
         "description": "New name for a reusable tag."
       },
+      "RawAssetIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Identifier of a raw entry's original-bytes asset."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Raw asset path parameters."
+      },
       "RawCategory": {
         "type": "object",
         "properties": {
@@ -7704,6 +7746,20 @@
           "entryCount",
           "createdAt"
         ]
+      },
+      "RawCategoryIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Raw category identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Raw category path parameters."
       },
       "RegisterInput": {
         "type": "object",
@@ -9084,6 +9140,20 @@
           }
         ]
       },
+      "SpaceIdPathParams": {
+        "type": "object",
+        "properties": {
+          "spaceId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Content space identifier."
+          }
+        },
+        "required": [
+          "spaceId"
+        ],
+        "description": "Content space path parameters."
+      },
       "SpaceMigrationConfirmInput": {
         "type": "object",
         "properties": {
@@ -9476,6 +9546,29 @@
           }
         ],
         "description": "One page or a folder subtree selected for cross-space migration."
+      },
+      "SpaceRawMarkdownPathParams": {
+        "type": "object",
+        "properties": {
+          "space": {
+            "type": "string",
+            "enum": [
+              "generated",
+              "raw"
+            ],
+            "description": "Content space holding the page."
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Page path within the space. Spans several path segments; each is URL-decoded."
+          }
+        },
+        "required": [
+          "space",
+          "path"
+        ],
+        "description": "Generated or raw space Markdown path parameters."
       },
       "StaticSiteEligibilitySummary": {},
       "StaticSitePublicationIdPathParams": {
@@ -11680,6 +11773,37 @@
           "providers"
         ]
       },
+      "updateInputSchema": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "slug": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "description": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "maxLength": 2000
+          },
+          "isDefault": {
+            "type": "boolean"
+          },
+          "isRetired": {
+            "type": "boolean",
+            "enum": [
+              true
+            ]
+          }
+        }
+      },
       "UpdatePreferencesInput": {
         "type": "object",
         "properties": {
@@ -12230,6 +12354,20 @@
         ],
         "description": "One page of a Wiki.js source inventory."
       },
+      "WikiRawMarkdownPathParams": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Public wiki reader path, optionally prefixed with a translation locale (e.g. guides/setup or zh/guides/setup). Spans several path segments; each is URL-decoded."
+          }
+        },
+        "required": [
+          "path"
+        ],
+        "description": "Public wiki raw Markdown path parameters."
+      },
       "WritingModeSettingsView": {
         "type": "object",
         "properties": {
@@ -12552,21 +12690,23 @@
     "/admin/pages/{id}": {
       "delete": {
         "operationId": "delete-admin-pages-{id}",
-        "summary": "",
-        "description": "",
+        "summary": "Delete a page",
+        "description": "Soft-deletes a page from Admin page management. Administrator session only; not callable with a Bearer key.",
         "tags": [
           "Admin"
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -12591,21 +12731,23 @@
     "/admin/pages/{id}/move": {
       "post": {
         "operationId": "post-admin-pages-{id}-move",
-        "summary": "",
-        "description": "",
+        "summary": "Move a page to another content space",
+        "description": "Moves a page into another content space in LLM Wiki mode, adapting its content format to the destination (OKF frontmatter is injected when moving into generated). Administrator session only; not callable with a Bearer key.",
         "tags": [
           "Admin"
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable public page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Stable public page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {}
@@ -12614,8 +12756,8 @@
     "/admin/tags/{tagId}/pages": {
       "get": {
         "operationId": "get-admin-tags-{tagId}-pages",
-        "summary": "Related pages for a tag in the signed-in Admin read-only scope.",
-        "description": "",
+        "summary": "List a tag's pages in Admin",
+        "description": "Lists the pages carrying a tag that the signed-in user can see in Admin, optionally limited to one space with ?space=. Session-only; not callable with a Bearer key.",
         "tags": [
           "Admin"
         ],
@@ -12630,14 +12772,16 @@
             "example": "example"
           },
           {
-            "name": "tagId",
             "in": "path",
+            "name": "tagId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Tag identifier."
             },
-            "example": 123,
-            "description": "Path parameter: tagId"
+            "description": "Tag identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -20389,6 +20533,31 @@
         }
       }
     },
+    "/raw-md/{path}": {
+      "get": {
+        "operationId": "get-raw-md-{path}",
+        "summary": "Get a public wiki page's Markdown source",
+        "description": "Returns the current revision's raw Markdown, resolving the reader path (including an optional translation locale prefix) the same way the HTML reader does. No authentication; only pages anonymous readers can see resolve.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Public wiki reader path, optionally prefixed with a translation locale (e.g. guides/setup or zh/guides/setup). Spans several path segments; each is URL-decoded."
+            },
+            "description": "Public wiki reader path, optionally prefixed with a translation locale (e.g. guides/setup or zh/guides/setup). Spans several path segments; each is URL-decoded.",
+            "example": "example"
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/v1/pages": {
       "get": {
         "operationId": "get-v1-pages",
@@ -20739,21 +20908,23 @@
     "/pages/{pageId}/visibility": {
       "put": {
         "operationId": "put-pages-{pageId}-visibility",
-        "summary": "Administrator-only anonymous-read setting for one page.",
-        "description": "",
+        "summary": "Set a page's visibility",
+        "description": "Sets one page's visibility to public, registered, or restricted. Administrator session only; not callable with a Bearer key.",
         "tags": [
           "Pages"
         ],
         "parameters": [
           {
-            "name": "pageId",
             "in": "path",
+            "name": "pageId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable page identifier."
             },
-            "example": 123,
-            "description": "Path parameter: pageId"
+            "description": "Stable page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -21066,6 +21237,46 @@
             }
           }
         }
+      }
+    },
+    "/raw-md/spaces/{space}/{path}": {
+      "get": {
+        "operationId": "get-raw-md-spaces-{space}-{path}",
+        "summary": "Get a generated or raw space page's source",
+        "description": "Returns the latest revision's raw source for a page in the generated or raw content space; available only in LLM Wiki mode. A raw entry whose content is not Markdown returns 415. Administrator session only; not callable with a Bearer key.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "space",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "generated",
+                "raw"
+              ],
+              "description": "Content space holding the page."
+            },
+            "description": "Content space holding the page.",
+            "example": "generated"
+          },
+          {
+            "in": "path",
+            "name": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Page path within the space. Spans several path segments; each is URL-decoded."
+            },
+            "description": "Page path within the space. Spans several path segments; each is URL-decoded.",
+            "example": "example"
+          }
+        ],
+        "responses": {}
       }
     },
     "/v1/pages/{id}/addresses": {
@@ -21717,6 +21928,45 @@
         }
       }
     },
+    "/raw-assets/{id}": {
+      "get": {
+        "operationId": "get-raw-assets-{id}",
+        "summary": "Download a raw entry's original bytes",
+        "description": "Streams the immutable original bytes of a raw entry's asset. Requires read access to a raw entry page that references the asset; otherwise 404. Served inline unless ?download=1 forces an attachment download.",
+        "tags": [
+          "Raw"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "download",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "example": "example"
+          },
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Identifier of a raw entry's original-bytes asset."
+            },
+            "description": "Identifier of a raw entry's original-bytes asset.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {}
+      }
+    },
     "/v1/raw-categories": {
       "get": {
         "operationId": "get-v1-raw-categories",
@@ -21778,94 +22028,6 @@
             }
           }
         }
-      }
-    },
-    "/raw-assets/{id}": {
-      "get": {
-        "operationId": "get-raw-assets-{id}",
-        "summary": "Serve a raw entry's immutable original bytes. Admin-only via the asset's raw",
-        "description": "",
-        "tags": [
-          "Raw-assets"
-        ],
-        "parameters": [
-          {
-            "in": "query",
-            "name": "download",
-            "required": false,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example"
-          },
-          {
-            "name": "id",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "number"
-            },
-            "example": 123,
-            "description": "Path parameter: id"
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/raw-md/{path}": {
-      "get": {
-        "operationId": "get-raw-md-{path}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Raw-md"
-        ],
-        "parameters": [
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "responses": {}
-      }
-    },
-    "/raw-md/spaces/{space}/{path}": {
-      "get": {
-        "operationId": "get-raw-md-spaces-{space}-{path}",
-        "summary": "",
-        "description": "",
-        "tags": [
-          "Raw-md"
-        ],
-        "parameters": [
-          {
-            "name": "space",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: space"
-          },
-          {
-            "name": "path",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            },
-            "example": "example",
-            "description": "Path parameter: path"
-          }
-        ],
-        "responses": {}
       }
     },
     "/v1/pages/{id}/revisions": {
@@ -22943,21 +23105,28 @@
     "/settings/raw-categories/{id}": {
       "patch": {
         "operationId": "patch-settings-raw-categories-{id}",
-        "summary": "",
-        "description": "",
+        "summary": "Update or retire a raw category",
+        "description": "Updates the category's name, slug, description, or default flag; sending isRetired: true retires it instead. Admin-scoped; available only in LLM Wiki mode.",
         "tags": [
           "Settings"
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Raw category identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Raw category identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ],
         "responses": {
@@ -22975,21 +23144,28 @@
       },
       "delete": {
         "operationId": "delete-settings-raw-categories-{id}",
-        "summary": "Hard delete; rejected with RAW_CATEGORY_HAS_ENTRIES (409) while entries still",
-        "description": "",
+        "summary": "Delete a raw category",
+        "description": "Permanently deletes the category. Returns 409 RAW_CATEGORY_HAS_ENTRIES while entries still reference it; retire it with PATCH isRetired instead. Admin-scoped; available only in LLM Wiki mode.",
         "tags": [
           "Settings"
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Raw category identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Raw category identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
           }
         ],
         "responses": {
@@ -23002,21 +23178,23 @@
     "/settings/spaces/{spaceId}": {
       "put": {
         "operationId": "put-settings-spaces-{spaceId}",
-        "summary": "",
-        "description": "",
+        "summary": "Configure a content space",
+        "description": "Updates a built-in space's route prefix and default page visibility without changing its identity. Administrator session only; not callable with a Bearer key.",
         "tags": [
           "Settings"
         ],
         "parameters": [
           {
-            "name": "spaceId",
             "in": "path",
+            "name": "spaceId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Content space identifier."
             },
-            "example": 123,
-            "description": "Path parameter: spaceId"
+            "description": "Content space identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -23059,21 +23237,23 @@
     "/settings/spaces/{spaceId}/sample-pages": {
       "post": {
         "operationId": "post-settings-spaces-{spaceId}-sample-pages",
-        "summary": "Re-run managed example-page initialization for the built-in Wiki space.",
-        "description": "",
+        "summary": "Re-initialize the Wiki space's sample pages",
+        "description": "Re-runs managed example-page initialization; only the built-in Wiki space is accepted. Responds 409 with the per-page outcomes when the run does not complete. Administrator session only; not callable with a Bearer key.",
         "tags": [
           "Settings"
         ],
         "parameters": [
           {
-            "name": "spaceId",
             "in": "path",
+            "name": "spaceId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Content space identifier."
             },
-            "example": 123,
-            "description": "Path parameter: spaceId"
+            "description": "Content space identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -27194,12 +27374,6 @@
     },
     {
       "name": "Raw"
-    },
-    {
-      "name": "Raw-assets"
-    },
-    {
-      "name": "Raw-md"
     },
     {
       "name": "Revisions"

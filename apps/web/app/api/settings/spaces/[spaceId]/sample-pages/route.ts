@@ -9,7 +9,15 @@ export const dynamic = 'force-dynamic';
 
 const paramsSchema = z.object({ spaceId: z.string().uuid() });
 
-/** Re-run managed example-page initialization for the built-in Wiki space. */
+/**
+ * Re-run managed example-page initialization for the built-in Wiki space.
+ *
+ * @openapi
+ * @summary Re-initialize the Wiki space's sample pages
+ * @description Re-runs managed example-page initialization; only the built-in Wiki space is accepted. Responds 409 with the per-page outcomes when the run does not complete. Administrator session only; not callable with a Bearer key.
+ * @tag Settings
+ * @pathParams SpaceIdPathParams
+ */
 export async function POST(_request: Request, { params }: { params: Promise<{ spaceId: string }> }) {
   const parsedParams = paramsSchema.safeParse(await params);
   if (!parsedParams.success) return apiError('BAD_REQUEST', 'Invalid space id', 400);

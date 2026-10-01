@@ -18,6 +18,14 @@ const updateInputSchema = z.object({
 
 type Params = { params: Promise<{ id: string }> };
 
+/**
+ * @openapi
+ * @summary Update or retire a raw category
+ * @description Updates the category's name, slug, description, or default flag; sending isRetired: true retires it instead. Admin-scoped; available only in LLM Wiki mode.
+ * @tag Settings
+ * @auth bearer
+ * @pathParams RawCategoryIdPathParams
+ */
 export async function PATCH(request: Request, { params }: Params) {
   const { id } = await params;
   const parsed = parseJson(updateInputSchema, await request.json().catch(() => ({})));
@@ -33,8 +41,17 @@ export async function PATCH(request: Request, { params }: Params) {
   }
 }
 
-/** Hard delete; rejected with RAW_CATEGORY_HAS_ENTRIES (409) while entries still
- * reference the category — the admin retires it (PATCH isRetired) instead. */
+/**
+ * Hard delete; rejected with RAW_CATEGORY_HAS_ENTRIES (409) while entries still
+ * reference the category — the admin retires it (PATCH isRetired) instead.
+ *
+ * @openapi
+ * @summary Delete a raw category
+ * @description Permanently deletes the category. Returns 409 RAW_CATEGORY_HAS_ENTRIES while entries still reference it; retire it with PATCH isRetired instead. Admin-scoped; available only in LLM Wiki mode.
+ * @tag Settings
+ * @auth bearer
+ * @pathParams RawCategoryIdPathParams
+ */
 export async function DELETE(_request: Request, { params }: Params) {
   const { id } = await params;
   try {
