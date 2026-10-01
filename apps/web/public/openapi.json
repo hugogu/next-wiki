@@ -2372,6 +2372,20 @@
         ],
         "description": "API key creation response, including the one-time secret value."
       },
+      "ApiKeyIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "API key identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "API key path parameters."
+      },
       "ApiKeyReveal": {
         "type": "object",
         "properties": {
@@ -2939,6 +2953,22 @@
         ],
         "description": "A registered Content > Data Source and its current settings."
       },
+      "ContentDataSourceKeyPathParams": {
+        "type": "object",
+        "properties": {
+          "sourceKey": {
+            "type": "string",
+            "enum": [
+              "ai-conversations"
+            ],
+            "description": "Registered content data source key."
+          }
+        },
+        "required": [
+          "sourceKey"
+        ],
+        "description": "Content Data Source path parameters."
+      },
       "ContentDataSourceListResponse": {
         "type": "object",
         "properties": {
@@ -3120,6 +3150,20 @@
           "code"
         ],
         "description": "API error response"
+      },
+      "FeishuRegistrationIdPathParams": {
+        "type": "object",
+        "properties": {
+          "registrationId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Feishu app registration session identifier."
+          }
+        },
+        "required": [
+          "registrationId"
+        ],
+        "description": "Feishu app registration path parameters."
       },
       "formSchema": {
         "type": "object",
@@ -3495,6 +3539,22 @@
       "idSchema": {
         "type": "string",
         "format": "uuid"
+      },
+      "IntegrationKindPathParams": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "github"
+            ],
+            "description": "Integration kind."
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "description": "Integration path parameters."
       },
       "IntegrationListResponse": {},
       "IntegrationSshKeyResult": {
@@ -8078,6 +8138,20 @@
         ],
         "description": "Complete captured outbound request. Sensitive fields are present only at the selected capture level."
       },
+      "RequestLogIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Captured outbound request identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Outbound request-log path parameters."
+      },
       "RequestLogListResponse": {
         "type": "object",
         "properties": {
@@ -10183,6 +10257,20 @@
           "backendId"
         ],
         "description": "Set the preferred read backend."
+      },
+      "SystemThemeIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "System theme identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "System theme path parameters."
       },
       "TransferArtifactIdPathParams": {
         "type": "object",
@@ -12367,14 +12455,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Captured outbound request identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Captured outbound request identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19066,14 +19156,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "System theme identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "System theme identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19103,14 +19195,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "System theme identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "System theme identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19149,14 +19243,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "System theme identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "System theme identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -20024,14 +20120,16 @@
         ],
         "parameters": [
           {
-            "name": "registrationId",
             "in": "path",
+            "name": "registrationId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Feishu app registration session identifier."
             },
-            "example": 123,
-            "description": "Path parameter: registrationId"
+            "description": "Feishu app registration session identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -20061,14 +20159,16 @@
         ],
         "parameters": [
           {
-            "name": "registrationId",
             "in": "path",
+            "name": "registrationId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Feishu app registration session identifier."
             },
-            "example": 123,
-            "description": "Path parameter: registrationId"
+            "description": "Feishu app registration session identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -20156,14 +20256,18 @@
         ],
         "parameters": [
           {
-            "name": "kind",
             "in": "path",
+            "name": "kind",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "github"
+              ],
+              "description": "Integration kind."
             },
-            "example": "example",
-            "description": "Path parameter: kind"
+            "description": "Integration kind.",
+            "example": "example"
           }
         ],
         "security": [
@@ -20193,14 +20297,18 @@
         ],
         "parameters": [
           {
-            "name": "kind",
             "in": "path",
+            "name": "kind",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "github"
+              ],
+              "description": "Integration kind."
             },
-            "example": "example",
-            "description": "Path parameter: kind"
+            "description": "Integration kind.",
+            "example": "example"
           }
         ],
         "security": [
@@ -20225,14 +20333,18 @@
         ],
         "parameters": [
           {
-            "name": "kind",
             "in": "path",
+            "name": "kind",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "github"
+              ],
+              "description": "Integration kind."
             },
-            "example": "example",
-            "description": "Path parameter: kind"
+            "description": "Integration kind.",
+            "example": "example"
           }
         ],
         "security": [
@@ -22786,14 +22898,18 @@
         ],
         "parameters": [
           {
-            "name": "sourceKey",
             "in": "path",
+            "name": "sourceKey",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "ai-conversations"
+              ],
+              "description": "Registered content data source key."
             },
-            "example": "example",
-            "description": "Path parameter: sourceKey"
+            "description": "Registered content data source key.",
+            "example": "example"
           }
         ],
         "security": [
@@ -26578,14 +26694,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "API key identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "API key identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -26765,14 +26883,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "API key identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "API key identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "responses": {
@@ -26836,14 +26956,14 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid"
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -26875,14 +26995,14 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid"
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -26923,14 +27043,14 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid"
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -26971,14 +27091,14 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid"
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [

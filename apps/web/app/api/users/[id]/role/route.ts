@@ -36,6 +36,7 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
  * @description Changes the role of the specified user. Admin only.
  * @tag Users
  * @auth bearer
+ * @pathParams userIdParamSchema
  * @body SetRoleInput
  * @response OkResponse
  */

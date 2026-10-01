@@ -28,6 +28,7 @@ async function handleDELETE(request: Request, { params }: { params: Promise<{ id
  * @summary Revoke API key
  * @description Revokes one of the user's API keys. Session-only; not callable with a Bearer key.
  * @tag User
+ * @pathParams ApiKeyIdPathParams
  * @response 204
  */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

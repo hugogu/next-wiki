@@ -316,6 +316,10 @@ export const ApiKeyReveal = z
   })
   .describe('API key secret reveal response.');
 
+export const ApiKeyIdPathParams = z
+  .object({ id: z.string().uuid().describe('API key identifier.') })
+  .describe('API key path parameters.');
+
 export const AgentMemoryConnection = z.object({
   apiVersion: z.literal('v1'),
   provider: z.literal('next-wiki'),
@@ -478,6 +482,7 @@ export const RequestLogSettingsUpdate = z.object({ enabled: z.boolean(), level: 
 export const RequestLogSummary = z.object({ id: z.string().uuid(), sourceType: z.string(), providerKey: z.string().nullable(), operation: z.string(), attempt: z.number().int(), method: z.string(), targetHost: z.string().nullable(), targetPath: z.string().nullable(), statusCode: z.number().int().nullable(), outcome: z.enum(['success', 'http_error', 'transport_error', 'timeout', 'cancelled', 'invalid_response']), errorCode: z.string().nullable(), errorMessage: z.string().nullable(), providerRequestId: z.string().nullable(), correlationId: z.string().nullable(), model: z.string().nullable(), inputTokens: z.number().int().nullable(), outputTokens: z.number().int().nullable(), cachedInputTokens: z.number().int().nullable(), durationMs: z.number().int().nullable(), captureLevel: z.enum(['status', 'header', 'all']), startedAt: z.string(), completedAt: z.string().nullable(), expiresAt: z.string() }).describe('Non-sensitive summary of one captured outbound request.');
 export const RequestLogListResponse = z.object({ entries: z.array(RequestLogSummary), total: z.number().int().nonnegative(), page: z.number().int(), pageSize: z.number().int() }).describe('Paginated outbound request-log summaries.');
 export const RequestLogDetailResponse = z.object({ id: z.string().uuid(), sourceType: z.string(), providerKey: z.string().nullable(), operation: z.string(), attempt: z.number().int(), method: z.string(), targetHost: z.string().nullable(), targetPath: z.string().nullable(), statusCode: z.number().int().nullable(), outcome: z.enum(['success', 'http_error', 'transport_error', 'timeout', 'cancelled', 'invalid_response']), errorCode: z.string().nullable(), errorMessage: z.string().nullable(), providerRequestId: z.string().nullable(), correlationId: z.string().nullable(), model: z.string().nullable(), inputTokens: z.number().int().nullable(), outputTokens: z.number().int().nullable(), cachedInputTokens: z.number().int().nullable(), durationMs: z.number().int().nullable(), captureLevel: z.enum(['status', 'header', 'all']), startedAt: z.string(), completedAt: z.string().nullable(), expiresAt: z.string(), target: z.string().nullable(), requestHeaders: z.array(z.object({ name: z.string(), values: z.array(z.string()) })).nullable(), responseHeaders: z.array(z.object({ name: z.string(), values: z.array(z.string()) })).nullable(), requestBody: z.object({ encoding: z.enum(['utf8', 'base64']), contentType: z.string().nullable(), contentEncoding: z.string().nullable(), byteLength: z.number().int(), data: z.string() }).nullable(), responseBody: z.object({ encoding: z.enum(['utf8', 'base64']), contentType: z.string().nullable(), contentEncoding: z.string().nullable(), byteLength: z.number().int(), data: z.string() }).nullable(), errorDetail: z.record(z.unknown()).nullable() }).describe('Complete captured outbound request. Sensitive fields are present only at the selected capture level.');
+export const RequestLogIdPathParams = z.object({ id: z.string().uuid().describe('Captured outbound request identifier.') }).describe('Outbound request-log path parameters.');
 
 export const StorageBackendView = z
   .object({
@@ -1462,6 +1467,10 @@ export const ContentDataSourceListResponse = z
 export const ContentDataSourceUpdateInput = z
   .object({ enabled: z.boolean().describe('Whether the source should capture content going forward.') })
   .describe('Update a Content Data Source.');
+
+export const ContentDataSourceKeyPathParams = z
+  .object({ sourceKey: z.enum(['ai-conversations']).describe('Registered content data source key.') })
+  .describe('Content Data Source path parameters.');
 
 export const PublicDraftCreateInput = z
   .object({
@@ -2707,6 +2716,20 @@ export const TranslationPromptIdPathParams = z
 export const TranslationRunIdPathParams = z
   .object({ id: z.string().uuid().describe('Translation run identifier.') })
   .describe('Translation run path parameters.');
+
+// ---- Admin settings and integrations path parameters ---------------------------
+
+export const SystemThemeIdPathParams = z
+  .object({ id: z.string().uuid().describe('System theme identifier.') })
+  .describe('System theme path parameters.');
+
+export const IntegrationKindPathParams = z
+  .object({ kind: z.enum(['github']).describe('Integration kind.') })
+  .describe('Integration path parameters.');
+
+export const FeishuRegistrationIdPathParams = z
+  .object({ registrationId: z.string().uuid().describe('Feishu app registration session identifier.') })
+  .describe('Feishu app registration path parameters.');
 
 export const PublicPageResolveQuery = z.object({
   url: z.string().min(1).max(2048).describe('Absolute same-origin reader URL or relative reader address.'),

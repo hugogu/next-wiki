@@ -13,6 +13,7 @@ type RouteContext = { params: Promise<{ registrationId: string }> };
  * @summary Poll Feishu QR application registration
  * @tag Feishu Admin
  * @auth bearer
+ * @pathParams FeishuRegistrationIdPathParams
  */
 export async function GET(_request: Request, { params }: RouteContext) {
   try {
@@ -30,6 +31,7 @@ export async function GET(_request: Request, { params }: RouteContext) {
  * @summary Cancel Feishu QR application registration
  * @tag Feishu Admin
  * @auth bearer
+ * @pathParams FeishuRegistrationIdPathParams
  * @response 204
  */
 export async function DELETE(_request: Request, { params }: RouteContext) {

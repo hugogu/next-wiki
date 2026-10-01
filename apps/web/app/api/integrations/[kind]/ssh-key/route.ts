@@ -25,6 +25,7 @@ async function handlePOST(
  * @description Generates an ed25519 keypair and stores the private half encrypted. The public half is returned so it can be installed as a deploy key; one key covers every feature that uses the service.
  * @tag Integrations
  * @auth bearer
+ * @pathParams IntegrationKindPathParams
  * @response IntegrationSshKeyResult
  */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

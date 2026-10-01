@@ -36,6 +36,7 @@ async function handlePOST(request: NextRequest, { params }: { params: Promise<{ 
  * @description Resets the password of the specified user and forces a reset on next login. Admin only.
  * @tag Users
  * @auth bearer
+ * @pathParams userIdParamSchema
  * @body ResetPasswordInput
  * @response OkResponse
  */

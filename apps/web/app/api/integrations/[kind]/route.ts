@@ -26,6 +26,7 @@ async function handleGET(_request: NextRequest, { params }: { params: Promise<{ 
  * @description Returns one external-service credential with the secret masked, or null when unconfigured. Admin only.
  * @tag Integrations
  * @auth bearer
+ * @pathParams IntegrationKindPathParams
  * @response IntegrationView
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);
@@ -50,5 +51,6 @@ async function handleDELETE(
  * @description Deletes the stored credential. Refused while a feature still depends on it.
  * @tag Integrations
  * @auth bearer
+ * @pathParams IntegrationKindPathParams
  */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

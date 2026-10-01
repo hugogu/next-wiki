@@ -26,6 +26,7 @@ async function handleGET(_request: NextRequest, context: { params: Promise<{ id:
  * @summary Read captured outbound request detail
  * @tag Admin
  * @auth bearer
+ * @pathParams RequestLogIdPathParams
  * @response RequestLogDetailResponse
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

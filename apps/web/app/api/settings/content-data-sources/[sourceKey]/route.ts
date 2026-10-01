@@ -17,6 +17,7 @@ type Params = { params: Promise<{ sourceKey: string }> };
  * @description Admin-only. Enabling a source that is currently unavailable in the active writing mode fails with `DATA_SOURCE_UNAVAILABLE` (409); disabling is always allowed.
  * @tag Settings
  * @auth bearer
+ * @pathParams ContentDataSourceKeyPathParams
  * @body ContentDataSourceUpdateInput
  * @response ContentDataSourceItem
  */

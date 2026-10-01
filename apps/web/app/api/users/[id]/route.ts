@@ -31,6 +31,7 @@ async function handleDELETE(_request: NextRequest, { params }: { params: Promise
  *   your own account is refused.
  * @tag Users
  * @auth bearer
+ * @pathParams userIdParamSchema
  * @response OkResponse
  */
 export const DELETE = withApiAudit(handleDELETE as unknown as RouteHandler);

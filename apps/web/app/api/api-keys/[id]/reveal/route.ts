@@ -28,6 +28,7 @@ async function handleGET(request: Request, { params }: { params: Promise<{ id: s
  * @summary Reveal API key secret
  * @description Decrypts and returns the full secret for one of the user's API keys. Session-only; not callable with a Bearer key.
  * @tag User
+ * @pathParams ApiKeyIdPathParams
  * @response ApiKeyReveal
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

@@ -14,6 +14,7 @@ const idSchema = z.string().uuid();
  * @description Returns the full system theme (id, name, css, isBuiltin) to authenticated users. Updates require manage_appearance.
  * @tag Appearance
  * @auth bearer
+ * @pathParams SystemThemeIdPathParams
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -31,6 +32,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
  * @description Updates a custom theme's name and/or CSS. Built-ins are read-only. Requires manage_appearance.
  * @tag Appearance
  * @auth bearer
+ * @pathParams SystemThemeIdPathParams
  * @body UpdateSystemThemeInput
  */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -51,6 +53,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
  * @description Deletes a custom theme. Built-ins cannot be deleted. If the deleted theme was active, the active pointer is cleared. Requires manage_appearance.
  * @tag Appearance
  * @auth bearer
+ * @pathParams SystemThemeIdPathParams
  */
 export async function DELETE(
   _request: NextRequest,
