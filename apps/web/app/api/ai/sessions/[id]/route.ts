@@ -15,6 +15,7 @@ import { getAnonymousAiAccessToken } from '@/server/services/auth';
  * @summary Get one of my AI chat conversations
  * @tag AI
  * @auth bearer
+ * @pathParams AiConversationKeyPathParams
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();
@@ -49,6 +50,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
  * @summary Permanently delete one of my AI chat conversations
  * @tag AI
  * @auth bearer
+ * @pathParams AiConversationKeyPathParams
  * @response 204
  */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

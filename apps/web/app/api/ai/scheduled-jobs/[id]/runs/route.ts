@@ -14,6 +14,7 @@ const noStore = { 'cache-control': 'no-store' };
  * @summary List scheduled AI job runs
  * @tag AI Admin
  * @auth bearer
+ * @pathParams ScheduledAiJobIdPathParams
  */
 export async function GET(request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -36,6 +37,7 @@ export async function GET(request: NextRequest, { params }: Params) {
  * @summary Run a scheduled AI job now
  * @tag AI Admin
  * @auth bearer
+ * @pathParams ScheduledAiJobIdPathParams
  */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { id } = await params;

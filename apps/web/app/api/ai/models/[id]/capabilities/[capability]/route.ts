@@ -12,6 +12,7 @@ type Params = { params: Promise<{ id: string; capability: string }> };
  * @summary Override AI model capability
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiModelCapabilityPathParams
  */
 export async function PUT(request: NextRequest, { params }: Params) {
   const values = await params;
@@ -39,6 +40,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
  * @summary Remove AI model capability override
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiModelCapabilityPathParams
  */
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const values = await params;

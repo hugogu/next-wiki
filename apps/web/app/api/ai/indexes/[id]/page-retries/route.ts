@@ -10,6 +10,7 @@ import { retryIndexPages } from '@/server/services/ai-index';
  * @summary Retry AI index pages
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiIndexIdPathParams
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const parsed = parseJson(aiIndexRetrySchema, await request.json().catch(() => ({})));

@@ -12,6 +12,7 @@ const idSchema = z.string().uuid();
  * @summary Stream AI action events
  * @tag AI
  * @auth bearer
+ * @pathParams AiActionIdPathParams
  */
 export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();

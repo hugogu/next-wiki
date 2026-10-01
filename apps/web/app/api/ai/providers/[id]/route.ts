@@ -14,6 +14,7 @@ type Params = { params: Promise<{ id: string }> };
  * @summary Get AI provider
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiProviderIdPathParams
  */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -30,6 +31,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
  * @summary Update AI provider
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiProviderIdPathParams
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -51,6 +53,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
  * @description Cascades through the provider's models, purpose assignments, index generations, and completed run records. Active runs prevent deletion.
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiProviderIdPathParams
  * @response 204
  */
 export async function DELETE(_request: NextRequest, { params }: Params) {

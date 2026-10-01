@@ -11,6 +11,7 @@ import { assignPurpose } from '@/server/services/ai-admin';
  * @description Assigns a model to `wiki_text`, optional `wiki_tool_planning`, `wiki_embedding`, or `wiki_image`. The tool planner must be a chat model with the `tool_calling` capability.
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiAssignmentPurposePathParams
  */
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ purpose: string }> }) {
   const purpose = aiPurposeSchema.safeParse((await params).purpose);

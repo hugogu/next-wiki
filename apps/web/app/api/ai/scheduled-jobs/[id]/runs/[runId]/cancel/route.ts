@@ -13,6 +13,7 @@ const noStore = { 'cache-control': 'no-store' };
  * @summary Cancel scheduled AI job run
  * @tag AI Admin
  * @auth bearer
+ * @pathParams ScheduledAiJobRunPathParams
  */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { id, runId } = await params;

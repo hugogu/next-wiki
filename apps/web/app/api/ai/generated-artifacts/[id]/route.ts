@@ -11,6 +11,7 @@ const idSchema = z.string().uuid();
  * @summary Preview a private generated image
  * @tag AI
  * @auth bearer
+ * @pathParams AiGeneratedArtifactIdPathParams
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -34,6 +35,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
  * @summary Discard a private generated image
  * @tag AI
  * @auth bearer
+ * @pathParams AiGeneratedArtifactIdPathParams
  */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

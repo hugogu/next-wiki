@@ -10,6 +10,7 @@ import { resetSkill } from '@/server/services/skills/admin';
  * content. Edit history is retained.
  * @tag AI Skills
  * @auth bearer
+ * @pathParams AiSkillNamePathParams
  */
 export async function POST(
   _request: NextRequest,

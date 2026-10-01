@@ -10,6 +10,7 @@ import { createManualModel } from '@/server/services/ai-admin';
  * @summary Create manual AI model
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiProviderIdPathParams
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const parsed = parseJson(aiModelCreateSchema, await request.json().catch(() => ({})));

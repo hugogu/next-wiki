@@ -12,6 +12,7 @@ type Params = { params: Promise<{ id: string }> };
  * @summary Apply an approved AI tool change proposal
  * @tag AI Tools
  * @auth bearer
+ * @pathParams AiToolProposalIdPathParams
  */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { id } = await params;

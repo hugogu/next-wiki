@@ -1065,6 +1065,20 @@
           "coverage"
         ]
       },
+      "AiActionIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "AI action identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "AI action path parameters."
+      },
       "AiActionView": {
         "type": "object",
         "properties": {
@@ -1213,6 +1227,123 @@
           "rawConversationCaptureStatus"
         ]
       },
+      "AiAssignmentPurposePathParams": {
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "wiki_text",
+              "wiki_tool_planning",
+              "wiki_embedding",
+              "wiki_image"
+            ],
+            "description": "AI purpose whose model assignment is replaced."
+          }
+        },
+        "required": [
+          "purpose"
+        ],
+        "description": "AI model assignment path parameters."
+      },
+      "AiConversationKeyPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Conversation key (conversationKey from the conversation list): legacy:<webSessionId>, a captured Raw conversation page id, or legacy:turn:<actionId>."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "AI chat conversation path parameters."
+      },
+      "AiEntitlementUserIdPathParams": {
+        "type": "object",
+        "properties": {
+          "userId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "User account identifier."
+          }
+        },
+        "required": [
+          "userId"
+        ],
+        "description": "AI entitlement path parameters."
+      },
+      "AiGeneratedArtifactIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Private generated image artifact identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Private generated image artifact path parameters."
+      },
+      "AiIndexIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "AI index generation identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "AI index path parameters."
+      },
+      "AiModelCapabilityPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "AI model identifier."
+          },
+          "capability": {
+            "type": "string",
+            "enum": [
+              "text_generation",
+              "embedding",
+              "image_generation",
+              "vision",
+              "audio",
+              "thinking",
+              "tool_calling"
+            ],
+            "description": "Model capability whose manual override is set or removed."
+          }
+        },
+        "required": [
+          "id",
+          "capability"
+        ],
+        "description": "AI model capability override path parameters."
+      },
+      "AiModelIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "AI model identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "AI model path parameters."
+      },
       "AiModelSyncResult": {
         "type": "object",
         "properties": {
@@ -1315,6 +1446,36 @@
           "skipped",
           "count"
         ]
+      },
+      "AiProviderIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "AI provider identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "AI provider path parameters."
+      },
+      "AiSkillNamePathParams": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+            "description": "Skill name: lowercase words separated by single hyphens."
+          }
+        },
+        "required": [
+          "name"
+        ],
+        "description": "Agent Skill path parameters."
       },
       "AiToolPolicyPatchInput": {
         "type": "object",
@@ -2019,6 +2180,20 @@
           "tools"
         ],
         "description": "Admin listing of tool providers, tools, and effective policies."
+      },
+      "AiWebSourceIdPathParams": {
+        "type": "object",
+        "properties": {
+          "sourceId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Opened Web Research source identifier."
+          }
+        },
+        "required": [
+          "sourceId"
+        ],
+        "description": "Web Research source path parameters."
       },
       "AnalyticsSettingsView": {
         "type": "object",
@@ -8192,6 +8367,40 @@
         ],
         "description": "Administrator-initiated password reset."
       },
+      "ScheduledAiJobIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Scheduled AI job identifier."
+          }
+        },
+        "required": [
+          "id"
+        ],
+        "description": "Scheduled AI job path parameters."
+      },
+      "ScheduledAiJobRunPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Scheduled AI job identifier."
+          },
+          "runId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Scheduled AI job run identifier."
+          }
+        },
+        "required": [
+          "id",
+          "runId"
+        ],
+        "description": "Scheduled AI job run path parameters."
+      },
       "SetMyPasswordInput": {
         "type": "object",
         "properties": {
@@ -13249,14 +13458,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI action identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI action identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13286,14 +13497,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI action identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI action identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13353,14 +13566,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Private generated image artifact identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Private generated image artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13379,14 +13594,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Private generated image artifact identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Private generated image artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13411,14 +13628,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation key (conversationKey from the conversation list): legacy:<webSessionId>, a captured Raw conversation page id, or legacy:turn:<actionId>."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Conversation key (conversationKey from the conversation list): legacy:<webSessionId>, a captured Raw conversation page id, or legacy:turn:<actionId>.",
+            "example": "123"
           }
         ],
         "security": [
@@ -13448,14 +13667,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "minLength": 1,
+              "description": "Conversation key (conversationKey from the conversation list): legacy:<webSessionId>, a captured Raw conversation page id, or legacy:turn:<actionId>."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Conversation key (conversationKey from the conversation list): legacy:<webSessionId>, a captured Raw conversation page id, or legacy:turn:<actionId>.",
+            "example": "123"
           }
         ],
         "security": [
@@ -13489,14 +13710,16 @@
             "example": "example"
           },
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI action identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI action identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13517,14 +13740,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Private generated image artifact identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Private generated image artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -13556,14 +13781,16 @@
         ],
         "parameters": [
           {
-            "name": "sourceId",
             "in": "path",
+            "name": "sourceId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Opened Web Research source identifier."
             },
-            "example": 123,
-            "description": "Path parameter: sourceId"
+            "description": "Opened Web Research source identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -14750,14 +14977,21 @@
         ],
         "parameters": [
           {
-            "name": "purpose",
             "in": "path",
+            "name": "purpose",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "wiki_text",
+                "wiki_tool_planning",
+                "wiki_embedding",
+                "wiki_image"
+              ],
+              "description": "AI purpose whose model assignment is replaced."
             },
-            "example": "example",
-            "description": "Path parameter: purpose"
+            "description": "AI purpose whose model assignment is replaced.",
+            "example": "example"
           }
         ],
         "security": [
@@ -14789,14 +15023,16 @@
         ],
         "parameters": [
           {
-            "name": "userId",
             "in": "path",
+            "name": "userId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "User account identifier."
             },
-            "example": 123,
-            "description": "Path parameter: userId"
+            "description": "User account identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -14826,14 +15062,16 @@
         ],
         "parameters": [
           {
-            "name": "userId",
             "in": "path",
+            "name": "userId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "User account identifier."
             },
-            "example": 123,
-            "description": "Path parameter: userId"
+            "description": "User account identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -14865,14 +15103,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI index generation identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI index generation identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -14902,14 +15142,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI index generation identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI index generation identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -14934,14 +15176,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI model identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI model identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -14971,14 +15215,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI model identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI model identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15003,14 +15249,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI provider identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI provider identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15040,14 +15288,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI provider identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI provider identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15077,14 +15327,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI provider identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI provider identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15137,14 +15389,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Scheduled AI job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15272,14 +15526,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Scheduled AI job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15407,14 +15663,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Scheduled AI job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15626,14 +15884,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI index generation identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI index generation identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15658,14 +15918,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI index generation identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI index generation identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15787,14 +16049,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI index generation identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI index generation identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15826,14 +16090,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI provider identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI provider identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -15865,14 +16131,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI provider identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI provider identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -16185,14 +16453,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI provider identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI provider identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -16314,14 +16584,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Scheduled AI job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -16451,14 +16723,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Scheduled AI job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -16662,14 +16936,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Scheduled AI job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -16872,24 +17148,36 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI model identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI model identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           {
-            "name": "capability",
             "in": "path",
+            "name": "capability",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "text_generation",
+                "embedding",
+                "image_generation",
+                "vision",
+                "audio",
+                "thinking",
+                "tool_calling"
+              ],
+              "description": "Model capability whose manual override is set or removed."
             },
-            "example": "example",
-            "description": "Path parameter: capability"
+            "description": "Model capability whose manual override is set or removed.",
+            "example": "example"
           }
         ],
         "security": [
@@ -16919,24 +17207,36 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "AI model identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "AI model identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           {
-            "name": "capability",
             "in": "path",
+            "name": "capability",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "enum": [
+                "text_generation",
+                "embedding",
+                "image_generation",
+                "vision",
+                "audio",
+                "thinking",
+                "tool_calling"
+              ],
+              "description": "Model capability whose manual override is set or removed."
             },
-            "example": "example",
-            "description": "Path parameter: capability"
+            "description": "Model capability whose manual override is set or removed.",
+            "example": "example"
           }
         ],
         "security": [
@@ -16961,24 +17261,28 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Scheduled AI job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           {
-            "name": "runId",
             "in": "path",
+            "name": "runId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: runId"
+            "description": "Scheduled AI job run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -17252,24 +17556,28 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Scheduled AI job identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           },
           {
-            "name": "runId",
             "in": "path",
+            "name": "runId",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Scheduled AI job run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: runId"
+            "description": "Scheduled AI job run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -17872,14 +18180,18 @@
         ],
         "parameters": [
           {
-            "name": "name",
             "in": "path",
+            "name": "name",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "Skill name: lowercase words separated by single hyphens."
             },
-            "example": "name",
-            "description": "Path parameter: name"
+            "description": "Skill name: lowercase words separated by single hyphens.",
+            "example": "name"
           }
         ],
         "security": [
@@ -17909,14 +18221,18 @@
         ],
         "parameters": [
           {
-            "name": "name",
             "in": "path",
+            "name": "name",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "Skill name: lowercase words separated by single hyphens."
             },
-            "example": "name",
-            "description": "Path parameter: name"
+            "description": "Skill name: lowercase words separated by single hyphens.",
+            "example": "name"
           }
         ],
         "security": [
@@ -17946,14 +18262,18 @@
         ],
         "parameters": [
           {
-            "name": "name",
             "in": "path",
+            "name": "name",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "Skill name: lowercase words separated by single hyphens."
             },
-            "example": "name",
-            "description": "Path parameter: name"
+            "description": "Skill name: lowercase words separated by single hyphens.",
+            "example": "name"
           }
         ],
         "security": [
@@ -18006,14 +18326,18 @@
         ],
         "parameters": [
           {
-            "name": "name",
             "in": "path",
+            "name": "name",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "Skill name: lowercase words separated by single hyphens."
             },
-            "example": "name",
-            "description": "Path parameter: name"
+            "description": "Skill name: lowercase words separated by single hyphens.",
+            "example": "name"
           }
         ],
         "security": [
@@ -18043,14 +18367,18 @@
         ],
         "parameters": [
           {
-            "name": "name",
             "in": "path",
+            "name": "name",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "Skill name: lowercase words separated by single hyphens."
             },
-            "example": "name",
-            "description": "Path parameter: name"
+            "description": "Skill name: lowercase words separated by single hyphens.",
+            "example": "name"
           }
         ],
         "security": [
@@ -18080,14 +18408,18 @@
         ],
         "parameters": [
           {
-            "name": "name",
             "in": "path",
+            "name": "name",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "Skill name: lowercase words separated by single hyphens."
             },
-            "example": "name",
-            "description": "Path parameter: name"
+            "description": "Skill name: lowercase words separated by single hyphens.",
+            "example": "name"
           }
         ],
         "security": [
@@ -18112,14 +18444,18 @@
         ],
         "parameters": [
           {
-            "name": "name",
             "in": "path",
+            "name": "name",
             "required": true,
             "schema": {
-              "type": "string"
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64,
+              "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$",
+              "description": "Skill name: lowercase words separated by single hyphens."
             },
-            "example": "name",
-            "description": "Path parameter: name"
+            "description": "Skill name: lowercase words separated by single hyphens.",
+            "example": "name"
           }
         ],
         "security": [
@@ -18196,14 +18532,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Tool change proposal identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Tool change proposal identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -18263,14 +18601,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Tool change proposal identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Tool change proposal identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -18302,14 +18642,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Tool change proposal identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Tool change proposal identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -18341,14 +18683,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Tool change proposal identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Tool change proposal identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -19321,7 +19665,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -19381,7 +19725,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/registerOutputSchema"
+                  "$ref": "#/components/schemas/RegisterOutput"
                 }
               }
             }
@@ -19418,7 +19762,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -19450,7 +19794,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -21090,7 +21434,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/previewOutputSchema"
+                  "$ref": "#/components/schemas/PreviewOutput"
                 }
               }
             }
@@ -26129,7 +26473,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -26313,7 +26657,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -26361,7 +26705,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -26409,7 +26753,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }
@@ -26457,7 +26801,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/okResponseSchema"
+                  "$ref": "#/components/schemas/OkResponse"
                 }
               }
             }

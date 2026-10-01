@@ -36,6 +36,7 @@ function filePath(request: NextRequest): string | null {
  * executed.
  * @tag AI Skills
  * @auth bearer
+ * @pathParams AiSkillNamePathParams
  */
 export async function GET(request: NextRequest, { params }: Params) {
   const path = filePath(request);
@@ -57,6 +58,7 @@ export async function GET(request: NextRequest, { params }: Params) {
  * than overwriting.
  * @tag AI Skills
  * @auth bearer
+ * @pathParams AiSkillNamePathParams
  */
 export async function PUT(request: NextRequest, { params }: Params) {
   const path = filePath(request);
@@ -80,6 +82,7 @@ export async function PUT(request: NextRequest, { params }: Params) {
  * deleted.
  * @tag AI Skills
  * @auth bearer
+ * @pathParams AiSkillNamePathParams
  */
 export async function DELETE(request: NextRequest, { params }: Params) {
   const path = filePath(request);

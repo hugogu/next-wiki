@@ -15,6 +15,7 @@ import {
  * @description Returns one skill with its complete file tree.
  * @tag AI Skills
  * @auth bearer
+ * @pathParams AiSkillNamePathParams
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ name: string }> }) {
   try {
@@ -31,6 +32,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
  * model and cannot be loaded.
  * @tag AI Skills
  * @auth bearer
+ * @pathParams AiSkillNamePathParams
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ name: string }> }) {
   const parsed = parseJson(updateSkillInputSchema, await request.json().catch(() => ({})));
@@ -52,6 +54,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
  * rather than deleted; directory-sourced skills are removed on the host.
  * @tag AI Skills
  * @auth bearer
+ * @pathParams AiSkillNamePathParams
  */
 export async function DELETE(
   _request: NextRequest,

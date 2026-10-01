@@ -13,6 +13,7 @@ const inputSchema = z.object({ actionId: z.string().uuid() });
  * @summary Preserve opened Web Research evidence as a Raw entry
  * @tag AI
  * @auth bearer
+ * @pathParams AiWebSourceIdPathParams
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ sourceId: string }> }) {
   const parsed = parseJson(inputSchema, await request.json().catch(() => ({})));

@@ -13,6 +13,7 @@ const idSchema = z.string().uuid();
  * @summary Update AI model
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiModelIdPathParams
  */
 export async function PATCH(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const parsed = parseJson(aiModelUpdateSchema, await request.json().catch(() => ({})));
@@ -29,6 +30,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
  * @summary Delete AI model
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiModelIdPathParams
  */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

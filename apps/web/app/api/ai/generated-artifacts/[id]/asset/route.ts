@@ -13,6 +13,7 @@ const idSchema = z.string().uuid();
  * @summary Promote a generated image into a Wiki asset
  * @tag AI
  * @auth bearer
+ * @pathParams AiGeneratedArtifactIdPathParams
  */
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

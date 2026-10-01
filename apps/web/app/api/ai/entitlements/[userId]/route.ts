@@ -11,6 +11,7 @@ type Params = { params: Promise<{ userId: string }> };
  * @summary Get user AI entitlement
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiEntitlementUserIdPathParams
  */
 export async function GET(_request: NextRequest, { params }: Params) {
   try {
@@ -24,6 +25,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
  * @summary Update user AI entitlement
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiEntitlementUserIdPathParams
  */
 export async function PUT(request: NextRequest, { params }: Params) {
   const parsed = parseJson(aiEntitlementUpdateSchema, await request.json().catch(() => ({})));

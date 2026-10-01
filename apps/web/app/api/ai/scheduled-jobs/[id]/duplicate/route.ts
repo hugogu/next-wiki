@@ -12,6 +12,7 @@ const idSchema = z.string().uuid();
  * @summary Duplicate a scheduled AI job as paused
  * @tag AI Admin
  * @auth bearer
+ * @pathParams ScheduledAiJobIdPathParams
  */
 export async function POST(_request: NextRequest, { params }: Params) {
   const { id } = await params;

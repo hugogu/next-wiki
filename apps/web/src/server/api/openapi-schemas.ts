@@ -2581,6 +2581,84 @@ export const AiToolProposalApplyOutput = z
   })
   .describe('Result of applying an approved tool change proposal.');
 
+// ---- Wiki AI admin and runtime path parameters ------------------------------
+
+export const AiActionIdPathParams = z
+  .object({ id: z.string().uuid().describe('AI action identifier.') })
+  .describe('AI action path parameters.');
+
+export const AiAssignmentPurposePathParams = z
+  .object({
+    purpose: z
+      .enum(['wiki_text', 'wiki_tool_planning', 'wiki_embedding', 'wiki_image'])
+      .describe('AI purpose whose model assignment is replaced.'),
+  })
+  .describe('AI model assignment path parameters.');
+
+export const AiEntitlementUserIdPathParams = z
+  .object({ userId: z.string().uuid().describe('User account identifier.') })
+  .describe('AI entitlement path parameters.');
+
+export const AiGeneratedArtifactIdPathParams = z
+  .object({ id: z.string().uuid().describe('Private generated image artifact identifier.') })
+  .describe('Private generated image artifact path parameters.');
+
+export const AiIndexIdPathParams = z
+  .object({ id: z.string().uuid().describe('AI index generation identifier.') })
+  .describe('AI index path parameters.');
+
+export const AiModelIdPathParams = z
+  .object({ id: z.string().uuid().describe('AI model identifier.') })
+  .describe('AI model path parameters.');
+
+export const AiModelCapabilityPathParams = z
+  .object({
+    id: z.string().uuid().describe('AI model identifier.'),
+    capability: z
+      .enum(['text_generation', 'embedding', 'image_generation', 'vision', 'audio', 'thinking', 'tool_calling'])
+      .describe('Model capability whose manual override is set or removed.'),
+  })
+  .describe('AI model capability override path parameters.');
+
+export const AiProviderIdPathParams = z
+  .object({ id: z.string().uuid().describe('AI provider identifier.') })
+  .describe('AI provider path parameters.');
+
+export const ScheduledAiJobIdPathParams = z
+  .object({ id: z.string().uuid().describe('Scheduled AI job identifier.') })
+  .describe('Scheduled AI job path parameters.');
+
+export const ScheduledAiJobRunPathParams = z
+  .object({
+    id: z.string().uuid().describe('Scheduled AI job identifier.'),
+    runId: z.string().uuid().describe('Scheduled AI job run identifier.'),
+  })
+  .describe('Scheduled AI job run path parameters.');
+
+export const AiConversationKeyPathParams = z
+  .object({
+    id: z
+      .string()
+      .min(1)
+      .describe('Conversation key (conversationKey from the conversation list): legacy:<webSessionId>, a captured Raw conversation page id, or legacy:turn:<actionId>.'),
+  })
+  .describe('AI chat conversation path parameters.');
+
+export const AiSkillNamePathParams = z
+  .object({
+    name: z
+      .string()
+      .min(1)
+      .max(64)
+      .regex(/^[a-z0-9]+(-[a-z0-9]+)*$/)
+      .describe('Skill name: lowercase words separated by single hyphens.'),
+  })
+  .describe('Agent Skill path parameters.');
+
+export const AiWebSourceIdPathParams = z
+  .object({ sourceId: z.string().uuid().describe('Opened Web Research source identifier.') })
+  .describe('Web Research source path parameters.');
+
 export const PublicPageResolveQuery = z.object({
   url: z.string().min(1).max(2048).describe('Absolute same-origin reader URL or relative reader address.'),
   include: z.string().optional().describe('Comma-separated latestRevision,publishedRevision.'),

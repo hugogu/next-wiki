@@ -8,6 +8,7 @@ import { createProviderAction } from '@/server/services/ai-admin';
  * @summary Test AI provider
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiProviderIdPathParams
  */
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {

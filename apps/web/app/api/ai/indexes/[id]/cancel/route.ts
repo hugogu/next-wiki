@@ -8,6 +8,7 @@ import { cancelIndexGeneration } from '@/server/services/ai-index';
  * @summary Cancel building AI index
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiIndexIdPathParams
  * @response 204
  */
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

@@ -20,6 +20,7 @@ const noStore = { 'cache-control': 'no-store' };
  * @summary Get a scheduled AI job
  * @tag AI Admin
  * @auth bearer
+ * @pathParams ScheduledAiJobIdPathParams
  */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -38,6 +39,7 @@ export async function GET(_request: NextRequest, { params }: Params) {
  * @summary Update a scheduled AI job
  * @tag AI Admin
  * @auth bearer
+ * @pathParams ScheduledAiJobIdPathParams
  */
 export async function PATCH(request: NextRequest, { params }: Params) {
   const { id } = await params;
@@ -59,6 +61,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
  * @summary Retire a scheduled AI job
  * @tag AI Admin
  * @auth bearer
+ * @pathParams ScheduledAiJobIdPathParams
  */
 export async function DELETE(_request: NextRequest, { params }: Params) {
   const { id } = await params;

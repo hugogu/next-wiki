@@ -11,6 +11,7 @@ import * as schema from '@/server/db/schema';
  * @summary List AI index page states
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiIndexIdPathParams
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const ctx = await createApiContext();

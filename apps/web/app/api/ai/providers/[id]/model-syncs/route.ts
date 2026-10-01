@@ -13,6 +13,7 @@ import { startProviderModelSync } from '@/server/services/ai-admin';
  * @summary Synchronize AI models
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiProviderIdPathParams
  * @response AiModelSyncResult
  */
 export async function POST(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

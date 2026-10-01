@@ -12,6 +12,7 @@ const idSchema = z.string().uuid();
  * @summary Get scheduled AI job run detail
  * @tag AI Admin
  * @auth bearer
+ * @pathParams ScheduledAiJobRunPathParams
  */
 export async function GET(_request: NextRequest, { params }: Params) {
   const { id, runId } = await params;

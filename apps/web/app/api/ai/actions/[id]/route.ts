@@ -12,6 +12,7 @@ const idSchema = z.string().uuid();
  * @summary Get AI action
  * @tag AI
  * @auth bearer
+ * @pathParams AiActionIdPathParams
  * @response AiActionView
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
@@ -30,6 +31,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
  * @summary Cancel AI action
  * @tag AI
  * @auth bearer
+ * @pathParams AiActionIdPathParams
  * @response 202:AiActionView
  */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {

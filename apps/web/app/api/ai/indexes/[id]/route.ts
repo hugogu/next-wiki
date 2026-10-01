@@ -8,6 +8,7 @@ import { deleteIndexGeneration, getIndex } from '@/server/services/ai-index';
  * @summary Get AI index
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiIndexIdPathParams
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -22,6 +23,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
  * @summary Delete AI index
  * @tag AI Admin
  * @auth bearer
+ * @pathParams AiIndexIdPathParams
  */
 export async function DELETE(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
