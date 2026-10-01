@@ -10128,6 +10128,19 @@
         ],
         "description": "Set the preferred read backend."
       },
+      "TransferArtifactIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer artifact identifier."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
       "TransferArtifactView": {
         "type": "object",
         "properties": {
@@ -10445,6 +10458,19 @@
           "status"
         ],
         "description": "Response returned when a transfer run is accepted for asynchronous processing."
+      },
+      "TransferRunIdPathParams": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Transfer run identifier."
+          }
+        },
+        "required": [
+          "id"
+        ]
       },
       "TransferRunList": {
         "type": "object",
@@ -24874,14 +24900,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer artifact identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -24911,14 +24939,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer artifact identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25055,14 +25085,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25094,14 +25126,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer artifact identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25124,14 +25158,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer artifact identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer artifact identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25204,14 +25240,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25243,14 +25281,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25282,14 +25322,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25321,14 +25363,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25360,14 +25404,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [
@@ -25399,14 +25445,16 @@
         ],
         "parameters": [
           {
-            "name": "id",
             "in": "path",
+            "name": "id",
             "required": true,
             "schema": {
-              "type": "number"
+              "type": "string",
+              "format": "uuid",
+              "description": "Transfer run identifier."
             },
-            "example": 123,
-            "description": "Path parameter: id"
+            "description": "Transfer run identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
           }
         ],
         "security": [

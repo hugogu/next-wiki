@@ -23,6 +23,7 @@ async function handleGET(request: NextRequest, { params }: { params: Promise<{ i
  * @summary List content transfer item outcomes
  * @tag Transfers
  * @auth bearer
+ * @pathParams TransferRunIdPathParams
  * @response TransferItemList
  */
 export const GET = withApiAudit(handleGET as unknown as RouteHandler);

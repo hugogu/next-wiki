@@ -780,6 +780,14 @@ export const TransferArtifactView = z
   })
   .describe('A transfer artifact (uploaded archive or generated report).');
 
+export const TransferArtifactIdPathParams = z.object({
+  id: z.string().uuid().describe('Transfer artifact identifier.'),
+});
+
+export const TransferRunIdPathParams = z.object({
+  id: z.string().uuid().describe('Transfer run identifier.'),
+});
+
 export const TransferRunView = z
   .object({
     id: z.string().uuid().describe('Transfer run identifier.'),

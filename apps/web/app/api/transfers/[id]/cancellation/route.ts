@@ -22,6 +22,7 @@ async function handlePOST(_request: NextRequest, { params }: { params: Promise<{
  * @summary Cancel an active transfer run
  * @tag Transfers
  * @auth bearer
+ * @pathParams TransferRunIdPathParams
  * @response 202:TransferRunView
  */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);

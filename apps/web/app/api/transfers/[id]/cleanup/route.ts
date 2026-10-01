@@ -22,6 +22,7 @@ async function handlePOST(_request: NextRequest, { params }: { params: Promise<{
  * @summary Delete the pages a transfer run imported
  * @tag Transfers
  * @auth bearer
+ * @pathParams TransferRunIdPathParams
  * @response 200:TransferCleanupResult
  */
 export const POST = withApiAudit(handlePOST as unknown as RouteHandler);
