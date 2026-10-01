@@ -23,7 +23,9 @@ export function runWithoutDataCache<T>(operation: () => T): T {
 }
 
 export function invalidatePublicContentCache(): void {
-  if (!shouldUseDataCache()) return;
+  // E2E bypasses cached data reads, but its force-static reader documents
+  // still need invalidation after writes, just like production documents.
+  if (dataCacheContext.getStore()?.disabled === true || process.env.NODE_ENV === 'test') return;
   revalidateTag(PUBLIC_CONTENT_CACHE_TAG, 'max');
   // The public navigation is embedded in the reader shell. Invalidating the
   // root layout ensures path, title, translation, and tree mutations refresh
