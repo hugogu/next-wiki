@@ -38,6 +38,10 @@ RUN pnpm --filter @next-wiki/web build:static-site-assets
 # scripts invoke it directly, and start.mjs runs it before accepting traffic.
 RUN pnpm --filter @next-wiki/web exec esbuild scripts/migrate.mjs \
     --bundle --platform=node --format=esm --outfile=/tmp/migrate.mjs
+# next build --webpack exceeds Node's ~2 GB default old-space cap on this app;
+# without a higher limit it aborts with "Ineffective mark-compacts near heap
+# limit". 4096 matches the ceiling openapi:generate already uses.
+ENV NODE_OPTIONS=--max-old-space-size=4096
 # Mount Next.js build cache so incremental Docker builds reuse previous work.
 RUN --mount=type=cache,target=/app/apps/web/.next/cache,id=next-cache-${TARGETARCH} \
     pnpm --filter @next-wiki/web exec next build --webpack

@@ -37,6 +37,11 @@ export default defineConfig({
   ],
   webServer: {
     command:
+      // Capture the runner pid while the shell still has it: `$PPID` is
+      // expanded by the shell Playwright spawns, and run-e2e-server.mjs uses
+      // it to exit (and kill the server tree) if the runner is killed
+      // abruptly instead of shutting the webServer down.
+      `export E2E_SUPERVISOR_PID="$PPID"; ` +
       // Static-site publishing is exercised by E2E tests, but its hashed CSS
       // and runtime assets are intentionally ignored build artifacts. Generate
       // them as part of the isolated test server startup so a fresh checkout
@@ -50,7 +55,7 @@ export default defineConfig({
       `CONTENT_LOCAL_HOST_PATH=/tmp/next-wiki-e2e-content ` +
       `API_KEY_ENCRYPTION_KEY=0000000000000000000000000000000000000000000000000000000000000000 ` +
       `PATH="${SSH_WRAPPER_DIR}:${process.env.PATH ?? ''}" ` +
-      `node test/run-e2e-server.mjs ${WEB_PORT}`,
+      `node test/run-e2e-server.mjs ${WEB_PORT} "$E2E_SUPERVISOR_PID"`,
     url: `http://localhost:${WEB_PORT}`,
     // Never attach destructive E2E flows to an already-running development or
     // production server; always boot the dedicated *_test database server.
