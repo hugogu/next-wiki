@@ -7,6 +7,7 @@ import {
   updatePagePropertiesSchema,
   pageAddressSchema,
   type PublicPageResource,
+  type AiContentLevel,
 } from '@next-wiki/shared';
 import { PagePropertiesPanel } from '@/components/editor/PagePropertiesPanel';
 import { apiPatch, apiPost, apiPut, type ApiError } from '@/lib/api/client';
@@ -28,6 +29,8 @@ type Props = {
   initialTags: string[];
   initialSummary: string | null;
   initialVisibility?: 'public' | 'registered' | 'restricted';
+  initialAiContentLevel?: AiContentLevel | null;
+  canManageAiAttribution?: boolean;
   canSetVisibility?: boolean;
   pathReadOnly?: boolean;
   onSaved: (path: string) => void;
@@ -49,6 +52,8 @@ export function PagePropertiesDialog({
   initialTags,
   initialSummary,
   initialVisibility,
+  initialAiContentLevel = null,
+  canManageAiAttribution = false,
   canSetVisibility = false,
   pathReadOnly = false,
   onSaved,
@@ -62,6 +67,7 @@ export function PagePropertiesDialog({
   const [tags, setTags] = useState(initialTags.join(', '));
   const [summary, setSummary] = useState(initialSummary ?? '');
   const [visibility, setVisibility] = useState(initialVisibility);
+  const [aiContentLevel, setAiContentLevel] = useState<AiContentLevel | null>(initialAiContentLevel);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,8 +81,9 @@ export function PagePropertiesDialog({
     const pathChanged = !pathReadOnly && path !== initialPath;
     const slugChanged = !pathReadOnly && slug !== initialSlug;
     const visibilityChanged = canSetVisibility && visibility !== initialVisibility;
+    const aiContentLevelChanged = canManageAiAttribution && aiContentLevel !== initialAiContentLevel;
 
-    if (!metadataChanged && !pathChanged && !slugChanged && !visibilityChanged) {
+    if (!metadataChanged && !pathChanged && !slugChanged && !visibilityChanged && !aiContentLevelChanged) {
       onClose();
       return;
     }
@@ -146,6 +153,13 @@ export function PagePropertiesDialog({
         );
       }
 
+      if (aiContentLevelChanged) {
+        await apiPost<{ expectedRevisionId: string; level: AiContentLevel | null }, unknown>(
+          `/api/v1/pages/${encodeURIComponent(pageId)}/ai-attribution/clearances`,
+          { expectedRevisionId: latestRevisionId, level: aiContentLevel },
+        );
+      }
+
       onSaved(savedPath);
     } catch (cause) {
       const apiError = cause as ApiError;
@@ -185,6 +199,8 @@ export function PagePropertiesDialog({
       onSummaryChange={setSummary}
       visibility={canSetVisibility ? visibility : undefined}
       onVisibilityChange={canSetVisibility ? setVisibility : undefined}
+      aiContentLevel={canManageAiAttribution ? aiContentLevel : undefined}
+      onAiContentLevelChange={canManageAiAttribution ? setAiContentLevel : undefined}
       showAttachments={false}
       error={error}
       saving={saving}

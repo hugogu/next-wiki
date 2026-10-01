@@ -86,6 +86,8 @@ export type LivePage = z.infer<typeof livePageSchema>;
 
 export const editableViewSchema = z.object({
   pageId: z.string().uuid(),
+  aiContentLevel: aiContentLevelSchema.nullable(),
+  canManageAiAttribution: z.boolean(),
   revisionId: z.string().uuid(),
   path: z.string(),
   // 035: canonical public address — the editor's "view live page" action

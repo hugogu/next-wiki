@@ -94,6 +94,15 @@ test('shows AI attribution to anonymous readers and changes it after a human edi
     expect((await page.request.post(`/api/v1/pages/${human.id}/revisions/1/publication`, { data: {} })).status()).toBe(200);
     await reader.goto(`/wiki/${humanPath}`);
     await expect(reader.getByTestId('page-provenance-indicators')).toHaveCount(0);
+    await page.goto(`/wiki/${humanPath}`);
+    await page.getByRole('button', { name: 'Page properties' }).click();
+    const properties = page.getByRole('dialog', { name: 'Page properties' });
+    await properties.getByLabel('AI content label').selectOption('generated');
+    await properties.getByRole('button', { name: 'Save properties' }).click();
+    await page.waitForURL(`/wiki/${humanPath}`);
+    await expect(page.getByTestId('page-provenance-indicators')).toHaveText('AI generated');
+    const humanHistory = await (await page.request.get(`/api/v1/pages/${human.id}/ai-attribution/clearances`)).json();
+    expect(humanHistory.items[0]).toMatchObject({ operation: 'set', level: 'generated', versionNumber: 1 });
   } finally {
     await anonymous.close();
     await page.request.delete(`/api/api-keys/${key.id}`);

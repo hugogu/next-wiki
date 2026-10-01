@@ -40,6 +40,8 @@ export function PagePropertiesFields({
   onWriteMetadataToFrontmatterChange,
   visibility,
   onVisibilityChange,
+  aiContentLevel,
+  onAiContentLevelChange,
 }: {
   title: string;
   onTitleChange: (value: string) => void;
@@ -63,6 +65,8 @@ export function PagePropertiesFields({
   onWriteMetadataToFrontmatterChange?: (value: boolean) => void;
   visibility?: 'public' | 'registered' | 'restricted';
   onVisibilityChange?: (value: 'public' | 'registered' | 'restricted') => void;
+  aiContentLevel?: 'generated' | 'assisted' | null;
+  onAiContentLevelChange?: (value: 'generated' | 'assisted' | null) => void;
 }) {
   const { t } = useTranslation();
 
@@ -137,6 +141,25 @@ export function PagePropertiesFields({
             <option value="registered">{t('editor.properties.fields.visibilityRegistered')}</option>
             <option value="public">{t('editor.properties.fields.visibilityPublic')}</option>
           </Select>
+        </div>
+      )}
+
+      {onAiContentLevelChange && (
+        <div>
+          <label htmlFor="prop-ai-content-level" className="block text-sm font-medium mb-xs">
+            {t('editor.properties.fields.aiContentLevelLabel')}
+          </label>
+          <Select
+            id="prop-ai-content-level"
+            value={aiContentLevel ?? ''}
+            onChange={(event) => onAiContentLevelChange(event.target.value === '' ? null : event.target.value as 'generated' | 'assisted')}
+            aria-label={t('editor.properties.fields.aiContentLevelLabel')}
+          >
+            <option value="">{t('editor.properties.fields.aiContentLevelNone')}</option>
+            <option value="generated">{t('page.indicators.aiGenerated')}</option>
+            <option value="assisted">{t('page.indicators.aiAssisted')}</option>
+          </Select>
+          <p className="mt-xs text-xs text-muted">{t('editor.properties.fields.aiContentLevelHint')}</p>
         </div>
       )}
 

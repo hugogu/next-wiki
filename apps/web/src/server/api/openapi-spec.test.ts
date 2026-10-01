@@ -89,7 +89,10 @@ describe('AI attribution OpenAPI parameters', () => {
     const input = spec.components.schemas.AiAttributionClearanceInput;
     expect(input?.required).toContain('expectedRevisionId');
     expect(input?.properties?.expectedRevisionId).toMatchObject({ type: 'string', format: 'uuid', description: expect.stringContaining('STALE_REVISION (409)') });
+    expect(input?.properties?.level).toBeDefined();
     const record = spec.components.schemas.AiAttributionClearance;
+    expect(record?.properties?.operation).toMatchObject({ enum: ['set', 'clear'] });
+    expect(record?.properties?.level).toBeDefined();
     expect(record?.properties?.versionNumber).toMatchObject({ type: 'integer' });
     expect(record?.properties?.clearedAt).toMatchObject({ type: 'string', format: 'date-time' });
   });

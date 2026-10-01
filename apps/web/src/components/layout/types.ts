@@ -3,10 +3,13 @@ import type { AiEntitlementView } from '@next-wiki/shared';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
 import type { ReaderSpace } from '@/lib/path';
 import type { WritingMode } from '@next-wiki/shared';
+import type { AiContentLevel } from '@next-wiki/shared';
 
 export type PageContext = {
   pageId?: string;
   revisionId?: string;
+  aiContentLevel?: AiContentLevel | null;
+  canManageAiAttribution?: boolean;
   path: string;
   /** 035: the page's canonical public address, distinct from `path`. */
   slug?: string;

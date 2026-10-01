@@ -61,4 +61,17 @@ describe('PagePropertiesFields', () => {
     expect(html).not.toContain('Write page metadata to Markdown frontmatter');
     expect(html).not.toContain('id="prop-path"');
   });
+
+  it('offers an AI attribution declaration control only when the caller provides permission', () => {
+    const html = renderWithI18n(<PagePropertiesFields
+      title="Guide"
+      onTitleChange={() => undefined}
+      aiContentLevel="generated"
+      onAiContentLevelChange={() => undefined}
+    />);
+    expect(html).toContain('AI content label');
+    expect(html).toContain('AI generated');
+    expect(html).toContain('AI assisted');
+    expect(html).toContain('No label');
+  });
 });

@@ -124,6 +124,8 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
   const pageContext = {
     pageId: page.pageId,
     revisionId: page.revisionId,
+    aiContentLevel: page.aiContentLevel,
+    canManageAiAttribution: can({ actor }, 'clear_ai_attribution', { kind: 'page', pageId: page.pageId }, { isAuthor }),
     // 035: edit/history operate on the tree path, not the public address —
     // `page.path` (unchanged by this feature), never `resolved.sourcePath`
     // (which now holds the canonical slug; see `sourcePath` below for that).

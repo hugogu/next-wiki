@@ -5,7 +5,7 @@ import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import * as pages from './public-content';
 import { aiContentFilterSql, getAiContentLevel } from './ai-content-level';
-import { clearAiAttribution, listAiAttributionClearances } from './ai-attribution-clearances';
+import { clearAiAttribution, listAiAttributionClearances, setAiAttribution } from './ai-attribution-clearances';
 import { createPublicApiUser, ensurePublicApiDefaultSpace } from '../../../test/public-wiki-api-fixtures';
 
 async function cleanup() {
@@ -77,5 +77,20 @@ describe('human AI attribution declarations', () => {
     const human = await pages.createPage(ctx, { path: 'clearance/human', title: 'Human', contentSource: '# Human' }, ['latestRevision']);
     await expect(clearAiAttribution(ctx, human.id, { expectedRevisionId: human.latestRevision!.id })).rejects.toMatchObject({ code: 'CONFLICT' });
     expect(await db.select().from(schema.pageAiAttributionClearances)).toHaveLength(0);
+  });
+
+  it('lets the author set an explicit label and records the declaration revision', async () => {
+    const { page, input, ctx, owner } = await fixture();
+    const record = await setAiAttribution(ctx, page.id, { ...input, level: 'assisted' });
+    expect(record).toMatchObject({ operation: 'set', level: 'assisted', previousLevel: 'generated',
+      clearedByUserId: owner.id, versionNumber: 1, revisionId: input.expectedRevisionId });
+    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBe('assisted');
+    const current = await pages.getPageById(ctx, page.id);
+    const humanEdit = await pages.createDraft(ctx, page.id, { title: 'Clearance example', contentSource: '# Human', baseRevisionId: input.expectedRevisionId });
+    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBe('assisted');
+    const clear = await clearAiAttribution(ctx, page.id, { expectedRevisionId: humanEdit.id });
+    expect(clear).toMatchObject({ operation: 'clear', level: null, previousLevel: 'assisted', versionNumber: 2 });
+    expect(current?.aiContentLevel).toBe('assisted');
+    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBeNull();
   });
 });

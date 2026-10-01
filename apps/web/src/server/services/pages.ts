@@ -2228,6 +2228,8 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
 
   return {
     pageId: page.id,
+    aiContentLevel: await getAiContentLevel(page),
+    canManageAiAttribution: can(ctx, 'clear_ai_attribution', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor })),
     revisionId: revision.id,
     path: page.path,
     slug: page.slug,

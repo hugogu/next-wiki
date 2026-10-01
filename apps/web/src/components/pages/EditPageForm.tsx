@@ -11,6 +11,7 @@ import {
   type PublicPagePropertiesInput,
   type PublicPageResource,
   type PublicRevisionResource,
+  type AiContentLevel,
   updatePagePropertiesSchema,
   pageAddressSchema,
 } from '@next-wiki/shared';
@@ -38,6 +39,8 @@ type EditPageInitial = {
   latestVersion: number;
   metadata: { date: string | null; summary: string | null; tags: Array<{ name: string }> };
   visibility: 'public' | 'registered' | 'restricted';
+  aiContentLevel: AiContentLevel | null;
+  canManageAiAttribution: boolean;
   canSetVisibility: boolean;
   writeMetadataToFrontmatter: boolean;
 };
@@ -76,6 +79,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
   // re-guessed from content, so this dialog and the admin one always agree.
   const [writeMetadataToFrontmatter, setWriteMetadataToFrontmatter] = useState(initial.writeMetadataToFrontmatter);
   const [visibility, setVisibility] = useState(initial.visibility);
+  const [aiContentLevel, setAiContentLevel] = useState<AiContentLevel | null>(initial.aiContentLevel);
 
   const {
     handleSubmit,
@@ -143,7 +147,8 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
     const pathChanged = newPath !== committedPath;
     const slugChanged = newSlug !== committedSlug;
     const visibilityChanged = initial.canSetVisibility && visibility !== initial.visibility;
-    if (!pathChanged && !slugChanged && !visibilityChanged) {
+    const aiContentLevelChanged = initial.canManageAiAttribution && aiContentLevel !== initial.aiContentLevel;
+    if (!pathChanged && !slugChanged && !visibilityChanged && !aiContentLevelChanged) {
       // Title and metadata edits in this panel save with the next draft; only
       // path, address, and administrator visibility settings persist
       // immediately here.
@@ -192,6 +197,12 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
           { visibility },
         );
       }
+      if (aiContentLevelChanged) {
+        await apiPost<{ expectedRevisionId: string; level: AiContentLevel | null }, unknown>(
+          `/api/v1/pages/${encodeURIComponent(initial.pageId)}/ai-attribution/clearances`,
+          { expectedRevisionId: committedRevisionId, level: aiContentLevel },
+        );
+      }
       setPropertiesOpen(false);
     } catch (err) {
       const error = err as ApiError;
@@ -215,7 +226,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
     } finally {
       setPropertiesSaving(false);
     }
-  }, [newPath, committedPath, newSlug, committedSlug, committedRevisionId, initial.canSetVisibility, initial.pageId, initial.visibility, t, visibility]);
+  }, [newPath, committedPath, newSlug, committedSlug, committedRevisionId, aiContentLevel, initial.aiContentLevel, initial.canManageAiAttribution, initial.canSetVisibility, initial.pageId, initial.visibility, t, visibility]);
 
   const save = useCallback(() => {
     handleSubmit(onSubmit)();
@@ -326,6 +337,8 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
             onWriteMetadataToFrontmatterChange={setWriteMetadataToFrontmatter}
             visibility={initial.canSetVisibility ? visibility : undefined}
             onVisibilityChange={initial.canSetVisibility ? setVisibility : undefined}
+            aiContentLevel={initial.canManageAiAttribution ? aiContentLevel : undefined}
+            onAiContentLevelChange={initial.canManageAiAttribution ? setAiContentLevel : undefined}
             error={propertiesError}
             saving={propertiesSaving}
             onSave={handleSaveProperties}

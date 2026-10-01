@@ -8,8 +8,8 @@ const paramsSchema = z.object({ id: z.string().uuid() });
 
 /**
  * @openapi
- * @summary Clear page AI attribution through a human declaration
- * @description Session-only. The page author or Administrator confirms the latest revision is human-authored. Records the actor, timestamp, revision, version and previous label. API keys cannot perform this operation. A later AI revision reintroduces assisted attribution.
+ * @summary Set or clear page AI attribution through a human declaration
+ * @description Session-only. The page author or Administrator can set the label to generated or assisted, or clear it after confirming the latest revision. Records the actor, timestamp, revision, version and previous label. API keys cannot perform this operation. Later human or AI revisions may change the effective label.
  * @tag Pages
  * @pathParams PublicPageIdPathParams
  * @body AiAttributionClearanceInput

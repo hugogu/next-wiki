@@ -10,7 +10,10 @@ export function deriveAiContentLevel(nature: 'original' | 'generated', humanModi
 /** Query flags accept explicit booleans without coercing the string false to true. */
 export const aiSearchIncludeSchema = z.union([z.boolean(), z.enum(['true', 'false']).transform((value) => value === 'true')]).optional();
 
-export const aiAttributionClearanceInputSchema = z.object({ expectedRevisionId: z.string().uuid() }).strict();
+export const aiAttributionClearanceInputSchema = z.object({
+  expectedRevisionId: z.string().uuid(),
+  level: aiContentLevelSchema.nullable().optional(),
+}).strict();
 export type AiAttributionClearanceInput = z.infer<typeof aiAttributionClearanceInputSchema>;
 
 export const aiAttributionClearanceSchema = z.object({
@@ -18,7 +21,9 @@ export const aiAttributionClearanceSchema = z.object({
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   versionNumber: z.number().int().positive(),
-  previousLevel: aiContentLevelSchema,
+  operation: z.enum(['set', 'clear']).default('clear'),
+  level: aiContentLevelSchema.nullable().optional(),
+  previousLevel: aiContentLevelSchema.nullable(),
   clearedByUserId: z.string().uuid(),
   clearedAt: z.string().datetime(),
 });

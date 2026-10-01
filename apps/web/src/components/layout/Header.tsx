@@ -440,6 +440,8 @@ export function Header({
         <PagePropertiesDialog
           pageId={pageContext.pageId}
           revisionId={pageContext.revisionId}
+          initialAiContentLevel={pageContext.aiContentLevel}
+          canManageAiAttribution={pageContext.canManageAiAttribution}
           initialTitle={pageContext.title}
           initialPath={pageContext.path}
           initialSlug={pageContext.slug}

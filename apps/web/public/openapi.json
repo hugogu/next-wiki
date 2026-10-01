@@ -1307,8 +1307,28 @@
             "type": "integer",
             "exclusiveMinimum": 0
           },
-          "previousLevel": {
+          "operation": {
             "type": "string",
+            "enum": [
+              "set",
+              "clear"
+            ]
+          },
+          "level": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "generated",
+              "assisted"
+            ]
+          },
+          "previousLevel": {
+            "type": [
+              "string",
+              "null"
+            ],
             "enum": [
               "generated",
               "assisted"
@@ -1328,6 +1348,8 @@
           "pageId",
           "revisionId",
           "versionNumber",
+          "operation",
+          "level",
           "previousLevel",
           "clearedByUserId",
           "clearedAt"
@@ -1340,6 +1362,17 @@
             "type": "string",
             "format": "uuid",
             "description": "Latest revision reviewed by the human author or Administrator. Returns STALE_REVISION (409) if a newer revision exists."
+          },
+          "level": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "enum": [
+              "generated",
+              "assisted"
+            ],
+            "description": "Set the page-level label, or null/omit to clear it."
           }
         },
         "required": [
@@ -22076,8 +22109,8 @@
       },
       "post": {
         "operationId": "post-v1-pages-{id}-ai-attribution-clearances",
-        "summary": "Clear page AI attribution through a human declaration",
-        "description": "Session-only. The page author or Administrator confirms the latest revision is human-authored. Records the actor, timestamp, revision, version and previous label. API keys cannot perform this operation. A later AI revision reintroduces assisted attribution.",
+        "summary": "Set or clear page AI attribution through a human declaration",
+        "description": "Session-only. The page author or Administrator can set the label to generated or assisted, or clear it after confirming the latest revision. Records the actor, timestamp, revision, version and previous label. API keys cannot perform this operation. Later human or AI revisions may change the effective label.",
         "tags": [
           "Pages"
         ],

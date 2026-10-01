@@ -13,19 +13,32 @@ const pageColumns: AiContentPageColumns = {
 };
 
 export function aiContentLevelSql(page: AiContentPageColumns = pageColumns) {
-  const clearedThroughVersion = sql`(select max(ai_clearance.version_number)
-    from page_ai_attribution_clearances ai_clearance where ai_clearance.page_id = ${page.id})`;
-  // A human declaration covers the content through its recorded revision.
-  // Later AI edits add assistance to that human-authored baseline.
+  const latestOperation = sql`(select ai_event.operation from page_ai_attribution_clearances ai_event
+    where ai_event.page_id = ${page.id} order by ai_event.version_number desc, ai_event.cleared_at desc, ai_event.id desc limit 1)`;
+  const latestLevel = sql`(select ai_event.level from page_ai_attribution_clearances ai_event
+    where ai_event.page_id = ${page.id} order by ai_event.version_number desc, ai_event.cleared_at desc, ai_event.id desc limit 1)`;
+  const latestVersion = sql`(select ai_event.version_number from page_ai_attribution_clearances ai_event
+    where ai_event.page_id = ${page.id} order by ai_event.version_number desc, ai_event.cleared_at desc, ai_event.id desc limit 1)`;
+  // Explicit declarations establish a baseline at the reviewed revision.
+  // Subsequent human edits turn generated into assisted; a later machine edit
+  // after a cleared declaration reintroduces assisted attribution.
   return sql<AiContentLevel | null>`case
-    when ${page.nature} <> 'generated' then null
-    when ${clearedThroughVersion} is not null then case
+    when ${latestOperation} = 'clear' then case
       when exists (select 1 from page_revisions ai_later_revision
         where ai_later_revision.page_id = ${page.id}
           and ai_later_revision.actor_kind = 'machine'
           and ai_later_revision.deleted_at is null
-          and ai_later_revision.version_number > ${clearedThroughVersion}) then 'assisted'
+          and ai_later_revision.version_number > ${latestVersion}) then 'assisted'
       else null end
+    when ${latestOperation} = 'set' and ${latestLevel} = 'assisted' then 'assisted'
+    when ${latestOperation} = 'set' and ${latestLevel} = 'generated' then case
+      when exists (select 1 from page_revisions ai_later_human_revision
+        where ai_later_human_revision.page_id = ${page.id}
+          and ai_later_human_revision.actor_kind = 'human'
+          and ai_later_human_revision.deleted_at is null
+          and ai_later_human_revision.version_number > ${latestVersion}) then 'assisted'
+      else 'generated' end
+    when ${page.nature} <> 'generated' then null
     when exists (select 1 from page_revisions ai_human_revision
       where ai_human_revision.page_id = ${page.id}
         and ai_human_revision.actor_kind = 'human') then 'assisted'

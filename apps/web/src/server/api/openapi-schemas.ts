@@ -1126,13 +1126,16 @@ export const PublicPageIncludeValue = z
 
 export const AiAttributionClearanceInput = z.object({
   expectedRevisionId: z.string().uuid().describe('Latest revision reviewed by the human author or Administrator. Returns STALE_REVISION (409) if a newer revision exists.'),
+  level: z.enum(['generated', 'assisted']).nullable().optional().describe('Set the page-level label, or null/omit to clear it.'),
 }).strict();
 export const AiAttributionClearance = z.object({
   id: z.string().uuid(),
   pageId: z.string().uuid(),
   revisionId: z.string().uuid(),
   versionNumber: z.number().int().positive(),
-  previousLevel: z.enum(['generated', 'assisted']),
+  operation: z.enum(['set', 'clear']),
+  level: z.enum(['generated', 'assisted']).nullable(),
+  previousLevel: z.enum(['generated', 'assisted']).nullable(),
   clearedByUserId: z.string().uuid(),
   clearedAt: z.string().datetime(),
 });
