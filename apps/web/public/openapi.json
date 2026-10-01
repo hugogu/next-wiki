@@ -987,10 +987,12 @@
         "type": "object",
         "properties": {
           "includeAiGenerated": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Include AI-generated pages; defaults to true. Set false to exclude them."
           },
           "includeAiAssisted": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Include AI-assisted pages; defaults to true. Set false to exclude them."
           },
           "q": {
             "type": "string",
@@ -1336,7 +1338,8 @@
         "properties": {
           "expectedRevisionId": {
             "type": "string",
-            "format": "uuid"
+            "format": "uuid",
+            "description": "Latest revision reviewed by the human author or Administrator. Returns STALE_REVISION (409) if a newer revision exists."
           }
         },
         "required": [
@@ -3548,10 +3551,12 @@
         "type": "object",
         "properties": {
           "includeAiGenerated": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Include AI-generated pages; defaults to true. Set false to exclude them."
           },
           "includeAiAssisted": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Include AI-assisted pages; defaults to true. Set false to exclude them."
           },
           "kind": {
             "type": "string",
@@ -6137,11 +6142,11 @@
         "properties": {
           "includeAiGenerated": {
             "type": "boolean",
-            "description": "Include AI-generated pages; defaults to true."
+            "description": "Include AI-generated pages; defaults to true. Set false to exclude them."
           },
           "includeAiAssisted": {
             "type": "boolean",
-            "description": "Include AI-assisted pages; defaults to true."
+            "description": "Include AI-assisted pages; defaults to true. Set false to exclude them."
           },
           "q": {
             "type": "string",
@@ -7362,10 +7367,12 @@
         "type": "object",
         "properties": {
           "includeAiGenerated": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Include AI-generated pages; defaults to true. Set false to exclude them."
           },
           "includeAiAssisted": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "Include AI-assisted pages; defaults to true. Set false to exclude them."
           },
           "q": {
             "type": "string",
@@ -13258,7 +13265,7 @@
       "get": {
         "operationId": "get-v1-memory-wiki-search",
         "summary": "Search readable next-wiki knowledge",
-        "description": "Searches the caller's currently permitted Wiki, Raw, and Generated spaces and reports only safe coverage flags.",
+        "description": "Searches the caller's currently permitted Wiki, Raw, and Generated spaces and reports only safe coverage flags. Optional includeAiGenerated and includeAiAssisted booleans independently include each AI label and both default to true.",
         "tags": [
           "Agent Memory Wiki"
         ],
@@ -13268,16 +13275,20 @@
             "name": "includeAiGenerated",
             "required": false,
             "schema": {
-              "type": "boolean"
-            }
+              "type": "boolean",
+              "description": "Include AI-generated pages; defaults to true. Set false to exclude them."
+            },
+            "description": "Include AI-generated pages; defaults to true. Set false to exclude them."
           },
           {
             "in": "query",
             "name": "includeAiAssisted",
             "required": false,
             "schema": {
-              "type": "boolean"
-            }
+              "type": "boolean",
+              "description": "Include AI-assisted pages; defaults to true. Set false to exclude them."
+            },
+            "description": "Include AI-assisted pages; defaults to true. Set false to exclude them."
           },
           {
             "in": "query",
@@ -22585,7 +22596,7 @@
       "get": {
         "operationId": "get-v1-search-pages",
         "summary": "Search public wiki pages",
-        "description": "Searches readable pages by path, title, or Markdown source. Optionally",
+        "description": "Searches readable pages by path, title, or Markdown source. Supports createdStart/createdEnd/updatedStart/updatedEnd filters and independent includeAiGenerated/includeAiAssisted booleans, both defaulting to true. Results include a relevance score and are sorted by score descending within each returned page.",
         "tags": [
           "Search"
         ],
@@ -22596,9 +22607,9 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Include AI-generated pages; defaults to true."
+              "description": "Include AI-generated pages; defaults to true. Set false to exclude them."
             },
-            "description": "Include AI-generated pages; defaults to true."
+            "description": "Include AI-generated pages; defaults to true. Set false to exclude them."
           },
           {
             "in": "query",
@@ -22606,9 +22617,9 @@
             "required": false,
             "schema": {
               "type": "boolean",
-              "description": "Include AI-assisted pages; defaults to true."
+              "description": "Include AI-assisted pages; defaults to true. Set false to exclude them."
             },
-            "description": "Include AI-assisted pages; defaults to true."
+            "description": "Include AI-assisted pages; defaults to true. Set false to exclude them."
           },
           {
             "in": "query",
@@ -22934,7 +22945,7 @@
       "post": {
         "operationId": "post-v1-search-pages",
         "summary": "Run or resume a Header hybrid page search, or record a search behavior",
-        "description": "Extends the existing page-search resource without changing legacy GET search callers.",
+        "description": "Extends the existing page-search resource without changing legacy GET search callers. For kind=query, includeAiGenerated and includeAiAssisted independently filter AI labels and both default to true.",
         "tags": [
           "Search"
         ],
@@ -22971,7 +22982,7 @@
       "post": {
         "operationId": "post-v1-search-semantic",
         "summary": "Submit a semantic wiki search",
-        "description": "Submits a query for background embedding and vector retrieval. Returns",
+        "description": "Submits a query for background embedding and vector retrieval. Returns a search-action resource immediately; poll GET /search/semantic/{id} for results. Requires both the view and ai.read API-key scopes. Optional includeAiGenerated/includeAiAssisted booleans independently filter AI labels, both defaulting to true.",
         "tags": [
           "Search"
         ],

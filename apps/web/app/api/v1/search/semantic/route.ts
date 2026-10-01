@@ -7,9 +7,7 @@ import * as publicAi from '@/server/services/public-ai';
  *
  * @openapi
  * @summary Submit a semantic wiki search
- * @description Submits a query for background embedding and vector retrieval. Returns
- *   a search-action resource immediately; poll GET /search/semantic/{id} for results.
- *   Requires both the view and ai.read API-key scopes.
+ * @description Submits a query for background embedding and vector retrieval. Returns a search-action resource immediately; poll GET /search/semantic/{id} for results. Requires both the view and ai.read API-key scopes. Optional includeAiGenerated/includeAiAssisted booleans independently filter AI labels, both defaulting to true.
  * @tag Search
  * @auth bearer
  * @body PublicSemanticSearchSubmitInput

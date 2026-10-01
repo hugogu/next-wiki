@@ -13,7 +13,7 @@ const paramsSchema = z.object({ id: z.string().uuid() });
  * @tag Pages
  * @pathParams PublicPageIdPathParams
  * @body AiAttributionClearanceInput
- * @response AiAttributionClearance
+ * @response 200:AiAttributionClearance
  */
 export const POST = withPublicApi<{ id: string }>(async (request, { params }, ctx) => {
   const parsedParams = paramsSchema.safeParse(await params);
@@ -29,7 +29,7 @@ export const POST = withPublicApi<{ id: string }>(async (request, { params }, ct
  * @description Session-only. The page author or Administrator can read recorded clearance times, revisions, versions, actors and previous labels for analysis.
  * @tag Pages
  * @pathParams PublicPageIdPathParams
- * @response AiAttributionClearanceList
+ * @response 200:AiAttributionClearanceList
  */
 export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ctx) => {
   const parsedParams = paramsSchema.safeParse(await params);

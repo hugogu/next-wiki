@@ -435,7 +435,7 @@ export const AgentMemorySourceDocumentDeactivate = z.object({
   outcome: z.enum(['forgotten', 'unchanged', 'not_found']).describe('forgotten when this call retired the document, unchanged when it was already retired, not_found when no mirrored document matched the path.'),
 });
 
-export const AgentMemoryWikiSearchQuery = z.object({ includeAiGenerated: z.boolean().optional(), includeAiAssisted: z.boolean().optional(), q: z.string().min(1).max(4_000), limit: z.coerce.number().int().min(1).max(20).default(10) });
+export const AgentMemoryWikiSearchQuery = z.object({ includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true. Set false to exclude them.'), includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages; defaults to true. Set false to exclude them.'), q: z.string().min(1).max(4_000), limit: z.coerce.number().int().min(1).max(20).default(10) });
 export const AgentMemoryWikiSearchResponse = z.object({
   results: z.array(z.object({ aiContentLevel: z.enum(['generated', 'assisted']).nullable().optional(), pageId: z.string().uuid(), revisionId: z.string().uuid(), revisionHash: z.string(), space: z.enum(['wiki', 'raw', 'generated']), title: z.string(), path: z.string(), excerpt: z.string(), score: z.number(), canonicalUrl: z.string().url() })),
   coverage: z.object({ wiki: z.boolean(), raw: z.boolean(), generated: z.boolean(), complete: z.boolean() }),
@@ -1124,7 +1124,9 @@ export const PublicPageIncludeValue = z
   .enum(['latestRevision', 'publishedRevision'])
   .describe('Optional page relation that can be requested via ?include=.');
 
-export const AiAttributionClearanceInput = z.object({ expectedRevisionId: z.string().uuid() }).strict();
+export const AiAttributionClearanceInput = z.object({
+  expectedRevisionId: z.string().uuid().describe('Latest revision reviewed by the human author or Administrator. Returns STALE_REVISION (409) if a newer revision exists.'),
+}).strict();
 export const AiAttributionClearance = z.object({
   id: z.string().uuid(),
   pageId: z.string().uuid(),
@@ -1624,8 +1626,8 @@ export const PublicPageRenderingResult = z
 // for `PublicPageListQueryParams` above.
 export const PublicPageSearchQueryParams = z
   .object({
-    includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true.'),
-    includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages; defaults to true.'),
+    includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true. Set false to exclude them.'),
+    includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages; defaults to true. Set false to exclude them.'),
     q: z.string().min(1).max(200).describe('Free-text search query.'),
     scope: z
       .enum(['path', 'title', 'content', 'all'])
@@ -1742,8 +1744,8 @@ export const PublicPageSearchResponse = z
 
 export const HybridSearchQueryInput = z
   .object({
-    includeAiGenerated: z.boolean().optional(),
-    includeAiAssisted: z.boolean().optional(),
+    includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true. Set false to exclude them.'),
+    includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages; defaults to true. Set false to exclude them.'),
     kind: z.literal('query').describe('Selects the idempotent query operation.'),
     searchRecordId: z.string().uuid().describe('Client-generated idempotency key for one search attempt; retries reuse it.'),
     searchSessionId: z.string().uuid().describe('Client-generated overlay session identifier owning this attempt.'),
@@ -1814,8 +1816,8 @@ export const HybridPageSearchResponse = z
 
 export const PublicSemanticSearchSubmitInput = z
   .object({
-    includeAiGenerated: z.boolean().optional(),
-    includeAiAssisted: z.boolean().optional(),
+    includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true. Set false to exclude them.'),
+    includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages; defaults to true. Set false to exclude them.'),
     q: z.string().trim().min(1).max(8_000).describe('Free-text semantic search query.'),
     limit: z.number().int().min(1).max(50).optional().default(10).describe('Maximum number of results to return (1-50). Defaults to 10.'),
     pathPrefix: z.string().optional().describe('Directory prefix to restrict matching to pages under a subtree.'),

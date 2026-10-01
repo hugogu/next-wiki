@@ -8,9 +8,7 @@ import * as searchAnalytics from '@/server/services/search-analytics';
  *
  * @openapi
  * @summary Search public wiki pages
- * @description Searches readable pages by path, title, or Markdown source. Optionally
- *   filter by createdStart/createdEnd/updatedStart/updatedEnd. Results include a
- *   relevance score and are sorted by score descending within each returned page.
+ * @description Searches readable pages by path, title, or Markdown source. Supports createdStart/createdEnd/updatedStart/updatedEnd filters and independent includeAiGenerated/includeAiAssisted booleans, both defaulting to true. Results include a relevance score and are sorted by score descending within each returned page.
  * @tag Search
  * @auth bearer
  * @queryParams PublicPageSearchQueryParams
@@ -25,7 +23,7 @@ export const GET = withPublicApi(async (request, _context, ctx) => {
 /**
  * @openapi
  * @summary Run or resume a Header hybrid page search, or record a search behavior
- * @description Extends the existing page-search resource without changing legacy GET search callers.
+ * @description Extends the existing page-search resource without changing legacy GET search callers. For kind=query, includeAiGenerated and includeAiAssisted independently filter AI labels and both default to true.
  * @tag Search
  * @auth bearer
  * @body HybridPageSearchInput

@@ -6,7 +6,7 @@ import { assertSupportedProvider } from '../../_shared';
 /**
  * @openapi
  * @summary Search readable next-wiki knowledge
- * @description Searches the caller's currently permitted Wiki, Raw, and Generated spaces and reports only safe coverage flags.
+ * @description Searches the caller's currently permitted Wiki, Raw, and Generated spaces and reports only safe coverage flags. Optional includeAiGenerated and includeAiAssisted booleans independently include each AI label and both default to true.
  * @tag Agent Memory Wiki
  * @auth bearer
  * @queryParams AgentMemoryWikiSearchQuery
