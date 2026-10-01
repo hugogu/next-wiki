@@ -8,6 +8,7 @@ import { save } from '@/server/services/agent-memory';
  * @summary Save an Agent memory record
  * @description Creates an immutable revision-backed record in the API key's bound destination. Retries with the same idempotency key return the existing record.
  * @tag Agent Memory
+ * @auth bearer
  * @body AgentMemorySaveInput
  * @response 201:AgentMemorySaveResponse
  */

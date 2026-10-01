@@ -8,6 +8,7 @@ import { submitEvidenceCapture } from '@/server/services/agent-memory';
  * @summary Queue agent evidence capture
  * @description Queues an idempotent evidence capture. Clients must poll the returned capture URL before claiming a strict checkpoint is durable.
  * @tag Agent Memory
+ * @auth bearer
  * @body AgentMemoryEvidenceInput
  * @response 202:AgentMemoryEvidenceQueued
  */

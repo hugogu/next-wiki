@@ -10,6 +10,7 @@ const paramsSchema = z.object({ captureId: z.string().uuid() });
  * @summary Poll agent evidence capture
  * @description Returns the durable, pending, or failed state for a capture in the calling API key's bound destination.
  * @tag Agent Memory
+ * @auth bearer
  * @pathParams AgentMemoryCaptureIdPathParams
  * @response AgentMemoryEvidenceStatus
  */

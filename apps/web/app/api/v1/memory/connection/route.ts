@@ -6,6 +6,7 @@ import { getConnection } from '@/server/services/agent-memory';
  * @summary Inspect Agent memory connection
  * @description Returns only the bound memory namespace and enabled capabilities. Requires a memory-provider Bearer API key and the provider version header.
  * @tag Agent Memory
+ * @auth bearer
  * @response AgentMemoryConnection
  */
 export const GET = withPublicApi(async (request, _context, ctx) => {

@@ -8,6 +8,7 @@ import { recall } from '@/server/services/agent-memory';
  * @summary Recall Agent memory records
  * @description Searches only records in the API key's bound memory destination and agent identity.
  * @tag Agent Memory
+ * @auth bearer
  * @body AgentMemoryRecallInput
  * @response AgentMemoryRecallResponse
  */
