@@ -48,7 +48,7 @@ describe('human AI attribution declarations', () => {
     expect(await listAiAttributionClearances(buildUserCtx(admin.id, 'admin'), page.id)).toEqual({ items: [record] });
     expect(await clearAiAttribution(ctx, page.id, input)).toEqual(record);
     expect(await db.select().from(schema.pageAiAttributionClearances)).toHaveLength(1);
-    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBeNull();
+    expect(await getAiContentLevel({ id: page.id })).toBeNull();
     expect((await pages.getPageById(ctx, page.id))?.aiContentLevel).toBeNull();
   });
 
@@ -60,9 +60,9 @@ describe('human AI attribution declarations', () => {
     expect(record).toMatchObject({ versionNumber: 2, previousLevel: 'assisted' });
     expect(await db.select({ id: schema.pages.id }).from(schema.pages).where(aiContentFilterSql({ includeAiGenerated: false, includeAiAssisted: false }))).toEqual([{ id: page.id }]);
     const humanAgain = await pages.createDraft(ctx, page.id, { title: 'Clearance example', contentSource: '# More human content', baseRevisionId: human.id });
-    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBeNull();
+    expect(await getAiContentLevel({ id: page.id })).toBeNull();
     const machine = await pages.createDraft(keyCtx, page.id, { title: 'Clearance example', contentSource: '# AI assistance', baseRevisionId: humanAgain.id });
-    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBe('assisted');
+    expect(await getAiContentLevel({ id: page.id })).toBe('assisted');
     expect(await db.select({ id: schema.pages.id }).from(schema.pages).where(aiContentFilterSql({ includeAiAssisted: false }))).toEqual([]);
     const second = await clearAiAttribution(buildUserCtx(admin.id, 'admin'), page.id, { expectedRevisionId: machine.id });
     expect(second).toMatchObject({ versionNumber: 4, previousLevel: 'assisted', clearedByUserId: admin.id });
@@ -84,13 +84,31 @@ describe('human AI attribution declarations', () => {
     const record = await setAiAttribution(ctx, page.id, { ...input, level: 'assisted' });
     expect(record).toMatchObject({ operation: 'set', level: 'assisted', previousLevel: 'generated',
       clearedByUserId: owner.id, versionNumber: 1, revisionId: input.expectedRevisionId });
-    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBe('assisted');
+    expect(await getAiContentLevel({ id: page.id })).toBe('assisted');
     const current = await pages.getPageById(ctx, page.id);
     const humanEdit = await pages.createDraft(ctx, page.id, { title: 'Clearance example', contentSource: '# Human', baseRevisionId: input.expectedRevisionId });
-    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBe('assisted');
+    expect(await getAiContentLevel({ id: page.id })).toBe('assisted');
     const clear = await clearAiAttribution(ctx, page.id, { expectedRevisionId: humanEdit.id });
     expect(clear).toMatchObject({ operation: 'clear', level: null, previousLevel: 'assisted', versionNumber: 2 });
     expect(current?.aiContentLevel).toBe('assisted');
-    expect(await getAiContentLevel({ id: page.id, nature: 'generated' })).toBeNull();
+    expect(await getAiContentLevel({ id: page.id })).toBeNull();
+  });
+
+  // The page resource and reader take their label from getAiContentLevel while
+  // search and filters use the SQL directly, so a shortcut for human-authored
+  // pages in the former hid a declared label that the latter honoured.
+  it('reports a declared label on human-authored content, like the SQL does', async () => {
+    const { ctx } = await fixture();
+    const human = await pages.createPage(ctx, { path: 'clearance/declared', title: 'Declared', contentSource: '# Human' }, ['latestRevision']);
+    expect(await getAiContentLevel({ id: human.id })).toBeNull();
+
+    await setAiAttribution(ctx, human.id, { expectedRevisionId: human.latestRevision!.id, level: 'generated' });
+
+    expect(await getAiContentLevel({ id: human.id })).toBe('generated');
+    expect((await pages.getPageById(ctx, human.id))?.aiContentLevel).toBe('generated');
+    expect(await db.select({ id: schema.pages.id }).from(schema.pages).where(aiContentFilterSql({ includeAiGenerated: false }))).not.toContainEqual({ id: human.id });
+
+    await pages.createDraft(ctx, human.id, { title: 'Declared', contentSource: '# Human edit', baseRevisionId: human.latestRevision!.id });
+    expect(await getAiContentLevel({ id: human.id })).toBe('assisted');
   });
 });

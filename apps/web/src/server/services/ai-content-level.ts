@@ -54,8 +54,12 @@ export function aiContentFilterSql(filters: AiSearchIncludes, page: AiContentPag
   return not(sql`coalesce(${aiContentLevelSql(page)}, '') in (${sql.join(excluded.map((level) => sql`${level}`), sql`, `)})`);
 }
 
-export async function getAiContentLevel(page: { id: string; nature: 'original' | 'generated' }): Promise<AiContentLevel | null> {
-  if (page.nature !== 'generated') return null;
+/**
+ * The page's effective label. The SQL decides it, including for human-authored
+ * pages: they have none until an author declares one, so no shortcut on the
+ * page's nature is safe here.
+ */
+export async function getAiContentLevel(page: { id: string }): Promise<AiContentLevel | null> {
   const [result] = await db.select({ level: aiContentLevelSql() }).from(schema.pages).where(eq(schema.pages.id, page.id));
   return result?.level ?? null;
 }
