@@ -129,11 +129,11 @@ describe('TranslatePageDialog outcome reporting', () => {
     vi.unstubAllGlobals();
   });
 
-  function mount() {
+  function mount(props: { sourceLocale?: string } = {}) {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
-    act(() => root.render(<TranslatePageDialog pageId="page-1" onClose={() => {}} />));
+    act(() => root.render(<TranslatePageDialog pageId="page-1" onClose={() => {}} {...props} />));
   }
 
   async function flush() {
@@ -141,13 +141,19 @@ describe('TranslatePageDialog outcome reporting', () => {
     for (let i = 0; i < 12; i++) await act(async () => {});
   }
 
-  function stubFetch(run: TranslationRunView, item: TranslationRunItemView | null) {
+  function stubFetch(
+    run: TranslationRunView,
+    item: TranslationRunItemView | null,
+    languageCodes: string[] = ['zh'],
+  ) {
     const json = (body: unknown) =>
       Promise.resolve({ ok: true, json: () => Promise.resolve(body) } as Response);
     const fetchMock = vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
       if (url.includes('/languages')) {
-        return json({ items: [{ code: 'zh', enabled: true, retired: false }] });
+        return json({
+          items: languageCodes.map((code) => ({ code, enabled: true, retired: false })),
+        });
       }
       if (url.includes('/models') || url.includes('/prompts')) return json({ items: [] });
       if (url.endsWith('/items')) return json({ items: item ? [item] : [], total: item ? 1 : 0 });
@@ -215,5 +221,45 @@ describe('TranslatePageDialog outcome reporting', () => {
 
     expect(container.textContent).toContain('page.translate.result.completed');
     expect(container.querySelector('a[href="/zh/guide"]')).not.toBeNull();
+  });
+
+  describe('target language', () => {
+    const picker = () => container.querySelector('select') as HTMLSelectElement;
+    const option = (code: string) =>
+      picker().querySelector(`option[value="${code}"]`) as HTMLOptionElement;
+    const submitButton = () =>
+      container.querySelector('button[type="submit"]') as HTMLButtonElement;
+
+    it('does not pre-select the language the page is recorded in', async () => {
+      // Pre-selecting it would make the default action fail for every page.
+      stubFetch(runView(), null, ['en', 'zh']);
+      mount({ sourceLocale: 'en' });
+      await flush();
+
+      expect(picker().value).toBe('zh');
+      expect(option('en').disabled).toBe(true);
+      expect(option('zh').disabled).toBe(false);
+      expect(container.textContent).toContain('page.translate.languageUnavailable');
+      expect(submitButton().disabled).toBe(false);
+    });
+
+    it('offers every language when the page language is not known', async () => {
+      stubFetch(runView(), null, ['en', 'zh']);
+      mount();
+      await flush();
+
+      expect(picker().value).toBe('en');
+      expect(option('en').disabled).toBe(false);
+      expect(container.textContent).not.toContain('page.translate.languageUnavailable');
+    });
+
+    it('cannot be submitted when the page language is the only one configured', async () => {
+      stubFetch(runView(), null, ['en']);
+      mount({ sourceLocale: 'en' });
+      await flush();
+
+      expect(submitButton().disabled).toBe(true);
+      expect(container.textContent).toContain('page.translate.languageUnavailable');
+    });
   });
 });

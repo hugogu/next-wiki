@@ -20,6 +20,8 @@ export type PageContext = {
   version: number;
   /** Source (original) path of the page, without any locale prefix. */
   sourcePath?: string;
+  /** Language the original page is recorded in; it cannot be a translation target. */
+  sourceLocale?: string;
   /** Locale codes of published translations available for this page. */
   translationLocales?: string[];
   /** The locale currently being viewed, or null when viewing the original. */

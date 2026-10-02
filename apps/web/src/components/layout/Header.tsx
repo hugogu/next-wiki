@@ -434,7 +434,11 @@ export function Header({
         )}
       </div>
       {translateOpen && pageContext?.pageId && (
-        <TranslatePageDialog pageId={pageContext.pageId} onClose={() => setTranslateOpen(false)} />
+        <TranslatePageDialog
+          pageId={pageContext.pageId}
+          sourceLocale={pageContext.sourceLocale}
+          onClose={() => setTranslateOpen(false)}
+        />
       )}
       {settingsOpen && pageContext?.pageId && pageContext.revisionId && pageContext.slug !== undefined && (
         <PagePropertiesDialog

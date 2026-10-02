@@ -87,6 +87,7 @@ export default async function HistoryPage({
         canEdit,
         canPublish: false,
         version: page.version,
+        sourceLocale: page.locale,
         space,
       }
     : undefined;

@@ -109,6 +109,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
     canEdit: space.kind === 'generated',
     canPublish: space.kind === 'generated' && latestRevision?.status === 'draft' && latestRevision.canPublish,
     version: latestRevision?.version ?? page.publishedRevision?.version ?? 1,
+    sourceLocale: page.locale,
     space: space.kind,
     date: page.metadata?.date ?? null,
     tags: (page.metadata?.tags ?? []).map((tag) => tag.name),

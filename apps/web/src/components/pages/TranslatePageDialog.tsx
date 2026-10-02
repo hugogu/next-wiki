@@ -159,10 +159,14 @@ const TONE_CLASS: Record<TranslateRunOutcome['tone'], string> = {
  */
 export function TranslatePageDialog({
   pageId,
+  sourceLocale,
   initialTargetLocale,
   onClose,
 }: {
   pageId: string;
+  /** Language the page is recorded in. A page cannot be translated into it (the
+   * translation would collide with the page itself), so it is not offered. */
+  sourceLocale?: string;
   /** When set, the run targets this locale and the language picker is locked
    * (used by "re-translate" on an existing translated document). */
   initialTargetLocale?: string;
@@ -203,7 +207,9 @@ export function TranslatePageDialog({
         setLanguages(enabled);
         setModels(mdl.items);
         setStyles(sty.items);
-        setTargetLocale(initialTargetLocale ?? enabled[0]?.code ?? '');
+        setTargetLocale(
+          initialTargetLocale ?? enabled.find((l) => l.code !== sourceLocale)?.code ?? '',
+        );
       })
       .catch(() => {
         // Localized at render time, so a change of `t` cannot re-run the load.
@@ -215,7 +221,7 @@ export function TranslatePageDialog({
     return () => {
       cancelled = true;
     };
-  }, [initialTargetLocale]);
+  }, [initialTargetLocale, sourceLocale]);
 
   // Follow the accepted run until it finishes, then read its page outcome once.
   useEffect(() => {
@@ -285,6 +291,11 @@ export function TranslatePageDialog({
     }
   }
 
+  // The page's own language is listed so the picker matches the configured
+  // languages, but cannot be chosen; the reader is told why next to it.
+  const unavailableLanguage = initialTargetLocale
+    ? undefined
+    : languages.find((language) => language.code === sourceLocale)?.code;
   const finished = run !== null && TERMINAL_RUN_STATUSES.includes(run.status);
   const outcome = finished ? deriveTranslateOutcome(run, item) : null;
   // A run this dialog stopped following is not necessarily still working: a
@@ -369,11 +380,22 @@ export function TranslatePageDialog({
             ) : (
               <Select value={targetLocale} onChange={(event) => setTargetLocale(event.target.value)}>
                 {languages.map((language) => (
-                  <option key={language.code} value={language.code}>
+                  <option
+                    key={language.code}
+                    value={language.code}
+                    disabled={language.code === unavailableLanguage}
+                  >
                     {language.code.toUpperCase()}
                   </option>
                 ))}
               </Select>
+            )}
+            {unavailableLanguage && (
+              <span className="text-xs text-muted">
+                {t('page.translate.languageUnavailable', {
+                  language: unavailableLanguage.toUpperCase(),
+                })}
+              </span>
             )}
           </label>
           <label className="flex flex-col gap-xs text-sm">

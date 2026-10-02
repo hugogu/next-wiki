@@ -137,6 +137,7 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
     canPublish,
     version: page.version,
     sourcePath: resolved.sourcePath,
+    sourceLocale: isTranslation ? undefined : page.locale,
     translationLocales,
     currentLocale: isTranslation ? resolved.locale : null,
     space: resolved.space.kind,

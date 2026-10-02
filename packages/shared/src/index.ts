@@ -64,6 +64,9 @@ export const livePageSchema = z.object({
   // *source* page's slug instead (never the translation row's own empty
   // column); the reader route composes the final `{locale}/{slug}` address.
   slug: z.string(),
+  // The language the page row is recorded in. Set for original pages, which
+  // the reader's translate action needs; translation views omit it.
+  locale: z.string().optional(),
   title: z.string(),
   contentHtml: z.string(),
   contentHash: z.string(),

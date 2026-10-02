@@ -454,6 +454,7 @@
         "view": "Open the translation",
         "detail": "Open task details"
       },
+      "languageUnavailable": "{language} is unavailable because this page is recorded in that language.",
       "trackError": "Could not read the task status. Check Translations admin.",
       "error": "Failed to create the translation task.",
       "close": "Close"
@@ -2854,8 +2855,8 @@
       "CAPABILITY_MISMATCH": "The selected model cannot generate text.",
       "CAPABILITY_UNSUPPORTED": "The selected model does not support this request.",
       "SOURCE_NOT_TRANSLATABLE": "The selected page has no eligible published source.",
-      "SOURCE_UNAVAILABLE": "The source page is no longer published.",
       "SOURCE_LOCALE_MATCHES_TARGET": "Pages recorded in the target language cannot be translated into it.",
+      "SOURCE_UNAVAILABLE": "The source page is no longer published.",
       "AI_DISABLED": "AI features are disabled.",
       "JOB_QUEUE_UNAVAILABLE": "Background work is unavailable right now.",
       "TIMEOUT": "The AI provider did not respond in time.",

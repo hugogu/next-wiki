@@ -454,6 +454,7 @@
         "view": "打开译文",
         "detail": "查看任务详情"
       },
+      "languageUnavailable": "无法选择 {language}：此页面的记录语言就是 {language}。",
       "trackError": "无法读取任务状态，请到翻译管理中查看。",
       "error": "创建翻译任务失败。",
       "close": "关闭"
@@ -2854,8 +2855,8 @@
       "CAPABILITY_MISMATCH": "所选模型无法生成文本。",
       "CAPABILITY_UNSUPPORTED": "所选模型不支持该请求。",
       "SOURCE_NOT_TRANSLATABLE": "所选页面没有可翻译的已发布源。",
-      "SOURCE_UNAVAILABLE": "原文页面已不是发布状态。",
       "SOURCE_LOCALE_MATCHES_TARGET": "记录语言与目标语言相同的页面无法翻译成该语言。",
+      "SOURCE_UNAVAILABLE": "原文页面已不是发布状态。",
       "AI_DISABLED": "AI 功能已禁用。",
       "JOB_QUEUE_UNAVAILABLE": "后台任务当前不可用。",
       "TIMEOUT": "AI 服务商响应超时。",
