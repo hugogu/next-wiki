@@ -1560,6 +1560,13 @@ export const PageAddressReleaseResult = z
   .object({ released: z.number().int().nonnegative().describe('Count of addresses freed, including the canonical slug.') })
   .describe('Result of releasing a deleted page\'s addresses.');
 
+export const PublicPageAddressPathParams = z
+  .object({
+    id: z.string().uuid().describe('Stable public page identifier.'),
+    addressId: z.string().uuid().describe('Alias address identifier (aliases[].id from the page address list).'),
+  })
+  .describe('Public page address path parameters.');
+
 export const PageAddressDeleteQuery = z
   .object({
     confirmBreakingPublicLinks: z.enum(['true']).optional().describe('Required (must be exactly "true") to remove a retained alias; omit for a manual alias.'),

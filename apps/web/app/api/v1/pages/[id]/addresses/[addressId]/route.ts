@@ -14,6 +14,7 @@ const deleteQuerySchema = z.object({ confirmBreakingPublicLinks: z.enum(['true']
  * @description A manually added alias (kind=manual) is removed immediately with edit permission. A retained alias (kind=retained) additionally requires space-manage permission and ?confirmBreakingPublicLinks=true; without it, returns 409 ADDRESS_ALIAS_RETAINED stating the consequence.
  * @tag Pages
  * @auth bearer
+ * @pathParams PublicPageAddressPathParams
  * @queryParams PageAddressDeleteQuery
  * @response PageAddressRemoveResult
  * @response 409:ADDRESS_ALIAS_RETAINED

@@ -79,6 +79,16 @@ describe('human AI attribution declarations', () => {
     expect(await db.select().from(schema.pageAiAttributionClearances)).toHaveLength(0);
   });
 
+  it('shows a manual AI label on a page whose source nature is original', async () => {
+    const { ctx, owner } = await fixture();
+    const human = await pages.createPage(ctx, { path: 'clearance/manual-label', title: 'Manual label', contentSource: '# Manual label' }, ['latestRevision']);
+    const record = await setAiAttribution(ctx, human.id, { expectedRevisionId: human.latestRevision!.id, level: 'generated' });
+    expect(record).toMatchObject({ operation: 'set', level: 'generated', previousLevel: null, clearedByUserId: owner.id });
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.id, human.id) }))?.nature).toBe('original');
+    expect(await getAiContentLevel({ id: human.id })).toBe('generated');
+    expect((await pages.getPageById(ctx, human.id))?.aiContentLevel).toBe('generated');
+  });
+
   it('lets the author set an explicit label and records the declaration revision', async () => {
     const { page, input, ctx, owner } = await fixture();
     const record = await setAiAttribution(ctx, page.id, { ...input, level: 'assisted' });
