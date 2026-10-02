@@ -95,7 +95,12 @@ test('shows AI attribution to anonymous readers and changes it after a human edi
     await reader.goto(`/wiki/${humanPath}`);
     await expect(reader.getByTestId('page-provenance-indicators')).toHaveCount(0);
     await page.goto(`/wiki/${humanPath}`);
-    await page.getByRole('button', { name: 'Page properties' }).click();
+    // The reader reaches the properties dialog through "Page settings" in the
+    // hover-revealed "More actions" menu. Only the editor header has a button
+    // named "Page properties"; waiting for it here never resolves, and click()
+    // has no timeout of its own, so the test sat until its 120 s limit.
+    await page.getByRole('button', { name: 'More actions' }).hover();
+    await page.getByRole('button', { name: 'Page settings' }).click();
     const properties = page.getByRole('dialog', { name: 'Page properties' });
     await properties.getByLabel('AI content label').selectOption('generated');
     await properties.getByRole('button', { name: 'Save properties' }).click();
