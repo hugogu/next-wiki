@@ -2855,6 +2855,7 @@
       "CAPABILITY_UNSUPPORTED": "The selected model does not support this request.",
       "SOURCE_NOT_TRANSLATABLE": "The selected page has no eligible published source.",
       "SOURCE_UNAVAILABLE": "The source page is no longer published.",
+      "SOURCE_LOCALE_MATCHES_TARGET": "Pages recorded in the target language cannot be translated into it.",
       "AI_DISABLED": "AI features are disabled.",
       "JOB_QUEUE_UNAVAILABLE": "Background work is unavailable right now.",
       "TIMEOUT": "The AI provider did not respond in time.",

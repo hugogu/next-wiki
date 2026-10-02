@@ -70,4 +70,5 @@ Response: `{ "id": "uuid", "targetLocale": "zh", "status": "queued", "detailUrl"
 | 409 | `RUN_NOT_ACTIVE` / `RUN_NOT_PAUSED` | Invalid lifecycle transition. |
 | 409 | `MODEL_UNAVAILABLE` / `CAPABILITY_MISMATCH` | Model cannot begin the run. |
 | 422 | `SOURCE_NOT_TRANSLATABLE` | Selected page lacks eligible published source. |
+| 422 | `SOURCE_LOCALE_MATCHES_TARGET` | Every selected page is recorded in the target language, so none can be translated into it (the translated row would collide with the page on space, path and locale). Pages in a mixed scope are skipped instead. |
 | 503 | `AI_DISABLED` / `JOB_QUEUE_UNAVAILABLE` | New work cannot start; durable history remains readable. |

@@ -122,6 +122,7 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'TRANSLATION_ALREADY_RUNNING':
       return apiError(code, message, 409);
     case 'SOURCE_NOT_TRANSLATABLE':
+    case 'SOURCE_LOCALE_MATCHES_TARGET':
       return apiError(code, message, 422);
     case 'JOB_QUEUE_UNAVAILABLE':
       return apiError(code, message, 503);

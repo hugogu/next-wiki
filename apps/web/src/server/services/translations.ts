@@ -189,35 +189,45 @@ async function getDefaultSpaceId(): Promise<string> {
   return space.id;
 }
 
+type EligibleSource = {
+  pageId: string;
+  path: string;
+  locale: string;
+  revisionId: string;
+  contentHash: string;
+};
+
 /**
  * Resolve the published source pages eligible for a run's scope. Source pages
  * only (translation_group_id is null), not deleted, with a current published
  * revision. For `mode: 'missing'`, pages that already have a fresh translation
  * for the target locale are excluded.
+ *
+ * A page cannot be translated into the language it is recorded in — the
+ * translated row would collide with the source on (space, path, locale) — so
+ * those pages are skipped. They are skipped by name rather than in the query so
+ * that an empty result can say whether that is the reason (`allInTargetLocale`).
  */
 async function resolveEligibleSources(
   spaceId: string,
   input: TranslationRunCreate,
-): Promise<Array<{ pageId: string; path: string; revisionId: string; contentHash: string }>> {
+): Promise<{ sources: EligibleSource[]; allInTargetLocale: boolean }> {
   const conditions: SQL[] = [
     eq(schema.pages.spaceId, spaceId),
     isNull(schema.pages.deletedAt),
     isNull(schema.pages.translationGroupId),
     sql`${schema.pages.currentPublishedVersionId} is not null`,
-    // A page cannot be translated into its own language — that would collide
-    // with the source on (space, path, locale). Skip sources already in the
-    // target locale.
-    sql`${schema.pages.locale} <> ${input.targetLocale}`,
   ];
   if (input.scope.kind === 'page_ids') {
     conditions.push(inArray(schema.pages.id, input.scope.pageIds));
   } else if (input.scope.kind === 'paths') {
     conditions.push(inArray(schema.pages.path, input.scope.paths));
   }
-  const rows = await db
+  const published: EligibleSource[] = await db
     .select({
       pageId: schema.pages.id,
       path: schema.pages.path,
+      locale: schema.pages.locale,
       revisionId: schema.pageRevisions.id,
       contentHash: schema.pageRevisions.contentHash,
     })
@@ -228,11 +238,14 @@ async function resolveEligibleSources(
     )
     .where(and(...conditions));
 
-  if (input.mode === 'all') return rows;
+  const rows = published.filter((r) => r.locale !== input.targetLocale);
+  const allInTargetLocale = published.length > 0 && rows.length === 0;
+
+  if (input.mode === 'all') return { sources: rows, allInTargetLocale };
 
   // mode: 'missing' — drop pages that already have an up-to-date translation.
   const pageIds = rows.map((r) => r.pageId);
-  if (pageIds.length === 0) return rows;
+  if (pageIds.length === 0) return { sources: rows, allInTargetLocale };
   const states = await db
     .select({
       sourcePageId: schema.pageTranslationStates.sourcePageId,
@@ -248,7 +261,7 @@ async function resolveEligibleSources(
   const fresh = new Set(
     states.filter((s) => s.freshness === 'fresh').map((s) => s.sourcePageId),
   );
-  return rows.filter((r) => !fresh.has(r.pageId));
+  return { sources: rows.filter((r) => !fresh.has(r.pageId)), allInTargetLocale };
 }
 
 /**
@@ -317,9 +330,14 @@ export async function createRun(
   const promptVersion = await resolvePromptVersion(input.promptVersionId, input.targetLocale);
 
   const spaceId = await getDefaultSpaceId();
-  const eligible = await resolveEligibleSources(spaceId, input);
+  const { sources: eligible, allInTargetLocale } = await resolveEligibleSources(spaceId, input);
   if (eligible.length === 0) {
-    throw new DomainError('SOURCE_NOT_TRANSLATABLE', 'No eligible published pages to translate');
+    throw allInTargetLocale
+      ? new DomainError(
+          'SOURCE_LOCALE_MATCHES_TARGET',
+          'Every selected page is already recorded in the target language',
+        )
+      : new DomainError('SOURCE_NOT_TRANSLATABLE', 'No eligible published pages to translate');
   }
 
   // Leave pages another run is still working on to that run instead of failing

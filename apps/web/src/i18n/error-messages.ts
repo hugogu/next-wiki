@@ -37,6 +37,7 @@ const translationErrorKeys: Partial<Record<string, TranslationKey>> = {
   CAPABILITY_MISMATCH: 'translation.error.CAPABILITY_MISMATCH',
   CAPABILITY_UNSUPPORTED: 'translation.error.CAPABILITY_UNSUPPORTED',
   SOURCE_NOT_TRANSLATABLE: 'translation.error.SOURCE_NOT_TRANSLATABLE',
+  SOURCE_LOCALE_MATCHES_TARGET: 'translation.error.SOURCE_LOCALE_MATCHES_TARGET',
   SOURCE_UNAVAILABLE: 'translation.error.SOURCE_UNAVAILABLE',
   AI_DISABLED: 'translation.error.AI_DISABLED',
   JOB_QUEUE_UNAVAILABLE: 'translation.error.JOB_QUEUE_UNAVAILABLE',

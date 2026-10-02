@@ -2126,6 +2126,7 @@ export const translationKeys = [
   "translation.error.CAPABILITY_UNSUPPORTED",
   "translation.error.SOURCE_NOT_TRANSLATABLE",
   "translation.error.SOURCE_UNAVAILABLE",
+  "translation.error.SOURCE_LOCALE_MATCHES_TARGET",
   "translation.error.AI_DISABLED",
   "translation.error.JOB_QUEUE_UNAVAILABLE",
   "translation.error.TIMEOUT",
