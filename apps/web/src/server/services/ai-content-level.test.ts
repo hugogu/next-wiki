@@ -84,7 +84,8 @@ describe('human AI attribution declarations', () => {
     const human = await pages.createPage(ctx, { path: 'clearance/manual-label', title: 'Manual label', contentSource: '# Manual label' }, ['latestRevision']);
     const record = await setAiAttribution(ctx, human.id, { expectedRevisionId: human.latestRevision!.id, level: 'generated' });
     expect(record).toMatchObject({ operation: 'set', level: 'generated', previousLevel: null, clearedByUserId: owner.id });
-    expect(await getAiContentLevel({ id: human.id, nature: 'original' })).toBe('generated');
+    expect((await db.query.pages.findFirst({ where: eq(schema.pages.id, human.id) }))?.nature).toBe('original');
+    expect(await getAiContentLevel({ id: human.id })).toBe('generated');
     expect((await pages.getPageById(ctx, human.id))?.aiContentLevel).toBe('generated');
   });
 
