@@ -42,6 +42,7 @@ import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind, type SpaceRow } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { routingLocale } from '@/server/services/page-locale';
 import { createWikiLinkResolver, renderPageMarkdown } from '@/server/services/wiki-links';
 import { logger } from '@/server/logger';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
@@ -2092,7 +2093,7 @@ export async function moveToSpace(
         });
         if (conformant !== original) {
           const revisionId = randomUUID();
-          const { html, hash } = await renderPageMarkdown(target, conformant, { executor: tx, locale: page.locale });
+          const { html, hash } = await renderPageMarkdown(target, conformant, { executor: tx, locale: routingLocale(page) });
           const versionRows = await tx
             .select({ value: max(schema.pageRevisions.versionNumber) })
             .from(schema.pageRevisions)
@@ -2161,7 +2162,7 @@ export async function moveToSpace(
         set: { pageId: page.id, reason: 'cross_space_migration' },
       });
 
-    return { pageId: page.id, path: page.path, slug: page.slug, locale: page.locale, source, isPublished: page.currentPublishedVersionId !== null || movedRevisionId !== null };
+    return { pageId: page.id, path: page.path, slug: page.slug, source, isPublished: page.currentPublishedVersionId !== null || movedRevisionId !== null };
   });
 
   invalidatePublicContentCache();
@@ -2171,10 +2172,10 @@ export async function moveToSpace(
   await notifyPublicContentChanged('publish');
   await kickReplication();
   if (result.isPublished) {
-    await enqueuePublicPageWarmup(canonicalSpacePath(target, result.slug, result.locale));
+    await enqueuePublicPageWarmup(canonicalSpacePath(target, result.slug));
     // The address a reader could reach this page at before the move is now a
     // retained alias in the source space — warm it too (035 T081).
-    await enqueuePublicPageWarmup(canonicalSpacePath(result.source, result.slug, result.locale));
+    await enqueuePublicPageWarmup(canonicalSpacePath(result.source, result.slug));
   }
   return { pageId: result.pageId, targetSpace: target.slug, path: result.path };
 }

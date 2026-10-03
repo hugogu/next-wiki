@@ -13,6 +13,12 @@ describe('configured space URLs', () => {
   it('uses the configured prefix before locale and page path', () => {
     expect(getConfiguredSpaceHref('g', 'concepts/payment', 'zh')).toBe('/g/zh/concepts/payment');
   });
+
+  it('prefixes English like any other language, and leaves an original unprefixed', () => {
+    expect(getConfiguredSpaceHref('w', 'guide', 'en')).toBe('/w/en/guide');
+    expect(getConfiguredSpaceHref('w', 'guide', null)).toBe('/w/guide');
+    expect(getConfiguredSpaceHref('w', 'guide')).toBe('/w/guide');
+  });
 });
 
 describe('space hrefs', () => {

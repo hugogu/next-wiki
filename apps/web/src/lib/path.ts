@@ -6,10 +6,13 @@ function encodePath(path: string): string {
   return path.split('/').map((segment) => encodeURIComponent(segment)).join('/');
 }
 
-/** Public reader URL when the server has resolved the space configuration. */
+/**
+ * Public reader URL when the server has resolved the space configuration. A
+ * `locale` addresses a translation and is prefixed for every language alike.
+ */
 export function getConfiguredSpaceHref(prefix: string, path?: string, locale?: string | null): string {
   const segments = [encodeURIComponent(prefix)];
-  if (locale && locale !== 'en') segments.push(encodeURIComponent(locale));
+  if (locale) segments.push(encodeURIComponent(locale));
   if (path) segments.push(encodePath(path));
   return `/${segments.join('/')}`;
 }

@@ -91,7 +91,7 @@ export async function writeImportedRawEntry(input: {
   }
   const revisionId = randomUUID();
   const contentSource = input.page.body;
-  const { html, hash } = await renderPageMarkdown(space, contentSource, { locale: input.page.locale });
+  const { html, hash } = await renderPageMarkdown(space, contentSource);
   const contentType = input.page.contentType || 'text/plain';
   const sourceMetadata: Record<string, unknown> = {};
   if (input.page.inputKind) sourceMetadata.inputKind = input.page.inputKind;
@@ -203,7 +203,7 @@ export async function writeImportedGeneratedPage(input: {
     title: input.page.title,
     now,
   });
-  const { html, hash } = await renderPageMarkdown(space, contentSource, { locale: input.page.locale });
+  const { html, hash } = await renderPageMarkdown(space, contentSource);
 
   const result = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -314,7 +314,7 @@ export async function writeImportedPage(input: {
   }
 
   const revisionId = randomUUID();
-  const { html, hash } = await renderPageMarkdown(space, input.markdown, { locale: input.locale });
+  const { html, hash } = await renderPageMarkdown(space, input.markdown);
   const reservedLocales = await getReservedLocalePrefixes();
   const result = await db.transaction(async (tx) => {
     await assertNoSwitchInProgress(tx);
@@ -513,7 +513,7 @@ export async function writeImportedPageWithHistory(input: {
     let finalTitle = input.versions.at(-1)!.title;
     for (const version of input.versions) {
       const revisionId = randomUUID();
-      const { html, hash } = await renderPageMarkdown(space, version.markdown, { executor: tx, locale: input.locale });
+      const { html, hash } = await renderPageMarkdown(space, version.markdown, { executor: tx });
       await tx.insert(schema.pageRevisions).values({
         id: revisionId,
         pageId,
@@ -799,7 +799,7 @@ export async function writeImportedGeneratedPageWithHistory(input: {
         title: version.title,
         now: version.createdAt,
       });
-      const { html, hash } = await renderPageMarkdown(space, contentSource, { executor: tx, locale: input.locale });
+      const { html, hash } = await renderPageMarkdown(space, contentSource, { executor: tx });
       await tx.insert(schema.pageRevisions).values({
         id: revisionId,
         pageId,

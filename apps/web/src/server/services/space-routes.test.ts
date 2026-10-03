@@ -30,4 +30,12 @@ describe('space route prefixes', () => {
     expect(canonicalSpacePath({ kind: 'generated', routePrefix: 'g' }, 'concepts/payment', 'zh')).toBe('/g/zh/concepts/payment');
     expect(canonicalSpacePath({ kind: 'raw', routePrefix: 'r' })).toBe('/r');
   });
+
+  it('prefixes every language alike, so an English translation never shares the original address', () => {
+    const wiki = { kind: 'wiki' as const, routePrefix: 'w' };
+    expect(canonicalSpacePath(wiki, 'guide', 'en')).toBe('/w/en/guide');
+    expect(canonicalSpacePath(wiki, 'guide', 'zh')).toBe('/w/zh/guide');
+    expect(canonicalSpacePath(wiki, 'guide', null)).toBe('/w/guide');
+    expect(canonicalSpacePath(wiki, 'guide')).toBe('/w/guide');
+  });
 });

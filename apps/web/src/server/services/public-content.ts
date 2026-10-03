@@ -71,6 +71,7 @@ import { unstable_cache } from 'next/cache';
 import { PUBLIC_CONTENT_CACHE_TAG, shouldUseDataCache } from '@/server/cache/public-cache';
 import { DEFAULT_SPACE_SLUG, getSpaceById, listSpaces, resolveSpace } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { routingLocale } from '@/server/services/page-locale';
 import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed, isLlmWikiMode } from '@/server/services/writing-mode';
 import { deriveOkfTypeFromPath, ensureOkfConformance } from '@/server/services/okf';
@@ -2117,7 +2118,7 @@ async function batchUpdateOneItem(
   // Every successful title/path/frontmatter change creates a new revision
   // (FR-024), unlike the single-page updateProperties endpoint (which only
   // versions content changes) — the batch API is explicitly all-or-versioned.
-  const { html, hash } = await renderPageMarkdown(space, nextContent, { locale: page.locale });
+  const { html, hash } = await renderPageMarkdown(space, nextContent, { locale: routingLocale(page) });
   const versionRows = await db
     .select({ value: max(schema.pageRevisions.versionNumber) })
     .from(schema.pageRevisions)

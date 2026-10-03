@@ -7,6 +7,7 @@ import { DomainError } from '@/server/errors';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { routingLocale } from '@/server/services/page-locale';
 import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { deriveOkfTypeFromPath, ensureOkfConformance, ensureOkfConceptPath } from '@/server/services/okf';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
@@ -263,7 +264,7 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
         const source = destination.kind === 'generated' && row.adaptOkf
           ? ensureOkfConformance(original, { title: page.title, now: new Date(), fallbackType: deriveOkfTypeFromPath(item.destinationPath) })
           : original;
-        const { html, hash } = await renderPageMarkdown(destination, source, { executor: tx, locale: page.locale });
+        const { html, hash } = await renderPageMarkdown(destination, source, { executor: tx, locale: routingLocale(page) });
         const [last] = await tx.select({ value: sql<number>`max(${schema.pageRevisions.versionNumber})` }).from(schema.pageRevisions).where(eq(schema.pageRevisions.pageId, page.id));
         replacementId = randomUUID();
         await tx.insert(schema.pageRevisions).values({ id: replacementId, pageId: page.id, versionNumber: (last?.value ?? 0) + 1, locale: page.locale, contentType: revision.contentType, contentSource: source, contentHtml: html, contentHash: hash, authorId: row.requestedBy, status: revision.status, actorKind: 'human', sourceMetadata: revision.sourceMetadata, linkTargetPageId: revision.linkTargetPageId, originalAssetId: revision.originalAssetId, publishedAt: revision.status === 'published' ? new Date() : null });
@@ -303,7 +304,7 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
       ));
     await tx.update(schema.pages).set({ spaceId: destination.id, path: item.destinationPath, nature: destination.kind === 'generated' ? 'generated' : page.nature, visibility: row.visibility ?? page.visibility, latestVersionId: replacementId ?? page.latestVersionId, currentPublishedVersionId: replacementId && primaryId === page.currentPublishedVersionId ? replacementId : page.currentPublishedVersionId, updatedAt: new Date() }).where(eq(schema.pages.id, page.id));
     await tx.update(schema.crossSpaceMigrationItems).set({ status: 'moved', completedAt: new Date(), updatedAt: new Date() }).where(eq(schema.crossSpaceMigrationItems.id, item.id));
-    return { pageId: page.id, source, destination, path: item.destinationPath, slug: page.slug, locale: page.locale, legacyAddress, published: page.currentPublishedVersionId !== null };
+    return { pageId: page.id, source, destination, path: item.destinationPath, slug: page.slug, locale: routingLocale(page), legacyAddress, published: page.currentPublishedVersionId !== null };
   });
   invalidatePublicContentCache();
   await reconcilePageAcrossIndexes(effect.pageId, { actor: { kind: 'user', userId: row.requestedBy, role: 'admin' } });
