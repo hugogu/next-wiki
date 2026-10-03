@@ -104,6 +104,13 @@ export const pathSchema = z
     message: 'Path cannot contain consecutive slashes',
   });
 
+/** Two-letter ISO 639-1 language code, normalized the way the API normalizes it. */
+export const localeSchema = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .regex(/^[a-z]{2}$/, { message: 'Language must be a two-letter ISO 639-1 code' });
+
 export const publicPageIncludeSchema = z.enum(['latestRevision', 'publishedRevision']);
 export type PublicPageInclude = z.infer<typeof publicPageIncludeSchema>;
 
@@ -216,9 +223,11 @@ export const publicPagePropertiesInputSchema = z.object({
   // 035: the canonical public address. Distinct from `path` — changing it
   // never moves the page in the tree, only where it is publicly reachable.
   slug: pathSchema.optional(),
+  // The language the page's text is written in; null clears it.
+  locale: localeSchema.nullable().optional(),
   baseRevisionId: z.string().uuid().optional(),
-}).refine((value) => value.path || value.title || value.slug, {
-  message: 'Provide path, title, or slug',
+}).refine((value) => value.path || value.title || value.slug || value.locale !== undefined, {
+  message: 'Provide path, title, slug, or locale',
 });
 export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
 

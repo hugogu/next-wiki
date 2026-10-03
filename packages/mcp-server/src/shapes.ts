@@ -225,6 +225,7 @@ export function updatePropertiesResponse(source: PublicPageResource): {
   path: string;
   slug: string;
   title: string;
+  locale: string | null;
   updatedAt: string;
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
@@ -236,6 +237,7 @@ export function updatePropertiesResponse(source: PublicPageResource): {
     ...pageProvenance(source),
     path: source.path,
     title: source.title,
+    locale: source.locale,
     updatedAt: source.updatedAt,
   };
 }

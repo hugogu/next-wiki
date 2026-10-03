@@ -150,7 +150,7 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `list_raw_categories` | List the raw taxonomy categories (LLM Wiki mode) |
 | `create_raw_category` | Create a raw taxonomy category (LLM Wiki mode) |
 | `save_draft` | Save a draft revision |
-| `update_page_properties` | Update page title/path |
+| `update_page_properties` | Update page title/path/address, or set the language the page is written in |
 | `publish_page` | Publish a draft revision |
 | `list_revisions` | List revision history |
 | `get_revision` | Get revision detail |
@@ -196,6 +196,16 @@ because auth, parameter validation, and permission checks are handled internally
 `edit` scopes. It is asynchronous: poll with `get_image_generation`, then use
 `promote_generated_image` to receive ordinary Markdown for a later `save_draft`
 operation. Promotion never writes or publishes a page automatically.
+
+### Page language
+
+A page may declare the language its text is written in (`locale`, a two-letter
+ISO 639-1 code such as `en` or `zh`). Most pages leave it unset, and `get_page`
+and `list_pages` then report `locale: null`. `update_page_properties` sets it,
+or clears it with `locale: null`. This writes no revision and never changes the
+page's path or address. A page cannot be given a language it already has a
+translation in (409 `PAGE_LANGUAGE_CONFLICT`), and a translation's own language
+cannot be changed.
 
 ### Page addresses
 
