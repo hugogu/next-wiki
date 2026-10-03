@@ -6,7 +6,7 @@ import { StatusBadge } from '@/components/ui/StatusBadge';
 import * as publicContent from '@/server/services/public-content';
 import { getCurrentActor } from '@/server/services/auth';
 import { getDictionary, getStaticLocale } from '@/i18n/server';
-import { getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
+import { decodePathSegment, getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { PageListDescription } from '@/components/pages/PageListDescription';
 import { createAppFormatter } from '@/i18n/formatter';
 
@@ -18,7 +18,7 @@ type TagPageParams = Promise<{ name: string }>;
 
 export async function generateMetadata({ params }: { params: TagPageParams }): Promise<Metadata> {
   const { name } = await params;
-  return { title: decodeURIComponent(name) };
+  return { title: decodePathSegment(name) };
 }
 
 export default async function TagPage({ params }: { params: TagPageParams }) {
@@ -26,7 +26,7 @@ export default async function TagPage({ params }: { params: TagPageParams }) {
   const t = getDictionary(locale);
   const formatter = createAppFormatter(locale);
   const { name } = await params;
-  const tagName = decodeURIComponent(name);
+  const tagName = decodePathSegment(name);
   // The same tag name can exist in several spaces (frontmatter on a Generated
   // or Raw page registers it there), so this reads with the visitor's own
   // context: anonymous readers still see only the wiki space, while an

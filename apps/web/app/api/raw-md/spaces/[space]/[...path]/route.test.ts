@@ -54,6 +54,18 @@ describe('/api/raw-md/spaces/[space]/[...path]', () => {
     expect(response.status).toBe(404);
   });
 
+  // Next hands route handlers already-decoded segments, so a literal `%` (sent
+  // as `%25`) must not be decoded again: that threw a URIError and answered 500.
+  it('treats a literal percent sign as part of the path instead of throwing', async () => {
+    rawMarkdown.getSpaceRawMarkdown.mockResolvedValue({ kind: 'not_found' });
+    const response = await route.GET(
+      new NextRequest('http://localhost/api/raw-md/spaces/raw/a%25zz'),
+      context('raw', ['a%zz']),
+    );
+    expect(response.status).toBe(404);
+    expect(rawMarkdown.getSpaceRawMarkdown).toHaveBeenCalledWith('raw', 'a%zz', expect.anything());
+  });
+
   it('returns 415 for raw non-markdown content', async () => {
     rawMarkdown.getSpaceRawMarkdown.mockResolvedValue({ kind: 'unsupported', contentType: 'image/png' });
     const response = await route.GET(

@@ -10,6 +10,7 @@ import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
 import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
+import { decodePathSegment } from '@/lib/path';
 import { getCurrentActor } from '@/server/services/auth';
 import * as publicContent from '@/server/services/public-content';
 import { getCategorySystemKeyById } from '@/server/services/raw-categories';
@@ -40,7 +41,7 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const [resolved, locale] = await Promise.all([params, getStaticLocale()]);
   const t = getDictionary(locale);
   const space = await resolvePrivateSpace(resolved.space);
-  const path = resolved.path?.map(decodeURIComponent).join('/') ?? '';
+  const path = resolved.path?.map((segment) => decodePathSegment(segment)).join('/') ?? '';
   return { title: path || space?.name || t('page.error.notFound') };
 }
 
@@ -54,7 +55,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
     notFound();
   }
 
-  const segments = resolved.path?.map(decodeURIComponent) ?? [];
+  const segments = resolved.path?.map((segment) => decodePathSegment(segment)) ?? [];
   const path = segments.join('/');
 
   if (!path) {

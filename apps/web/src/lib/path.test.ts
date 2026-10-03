@@ -1,13 +1,40 @@
 import { describe, expect, it } from 'vitest';
 import {
+  decodePathSegment,
   defaultComparePair,
   getConfiguredSpaceHref,
+  getPagePathFromParams,
   getRevisionDiffHref,
   getSpaceDraftReviewHref,
   getSpaceHref,
   parseRevisionDiffOptions,
   parseRevisionPair,
 } from './path';
+
+// Next 16 hands page components percent-encoded params but `generateMetadata`
+// and route handlers already-decoded ones, so one segment can be decoded twice.
+describe('decoding route params', () => {
+  it('decodes a percent-encoded segment, as page components receive it', () => {
+    expect(decodePathSegment('release%20notes')).toBe('release notes');
+    expect(decodePathSegment('%E4%BD%A0%E5%A5%BD')).toBe('你好');
+  });
+
+  it('keeps an already-decoded segment, as generateMetadata receives it', () => {
+    expect(decodePathSegment('release notes')).toBe('release notes');
+    expect(decodePathSegment('你好')).toBe('你好');
+  });
+
+  it('keeps a literal percent sign instead of throwing a URIError', () => {
+    expect(decodePathSegment('100%zz')).toBe('100%zz');
+    expect(decodePathSegment('100%')).toBe('100%');
+    expect(decodePathSegment('%E4%BD')).toBe('%E4%BD');
+  });
+
+  it('builds the page path from encoded or decoded params without throwing', () => {
+    expect(getPagePathFromParams({ path: ['docs', 'release%20notes'] })).toBe('docs/release notes');
+    expect(getPagePathFromParams({ path: ['docs', '100%zz'] })).toBe('docs/100%zz');
+  });
+});
 
 describe('configured space URLs', () => {
   it('uses the configured prefix before locale and page path', () => {
