@@ -10,8 +10,8 @@ import { getWikiRawMarkdown } from '@/server/services/raw-markdown-export';
  * @pathParams WikiRawMarkdownPathParams
  */
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ path?: string[] }> }) {
-  // Segments stay percent-encoded: the reader resolver decodes them exactly
-  // once, and decoding here as well would turn a literal `%` into a 500.
+  // Next has already percent-decoded these segments. Decoding them again would
+  // throw on a literal `%` (`/x%25y.md`) and answer 500 instead of 404.
   const { path: segments = [] } = await params;
   const result = await getWikiRawMarkdown(segments);
   return rawMarkdownResultToResponse(result);

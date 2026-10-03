@@ -118,4 +118,13 @@ test.describe('Markdown export (.md)', () => {
       await page.request.delete(`/api/v1/pages/${membersId}`);
     }
   });
+
+  // Next hands the route already-decoded segments, so a literal `%` (sent as
+  // `%25`) used to be decoded a second time and answered 500 instead of 404.
+  test('answers 404, not 500, for an address containing a literal percent sign', async ({ request }) => {
+    const stamp = Date.now();
+
+    expect((await request.get(`/wiki/md-export-%25zz-${stamp}.md`)).status()).toBe(404);
+    expect((await request.get(`/md-export-%25zz-${stamp}.md`)).status()).toBe(404);
+  });
 });

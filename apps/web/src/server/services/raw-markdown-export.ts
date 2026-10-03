@@ -23,11 +23,18 @@ export type RawMarkdownResult =
  * Resolve a public reader URL path (space prefix, optional locale, then the
  * page's slug or a retained alias) and return the current revision's raw
  * Markdown source. Resolution is delegated to the HTML reader's own resolver so
- * a page's `.md` address is always its reader address plus `.md`. Segments stay
- * percent-encoded because the resolver decodes them.
+ * a page's `.md` address is always its reader address plus `.md`.
+ *
+ * `segments` are the path segments as the route received them: Next has already
+ * percent-decoded them, while the resolver decodes its input again. They are
+ * re-encoded for it, because decoding a literal `%` that survived the first
+ * decode (`/x%25y.md`) throws a URIError and would answer 500 instead of 404.
  */
-export async function getWikiRawMarkdown(rawSegments: string[]): Promise<RawMarkdownResult> {
-  const resolved = await resolveReaderPage(buildAnonymousCtx(), rawSegments);
+export async function getWikiRawMarkdown(segments: string[]): Promise<RawMarkdownResult> {
+  const resolved = await resolveReaderPage(
+    buildAnonymousCtx(),
+    segments.map((segment) => encodeURIComponent(segment)),
+  );
   switch (resolved.kind) {
     case 'original':
     case 'translation':
@@ -37,7 +44,7 @@ export async function getWikiRawMarkdown(rawSegments: string[]): Promise<RawMark
     case 'forbidden':
       return { kind: 'forbidden' };
     case 'not_found':
-      return getWikiRawMarkdownByTreePath(rawSegments.map((segment) => decodeURIComponent(segment)));
+      return getWikiRawMarkdownByTreePath(segments);
   }
 }
 

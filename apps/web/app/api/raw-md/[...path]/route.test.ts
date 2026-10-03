@@ -31,10 +31,12 @@ describe('/api/raw-md/[...path]', () => {
     await expect(response.text()).resolves.toBe('# Hello\n');
   });
 
-  it('passes the path segments through undecoded so the reader resolver decodes them exactly once', async () => {
+  // Next decodes the segments before the handler sees them; decoding again would
+  // throw on this literal `%` and answer 500 instead of 404.
+  it('passes the segments Next already decoded to the service untouched', async () => {
     rawMarkdown.getWikiRawMarkdown.mockResolvedValue({ kind: 'not_found' });
-    await route.GET(new NextRequest('http://localhost/api/raw-md/wiki/a%2520b'), context(['wiki', 'a%20b']));
-    expect(rawMarkdown.getWikiRawMarkdown).toHaveBeenCalledWith(['wiki', 'a%20b']);
+    await route.GET(new NextRequest('http://localhost/api/raw-md/wiki/a%25zz'), context(['wiki', 'a%zz']));
+    expect(rawMarkdown.getWikiRawMarkdown).toHaveBeenCalledWith(['wiki', 'a%zz']);
   });
 
   it('returns 404 for not found pages', async () => {

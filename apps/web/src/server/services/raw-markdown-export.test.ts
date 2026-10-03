@@ -105,12 +105,30 @@ describe('getWikiRawMarkdown by public address (035)', () => {
     });
   });
 
-  it('hands segments to the reader resolver still percent-encoded so they are decoded exactly once', async () => {
+  // Next hands the route already-decoded segments and the resolver decodes its
+  // input again, so a literal `%` has to be re-encoded or the resolver throws.
+  it('re-encodes the already-decoded segments for the reader resolver', async () => {
     readerRouting.resolveReaderPage.mockResolvedValue(resolvedOriginal());
 
-    await getWikiRawMarkdown(['wiki', 'a%2520b']);
+    await getWikiRawMarkdown(['wiki', '100%zz', 'release notes']);
 
-    expect(readerRouting.resolveReaderPage).toHaveBeenCalledWith(expect.anything(), ['wiki', 'a%2520b']);
+    expect(readerRouting.resolveReaderPage).toHaveBeenCalledWith(expect.anything(), [
+      'wiki',
+      '100%25zz',
+      'release%20notes',
+    ]);
+  });
+
+  it('answers not found rather than throwing for a literal percent sign that matches no page', async () => {
+    // Stand-in for the real resolver, which decodes its input like the reader does.
+    readerRouting.resolveReaderPage.mockImplementation(async (_ctx: unknown, segments: string[]) => {
+      segments.forEach((segment) => decodeURIComponent(segment));
+      return { kind: 'not_found' };
+    });
+    pageService.getCachedPublicLivePage.mockResolvedValue(null);
+    pageService.getReaderAccessStatus.mockResolvedValue(null);
+
+    await expect(getWikiRawMarkdown(['wiki', 'a%zz'])).resolves.toEqual({ kind: 'not_found' });
   });
 
   it('returns unsupported for a non-markdown revision', async () => {
@@ -226,13 +244,13 @@ describe('getWikiRawMarkdown legacy tree-path fallback', () => {
     expect(result).toEqual({ kind: 'unsupported', contentType: 'application/json' });
   });
 
-  it('decodes percent-encoded segments before looking the tree path up', async () => {
+  it('looks the tree path up with the segments as received, without decoding them again', async () => {
     pageService.getCachedPublicLivePage.mockResolvedValue(null);
     pageService.getReaderAccessStatus.mockResolvedValue(null);
 
-    await getWikiRawMarkdown(['docs', 'release%20notes']);
+    await getWikiRawMarkdown(['docs', '100%zz']);
 
-    expect(pageService.getCachedPublicLivePage).toHaveBeenCalledWith('docs/release notes');
+    expect(pageService.getCachedPublicLivePage).toHaveBeenCalledWith('docs/100%zz');
   });
 });
 
