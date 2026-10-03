@@ -865,16 +865,25 @@ export async function updateProperties(
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
   if (page.kind === 'link') throw new DomainError('LINK_TARGET_INVALID', 'Link pages are retired');
+  // A translation is addressed by the language it was translated into, so that
+  // language is part of what it is; only an original's can be changed. (The
+  // service resolves a page by path, which a translation shares with its
+  // original, so without this the original's language would change instead.)
+  if (input.locale !== undefined && page.translationGroupId) {
+    throw new DomainError('BAD_REQUEST', "A translation's language is the one it was translated into and cannot be changed");
+  }
   const metadataUpdated = input.title
     ? await updatePageMetadata(ctx, pageId, {
         baseRevisionId: input.baseRevisionId ?? page.latestVersionId!,
         title: input.title,
       })
     : null;
-  const updated = (input.path || input.slug)
+  const updated = (input.path || input.slug || input.locale !== undefined)
     ? await pageService.updateProperties(ctx, metadataUpdated?.path ?? page.path, {
+        pageId: page.id,
         path: input.path,
         slug: input.slug,
+        locale: input.locale,
         baseRevisionId: metadataUpdated?.latestRevision?.id ?? input.baseRevisionId,
       }, space.slug)
     : { pageId, newPath: metadataUpdated?.path ?? page.path };

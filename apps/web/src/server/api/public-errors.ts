@@ -47,6 +47,7 @@ export type PublicApiErrorCode =
   | 'PAGE_ADDRESS_SELF'
   | 'ADDRESS_ALIAS_RETAINED'
   | 'PAGE_NOT_DELETED'
+  | 'PAGE_LANGUAGE_CONFLICT'
   | 'AGENT_MEMORY_SCOPE_REQUIRED'
   | 'AGENT_MEMORY_KEY_UNBOUND'
   | 'AGENT_MEMORY_NAMESPACE_UNAVAILABLE'
@@ -169,6 +170,8 @@ export function mapPublicDomainErrorCode(code: DomainError['code']): { code: Pub
       return { code: 'ADDRESS_ALIAS_RETAINED', status: 409 };
     case 'PAGE_NOT_DELETED':
       return { code: 'PAGE_NOT_DELETED', status: 409 };
+    case 'PAGE_LANGUAGE_CONFLICT':
+      return { code: 'PAGE_LANGUAGE_CONFLICT', status: 409 };
     case 'AGENT_MEMORY_SCOPE_REQUIRED':
       return { code: 'AGENT_MEMORY_SCOPE_REQUIRED', status: 403 };
     case 'AGENT_MEMORY_KEY_UNBOUND':

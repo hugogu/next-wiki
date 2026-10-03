@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, or, sql, inArray, like } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, ne, or, sql, inArray, like } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/server/db';
 import { getAiContentLevel } from './ai-content-level';
@@ -11,7 +11,7 @@ import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
 import { assertPathNotReserved } from '@/server/routes/reserved-paths';
 import { assertAddressAvailable, setSlug } from '@/server/services/page-addresses';
-import { pathSchema, pageAddressSchema } from '@next-wiki/shared';
+import { pathSchema, pageAddressSchema, localeCodeSchema } from '@next-wiki/shared';
 import type {
   AdminPageListFilters,
   AdminPageListItem,
@@ -1898,10 +1898,49 @@ export async function newDraft(
   return created;
 }
 
+type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * A page may take a language only when nothing else holds its path in that
+ * language: (space, path, language) is the tree identity key, and a page must
+ * not be declared written in a language it already has a translation in.
+ */
+async function assertLanguageAvailable(
+  tx: Tx,
+  page: { id: string; spaceId: string },
+  path: string,
+  locale: string | null,
+): Promise<void> {
+  const occupant = await tx.query.pages.findFirst({
+    columns: { id: true, sourcePageId: true },
+    where: and(
+      ne(schema.pages.id, page.id),
+      or(
+        and(eq(schema.pages.spaceId, page.spaceId), eq(schema.pages.path, path), localeEquals(schema.pages.locale, locale)),
+        // A live translation is found by its link to this page even if its own
+        // path has since drifted away from the original's.
+        locale === null
+          ? undefined
+          : and(eq(schema.pages.sourcePageId, page.id), eq(schema.pages.locale, locale), isNull(schema.pages.deletedAt)),
+      ),
+    ),
+  });
+  if (!occupant) return;
+  throw new DomainError(
+    'PAGE_LANGUAGE_CONFLICT',
+    occupant.sourcePageId === page.id
+      ? 'This page already has a translation in that language'
+      : 'Another page already uses this path in that language',
+  );
+}
+
 export async function updateProperties(
   ctx: PermCtx,
   currentPath: string,
-  input: { path?: string; title?: string; slug?: string; baseRevisionId?: string },
+  // `locale`: undefined leaves the page's language alone, null clears it.
+  // `pageId` pins the page when the caller already knows it: a path alone can be
+  // shared by originals written in different languages.
+  input: { pageId?: string; path?: string; title?: string; slug?: string; locale?: string | null; baseRevisionId?: string },
   spaceSlug?: string,
 ): Promise<{ pageId: string; newPath: string; slug: string; url: string; retainedAlias: string | null }> {
   const userId = getUserId(ctx);
@@ -1914,8 +1953,17 @@ export async function updateProperties(
   await assertSpaceKindAllowed(space.kind);
   if (space.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Raw entries cannot be changed');
 
-  if (!input.path && !input.title && !input.slug) {
-    throw new DomainError('BAD_REQUEST', 'Provide path, title, or slug');
+  if (!input.path && !input.title && !input.slug && input.locale === undefined) {
+    throw new DomainError('BAD_REQUEST', 'Provide path, title, slug, or locale');
+  }
+
+  let locale = input.locale;
+  if (typeof locale === 'string') {
+    const localeCheck = localeCodeSchema.safeParse(locale);
+    if (!localeCheck.success) {
+      throw new DomainError('BAD_REQUEST', localeCheck.error.issues[0]?.message ?? 'Invalid language');
+    }
+    locale = localeCheck.data;
   }
 
   if (input.path) {
@@ -1941,6 +1989,7 @@ export async function updateProperties(
       where: and(
         eq(schema.pages.spaceId, space.id),
         eq(schema.pages.path, currentPath),
+        input.pageId ? eq(schema.pages.id, input.pageId) : undefined,
         isNull(schema.pages.deletedAt),
         isNull(schema.pages.translationGroupId),
       ),
@@ -1976,11 +2025,18 @@ export async function updateProperties(
     // opposite: it never touches `path`.
     const slugResult = input.slug ? await setSlug(tx, space.id, page.id, input.slug, ctx) : null;
 
+    // The language is page metadata, like the title: it creates no revision and
+    // does not move the page, so neither its address nor its history change.
+    const nextLocale = locale === undefined ? page.locale : locale;
+    const languageChanged = nextLocale !== page.locale;
+    if (languageChanged) await assertLanguageAvailable(tx, page, nextPath, nextLocale);
+
     await tx
       .update(schema.pages)
       .set({
         path: nextPath,
         ...(input.title ? { title: input.title } : {}),
+        ...(languageChanged ? { locale: nextLocale } : {}),
         updatedAt: new Date(),
       })
       .where(eq(schema.pages.id, page.id));
@@ -1993,6 +2049,7 @@ export async function updateProperties(
       retainedAlias: slugResult?.retainedAlias ?? null,
       affectedTranslationLocales: slugResult?.affectedTranslationLocales ?? [],
       isPublished: page.currentPublishedVersionId !== null,
+      languageChanged,
     };
   });
   // Tag-wide invalidation: the page's own document, its slug-addressed URL is
@@ -2010,7 +2067,8 @@ export async function updateProperties(
       }
     }
   }
-  if (result.newPath !== currentPath || result.previousSlug) await notifyPublicContentChanged('publish');
+  // The Git export and the static site both carry the page's language.
+  if (result.newPath !== currentPath || result.previousSlug || result.languageChanged) await notifyPublicContentChanged('publish');
   await reconcilePageAcrossIndexes(result.pageId, ctx);
   return { pageId: result.pageId, newPath: result.newPath, slug: result.slug, url: getPageHref(result.slug), retainedAlias: result.retainedAlias };
 }

@@ -33,6 +33,7 @@ export const aiAttributionClearanceListSchema = z.object({ items: z.array(aiAttr
 export const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
 export type PageVisibility = z.infer<typeof pageVisibilitySchema>;
 import { wikiAiChannelSchema } from './ai';
+import { localeCodeSchema } from './translations';
 
 export const slugSchema = z
   .string()
@@ -540,9 +541,12 @@ export const publicPagePropertiesInputSchema = z.object({
   // 035: the canonical public address. Distinct from `path` — changing it
   // never moves the page in the tree, only where it is publicly reachable.
   slug: pageAddressSchema.optional(),
+  // The language the page's text is written in. `null` clears it (a page need
+  // not have one); omitting the field leaves it as it is.
+  locale: localeCodeSchema.nullable().optional(),
   baseRevisionId: z.string().uuid().optional(),
-}).strict().refine((value) => value.path || value.title || value.slug, {
-  message: 'Provide path, title, or slug',
+}).strict().refine((value) => value.path || value.title || value.slug || value.locale !== undefined, {
+  message: 'Provide path, title, slug, or locale',
 });
 export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
 

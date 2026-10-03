@@ -25,7 +25,7 @@ export const SpaceMigrationPreviewInput = z.object({
 
 export const SpaceMigrationConfirmInput = z.object({ previewId: z.string().uuid(), fingerprint: z.string().min(16) });
 export const SpaceMigrationItem = z.object({
-  id: z.string().uuid(), pageId: z.string().uuid(), sourcePath: z.string(), destinationPath: z.string(), locale: z.string(),
+  id: z.string().uuid(), pageId: z.string().uuid(), sourcePath: z.string(), destinationPath: z.string(), locale: z.string().nullable(),
   status: z.enum(['pending', 'running', 'moved', 'excluded', 'conflicted', 'failed', 'cancelled']),
   warning: z.string().nullable(), failure: z.string().nullable(), canonicalUrl: z.string().nullable().optional(),
 });
@@ -1148,7 +1148,7 @@ export const PublicPageResource = z
     spaceSlug: z.string().describe('Slug of the wiki space the page belongs to.'),
     path: PublicPagePath,
     slug: z.string().describe("Canonical public address (035) — the effective slug this page resolves at. For a translation, this is its source page's slug."),
-    locale: z.string().describe('Locale of the page content (e.g. "en", "zh").'),
+    locale: z.string().nullable().describe('Language the page text is written in (e.g. "en", "zh"), or null when none has been set. A translation always has one.'),
     title: z.string().describe('Human-readable page title.'),
     canonicalUrl: z.string().optional().describe('Configured public reader URL for this page.'),
     origin: z
@@ -1523,13 +1523,21 @@ export const PublicPagePropertiesInput = z
     slug: PublicPagePath.optional().describe(
       'New canonical public address. Distinct from `path`: changing it never moves the page in the tree, only where it is publicly reachable. A published page\'s former address is retained as a redirect.',
     ),
+    locale: z
+      .string()
+      .trim()
+      .toLowerCase()
+      .regex(/^[a-z]{2}$/)
+      .nullable()
+      .optional()
+      .describe('Language the page text is written in, as a two-letter ISO 639-1 code. Null clears it: a page does not need a language. Omit to leave it unchanged. Only an original page has one that can be set; it is rejected with 409 PAGE_LANGUAGE_CONFLICT if the page already has a translation in that language, or another page at the same path does.'),
     baseRevisionId: z
       .string()
       .uuid()
       .optional()
       .describe('Expected current revision id, used for optimistic concurrency control.'),
   })
-  .describe('Update page properties. Provide at least one of path, title, or slug.');
+  .describe('Update page properties. Provide at least one of path, title, slug, or locale.');
 
 export const PublicPageAddress = z
   .object({
