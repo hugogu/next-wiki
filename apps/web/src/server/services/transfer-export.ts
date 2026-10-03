@@ -1,4 +1,5 @@
 import { and, asc, eq, inArray, isNull, ne } from 'drizzle-orm';
+import { archiveLocale } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { readImageFromDatabase, readMarkdownFromDatabase } from '@/server/content-store/read-router';
@@ -205,7 +206,7 @@ async function captureSnapshot(args: {
         id: row.page.id,
         revisionId: row.revision.id,
         path: row.page.path,
-        locale: row.page.locale,
+        locale: archiveLocale(row.page.locale),
         title: row.page.title,
         markdown,
         contentHash: row.revision.contentHash,

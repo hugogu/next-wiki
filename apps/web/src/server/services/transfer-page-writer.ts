@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { pageLocaleFromArchive } from '@next-wiki/shared';
 import { and, eq, inArray, max } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -12,6 +13,7 @@ import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 import { ensureOkfConformance } from '@/server/services/okf';
 import { assertAddressAvailable, deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
 import { getReservedLocalePrefixes } from '@/server/services/translation-locales';
+import { localeEquals } from '@/server/services/page-locale';
 import { renderPageMarkdown } from '@/server/services/wiki-links';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -82,7 +84,7 @@ export async function writeImportedRawEntry(input: {
     where: and(
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, input.page.path),
-      eq(schema.pages.locale, input.page.locale),
+      localeEquals(schema.pages.locale, pageLocaleFromArchive(input.page.locale)),
     ),
   });
   if (existing && input.action === 'skip') return { pageId: existing.id, revisionId: null, action: 'skip' };
@@ -128,7 +130,7 @@ export async function writeImportedRawEntry(input: {
           // US5.
           slug: input.page.path,
           path: input.page.path,
-          locale: input.page.locale,
+          locale: pageLocaleFromArchive(input.page.locale),
           title: input.page.title,
           authorId: input.actorUserId,
           nature: 'original',
@@ -190,7 +192,7 @@ export async function writeImportedGeneratedPage(input: {
     where: and(
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, input.page.path),
-      eq(schema.pages.locale, input.page.locale),
+      localeEquals(schema.pages.locale, pageLocaleFromArchive(input.page.locale)),
     ),
   });
   if (existing && input.action === 'skip') return { pageId: existing.id, revisionId: null, action: 'skip' };
@@ -226,7 +228,7 @@ export async function writeImportedGeneratedPage(input: {
           // US5.
           slug: input.page.path,
           path: input.page.path,
-          locale: input.page.locale,
+          locale: pageLocaleFromArchive(input.page.locale),
           title: input.page.title,
           authorId: input.actorUserId,
           nature: 'generated',
@@ -305,7 +307,7 @@ export async function writeImportedPage(input: {
     where: and(
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, input.path),
-      eq(schema.pages.locale, input.locale),
+      localeEquals(schema.pages.locale, pageLocaleFromArchive(input.locale)),
     ),
   });
   if (existing && input.action === 'skip') return { pageId: existing.id, revisionId: null, action: 'skip' };
@@ -343,7 +345,7 @@ export async function writeImportedPage(input: {
           spaceId: space.id,
           slug: derivedAddress.address,
           path: input.path,
-          locale: input.locale,
+          locale: pageLocaleFromArchive(input.locale),
           title: input.title,
           authorId: input.actorUserId,
           nature: 'original',
@@ -356,7 +358,7 @@ export async function writeImportedPage(input: {
       id: revisionId,
       pageId,
       versionNumber,
-      locale: input.locale,
+      locale: pageLocaleFromArchive(input.locale),
       contentType: 'text/markdown',
       contentSource: input.markdown,
       contentHtml: html,
@@ -433,7 +435,7 @@ export async function writeImportedPageWithHistory(input: {
     where: and(
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, input.path),
-      eq(schema.pages.locale, input.locale),
+      localeEquals(schema.pages.locale, pageLocaleFromArchive(input.locale)),
     ),
   });
   if (input.action === 'skip') return { pageId: existing?.id ?? null, revisionIds: [], action: 'skip' };
@@ -496,7 +498,7 @@ export async function writeImportedPageWithHistory(input: {
           spaceId: space.id,
           slug: derivedAddress.address,
           path: input.path,
-          locale: input.locale,
+          locale: pageLocaleFromArchive(input.locale),
           title: input.versions.at(-1)!.title,
           authorId: input.actorUserId,
           nature: 'original',
@@ -518,7 +520,7 @@ export async function writeImportedPageWithHistory(input: {
         id: revisionId,
         pageId,
         versionNumber: versionNumber++,
-        locale: input.locale,
+        locale: pageLocaleFromArchive(input.locale),
         contentType: 'text/markdown',
         contentSource: version.markdown,
         contentHtml: html,
@@ -598,7 +600,7 @@ export async function writeImportedRawEntryWithHistory(input: {
     where: and(
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, input.path),
-      eq(schema.pages.locale, input.locale),
+      localeEquals(schema.pages.locale, pageLocaleFromArchive(input.locale)),
     ),
   });
   if (input.action === 'skip') return { pageId: existing?.id ?? null, revisionIds: [], action: 'skip' };
@@ -654,7 +656,7 @@ export async function writeImportedRawEntryWithHistory(input: {
           // US5.
           slug: input.path,
           path: input.path,
-          locale: input.locale,
+          locale: pageLocaleFromArchive(input.locale),
           title: input.title,
           authorId: input.actorUserId,
           nature: 'original',
@@ -734,7 +736,7 @@ export async function writeImportedGeneratedPageWithHistory(input: {
     where: and(
       eq(schema.pages.spaceId, space.id),
       eq(schema.pages.path, input.path),
-      eq(schema.pages.locale, input.locale),
+      localeEquals(schema.pages.locale, pageLocaleFromArchive(input.locale)),
     ),
   });
   if (input.action === 'skip') return { pageId: existing?.id ?? null, revisionIds: [], action: 'skip' };
@@ -781,7 +783,7 @@ export async function writeImportedGeneratedPageWithHistory(input: {
           // US5.
           slug: input.path,
           path: input.path,
-          locale: input.locale,
+          locale: pageLocaleFromArchive(input.locale),
           title: input.versions.at(-1)!.title,
           authorId: input.actorUserId,
           nature: 'generated',

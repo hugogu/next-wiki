@@ -119,7 +119,8 @@ export const publicPageResourceSchema = z.object({
   path: pathSchema,
   // 035: canonical public address — the effective slug this page resolves at.
   slug: z.string(),
-  locale: z.string(),
+  // The language the page's text is written in; null when nobody has said.
+  locale: z.string().nullable(),
   title: z.string(),
   canonicalUrl: z.string().optional(),
   origin: publicOriginSchema.optional(),

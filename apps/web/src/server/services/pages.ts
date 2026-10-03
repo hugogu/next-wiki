@@ -42,7 +42,7 @@ import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref, getTranslatedPageHref } from '@/lib/path';
 import { getEffectiveDefaultVisibility, getSpaceById, resolveSpace, type SpaceKind, type SpaceRow } from '@/server/services/spaces';
 import { canonicalSpacePath } from '@/server/services/space-routes';
-import { routingLocale } from '@/server/services/page-locale';
+import { routingLocale, localeEquals } from '@/server/services/page-locale';
 import { createWikiLinkResolver, renderPageMarkdown } from '@/server/services/wiki-links';
 import { logger } from '@/server/logger';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
@@ -1225,7 +1225,7 @@ export async function getPublishedTranslationLocales(sourcePath: string, spaceSl
   });
   if (!group) return [];
   const rows = await db
-    .select({ locale: schema.pages.locale })
+    .select({ locale: schema.translationLanguages.code })
     .from(schema.pages)
     .innerJoin(
       schema.translationLanguages,
@@ -1268,7 +1268,7 @@ export async function getReadablePublishedTranslationLocales(
   const group = await db.query.translationGroups.findFirst({ where: eq(schema.translationGroups.sourcePageId, source.id) });
   if (!group) return [];
   const translations = await db
-    .select({ id: schema.pages.id, locale: schema.pages.locale, authorId: schema.pages.authorId, visibility: schema.pages.visibility })
+    .select({ id: schema.pages.id, locale: schema.translationLanguages.code, authorId: schema.pages.authorId, visibility: schema.pages.visibility })
     .from(schema.pages)
     .innerJoin(schema.translationLanguages, eq(schema.translationLanguages.code, schema.pages.locale))
     .where(
@@ -2063,7 +2063,7 @@ export async function moveToSpace(
       where: and(
         eq(schema.pages.spaceId, target.id),
         eq(schema.pages.path, page.path),
-        eq(schema.pages.locale, page.locale),
+        localeEquals(schema.pages.locale, page.locale),
         isNull(schema.pages.translationGroupId),
       ),
     });

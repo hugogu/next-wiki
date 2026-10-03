@@ -109,7 +109,7 @@ export type PageListItem = {
   slug: string;
   title: string;
   status: string;
-  locale: string;
+  locale: string | null;
   metadata?: PublicPageResource['metadata'];
   canonicalUrl?: string;
   origin?: PublicPageResource['origin'];
@@ -150,7 +150,7 @@ export function getPageResponse(
   path: string;
   slug: string;
   title: string;
-  locale: string;
+  locale: string | null;
   status: string;
   contentSource?: string;
   latestRevisionId?: string;

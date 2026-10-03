@@ -26,6 +26,9 @@ export type LanguageOption = {
   /** False when this page has no version in that language; the href then points
    *  at the language's own home page rather than nowhere. */
   available: boolean;
+  /** Shown instead of the upper-cased `locale`, for the original-language
+   *  section, which has no language code of its own to show. */
+  label?: string;
 };
 
 /**

@@ -1647,6 +1647,7 @@ export const translationKeys = [
   "admin.staticSite.site.onThisPage",
   "admin.staticSite.site.toggleTheme",
   "admin.staticSite.site.languages",
+  "admin.staticSite.site.original",
   "admin.staticSite.site.noResults",
   "admin.staticSite.site.notFound",
   "admin.staticSite.site.translationMissing",

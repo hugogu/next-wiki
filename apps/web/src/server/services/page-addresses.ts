@@ -9,6 +9,7 @@ import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { getPageHref } from '@/lib/path';
 import { getReservedLocalePrefixes } from '@/server/services/translation-locales';
+import { translationLocale } from '@/server/services/page-locale';
 import * as audit from '@/server/services/audit';
 
 type Tx = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -257,7 +258,7 @@ export async function setSlug(
       .insert(schema.pageAddresses)
       .values({
         spaceId,
-        address: `${translation.locale}/${previousSlug}`,
+        address: `${translationLocale(translation)}/${previousSlug}`,
         pageId: translation.id,
         kind: 'retained',
         reason: 'slug_change',
@@ -265,7 +266,7 @@ export async function setSlug(
       .onConflictDoNothing();
   }
 
-  return { slug: nextSlug, retainedAlias: previousSlug, affectedTranslationLocales: translations.map((t) => t.locale) };
+  return { slug: nextSlug, retainedAlias: previousSlug, affectedTranslationLocales: translations.map(translationLocale) };
 }
 
 /**

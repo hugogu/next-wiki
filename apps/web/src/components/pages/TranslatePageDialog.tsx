@@ -164,9 +164,10 @@ export function TranslatePageDialog({
   onClose,
 }: {
   pageId: string;
-  /** Language the page is recorded in. A page cannot be translated into it (the
-   * translation would collide with the page itself), so it is not offered. */
-  sourceLocale?: string;
+  /** Language the page is written in, when someone has said. A page cannot be
+   * translated into it (the translation would collide with the page itself), so
+   * it is not offered; a page with no language set can go into any. */
+  sourceLocale?: string | null;
   /** When set, the run targets this locale and the language picker is locked
    * (used by "re-translate" on an existing translated document). */
   initialTargetLocale?: string;

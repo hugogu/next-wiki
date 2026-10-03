@@ -1,5 +1,22 @@
 import { z } from 'zod';
 
+/**
+ * Archives and Wiki.js carry every page's language as a required string, while
+ * a page in next-wiki may have none. A page with no language set is written as
+ * `und` — the BCP 47 subtag for "undetermined" — and read back as unset. It
+ * cannot collide with a language a person can pick, which is always a
+ * two-letter ISO 639-1 code.
+ */
+export const ARCHIVE_UNSET_LOCALE = 'und';
+
+export function archiveLocale(locale: string | null): string {
+  return locale ?? ARCHIVE_UNSET_LOCALE;
+}
+
+export function pageLocaleFromArchive(locale: string): string | null {
+  return locale === ARCHIVE_UNSET_LOCALE ? null : locale;
+}
+
 export const transferSourceTypeSchema = z.enum(['wikijs']);
 export const transferSourceStatusSchema = z.enum([
   'unverified',

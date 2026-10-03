@@ -231,7 +231,10 @@ export const publicPageResourceSchema = z.object({
   // For a translation, this is its source page's slug (translations own no
   // independent address); `canonicalUrl` is the full address built from it.
   slug: z.string(),
-  locale: z.string(),
+  // The language the page's text is written in, or null when none is set.
+  // For a translation it is the language of the translation, and the prefix it
+  // is served under; an original is always served at its bare address.
+  locale: z.string().nullable(),
   title: z.string(),
   canonicalUrl: z.string().optional(),
   origin: z

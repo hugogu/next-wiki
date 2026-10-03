@@ -192,7 +192,7 @@ async function getDefaultSpaceId(): Promise<string> {
 type EligibleSource = {
   pageId: string;
   path: string;
-  locale: string;
+  locale: string | null;
   revisionId: string;
   contentHash: string;
 };

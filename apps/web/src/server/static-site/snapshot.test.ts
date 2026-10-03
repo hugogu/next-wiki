@@ -48,7 +48,8 @@ async function makePage(options: {
       // owns no independent slug and is always ''.
       slug: options.sourcePageId ? '' : options.path,
       path: options.path,
-      locale: options.locale ?? 'en',
+      // Nothing gives a page a language by default; a test that needs one says so.
+      locale: options.locale ?? null,
       title: options.title,
       authorId,
       visibility: options.visibility ?? 'public',
@@ -75,6 +76,35 @@ async function makePage(options: {
     .set({ latestVersionId: revision!.id, currentPublishedVersionId: revision!.id })
     .where(eq(schema.pages.id, page!.id));
   return { pageId: page!.id, revisionId: revision!.id };
+}
+
+/**
+ * A published translation of a page that is itself not public, so only the
+ * translation reaches the site. A real translation row carries a group and
+ * points back at its source; the original never carries the group.
+ */
+async function makeTranslationOnly(options: {
+  spaceId: string;
+  path: string;
+  title: string;
+  locale: string;
+  sourceLocale?: string | null;
+}) {
+  const source = await makePage({
+    spaceId: options.spaceId,
+    path: options.path,
+    title: `source of ${options.title}`,
+    locale: options.sourceLocale ?? undefined,
+    visibility: 'restricted',
+  });
+  return makePage({
+    spaceId: options.spaceId,
+    path: options.path,
+    title: options.title,
+    locale: options.locale,
+    translationGroupId: randomUUID(),
+    sourcePageId: source.pageId,
+  });
 }
 
 async function clearContent() {
@@ -294,9 +324,9 @@ describe('artifact layout', () => {
     // is another would otherwise open on a nearly empty page, with the real
     // content reachable only by noticing a two-letter language link.
     const space = await makeSpace('wiki');
-    await makePage({ spaceId: space, path: 'lone-english', title: 'Lone English', locale: 'en' });
+    await makePage({ spaceId: space, path: 'lone-original', title: 'Lone original' });
     for (const path of ['a', 'b', 'c']) {
-      await makePage({ spaceId: space, path, title: `中文-${path}`, locale: 'zh' });
+      await makeTranslationOnly({ spaceId: space, path, title: `中文-${path}`, locale: 'zh' });
     }
 
     const root = await stage();
@@ -307,7 +337,7 @@ describe('artifact layout', () => {
     // section heading rather than by link, since the sidebar also carries the
     // default language's tree earlier in the document.
     expect(home).toContain('/repo/zh/a/');
-    expect(home).toContain('/repo/lone-english/');
+    expect(home).toContain('/repo/lone-original/');
     const headings = [...home.matchAll(/<section><h2>([^<]+)/g)].map((m) => m[1]!.trim());
     expect(headings).toHaveLength(2);
     expect(headings[0]).toBe('中文');
@@ -346,8 +376,8 @@ describe('artifact layout', () => {
 
   it('shows only its own language on a per-language home page', async () => {
     const space = await makeSpace('wiki');
-    await makePage({ spaceId: space, path: 'english', title: 'English', locale: 'en' });
-    await makePage({ spaceId: space, path: 'chinese', title: '中文', locale: 'zh' });
+    await makePage({ spaceId: space, path: 'english', title: 'English' });
+    await makeTranslationOnly({ spaceId: space, path: 'chinese', title: '中文', locale: 'zh' });
 
     const root = await stage();
     await snapshot(root);
@@ -358,8 +388,8 @@ describe('artifact layout', () => {
 
   it('writes a home page per language so a language switch always lands somewhere', async () => {
     const space = await makeSpace('wiki');
-    await makePage({ spaceId: space, path: 'a', title: 'A', locale: 'en' });
-    await makePage({ spaceId: space, path: 'b', title: '乙', locale: 'zh' });
+    await makePage({ spaceId: space, path: 'a', title: 'A' });
+    await makeTranslationOnly({ spaceId: space, path: 'b', title: '乙', locale: 'zh' });
 
     const root = await stage();
     await snapshot(root);
@@ -377,14 +407,66 @@ describe('artifact layout', () => {
     // FR-025: a reader can only be told a translation is missing if the
     // switcher shows the language at all.
     const space = await makeSpace('wiki');
-    await makePage({ spaceId: space, path: 'english-only', title: 'English Only', locale: 'en' });
-    await makePage({ spaceId: space, path: 'other', title: '其他', locale: 'zh' });
+    await makePage({ spaceId: space, path: 'english-only', title: 'English Only' });
+    await makeTranslationOnly({ spaceId: space, path: 'other', title: '其他', locale: 'zh' });
 
     const root = await stage();
     await snapshot(root);
     const html = await readFile(join(root, 'english-only', 'index.html'), 'utf8');
     expect(html).toContain('hreflang="zh"');
     expect(html).toContain('href="/repo/zh/"');
+  });
+
+  it('publishes an English translation beside an original that has no language, at its own address', async () => {
+    // Every original used to be recorded as English, which made English the one
+    // language a page could not be translated into. Without a language on the
+    // original, the translation and the original must still not share an
+    // address.
+    const space = await makeSpace('wiki');
+    const original = await makePage({ spaceId: space, path: 'guide', title: '指南', body: '# 指南\n\n中文正文。' });
+    await makePage({
+      spaceId: space,
+      path: 'guide',
+      title: 'Guide',
+      body: '# Guide\n\nEnglish body.',
+      locale: 'en',
+      translationGroupId: randomUUID(),
+      sourcePageId: original.pageId,
+    });
+
+    const root = await stage();
+    await snapshot(root);
+    const source = await readFile(join(root, 'guide', 'index.html'), 'utf8');
+    const english = await readFile(join(root, 'en', 'guide', 'index.html'), 'utf8');
+
+    expect(source).toContain('中文正文');
+    expect(english).toContain('English body.');
+    expect(english).toContain('<html lang="en">');
+    // The original says nothing about its language rather than claiming one.
+    expect(source).toMatch(/<html>/);
+    // The original section has no language code, so its switcher entry says
+    // what it is — and does not advertise one.
+    expect(english).toContain('>Original</a>');
+    expect(english).toContain('href="/repo/"');
+    expect(english).not.toContain('hreflang="und"');
+    expect(source).toContain('hreflang="en"');
+  });
+
+  it('states the language of an original only when someone has said what it is', async () => {
+    const space = await makeSpace('wiki');
+    await makePage({ spaceId: space, path: 'declared', title: '已声明', locale: 'zh' });
+    await makePage({ spaceId: space, path: 'unlabelled', title: 'Unlabelled' });
+
+    const root = await stage();
+    await snapshot(root);
+    const declared = await readFile(join(root, 'declared', 'index.html'), 'utf8');
+    const unlabelled = await readFile(join(root, 'unlabelled', 'index.html'), 'utf8');
+
+    // Served at its bare address whatever its language: only a translation is
+    // addressed under a language prefix.
+    expect(declared).toContain('<html lang="zh">');
+    expect(unlabelled).toMatch(/<html>/);
+    await expect(stat(join(root, 'zh', 'declared', 'index.html'))).rejects.toThrow();
   });
 
   it('renders content through the wiki pipeline, keeping code and math markers', async () => {

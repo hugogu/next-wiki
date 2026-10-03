@@ -21,7 +21,8 @@ import { DomainError } from '@/server/errors';
 import { runWithoutDataCache } from '@/server/cache/public-cache';
 import { deriveImportAddress, type ImportAddressAdjustmentReason } from '@/server/services/page-addresses';
 import { getReservedLocalePrefixes } from '@/server/services/translation-locales';
-import type { NormalizedPortableManifest } from '@next-wiki/shared';
+import { localeEquals } from '@/server/services/page-locale';
+import { pageLocaleFromArchive, type NormalizedPortableManifest } from '@next-wiki/shared';
 import { formatExceptionDetail, formatExceptionMessage, logger } from '@/server/logger';
 
 const WIKIJS_PREVIEW_BATCH_SIZE = 50;
@@ -137,7 +138,7 @@ async function previewArchive(run: typeof schema.transferRuns.$inferSelect) {
       where: and(
         eq(schema.pages.spaceId, space.id),
         eq(schema.pages.path, page.path),
-        eq(schema.pages.locale, page.locale),
+        localeEquals(schema.pages.locale, pageLocaleFromArchive(page.locale)),
       ),
     });
     let action: 'create' | 'replace' | 'skip' = existing ? (strategy === 'replace' ? 'replace' : 'skip') : 'create';
@@ -358,7 +359,7 @@ async function previewWikiJs(run: typeof schema.transferRuns.$inferSelect) {
         where: and(
           eq(schema.pages.spaceId, space.id),
           eq(schema.pages.path, summary.path),
-          eq(schema.pages.locale, summary.locale),
+          localeEquals(schema.pages.locale, pageLocaleFromArchive(summary.locale)),
         ),
       });
       let targetAction: 'create' | 'replace' | 'skip' = existing

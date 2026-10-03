@@ -119,7 +119,8 @@ export async function materializeGitExport(
       '---',
       `title: ${quoteFrontmatter(row.title)}`,
       `path: ${quoteFrontmatter(row.path)}`,
-      `locale: ${quoteFrontmatter(row.locale)}`,
+      // A page with no language set carries no locale line.
+      ...(row.locale ? [`locale: ${quoteFrontmatter(row.locale)}`] : []),
       `version: ${row.version}`,
       `publishedAt: ${quoteFrontmatter(row.publishedAt?.toISOString() ?? '')}`,
       '---',

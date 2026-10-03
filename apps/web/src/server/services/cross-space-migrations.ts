@@ -7,7 +7,7 @@ import { DomainError } from '@/server/errors';
 import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { canonicalSpacePath } from '@/server/services/space-routes';
-import { routingLocale } from '@/server/services/page-locale';
+import { localeEquals, routingLocale } from '@/server/services/page-locale';
 import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { deriveOkfTypeFromPath, ensureOkfConformance, ensureOkfConceptPath } from '@/server/services/okf';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
@@ -29,7 +29,7 @@ import type {
 const PREVIEW_TTL_MS = 4 * 60 * 60 * 1000;
 type MigrationRow = typeof schema.crossSpaceMigrations.$inferSelect;
 type ItemRow = typeof schema.crossSpaceMigrationItems.$inferSelect;
-type SnapshotItem = { pageId: string; sourcePath: string; destinationPath: string; locale: string; updatedAt: string; warning?: string };
+type SnapshotItem = { pageId: string; sourcePath: string; destinationPath: string; locale: string | null; updatedAt: string; warning?: string };
 type Snapshot = { items: SnapshotItem[]; sourceSpaceId: string; destinationSpaceId: string };
 
 function assertMigrationAdmin(ctx: PermCtx): string {
@@ -141,7 +141,7 @@ export async function previewCrossSpaceMigration(ctx: PermCtx, input: SpaceMigra
       : destinationPrefix ? page.path.split('/').at(-1)! : page.path;
     const destinationPath = appendPath(destinationPrefix, basePath ? relative : relative);
     const exists = await db.query.pages.findFirst({
-      where: and(eq(schema.pages.spaceId, destination.id), eq(schema.pages.path, destinationPath), eq(schema.pages.locale, page.locale), isNull(schema.pages.deletedAt), ne(schema.pages.id, page.id)),
+      where: and(eq(schema.pages.spaceId, destination.id), eq(schema.pages.path, destinationPath), localeEquals(schema.pages.locale, page.locale), isNull(schema.pages.deletedAt), ne(schema.pages.id, page.id)),
     });
     const warning = exists ? 'Destination path already exists; this item will remain unchanged.' : warningFor(page, destination);
     items.push({ pageId: page.id, sourcePath: page.path, destinationPath, locale: page.locale, updatedAt: page.updatedAt.toISOString(), ...(warning ? { warning } : {}) });
@@ -252,7 +252,7 @@ async function moveItem(row: MigrationRow, item: ItemRow): Promise<void> {
       tx.query.spaces.findFirst({ where: eq(schema.spaces.id, row.destinationSpaceId) }),
     ]);
     if (!source || !destination || source.kind === 'raw' || destination.kind === 'raw') throw new DomainError('RAW_SPACE_IMMUTABLE', 'Migration spaces are no longer eligible');
-    const conflict = await tx.query.pages.findFirst({ where: and(eq(schema.pages.spaceId, destination.id), eq(schema.pages.path, item.destinationPath), eq(schema.pages.locale, page.locale), isNull(schema.pages.deletedAt), ne(schema.pages.id, page.id)) });
+    const conflict = await tx.query.pages.findFirst({ where: and(eq(schema.pages.spaceId, destination.id), eq(schema.pages.path, item.destinationPath), localeEquals(schema.pages.locale, page.locale), isNull(schema.pages.deletedAt), ne(schema.pages.id, page.id)) });
     if (conflict) throw new DomainError('PAGE_PATH_CONFLICT', 'Destination path now exists');
     if (destination.kind === 'generated') ensureOkfConceptPath(item.destinationPath);
     const primaryId = page.currentPublishedVersionId ?? page.latestVersionId;

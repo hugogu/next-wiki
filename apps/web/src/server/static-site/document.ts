@@ -35,6 +35,8 @@ export type DocumentStrings = {
   onThisPage: string;
   toggleTheme: string;
   languages: string;
+  /** Names the section holding the original pages. */
+  original: string;
   noResults: string;
   /** Shown on a language the current page has no version in. */
   translationMissing: string;
@@ -44,6 +46,8 @@ export type RenderDocumentInput = {
   title: string;
   /** Rendered, link-rewritten body HTML. */
   bodyHtml: string;
+  /** Language the document is written in, for `<html lang>`. Empty when unknown,
+   *  in which case the attribute is left off rather than guessed. */
   locale: string;
   basePath: string;
   assets: DocumentAssets;
@@ -180,9 +184,11 @@ function renderLanguages(
       const classes = option.available
         ? 'rounded-sm px-xs py-xs text-xs text-muted hover:text-foreground'
         : 'rounded-sm px-xs py-xs text-xs text-muted/60 italic hover:text-foreground';
-      return `<a href="${escapeHtml(option.href)}" hreflang="${escapeHtml(
-        option.locale,
-      )}"${title} class="${classes}">${escapeHtml(option.locale.toUpperCase())}</a>`;
+      // The original-language section has no language code to advertise.
+      const hreflang = option.label === undefined ? ` hreflang="${escapeHtml(option.locale)}"` : '';
+      return `<a href="${escapeHtml(option.href)}"${hreflang}${title} class="${classes}">${escapeHtml(
+        option.label ?? option.locale.toUpperCase(),
+      )}</a>`;
     })
     .join('');
   return `<div class="flex items-center gap-xs" aria-label="${escapeHtml(label)}">${links}</div>`;
@@ -211,7 +217,7 @@ export function renderDocument(input: RenderDocumentInput): string {
   const asset = (path: string) => escapeHtml(`${basePath}${path}`);
 
   return `<!DOCTYPE html>
-<html lang="${escapeHtml(locale)}">
+<html${locale ? ` lang="${escapeHtml(locale)}"` : ''}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

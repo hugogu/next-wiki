@@ -34,7 +34,7 @@ export const spaceMigrationItemSchema = z.object({
   pageId: z.string().uuid(),
   sourcePath: z.string(),
   destinationPath: z.string(),
-  locale: z.string(),
+  locale: z.string().nullable(),
   status: crossSpaceMigrationItemStatusSchema,
   warning: z.string().nullable(),
   failure: z.string().nullable(),
