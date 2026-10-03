@@ -5,6 +5,7 @@ import { buildAnonymousCtx, type Actor } from '@/server/permissions';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import * as pageService from '@/server/services/pages';
 import * as publicContent from '@/server/services/public-content';
+import { resolveReaderPage } from '@/server/services/reader-routing';
 import { isLlmWikiMode } from '@/server/services/writing-mode';
 
 import { getReservedLocalePrefixes, isReservedLocalePrefix } from '@/server/services/translation-locales';
@@ -19,11 +20,40 @@ export type RawMarkdownResult =
   | { kind: 'forbidden' };
 
 /**
- * Resolve a public wiki reader path (including optional leading locale) and
- * return the current revision's raw Markdown source. Mirrors the resolution
- * logic in the reader page so `.md` exports stay consistent with the HTML view.
+ * Resolve a public reader URL path (space prefix, optional locale, then the
+ * page's slug or a retained alias) and return the current revision's raw
+ * Markdown source. Resolution is delegated to the HTML reader's own resolver so
+ * a page's `.md` address is always its reader address plus `.md`.
+ *
+ * `segments` are the path segments as the route received them: Next has already
+ * percent-decoded them, while the resolver decodes its input again. They are
+ * re-encoded for it, because decoding a literal `%` that survived the first
+ * decode (`/x%25y.md`) throws a URIError and would answer 500 instead of 404.
  */
 export async function getWikiRawMarkdown(segments: string[]): Promise<RawMarkdownResult> {
+  const resolved = await resolveReaderPage(
+    buildAnonymousCtx(),
+    segments.map((segment) => encodeURIComponent(segment)),
+  );
+  switch (resolved.kind) {
+    case 'original':
+    case 'translation':
+      return readRevisionMarkdown(resolved.page.revisionId, resolved.page.title);
+    case 'unavailable':
+      return { kind: 'unavailable' };
+    case 'forbidden':
+      return { kind: 'forbidden' };
+    case 'not_found':
+      return getWikiRawMarkdownByTreePath(segments);
+  }
+}
+
+/**
+ * `.md` links created before slug routing (035) named a page by its tree path
+ * (`/<tree path>.md`), which is no longer a public address. Keep them resolving
+ * so existing links and scripts do not break.
+ */
+async function getWikiRawMarkdownByTreePath(segments: string[]): Promise<RawMarkdownResult> {
   const fullPath = segments.join('/');
 
   if (segments.length >= 2 && isReservedLocalePrefix(await getReservedLocalePrefixes(), segments[0]!)) {
