@@ -280,8 +280,8 @@ describe('translation run creation', () => {
       const s = await seed();
       await enableEnglish(s);
 
-      // Originals are recorded as `en` by default, so the translated row would
-      // collide with the original on (space, path, locale).
+      // The page is written in English, so a translated row would collide with
+      // it on (space, path, locale).
       await expect(
         createRun(ctx(s.adminId), {
           targetLocale: 'en',
@@ -338,6 +338,112 @@ describe('translation run creation', () => {
           mode: 'all',
         }),
       ).rejects.toMatchObject({ code: 'SOURCE_NOT_TRANSLATABLE' });
+    });
+
+    it('does not blame the language when the request also named a page that is not published', async () => {
+      const s = await seed();
+      await enableEnglish(s);
+      await db
+        .update(schema.pages)
+        .set({ currentPublishedVersionId: null })
+        .where(eq(schema.pages.id, s.pageB));
+
+      // pageA is written in English; pageB cannot be translated for another reason.
+      await expect(
+        createRun(ctx(s.adminId), {
+          targetLocale: 'en',
+          scope: { kind: 'page_ids', pageIds: [s.pageA, s.pageB] },
+          mode: 'all',
+        }),
+      ).rejects.toMatchObject({ code: 'SOURCE_NOT_TRANSLATABLE' });
+    });
+
+    it('does not blame the language when a requested path matches no published page', async () => {
+      const s = await seed();
+      await enableEnglish(s);
+
+      await expect(
+        createRun(ctx(s.adminId), {
+          targetLocale: 'en',
+          scope: { kind: 'paths', paths: ['guide', 'nowhere'] },
+          mode: 'all',
+        }),
+      ).rejects.toMatchObject({ code: 'SOURCE_NOT_TRANSLATABLE' });
+    });
+
+    it('blames the language when everything requested is in it, however often a page is named', async () => {
+      const s = await seed();
+      await enableEnglish(s);
+
+      await expect(
+        createRun(ctx(s.adminId), {
+          targetLocale: 'en',
+          scope: { kind: 'paths', paths: ['guide', 'guide', 'reference'] },
+          mode: 'all',
+        }),
+      ).rejects.toMatchObject({ code: 'SOURCE_LOCALE_MATCHES_TARGET' });
+      await expect(
+        createRun(ctx(s.adminId), {
+          targetLocale: 'en',
+          scope: { kind: 'page_ids', pageIds: [s.pageA, s.pageA, s.pageB] },
+          mode: 'all',
+        }),
+      ).rejects.toMatchObject({ code: 'SOURCE_LOCALE_MATCHES_TARGET' });
+    });
+  });
+
+  describe('a page with no language', () => {
+    async function enableEnglish(s: Seed) {
+      await db
+        .insert(schema.translationLanguages)
+        .values({ code: 'en', enabled: true, defaultModelId: s.modelId });
+    }
+
+    async function itemPageIds(runId: string): Promise<string[]> {
+      const items = await db
+        .select({ sourcePageId: schema.translationRunItems.sourcePageId })
+        .from(schema.translationRunItems)
+        .where(eq(schema.translationRunItems.runId, runId));
+      return items.map((item) => item.sourcePageId);
+    }
+
+    it('can be translated into English, since it is not written in any known language', async () => {
+      const s = await seed();
+      await enableEnglish(s);
+      await db.update(schema.pages).set({ locale: null }).where(eq(schema.pages.id, s.pageA));
+
+      const run = await createRun(ctx(s.adminId), {
+        targetLocale: 'en',
+        scope: { kind: 'page_ids', pageIds: [s.pageA] },
+        mode: 'all',
+      });
+      expect(await itemPageIds(run.id)).toEqual([s.pageA]);
+    });
+
+    it('is not dropped by a language-wide run, which would happen if the language were compared with <>', async () => {
+      const s = await seed();
+      await enableEnglish(s);
+      await db.update(schema.pages).set({ locale: null }).where(eq(schema.pages.id, s.pageA));
+
+      // pageB is written in English and stays out; pageA has no language and is in.
+      const run = await createRun(ctx(s.adminId), {
+        targetLocale: 'en',
+        scope: { kind: 'all_published' },
+        mode: 'all',
+      });
+      expect(await itemPageIds(run.id)).toEqual([s.pageA]);
+    });
+
+    it('can be translated into any other language too', async () => {
+      const s = await seed();
+      await db.update(schema.pages).set({ locale: null }).where(eq(schema.pages.id, s.pageA));
+
+      const run = await createRun(ctx(s.adminId), {
+        targetLocale: 'zh',
+        scope: { kind: 'page_ids', pageIds: [s.pageA] },
+        mode: 'all',
+      });
+      expect(await itemPageIds(run.id)).toEqual([s.pageA]);
     });
   });
 
