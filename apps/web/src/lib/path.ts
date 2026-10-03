@@ -1,5 +1,20 @@
+/**
+ * Percent-decodes one URL path segment, keeping it as received when it is not
+ * valid percent-encoding. Next 16 hands page components percent-encoded params
+ * but `generateMetadata` and route handlers already-decoded ones, so a segment
+ * can reach a decode call twice, and decoding a literal `%` that survived the
+ * first decode (`/x%25y`) makes `decodeURIComponent` throw a URIError.
+ */
+export function decodePathSegment(segment: string): string {
+  try {
+    return decodeURIComponent(segment);
+  } catch {
+    return segment;
+  }
+}
+
 export function getPagePathFromParams(params: { path: string[] }): string {
-  return params.path.map((segment) => decodeURIComponent(segment)).join('/');
+  return params.path.map((segment) => decodePathSegment(segment)).join('/');
 }
 
 function encodePath(path: string): string {

@@ -70,6 +70,37 @@ describe('resolveReaderPage access outcomes', () => {
   });
 });
 
+// Next 16 gives `generateMetadata` and route handlers already-decoded params but
+// page components encoded ones, so the resolver sees both forms.
+describe('resolveReaderPage URL segment encoding', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    routes.resolveSpacePrefix.mockResolvedValue({ space: wiki, isAlias: false });
+    addresses.resolveAddressTarget.mockResolvedValue(null);
+    links.findRetiredLinkTarget.mockResolvedValue(null);
+    pages.getCachedPublicLiveBySlug.mockResolvedValue(null);
+    pages.getReaderAccessStatusBySlug.mockResolvedValue(null);
+  });
+
+  it('resolves a literal percent sign as not found instead of throwing a URIError', async () => {
+    await expect(resolveReaderPage({ actor: { kind: 'anonymous' } }, ['wiki', 'a%zz']))
+      .resolves.toEqual({ kind: 'not_found' });
+    expect(pages.getCachedPublicLiveBySlug).toHaveBeenCalledWith('a%zz', 'default');
+  });
+
+  it('decodes a percent-encoded segment before looking the address up', async () => {
+    await resolveReaderPage({ actor: { kind: 'anonymous' } }, ['wiki', 'release%20notes']);
+
+    expect(pages.getCachedPublicLiveBySlug).toHaveBeenCalledWith('release notes', 'default');
+  });
+
+  it('looks an already-decoded segment up as it is', async () => {
+    await resolveReaderPage({ actor: { kind: 'anonymous' } }, ['wiki', 'release notes']);
+
+    expect(pages.getCachedPublicLiveBySlug).toHaveBeenCalledWith('release notes', 'default');
+  });
+});
+
 describe('buildReaderMetadata', () => {
   const t = ((key: string) => key) as unknown as ServerTranslate;
   const baseOptions = { siteUrl: 'https://wiki.example', locale: 'en', t, fallbackTitle: 'wiki/missing', indexable: true };

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import type { LivePage } from '@next-wiki/shared';
 import type { PermCtx } from '@/server/permissions';
 import type { ServerTranslate } from '@/i18n/server';
+import { decodePathSegment } from '@/lib/path';
 import { buildPageDescription, stripLeadingTitleHeading } from '@/lib/seo';
 import * as pageService from '@/server/services/pages';
 import { resolvePageSocialImage, toMetadataImage } from '@/server/services/social-image';
@@ -18,10 +19,14 @@ export type ResolvedReaderPage =
   | { kind: 'forbidden'; visibility: 'public' | 'registered' | 'restricted'; legacy: boolean }
   | { kind: 'not_found' };
 
-/** Resolve an external reader URL for either an anonymous or signed-in actor. */
+/**
+ * Resolve an external reader URL for either an anonymous or signed-in actor.
+ * Segments may be percent-encoded (page params) or already decoded
+ * (`generateMetadata`, route handlers); both resolve the same page.
+ */
 export async function resolveReaderPage(ctx: PermCtx, rawSegments: string[]): Promise<ResolvedReaderPage> {
   const isAnonymous = ctx.actor.kind === 'anonymous';
-  const segments = rawSegments.map((segment) => decodeURIComponent(segment));
+  const segments = rawSegments.map((segment) => decodePathSegment(segment));
   const prefix = segments[0] ? await resolveSpacePrefix(segments[0]) : null;
   let resolvedRoute = prefix
     ? { space: prefix.space, segments: segments.slice(1), legacy: prefix.isAlias }
