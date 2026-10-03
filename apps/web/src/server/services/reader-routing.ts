@@ -111,7 +111,8 @@ export interface ReaderMetadataOptions {
    * Whether this route's URL is the one crawlers/search engines should see.
    * The public reader route is; internal proxy targets (e.g. the
    * authenticated-user rewrite) are not and must always stay noindex,nofollow
-   * even for a page that would otherwise be indexable.
+   * even for a page that would otherwise be indexable. Only the public route
+   * also advertises the Markdown export (see `alternates.types` below).
    */
   indexable: boolean;
 }
@@ -159,7 +160,15 @@ export async function buildReaderMetadata(
   return {
     title: page.title,
     description,
-    alternates: { canonical: `${siteUrl}${canonicalPath}`, languages },
+    alternates: {
+      canonical: `${siteUrl}${canonicalPath}`,
+      languages,
+      // The Markdown export lives at the reader address plus `.md` and serves
+      // anonymous readers only. The public route resolves anonymously, so every
+      // page it renders is exportable; the signed-in route may show a page that
+      // is not, so it must not promise a URL that would answer 403.
+      ...(indexable ? { types: { 'text/markdown': `${siteUrl}${canonicalPath}.md` } } : {}),
+    },
     openGraph: {
       type: 'article',
       url: `${siteUrl}${canonicalPath}`,

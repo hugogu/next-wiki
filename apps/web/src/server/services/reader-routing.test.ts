@@ -142,6 +142,29 @@ describe('buildReaderMetadata', () => {
     expect(metadata.robots).toEqual({ index: false, follow: false });
   });
 
+  it('advertises the page Markdown export as an alternate on the public route', async () => {
+    const metadata = await buildReaderMetadata(resolvedOriginal, baseOptions);
+
+    expect(metadata.alternates?.types).toEqual({ 'text/markdown': 'https://wiki.example/wiki/welcome.md' });
+  });
+
+  it('advertises the translation own Markdown export, not the original one', async () => {
+    const metadata = await buildReaderMetadata(
+      { kind: 'translation', page, locale: 'zh', sourcePath: 'welcome', space: wiki as unknown as SpaceRow, legacy: false },
+      baseOptions,
+    );
+
+    expect(metadata.alternates?.types).toEqual({ 'text/markdown': 'https://wiki.example/wiki/zh/welcome.md' });
+  });
+
+  // The export serves anonymous readers only; the signed-in route can render a
+  // page they may not see, so it must not promise a URL that would answer 403.
+  it('does not advertise the anonymous-only export from a non-indexable route', async () => {
+    const metadata = await buildReaderMetadata(resolvedOriginal, { ...baseOptions, indexable: false });
+
+    expect(metadata.alternates?.types).toBeUndefined();
+  });
+
   it('advertises a large share card with the body illustration when the page has one', async () => {
     socialImage.resolvePageSocialImage.mockResolvedValue({
       url: 'https://wiki.example/api/assets/asset-1',
