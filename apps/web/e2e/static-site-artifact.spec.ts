@@ -117,7 +117,10 @@ test.describe('static site artifact', () => {
     await staticPage.getByRole('link', { name: /中文搜索示例/i }).click();
     await expect(staticPage.getByRole('heading', { name: /中文搜索示例/i })).toBeVisible();
 
-    await staticPage.getByRole('link', { name: 'EN' }).click();
+    // The root section holds the original pages, whatever language they are in
+    // (or none), so its chip says "Original" rather than claiming a language —
+    // in the language of the page it is on, here Chinese.
+    await staticPage.getByRole('link', { name: '原文' }).click();
     await expect(staticPage).toHaveURL(/\/$/);
     await expect(staticPage.getByRole('link', { name: /Welcome to next-wiki/i })).toBeVisible();
 

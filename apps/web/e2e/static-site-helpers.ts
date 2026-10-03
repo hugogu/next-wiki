@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import { execFile } from 'node:child_process';
 import { mkdtemp, rm, mkdir, readFile, writeFile, stat } from 'node:fs/promises';
@@ -74,7 +75,7 @@ export async function createPublishedPage(
   page: Page,
   key: string,
   input: { path: string; title: string; contentSource: string },
-): Promise<{ id: string; path: string; locale: string; title: string; latestRevision: { id: string } }> {
+): Promise<{ id: string; path: string; locale: string | null; title: string; latestRevision: { id: string } }> {
   const create = await page.request.post('/api/v1/pages?include=latestRevision', {
     headers: { Authorization: `Bearer ${key}` },
     data: { ...input },
@@ -83,7 +84,7 @@ export async function createPublishedPage(
   const created = (await create.json()) as {
     id: string;
     path: string;
-    locale: string;
+    locale: string | null;
     title: string;
     latestRevision: { id: string };
   };
@@ -95,20 +96,42 @@ export async function createPublishedPage(
   return created;
 }
 
+/**
+ * A published Chinese translation of a page of its own, so the site has a `zh`
+ * section while the welcome page has no Chinese version to switch to. A page is
+ * only addressed under a language section when it is a translation; labelling an
+ * original's language never moves it, so this has to be a real translation row,
+ * laid out the way the translation writer lays one out. Returns its id.
+ */
 export async function createAndPublishChinesePage(page: Page, key: string): Promise<string> {
-  const created = await createPublishedPage(page, key, {
-    path: 'chinese-search-demo',
-    title: '中文搜索示例',
-    contentSource: '# 中文搜索示例\n\n这是一段用于测试中文搜索功能的示例文本。关键词：北京烤鸭。',
+  const source = await createPublishedPage(page, key, {
+    path: 'translation-source-demo',
+    title: 'Translation source demo',
+    contentSource: '# Translation source demo\n\nA page that has a Chinese translation.',
   });
+  const title = '中文搜索示例';
+  const content = `# ${title}\n\n这是一段用于测试中文搜索功能的示例文本。关键词：北京烤鸭。`;
   const sql = postgres(process.env.E2E_DATABASE_URL ?? 'postgresql://wiki:wiki@127.0.0.1:15433/wiki_e2e_test');
   try {
-    await sql`UPDATE pages SET locale = 'zh' WHERE id = ${created.id}`;
-    await sql`UPDATE page_revisions SET locale = 'zh' WHERE page_id = ${created.id}`;
+    const [original] = await sql<{ space_id: string; slug: string; author_id: string }[]>`
+      SELECT space_id, slug, author_id FROM pages WHERE id = ${source.id}`;
+    const [translation] = await sql<{ id: string }[]>`
+      INSERT INTO pages (space_id, slug, path, locale, title, author_id, nature, translation_group_id, source_page_id)
+      VALUES (${original!.space_id}, ${original!.slug}, ${source.path}, 'zh', ${title}, ${original!.author_id},
+              'generated', gen_random_uuid(), ${source.id})
+      RETURNING id`;
+    const hash = createHash('sha256').update(content).digest('hex');
+    const [revision] = await sql<{ id: string }[]>`
+      INSERT INTO page_revisions (page_id, version_number, locale, content_type, content_source, content_html, content_hash, author_id, status, actor_kind, published_at)
+      VALUES (${translation!.id}, 1, 'zh', 'text/markdown', ${content}, ${`<h1>${title}</h1>`}, ${hash}, ${original!.author_id}, 'published', 'machine', now())
+      RETURNING id`;
+    await sql`
+      UPDATE pages SET current_published_version_id = ${revision!.id}, latest_version_id = ${revision!.id}
+      WHERE id = ${translation!.id}`;
+    return translation!.id;
   } finally {
     await sql.end({ timeout: 5 });
   }
-  return created.id;
 }
 
 export async function createAndPublishImagePage(page: Page, key: string): Promise<void> {
