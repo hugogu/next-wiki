@@ -18,7 +18,10 @@ Pages are organized by hierarchical paths such as
 `/engineering/backend/auth`. The tree identity key is `(space_id, path, locale)`:
 the path is language-neutral and the locale selects the localized page record.
 A space MAY have one `/getting-started` page per locale, and another space MAY
-have its own `/getting-started` pages. Internal surrogate IDs MAY exist for
+have its own `/getting-started` pages. A page's own language is optional: an
+original with none is stored with a null locale, which the key treats as a value
+of its own, so two such originals still cannot share a path. Only a translation
+record is addressed by its locale. Internal surrogate IDs MAY exist for
 foreign keys. Imports, exports, permissions, public APIs, and editor/history
 routes use the path key; public reader routing uses the page's canonical slug
 under its space prefix.
@@ -110,8 +113,10 @@ explain that pruning happened.
 ## Multi-language Content
 
 A page path is language-neutral. Translations are localized page records keyed
-by `(space_id, path, locale)` and linked by `translation_group_id`. The default
-locale is configurable per space. The UI MUST fall back gracefully when a
+by `(space_id, path, locale)` and linked by `translation_group_id`. A page MAY
+declare the language its text is written in, which anyone who can edit the page
+may set or clear; a translation always has one, and a page is never translated
+into its declared language. The default locale is configurable per space. The UI MUST fall back gracefully when a
 translation is missing by showing the default locale with a clear banner. The
 data model MUST NOT conflate locale with path hierarchy.
 

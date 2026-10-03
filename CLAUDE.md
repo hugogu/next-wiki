@@ -37,6 +37,22 @@ conventions; see `.specify/memory/constitution.md` for binding principles.
 
 ## Recent Changes
 
+- 042-page-language: A page's language is now optional and set by people, not
+  assumed. `pages.locale` is nullable with no default (`NULL` = nobody has said);
+  the migration cleared the `en` placeholder from originals only. Only a
+  translation row is addressed by its locale (`routingLocale` in
+  `page-locale.ts`); an original is served at its bare address whatever its
+  language. The identity key stays `(space_id, path, locale)` as `UNIQUE NULLS
+  NOT DISTINCT`, so any `eq(col, locale)` on a possibly-null locale must be
+  `localeEquals(...)` (and SQL `<>` must be `IS DISTINCT FROM`), or it silently
+  matches nothing. `PATCH /api/v1/pages/{id}` takes `locale` (`null` clears;
+  409 `PAGE_LANGUAGE_CONFLICT`); it is page metadata, so no revision. Page
+  properties (reader dialog + editor) has a Language select, and the translate
+  dialog's "unavailable" hint links to it. Translation refuses a target only
+  when it equals the page's declared language. Archives/Wiki.js require a
+  language, so unset is written as `und` and read back as unset. Public/MCP
+  `locale` is `string | null`. `POST /pages`'s `locale` is still accepted and
+  ignored. See `specs/042-page-language/spec.md`.
 - 037-ai-partial-page-edit: Gives Wiki AI a second, narrower way to change an
   existing page: `insert_page_content` splices one or more anchored edits
   (insert before/after, or replace an exact passage) into the current
