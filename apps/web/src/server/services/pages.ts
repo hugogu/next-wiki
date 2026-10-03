@@ -2294,6 +2294,7 @@ export async function getForEdit(ctx: PermCtx, path: string, spaceSlug?: string)
     revisionId: revision.id,
     path: page.path,
     slug: page.slug,
+    locale: page.locale,
     title: page.title,
     // Editing reads the authoritative source directly: blocking the page load
     // on a remote replica (e.g. S3) is not worth it for the small markdown body.

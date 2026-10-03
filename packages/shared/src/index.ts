@@ -97,6 +97,8 @@ export const editableViewSchema = z.object({
   // 035: canonical public address — the editor's "view live page" action
   // navigates here, never to a path-built URL (tree moves don't change it).
   slug: z.string(),
+  // The language the page is written in; null when none is set.
+  locale: z.string().nullable(),
   title: z.string(),
   contentSource: z.string(),
   latestVersion: z.number(),

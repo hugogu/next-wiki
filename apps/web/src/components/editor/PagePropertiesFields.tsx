@@ -1,3 +1,4 @@
+import { SUPPORTED_TRANSLATION_LANGUAGES, translationLanguageName } from '@next-wiki/shared';
 import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Tooltip } from '@/components/ui/Tooltip';
@@ -42,6 +43,8 @@ export function PagePropertiesFields({
   onVisibilityChange,
   aiContentLevel,
   onAiContentLevelChange,
+  locale,
+  onLocaleChange,
 }: {
   title: string;
   onTitleChange: (value: string) => void;
@@ -67,8 +70,15 @@ export function PagePropertiesFields({
   onVisibilityChange?: (value: 'public' | 'registered' | 'restricted') => void;
   aiContentLevel?: 'generated' | 'assisted' | null;
   onAiContentLevelChange?: (value: 'generated' | 'assisted' | null) => void;
+  /** The language the page is written in; `null` means none is set. Shown only
+   * where it can be changed, so a translation (whose language is fixed) omits it. */
+  locale?: string | null;
+  onLocaleChange?: (value: string | null) => void;
 }) {
   const { t } = useTranslation();
+  // A language outside the list (e.g. carried in by an import) must still be
+  // shown as the current value rather than looking unset.
+  const localeIsListed = !locale || SUPPORTED_TRANSLATION_LANGUAGES.some((language) => language.code === locale);
 
   return (
     <div className="flex flex-col gap-md">
@@ -141,6 +151,29 @@ export function PagePropertiesFields({
             <option value="registered">{t('editor.properties.fields.visibilityRegistered')}</option>
             <option value="public">{t('editor.properties.fields.visibilityPublic')}</option>
           </Select>
+        </div>
+      )}
+
+      {onLocaleChange && locale !== undefined && (
+        <div>
+          <label htmlFor="prop-locale" className="block text-sm font-medium mb-xs">
+            {t('editor.properties.fields.localeLabel')}
+          </label>
+          <Select
+            id="prop-locale"
+            value={locale ?? ''}
+            onChange={(event) => onLocaleChange(event.target.value === '' ? null : event.target.value)}
+            aria-label={t('editor.properties.fields.localeLabel')}
+          >
+            <option value="">{t('editor.properties.fields.localeNone')}</option>
+            {!localeIsListed && locale && <option value={locale}>{locale}</option>}
+            {SUPPORTED_TRANSLATION_LANGUAGES.map((language) => (
+              <option key={language.code} value={language.code}>
+                {translationLanguageName(language.code)} ({language.code})
+              </option>
+            ))}
+          </Select>
+          <p className="mt-xs text-xs text-muted">{t('editor.properties.fields.localeHint')}</p>
         </div>
       )}
 

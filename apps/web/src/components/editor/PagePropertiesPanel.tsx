@@ -30,6 +30,8 @@ export function PagePropertiesPanel({
   onVisibilityChange,
   aiContentLevel,
   onAiContentLevelChange,
+  locale,
+  onLocaleChange,
   showAttachments = true,
   error,
   saving = false,
@@ -63,6 +65,10 @@ export function PagePropertiesPanel({
   onVisibilityChange?: (value: 'public' | 'registered' | 'restricted') => void;
   aiContentLevel?: 'generated' | 'assisted' | null;
   onAiContentLevelChange?: (value: 'generated' | 'assisted' | null) => void;
+  /** The language the page is written in (`null`: not set). Omitted for a
+   * translation, whose language is fixed. */
+  locale?: string | null;
+  onLocaleChange?: (value: string | null) => void;
   /** Reader pages already show attachments inline on the page itself
    * (see ReaderPageView.tsx); the editor has no such view of its own, so it
    * defaults to showing them here instead. */
@@ -102,6 +108,8 @@ export function PagePropertiesPanel({
           onVisibilityChange={onVisibilityChange}
           aiContentLevel={aiContentLevel}
           onAiContentLevelChange={onAiContentLevelChange}
+          locale={locale}
+          onLocaleChange={onLocaleChange}
         />
 
         {pageId && (

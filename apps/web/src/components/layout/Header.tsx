@@ -272,6 +272,11 @@ export function Header({
   // original (not a translated view) and only to admins (manage_translations).
   const canTranslate =
     role === 'admin' && (!pageContext?.space || pageContext.space === 'wiki') && Boolean(pageContext?.pageId) && !pageContext?.currentLocale;
+  // The page's language is set from Page properties, which is offered to anyone
+  // who can edit the page. It belongs to an original, so a translated view has none.
+  const canChangeLanguage =
+    Boolean(pageContext?.canEdit) && pageContext?.space !== 'raw' && Boolean(pageContext?.revisionId)
+    && pageContext?.slug !== undefined && pageContext?.sourceLocale !== undefined && !pageContext?.currentLocale;
 
   const handlePublish = async () => {
     if (!pageContext || !pageContext.pageId || !pageContext.canPublish || pageContext.status === 'published') return;
@@ -437,6 +442,14 @@ export function Header({
         <TranslatePageDialog
           pageId={pageContext.pageId}
           sourceLocale={pageContext.sourceLocale}
+          onChangeLanguage={
+            canChangeLanguage
+              ? () => {
+                  setTranslateOpen(false);
+                  setSettingsOpen(true);
+                }
+              : undefined
+          }
           onClose={() => setTranslateOpen(false)}
         />
       )}
@@ -445,6 +458,7 @@ export function Header({
           pageId={pageContext.pageId}
           revisionId={pageContext.revisionId}
           initialAiContentLevel={pageContext.aiContentLevel}
+          initialLocale={pageContext.currentLocale ? undefined : pageContext.sourceLocale}
           canManageAiAttribution={pageContext.canManageAiAttribution}
           initialTitle={pageContext.title}
           initialPath={pageContext.path}

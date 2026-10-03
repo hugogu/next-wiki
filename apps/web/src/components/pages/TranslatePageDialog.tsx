@@ -160,6 +160,7 @@ const TONE_CLASS: Record<TranslateRunOutcome['tone'], string> = {
 export function TranslatePageDialog({
   pageId,
   sourceLocale,
+  onChangeLanguage,
   initialTargetLocale,
   onClose,
 }: {
@@ -168,6 +169,10 @@ export function TranslatePageDialog({
    * translated into it (the translation would collide with the page itself), so
    * it is not offered; a page with no language set can go into any. */
   sourceLocale?: string | null;
+  /** Offered next to the "unavailable" hint, so a page recorded in the wrong
+   * language can be corrected without leaving the task. Omit where the viewer
+   * cannot change the page's language. */
+  onChangeLanguage?: () => void;
   /** When set, the run targets this locale and the language picker is locked
    * (used by "re-translate" on an existing translated document). */
   initialTargetLocale?: string;
@@ -372,33 +377,47 @@ export function TranslatePageDialog({
             void submit();
           }}
         >
-          <label className="flex flex-col gap-xs text-sm">
-            <span className="text-muted">{t('translation.run.targetLocale')}</span>
-            {initialTargetLocale ? (
-              <span className="rounded-md border border-border bg-surface-elevated px-sm py-sm font-mono text-sm uppercase">
-                {targetLocale}
-              </span>
-            ) : (
-              <Select value={targetLocale} onChange={(event) => setTargetLocale(event.target.value)}>
-                {languages.map((language) => (
-                  <option
-                    key={language.code}
-                    value={language.code}
-                    disabled={language.code === unavailableLanguage}
-                  >
-                    {language.code.toUpperCase()}
-                  </option>
-                ))}
-              </Select>
-            )}
+          <div className="flex flex-col gap-xs text-sm">
+            <label className="flex flex-col gap-xs">
+              <span className="text-muted">{t('translation.run.targetLocale')}</span>
+              {initialTargetLocale ? (
+                <span className="rounded-md border border-border bg-surface-elevated px-sm py-sm font-mono text-sm uppercase">
+                  {targetLocale}
+                </span>
+              ) : (
+                <Select value={targetLocale} onChange={(event) => setTargetLocale(event.target.value)}>
+                  {languages.map((language) => (
+                    <option
+                      key={language.code}
+                      value={language.code}
+                      disabled={language.code === unavailableLanguage}
+                    >
+                      {language.code.toUpperCase()}
+                    </option>
+                  ))}
+                </Select>
+              )}
+            </label>
             {unavailableLanguage && (
-              <span className="text-xs text-muted">
+              <p className="text-xs text-muted">
                 {t('page.translate.languageUnavailable', {
                   language: unavailableLanguage.toUpperCase(),
                 })}
-              </span>
+                {onChangeLanguage && (
+                  <>
+                    {' '}
+                    <button
+                      type="button"
+                      className="text-primary hover:underline"
+                      onClick={onChangeLanguage}
+                    >
+                      {t('page.translate.changeLanguage')}
+                    </button>
+                  </>
+                )}
+              </p>
             )}
-          </label>
+          </div>
           <label className="flex flex-col gap-xs text-sm">
             <span className="text-muted">{t('translation.run.model')}</span>
             <Select value={modelId} onChange={(event) => setModelId(event.target.value)}>

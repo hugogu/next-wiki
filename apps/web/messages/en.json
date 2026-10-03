@@ -336,6 +336,7 @@
         "slugTaken": "This address is already used by another page.",
         "slugReserved": "This address is reserved by built-in functionality. Please choose a different address.",
         "slugInvalid": "This address is invalid.",
+        "languageConflict": "This page already has a translation in that language, or another page at the same path does. Choose another language, or remove that page first.",
         "forbidden": "You do not have permission to edit page properties.",
         "generic": "Failed to update properties."
       }
@@ -454,7 +455,8 @@
         "view": "Open the translation",
         "detail": "Open task details"
       },
-      "languageUnavailable": "{language} is unavailable because this page is recorded in that language.",
+      "languageUnavailable": "{language} is unavailable because this page's language is set to {language}.",
+      "changeLanguage": "Change this page's language",
       "trackError": "Could not read the task status. Check Translations admin.",
       "error": "Failed to create the translation task.",
       "close": "Close"
@@ -593,6 +595,9 @@
         "aiContentLevelLabel": "AI content label",
         "aiContentLevelNone": "No label",
         "aiContentLevelHint": "Only the page author or an Administrator can change this audited declaration.",
+        "localeLabel": "Language",
+        "localeNone": "Not set",
+        "localeHint": "The language this page is written in. Optional: a page with no language can be translated into any language.",
         "frontmatterLabel": "Write page metadata to Markdown frontmatter",
         "frontmatterHint": "When off, title, date, tags, and summary are stored only in the wiki database without rewriting the Markdown source.",
         "pathLabel": "Path",
