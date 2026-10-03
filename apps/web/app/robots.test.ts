@@ -19,4 +19,15 @@ describe('robots route', () => {
     expect(result.sitemap).toBe('https://wiki.example.test/sitemap.xml');
     expect(result.host).toBe('https://wiki.example.test');
   });
+
+  it('allows crawling across the site without disallowing shared links', () => {
+    const result = robots();
+
+    expect(result.rules).toEqual([
+      {
+        userAgent: '*',
+        allow: '/',
+      },
+    ]);
+  });
 });
