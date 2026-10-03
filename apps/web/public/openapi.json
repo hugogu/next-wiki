@@ -21502,7 +21502,7 @@
       "get": {
         "operationId": "get-v1-pages-{id}-addresses",
         "summary": "List page addresses",
-        "description": "Returns the page's canonical address plus every retained and manually added alias.",
+        "description": "Returns the page's canonical address plus every retained and manually added alias. Requires the same read access as reading the page itself; a page the caller cannot read returns 404 NOT_FOUND, exactly like a missing page.",
         "tags": [
           "Pages"
         ],
