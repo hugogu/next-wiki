@@ -275,4 +275,113 @@ describe('translation worker', () => {
     expect(run?.status).toBe('failed');
     expect(run?.failedItems).toBe(1);
   });
+
+  describe('a response the provider cut off at its output limit', () => {
+    const translatedPage = () =>
+      db.query.pages.findFirst({
+        where: and(eq(schema.pages.locale, 'zh'), isNotNull(schema.pages.translationGroupId)),
+      });
+
+    it('is never published, however much of it arrived', async () => {
+      streamText.mockImplementation(async function* () {
+        // Enough text that it is not mistaken for an empty response.
+        yield { type: 'delta', text: '# 你好\n\n这是翻译的前半部分，后面的内容在这里被截断了，所以不能发布。' };
+        yield { type: 'done', finishReason: 'length' };
+      });
+      const s = await seed();
+      const { runId, itemId } = await insertRun(s);
+
+      await runTranslationRun(runId);
+
+      const item = await db.query.translationRunItems.findFirst({
+        where: eq(schema.translationRunItems.id, itemId),
+      });
+      expect(item?.status).toBe('failed');
+      expect(item?.errorCode).toBe('OUTPUT_LIMIT_REACHED');
+      expect(item?.errorMessage).toContain('before finishing the translation');
+      // Nothing is wrong with the page, so it can simply be tried again.
+      expect(item?.retryAvailable).toBe(true);
+      // Half a page must never replace a whole one.
+      expect(await translatedPage()).toBeUndefined();
+    });
+
+    it('says the model spent its limit reasoning when only reasoning arrived', async () => {
+      streamText.mockImplementation(async function* () {
+        yield { type: 'reasoning_delta', text: 'The user wants this translated, so first I will consider the terms.' };
+        yield { type: 'usage', inputTokens: 12, outputTokens: 7506 };
+        yield { type: 'done', finishReason: 'length' };
+      });
+      const s = await seed();
+      const { runId, itemId } = await insertRun(s);
+
+      await runTranslationRun(runId);
+
+      const item = await db.query.translationRunItems.findFirst({
+        where: eq(schema.translationRunItems.id, itemId),
+      });
+      expect(item?.status).toBe('failed');
+      expect(item?.errorCode).toBe('OUTPUT_LIMIT_REACHED');
+      expect(item?.errorMessage).toContain('without writing any of the translation');
+      expect(item?.errorMessage).toContain('reasoning');
+      expect(await translatedPage()).toBeUndefined();
+    });
+
+    it('is told apart from one the provider finished', async () => {
+      streamText.mockImplementation(async function* () {
+        yield { type: 'delta', text: '# 你好\n\n带[链接](/other)的世界。' };
+        yield { type: 'done', finishReason: 'stop' };
+      });
+      const s = await seed();
+      const { runId, itemId } = await insertRun(s);
+
+      await runTranslationRun(runId);
+
+      const item = await db.query.translationRunItems.findFirst({
+        where: eq(schema.translationRunItems.id, itemId),
+      });
+      expect(item?.status).toBe('completed');
+      expect(await translatedPage()).toBeDefined();
+    });
+  });
+
+  describe('the output budget it asks the provider for', () => {
+    const requestedBudget = () => streamText.mock.calls[0]?.[0].maxOutputTokens as number;
+
+    it('counts a Chinese page by its characters rather than by length / 4', async () => {
+      // The page that failed in practice: 12,963 characters, budgeted at exactly
+      // 7,506 tokens, which the model used up before it had written anything.
+      const page = '中'.repeat(10_500) + 'a'.repeat(2_463);
+      const s = await seed();
+      const hash = createHash('sha256').update(page).digest('hex');
+      await db
+        .update(schema.pageRevisions)
+        .set({ contentSource: page, contentHash: hash })
+        .where(eq(schema.pageRevisions.id, s.sourceRevisionId));
+      // As reported by the catalog for the model that failed.
+      await db
+        .update(schema.aiModels)
+        .set({ contextWindow: 1_310_720, maxOutputTokens: 131_072 })
+        .where(eq(schema.aiModels.id, s.modelId));
+      const { runId } = await insertRun(s, hash);
+
+      await runTranslationRun(runId);
+
+      expect(requestedBudget()).not.toBe(7506);
+      expect(requestedBudget()).toBeGreaterThan(page.length);
+    });
+
+    it('leaves a model that reasons room to think as well as to answer', async () => {
+      const s = await seed();
+      await runTranslationRun((await insertRun(s)).runId);
+      const plain = requestedBudget();
+
+      streamText.mockClear();
+      await db
+        .insert(schema.aiModelCapabilities)
+        .values({ modelId: s.modelId, capability: 'thinking', supported: true, source: 'catalog' });
+      await runTranslationRun((await insertRun(s)).runId);
+
+      expect(requestedBudget()).toBe(plain * 2);
+    });
+  });
 });

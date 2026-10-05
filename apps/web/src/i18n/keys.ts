@@ -2142,6 +2142,7 @@ export const translationKeys = [
   "translation.error.CONTENT_REJECTED",
   "translation.error.PROVIDER_UNAVAILABLE",
   "translation.error.INVALID_RESPONSE",
+  "translation.error.OUTPUT_LIMIT_REACHED",
   "translation.error.CANCELLED",
   "pagination.label",
   "pagination.first",

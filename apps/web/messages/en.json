@@ -2871,6 +2871,7 @@
       "CONTENT_REJECTED": "The AI provider rejected this content.",
       "PROVIDER_UNAVAILABLE": "The AI provider is unavailable.",
       "INVALID_RESPONSE": "The model returned unusable output.",
+      "OUTPUT_LIMIT_REACHED": "The model ran out of output space before the translation was finished, so nothing was published.",
       "CANCELLED": "The request was cancelled."
     }
   },

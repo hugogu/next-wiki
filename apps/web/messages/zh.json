@@ -2871,6 +2871,7 @@
       "CONTENT_REJECTED": "AI 服务商拒绝了该内容。",
       "PROVIDER_UNAVAILABLE": "AI 服务商不可用。",
       "INVALID_RESPONSE": "模型返回的内容不可用。",
+      "OUTPUT_LIMIT_REACHED": "模型在翻译完成前就用完了输出长度上限，因此没有发布任何内容。",
       "CANCELLED": "请求已被取消。"
     }
   },

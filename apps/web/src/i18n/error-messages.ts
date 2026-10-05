@@ -47,6 +47,7 @@ const translationErrorKeys: Partial<Record<string, TranslationKey>> = {
   CONTENT_REJECTED: 'translation.error.CONTENT_REJECTED',
   PROVIDER_UNAVAILABLE: 'translation.error.PROVIDER_UNAVAILABLE',
   INVALID_RESPONSE: 'translation.error.INVALID_RESPONSE',
+  OUTPUT_LIMIT_REACHED: 'translation.error.OUTPUT_LIMIT_REACHED',
   CANCELLED: 'translation.error.CANCELLED',
 };
 

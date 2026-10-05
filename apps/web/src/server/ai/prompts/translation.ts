@@ -89,27 +89,55 @@ export function normalizeGeneratedMarkdown(raw: string): string | null {
   return text.length > 0 ? text : null;
 }
 
+/** Han, Kana and Hangul (and the compatibility ideographs): scripts that run about a token per character. */
+const CJK_CHARACTER = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf900-\ufaff]/gu;
+
+/**
+ * Rough token count of `text`, weighted by script. Latin text runs about four
+ * characters per token, but Chinese, Japanese and Korean run about one token per
+ * character, so a plain `length / 4` is several times too small for them.
+ */
+export function estimateTokens(text: string): number {
+  const cjk = text.match(CJK_CHARACTER)?.length ?? 0;
+  return cjk + Math.ceil((text.length - cjk) / 4);
+}
+
 /**
  * Choose a safe `max_output_tokens` for translating one page. Some catalog
  * models report `maxOutputTokens` equal to their full context window; passing
  * that verbatim makes every request exceed the context limit (input + requested
  * output > window) and fail. Cap the request to roughly twice the source size
  * (translations track the source length) and always leave room for the input.
+ *
+ * `reasons` is for a model that thinks before it answers: those tokens count
+ * against the same limit, so it needs room for both. Without it a reasoning
+ * model can spend the whole limit thinking and never write a word.
  */
 export function computeMaxOutputTokens(
   sourceMarkdown: string,
   contextWindow: number | null,
   modelMaxOutput: number | null,
+  options: { reasons?: boolean } = {},
 ): number {
-  const estSourceTokens = Math.ceil(sourceMarkdown.length / 4);
+  const estSourceTokens = estimateTokens(sourceMarkdown);
   // System prompt + user wrapper + a safety margin for tokenizer variance.
   const estInput = estSourceTokens + 800;
   // Translations rarely exceed ~2x the source; add a floor for short pages.
-  let maxOut = Math.min(modelMaxOutput ?? 8192, estSourceTokens * 2 + 1024);
+  const answerTokens = estSourceTokens * 2 + 1024;
+  let maxOut = Math.min(modelMaxOutput ?? 8192, options.reasons ? answerTokens * 2 : answerTokens);
   if (contextWindow && contextWindow > 0) {
     maxOut = Math.min(maxOut, contextWindow - estInput - 256);
   }
   return Math.max(256, maxOut);
+}
+
+/**
+ * Whether a provider's finish reason says the response was cut off at the
+ * output limit rather than finished: `length` from OpenAI-style streams,
+ * `max_tokens` from Anthropic's. Such output is incomplete by definition.
+ */
+export function reachedOutputLimit(finishReason: string | null | undefined): boolean {
+  return finishReason === 'length' || finishReason === 'max_tokens';
 }
 
 /**
