@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { transferRunCreateSchema, wikijsTransferOptionsSchema } from './transfers';
+import {
+  archiveLocale,
+  pageLocaleFromArchive,
+  transferRunCreateSchema,
+  wikijsTransferOptionsSchema,
+} from './transfers';
 
 describe('wikijsTransferOptionsSchema', () => {
   it('defaults includeHistory to false and historyLimit to 300', () => {
@@ -66,5 +71,25 @@ describe('transferRunCreateSchema wikijs_preview branch', () => {
     const parsed = transferRunCreateSchema.parse({ kind: 'site_export' });
     if (parsed.kind !== 'site_export') throw new Error('expected site_export');
     expect(parsed.options).toEqual({ includeHistory: false, historyLimit: 300 });
+  });
+});
+
+describe('archive locale', () => {
+  it('writes a page with no language as undetermined, and a real language as itself', () => {
+    expect(archiveLocale(null)).toBe('und');
+    expect(archiveLocale('zh')).toBe('zh');
+  });
+
+  it('reads undetermined back as no language, and a real language as itself', () => {
+    expect(pageLocaleFromArchive('und')).toBeNull();
+    expect(pageLocaleFromArchive('zh')).toBe('zh');
+    // An archive that predates optional languages recorded every original as en.
+    expect(pageLocaleFromArchive('en')).toBe('en');
+  });
+
+  it('round-trips both', () => {
+    for (const locale of [null, 'en', 'zh']) {
+      expect(pageLocaleFromArchive(archiveLocale(locale))).toBe(locale);
+    }
   });
 });

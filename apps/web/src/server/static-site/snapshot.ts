@@ -11,7 +11,12 @@ import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { extractHeadings, injectHeadingIds } from '@/lib/html';
 import { getDictionary } from '@/i18n/server';
 import { defaultLocale, isLocale, type UiLocale } from '@/i18n/config';
-import { buildPublishableSet, type PublishableSet } from './eligibility';
+import {
+  buildPublishableSet,
+  ROOT_SECTION,
+  type PublishablePage,
+  type PublishableSet,
+} from './eligibility';
 import { describeConflict, findPathConflicts, pageAddress } from './paths';
 import { rewriteAssetUrls, rewriteLinks } from './links';
 import { exportAssets } from './assets';
@@ -32,6 +37,7 @@ import {
   buildSitemap,
   localeHomeHref,
   publishedLocales,
+  type LanguageOption,
 } from './navigation';
 
 /**
@@ -101,8 +107,27 @@ export type SnapshotOptions = {
   publishableSet?: PublishableSet;
 };
 
-function stringsFor(locale: string, siteName: string): DocumentStrings {
-  const uiLocale: UiLocale = isLocale(locale) ? locale : defaultLocale;
+/** A page's section key doubles as a language everywhere except the root. */
+const langOf = (section: string): string => (section === ROOT_SECTION ? '' : section);
+
+/**
+ * The language assumed for text nobody has labelled, when a multilingual site
+ * must pick one language to index under. Matches what every original was
+ * recorded as before a page could say otherwise.
+ */
+const ASSUMED_LANGUAGE = 'en';
+
+/**
+ * What the page's text is written in, if known. A hand-built set without
+ * `language` falls back to the section, which was the language before originals
+ * got a section of their own.
+ */
+function pageLanguage(page: PublishablePage): string | null {
+  return page.language !== undefined ? page.language : page.locale;
+}
+
+function stringsFor(language: string | null, siteName: string): DocumentStrings {
+  const uiLocale: UiLocale = language && isLocale(language) ? language : defaultLocale;
   const t = getDictionary(uiLocale);
   return {
     siteName,
@@ -113,6 +138,7 @@ function stringsFor(locale: string, siteName: string): DocumentStrings {
     onThisPage: t('admin.staticSite.site.onThisPage'),
     toggleTheme: t('admin.staticSite.site.toggleTheme'),
     languages: t('admin.staticSite.site.languages'),
+    original: t('admin.staticSite.site.original'),
     noResults: t('admin.staticSite.site.noResults'),
   };
 }
@@ -129,6 +155,13 @@ async function write(rootDir: string, relativePath: string, contents: string | B
   await mkdir(dirname(filePath), { recursive: true });
   await writeFile(filePath, contents);
   return Buffer.byteLength(contents as string);
+}
+
+/** The original-language section has no language code, so its chip says what it is. */
+function labelRootSection(options: LanguageOption[], strings: DocumentStrings): LanguageOption[] {
+  return options.map((option) =>
+    option.locale === ROOT_SECTION ? { ...option, label: strings.original } : option,
+  );
 }
 
 export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotManifest> {
@@ -169,7 +202,14 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   const unresolvedAssets = new Set<string>();
 
   const locales = publishedLocales(set);
-  const searchLanguage = chooseSearchLanguage(locales);
+  // Pagefind partitions by `<html lang>`, so a site with several sections is
+  // indexed under one language chosen from what its pages are written in —
+  // not from the section keys, one of which is not a language at all.
+  const contentLanguages = [
+    ...new Set(set.pages.map((page) => pageLanguage(page) ?? ASSUMED_LANGUAGE)),
+  ];
+  const searchLanguage =
+    locales.length > 1 ? (chooseSearchLanguage(contentLanguages) ?? contentLanguages[0]) : undefined;
 
   // Wikilinks resolve to a tree path, the shape `rewriteLinks` maps onto the
   // artifact's addresses — and only against pages of the same locale, which is
@@ -210,18 +250,20 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
     for (const id of unresolved) unresolvedAssets.add(id);
 
     const address = pageAddress(baseUrl, page.slug, page.locale, set.defaultLocale);
+    const language = pageLanguage(page);
+    const strings = stringsFor(language, siteName);
     const document = renderDocument({
       title: page.title,
       bodyHtml,
-      locale: page.locale,
+      locale: language ?? '',
       basePath,
       assets: documentAssets,
       themeCss,
       nav: buildNavTree(set, baseUrl, page.locale),
       breadcrumbs: buildBreadcrumbs(set, baseUrl, page),
       headings: extractHeadings(withIds),
-      languages: buildLanguageOptions(set, baseUrl, page),
-      strings: stringsFor(page.locale, siteName),
+      languages: labelRootSection(buildLanguageOptions(set, baseUrl, page), strings),
+      strings,
       canonicalUrl: `${origin}${address.href}`,
       description: summarize(bodyHtml),
       analyticsSnippet,
@@ -253,12 +295,12 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
 
   const homeLocale = locales.includes(set.defaultLocale) ? set.defaultLocale : locales[0]!;
   const shell = {
-    locale: homeLocale,
+    locale: langOf(homeLocale),
     basePath,
     assets: documentAssets,
     themeCss,
     nav: buildNavTree(set, baseUrl, homeLocale),
-    strings: stringsFor(homeLocale, siteName),
+    strings: stringsFor(langOf(homeLocale) || null, siteName),
     canonicalUrl: `${origin}${basePath}`,
     analyticsSnippet,
   };
@@ -269,7 +311,10 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   const localeSections = locales
     .map((locale) => ({
       locale,
-      label: new Intl.DisplayNames([locale], { type: 'language' }).of(locale) ?? locale,
+      label:
+        locale === ROOT_SECTION
+          ? shell.strings.original
+          : (new Intl.DisplayNames([locale], { type: 'language' }).of(locale) ?? locale),
       count: set.pages.filter((page) => page.locale === locale).length,
       nav: buildNavTree(set, baseUrl, locale),
     }))
@@ -281,22 +326,26 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
   for (const locale of locales) {
     const isDefault = locale === set.defaultLocale;
     const filePath = isDefault ? 'index.html' : `${locale}/index.html`;
+    const localeStrings = stringsFor(langOf(locale) || null, siteName);
     const localeShell = {
       ...shell,
-      locale,
+      locale: langOf(locale),
       // No sidebar on a home page: its body already is the navigation, and a
       // sidebar showing only one language would suggest the site holds less
       // than it does.
       nav: [],
-      strings: stringsFor(locale, siteName),
+      strings: localeStrings,
       canonicalUrl: `${origin}${localeHomeHref(baseUrl, locale, set.defaultLocale)}`,
-      languages: locales
-        .filter((other) => other !== locale)
-        .map((other) => ({
-          locale: other,
-          href: localeHomeHref(baseUrl, other, set.defaultLocale),
-          available: true,
-        })),
+      languages: labelRootSection(
+        locales
+          .filter((other) => other !== locale)
+          .map((other) => ({
+            locale: other,
+            href: localeHomeHref(baseUrl, other, set.defaultLocale),
+            available: true,
+          })),
+        localeStrings,
+      ),
       searchLanguage,
     };
     documents.push({
@@ -318,7 +367,7 @@ export async function buildSnapshot(options: SnapshotOptions): Promise<SnapshotM
     });
   }
 
-  const notFoundStrings = stringsFor(homeLocale, siteName);
+  const notFoundStrings = stringsFor(langOf(homeLocale) || null, siteName);
   documents.push({
     filePath: '404.html',
     bytes: await write(

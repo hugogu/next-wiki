@@ -14,6 +14,7 @@ import {
   computeMaxOutputTokens,
   isImplausiblyShortTranslation,
   normalizeGeneratedMarkdown,
+  reachedOutputLimit,
 } from '@/server/ai/prompts/translation';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import { writeTranslation } from '@/server/services/translation-writer';
@@ -168,6 +169,7 @@ async function processItem(run: RunRow, item: ItemRow): Promise<void> {
       sourceMarkdown,
       model?.contextWindow ?? null,
       model?.maxOutputTokens ?? null,
+      { reasons: model ? await modelReasons(model.id) : false },
     );
 
     const generated = await generateWithRetry(
@@ -178,6 +180,20 @@ async function processItem(run: RunRow, item: ItemRow): Promise<void> {
       maxOutputTokens,
       requestTimeoutSeconds * 1000,
     );
+
+    // A response cut off at the output limit is incomplete however much of it
+    // arrived, so it is never published: half a page would replace a whole one.
+    if (reachedOutputLimit(generated.finishReason)) {
+      await markItem(run.id, item.id, 'failed', {
+        errorCode: 'OUTPUT_LIMIT_REACHED',
+        errorMessage: generated.text.trim()
+          ? `The model reached its output limit (${maxOutputTokens} tokens) before finishing the translation, so it was not published`
+          : `The model used its whole output limit (${maxOutputTokens} tokens) without writing any of the translation${
+              generated.reasoned ? '; it spent the limit reasoning' : ''
+            }`,
+      });
+      return;
+    }
 
     const markdown = normalizeGeneratedMarkdown(generated.text);
     if (!markdown) {
@@ -228,6 +244,10 @@ async function generateWithRetry(
   timeoutMs: number,
 ): Promise<{
   text: string;
+  /** Why the provider stopped, when it said (`stop`, `length`, ...). */
+  finishReason: string | null;
+  /** Whether the model streamed reasoning ahead of (or instead of) its answer. */
+  reasoned: boolean;
   usage: {
     inputTokens: number | null;
     outputTokens: number | null;
@@ -251,6 +271,8 @@ async function generateWithRetry(
       let outputTokens: number | null = null;
       let cachedTokens: number | null = null;
       let providerRequestId: string | null = null;
+      let finishReason: string | null = null;
+      let reasoned = false;
       for await (const event of adapter.streamText(
         buildTranslationInput({
           actionId: `${run.id}:${item.id}`,
@@ -271,6 +293,8 @@ async function generateWithRetry(
           outputTokens = event.outputTokens ?? outputTokens;
           cachedTokens = event.cachedInputTokens ?? cachedTokens;
         } else if (event.type === 'provider_request_id') providerRequestId = event.id;
+        else if (event.type === 'reasoning_delta') reasoned = true;
+        else if (event.type === 'done') finishReason = event.finishReason ?? finishReason;
       }
       const durationMs = Date.now() - started;
       const reported = inputTokens !== null || outputTokens !== null;
@@ -286,7 +310,7 @@ async function generateWithRetry(
             providerRequestId,
             durationMs,
           };
-      return { text, usage };
+      return { text, finishReason, reasoned, usage };
     } catch (error) {
       lastError = error;
       const normalized = normalizeProviderError(error);
@@ -294,6 +318,18 @@ async function generateWithRetry(
     }
   }
   throw normalizeProviderError(lastError);
+}
+
+/** Whether the model can think before it answers, which spends output tokens. */
+async function modelReasons(modelId: string): Promise<boolean> {
+  const capability = await db.query.aiModelCapabilities.findFirst({
+    where: and(
+      eq(schema.aiModelCapabilities.modelId, modelId),
+      eq(schema.aiModelCapabilities.capability, 'thinking'),
+      eq(schema.aiModelCapabilities.supported, true),
+    ),
+  });
+  return Boolean(capability);
 }
 
 async function loadStyleBody(promptVersionId: string | null): Promise<string | null> {

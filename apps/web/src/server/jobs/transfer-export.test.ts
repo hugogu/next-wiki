@@ -350,6 +350,12 @@ describe('capturePublishedSnapshot', () => {
     expect(snapshot.pages.map((page) => page.path)).toEqual(['a', 'c', 'd', 'historied']);
   });
 
+  it('records a page with no language as undetermined, since an archive names a language for every page', async () => {
+    const snapshot = await capturePublishedSnapshot();
+    // None of the seeded pages has a language set.
+    expect([...new Set(snapshot.pages.map((page) => page.locale))]).toEqual(['und']);
+  });
+
   it('uses the published revision (currentPublishedVersionId) for each page', async () => {
     const snapshot = await capturePublishedSnapshot();
     const revisionByPath = Object.fromEntries(

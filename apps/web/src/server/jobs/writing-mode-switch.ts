@@ -21,7 +21,7 @@ export type WritingModeSwitchReport = {
     pageId: string;
     sourceSpace: 'raw' | 'generated';
     sourcePath: string;
-    locale: string;
+    locale: string | null;
     destinationPath: string;
   }>;
 };
@@ -38,20 +38,24 @@ function destinationPath(kind: 'raw' | 'generated', sourcePath: string): string 
   return `${kind}/${sourcePath}`;
 }
 
+/** A page's identity in a space is its path *and* its language; "not set" is a value too. */
+function occupiedKey(locale: string | null, path: string): string {
+  return `${locale ?? ''}\u0000${path}`;
+}
+
 function nextFreePath(
   occupied: Set<string>,
-  locale: string,
+  locale: string | null,
   desired: string,
 ): string {
-  const key = (path: string) => `${locale}\u0000${path}`;
-  if (!occupied.has(key(desired))) {
-    occupied.add(key(desired));
+  if (!occupied.has(occupiedKey(locale, desired))) {
+    occupied.add(occupiedKey(locale, desired));
     return desired;
   }
   for (let suffix = 2; ; suffix += 1) {
     const candidate = pathWithSuffix(desired, suffix);
-    if (!occupied.has(key(candidate))) {
-      occupied.add(key(candidate));
+    if (!occupied.has(occupiedKey(locale, candidate))) {
+      occupied.add(occupiedKey(locale, candidate));
       return candidate;
     }
   }
@@ -177,7 +181,7 @@ export async function runWritingModeSwitch(
       .select({ path: schema.pages.path, locale: schema.pages.locale })
       .from(schema.pages)
       .where(eq(schema.pages.spaceId, defaultSpace.id));
-    const occupied = new Set(occupiedRows.map((page) => `${page.locale}\u0000${page.path}`));
+    const occupied = new Set(occupiedRows.map((page) => occupiedKey(page.locale, page.path)));
 
     const links = await retireLinks(tx, defaultSpace.id);
     const rawMove = await moveSpacePages(tx, {

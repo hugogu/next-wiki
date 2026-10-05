@@ -35,6 +35,26 @@ describe('shape transformers', () => {
       links: { self: '', byPath: '', revisions: '', drafts: '' },
     }).visibility).toBe('registered');
   });
+
+  it('accepts a page whose language is not set and reports it as null', async () => {
+    const { publicPageResourceSchema } = await import('./api-client');
+    const page = publicPageResourceSchema.parse({
+      id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+      spaceSlug: 'main',
+      path: 'docs/no-language',
+      slug: 'docs/no-language',
+      locale: null,
+      title: 'No language',
+      status: 'published',
+      author: { id: null, displayName: null },
+      createdAt: '2026-08-05T00:00:00.000Z',
+      updatedAt: '2026-08-05T00:00:00.000Z',
+      links: { self: '', byPath: '', revisions: '', drafts: '' },
+    });
+    expect(page.locale).toBeNull();
+    expect(listPagesResponse({ items: [page], nextCursor: null }).pages[0]?.locale).toBeNull();
+  });
+
   it('flattens search response', () => {
     const result = searchWikiResponse({
       items: [

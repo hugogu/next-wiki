@@ -12,6 +12,7 @@ import { reconcilePageAcrossIndexes } from '@/server/services/ai-index';
 import { assertNoSwitchInProgress } from '@/server/services/writing-mode';
 import { getSpaceById } from '@/server/services/spaces';
 import { renderPageMarkdown } from '@/server/services/wiki-links';
+import { routingLocale } from '@/server/services/page-locale';
 
 type Target = {
   page: typeof schema.pages.$inferSelect;
@@ -127,7 +128,7 @@ export async function runTagMutation(mutationId: string) {
         }
         nextVersionByPage.set(target.page.id, nextVersion + 1);
         const revisionId = randomUUID();
-        const { html, hash } = await renderPageMarkdown(space, nextSource, { executor: tx, locale: target.page.locale });
+        const { html, hash } = await renderPageMarkdown(space, nextSource, { executor: tx, locale: routingLocale(target.page) });
         await tx.insert(schema.pageRevisions).values({
           id: revisionId,
           pageId: target.page.id,

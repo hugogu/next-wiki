@@ -92,6 +92,36 @@ describe('Public Wiki write routes', () => {
     expect(properties.status).toBe(409);
   });
 
+  it('PATCH /api/v1/pages/{id} sets and clears the page language, and maps a language conflict to 409', async () => {
+    const id = randomUUID();
+    const patch = (body: unknown) =>
+      idRoute.PATCH(request('PATCH', `http://localhost/api/v1/pages/${id}`, body), { params: Promise.resolve({ id }) });
+
+    publicContent.updateProperties.mockResolvedValueOnce({ id, locale: 'zh' });
+    expect((await patch({ locale: ' ZH ' })).status).toBe(200);
+    expect(publicContent.updateProperties).toHaveBeenLastCalledWith(expect.anything(), id, { locale: 'zh' }, []);
+
+    // null is a value, not an omission: it clears the language.
+    publicContent.updateProperties.mockResolvedValueOnce({ id, locale: null });
+    expect((await patch({ locale: null })).status).toBe(200);
+    expect(publicContent.updateProperties).toHaveBeenLastCalledWith(expect.anything(), id, { locale: null }, []);
+
+    publicContent.updateProperties.mockClear();
+    for (const body of [{ locale: 'english' }, { locale: 'zh-CN' }, {}]) {
+      const refused = await patch(body);
+      expect(refused.status).toBe(422);
+      await expect(refused.json()).resolves.toMatchObject({ code: 'VALIDATION_FAILED' });
+    }
+    expect(publicContent.updateProperties).not.toHaveBeenCalled();
+
+    publicContent.updateProperties.mockRejectedValueOnce(
+      new DomainError('PAGE_LANGUAGE_CONFLICT', 'This page already has a translation in that language'),
+    );
+    const conflict = await patch({ locale: 'en' });
+    expect(conflict.status).toBe(409);
+    await expect(conflict.json()).resolves.toMatchObject({ code: 'PAGE_LANGUAGE_CONFLICT' });
+  });
+
   it('maps raw immutability from draft, property, delete, and publication routes', async () => {
     const id = randomUUID();
     publicContent.createDraft.mockRejectedValueOnce(new DomainError('RAW_SPACE_IMMUTABLE', 'raw entry'));

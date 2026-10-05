@@ -5865,13 +5865,21 @@
             ],
             "description": "New canonical public address. Distinct from `path`: changing it never moves the page in the tree, only where it is publicly reachable. A published page's former address is retained as a redirect."
           },
+          "locale": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "pattern": "^[a-z]{2}$",
+            "description": "Language the page text is written in, as a two-letter ISO 639-1 code. Null clears it: a page does not need a language. Omit to leave it unchanged. Only an original page has one that can be set; it is rejected with 409 PAGE_LANGUAGE_CONFLICT if the page already has a translation in that language, or another page at the same path does."
+          },
           "baseRevisionId": {
             "type": "string",
             "format": "uuid",
             "description": "Expected current revision id, used for optimistic concurrency control."
           }
         },
-        "description": "Update page properties. Provide at least one of path, title, or slug."
+        "description": "Update page properties. Provide at least one of path, title, slug, or locale."
       },
       "PublicPageRenderingResult": {
         "type": "object",
@@ -5948,8 +5956,11 @@
             "description": "Canonical public address (035) — the effective slug this page resolves at. For a translation, this is its source page's slug."
           },
           "locale": {
-            "type": "string",
-            "description": "Locale of the page content (e.g. \"en\", \"zh\")."
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Language the page text is written in (e.g. \"en\", \"zh\"), or null when none has been set. A translation always has one."
           },
           "title": {
             "type": "string",
@@ -9401,7 +9412,10 @@
             "type": "string"
           },
           "locale": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "status": {
             "type": "string",
@@ -21282,7 +21296,7 @@
       "patch": {
         "operationId": "patch-v1-pages-{id}",
         "summary": "Update public wiki page",
-        "description": "Updates page title and/or canonical path through the public content API.",
+        "description": "Updates page title, canonical path, public address, and/or the language the page is written in. Changing the language creates no revision and does not move the page.",
         "tags": [
           "Pages"
         ],

@@ -22,6 +22,7 @@ import { deleteFolder, deleteFolderSchema } from './delete-folder';
 import { listTags } from './list-tags';
 import { mergeTag } from './merge-tag';
 import { updatePageMetadata } from './update-page-metadata';
+import { updatePageProperties, updatePagePropertiesSchema } from './update-properties';
 import { appendRawEntry } from './append-raw-entry';
 import { createPage } from './create-page';
 import { generateImage } from './generate-image';
@@ -705,6 +706,44 @@ describe('tools', () => {
     expect(list).toHaveBeenCalledWith({ limit: 10 });
     expect(merge).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', 'b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22');
     expect(update).toHaveBeenCalledWith('a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', expect.objectContaining({ tags: ['devops'] }));
+  });
+
+  describe('update_page_properties and the page language', () => {
+    const pageId = 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11';
+    const page = (locale: string | null) => ({
+      id: pageId, spaceSlug: 'main', path: 'docs/a', slug: 'docs/a', locale, title: 'A', status: 'draft',
+      author: { id: null, displayName: null }, createdAt: '', updatedAt: '', links: { self: '', byPath: '', revisions: '', drafts: '' },
+    });
+
+    it('sets the language and reports the one the page now has', async () => {
+      const update = vi.fn().mockResolvedValue(page('zh'));
+      const result = await updatePageProperties(createClient({ updatePageProperties: update }), { pageId, locale: 'zh' });
+      expect(update).toHaveBeenCalledWith(pageId, expect.objectContaining({ locale: 'zh' }));
+      expect(result.locale).toBe('zh');
+    });
+
+    it('clears the language with null, which is a value rather than an omission', async () => {
+      const update = vi.fn().mockResolvedValue(page(null));
+      const result = await updatePageProperties(createClient({ updatePageProperties: update }), { pageId, locale: null });
+      expect(update).toHaveBeenCalledWith(pageId, expect.objectContaining({ locale: null }));
+      expect(result.locale).toBeNull();
+    });
+
+    it('still refuses a call that changes nothing', async () => {
+      const update = vi.fn();
+      await expect(updatePageProperties(createClient({ updatePageProperties: update }), { pageId })).rejects.toThrow(
+        'Provide title, path, slug, or locale',
+      );
+      expect(update).not.toHaveBeenCalled();
+    });
+
+    it('accepts a two-letter language code in the form the API stores it, and nothing else', () => {
+      const schema = z.object(updatePagePropertiesSchema);
+      expect(schema.parse({ pageId, locale: ' ZH ' }).locale).toBe('zh');
+      expect(schema.parse({ pageId, locale: null }).locale).toBeNull();
+      expect(schema.safeParse({ pageId, locale: 'english' }).success).toBe(false);
+      expect(schema.safeParse({ pageId, locale: 'zh-CN' }).success).toBe(false);
+    });
   });
 
   it('matches REST path validation before sending a folder delete request', () => {

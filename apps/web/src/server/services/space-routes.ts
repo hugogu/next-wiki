@@ -53,10 +53,14 @@ function encodePath(path: string): string {
   return path.split('/').filter(Boolean).map(encodeURIComponent).join('/');
 }
 
-/** Canonical public address. Locale, when present, follows the space prefix. */
+/**
+ * Canonical public address. A locale follows the space prefix, for every
+ * language alike: pass it only for a translation row (see `routingLocale`) and
+ * `null` for an original, which is served at its bare address.
+ */
 export function canonicalSpacePath(space: RouteableSpace, path?: string, locale?: string | null): string {
   const segments = [effectiveRoutePrefix(space)];
-  if (locale && locale !== 'en') segments.push(encodeURIComponent(locale));
+  if (locale) segments.push(encodeURIComponent(locale));
   if (path) segments.push(encodePath(path));
   return `/${segments.filter(Boolean).join('/')}`;
 }

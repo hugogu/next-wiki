@@ -30,6 +30,9 @@ type Props = {
   initialSummary: string | null;
   initialVisibility?: 'public' | 'registered' | 'restricted';
   initialAiContentLevel?: AiContentLevel | null;
+  /** The language the page is written in (`null`: not set). Leave it out for a
+   * translation, whose language is the one it was translated into. */
+  initialLocale?: string | null;
   canManageAiAttribution?: boolean;
   canSetVisibility?: boolean;
   pathReadOnly?: boolean;
@@ -53,6 +56,7 @@ export function PagePropertiesDialog({
   initialSummary,
   initialVisibility,
   initialAiContentLevel = null,
+  initialLocale,
   canManageAiAttribution = false,
   canSetVisibility = false,
   pathReadOnly = false,
@@ -68,6 +72,7 @@ export function PagePropertiesDialog({
   const [summary, setSummary] = useState(initialSummary ?? '');
   const [visibility, setVisibility] = useState(initialVisibility);
   const [aiContentLevel, setAiContentLevel] = useState<AiContentLevel | null>(initialAiContentLevel);
+  const [locale, setLocale] = useState<string | null>(initialLocale ?? null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -82,8 +87,9 @@ export function PagePropertiesDialog({
     const slugChanged = !pathReadOnly && slug !== initialSlug;
     const visibilityChanged = canSetVisibility && visibility !== initialVisibility;
     const aiContentLevelChanged = canManageAiAttribution && aiContentLevel !== initialAiContentLevel;
+    const localeChanged = initialLocale !== undefined && locale !== initialLocale;
 
-    if (!metadataChanged && !pathChanged && !slugChanged && !visibilityChanged && !aiContentLevelChanged) {
+    if (!metadataChanged && !pathChanged && !slugChanged && !visibilityChanged && !aiContentLevelChanged && !localeChanged) {
       onClose();
       return;
     }
@@ -109,6 +115,13 @@ export function PagePropertiesDialog({
       let latestRevisionId = revisionId;
       let latestVersion: number | undefined;
       let savedPath = path;
+
+      // The language is page metadata with no revision behind it, so it is saved
+      // on its own: nothing below depends on it, and changing it must not publish
+      // anything. It goes first so that a conflict leaves everything else unsaved.
+      if (localeChanged) {
+        await apiPatch(getPublicApiPageUrl(pageId), publicPagePropertiesInputSchema.parse({ locale }));
+      }
 
       if (metadataChanged) {
         const updated = await apiPatch(
@@ -173,6 +186,8 @@ export function PagePropertiesDialog({
         setError(t('page.properties.error.slugReserved'));
       } else if (apiError.code === 'PAGE_SLUG_INVALID') {
         setError(t('page.properties.error.slugInvalid'));
+      } else if (apiError.code === 'PAGE_LANGUAGE_CONFLICT') {
+        setError(t('page.properties.error.languageConflict'));
       } else if (apiError.code === 'FORBIDDEN' || apiError.code === 'UNAUTHORIZED') {
         setError(t('page.properties.error.forbidden'));
       } else {
@@ -201,6 +216,8 @@ export function PagePropertiesDialog({
       onVisibilityChange={canSetVisibility ? setVisibility : undefined}
       aiContentLevel={canManageAiAttribution ? aiContentLevel : undefined}
       onAiContentLevelChange={canManageAiAttribution ? setAiContentLevel : undefined}
+      locale={initialLocale === undefined ? undefined : locale}
+      onLocaleChange={initialLocale === undefined ? undefined : setLocale}
       showAttachments={false}
       error={error}
       saving={saving}

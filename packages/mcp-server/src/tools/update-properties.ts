@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { pathSchema, type WikiApiClient } from '../api-client';
+import { localeSchema, pathSchema, type WikiApiClient } from '../api-client';
 import { updatePropertiesResponse } from '../shapes';
 
 export const updatePagePropertiesSchema = {
@@ -10,19 +10,24 @@ export const updatePagePropertiesSchema = {
   // never moves the page in the tree, only where it is publicly reachable. A
   // published page's former address is retained as a redirect.
   slug: pathSchema.optional().describe('New canonical public address. Distinct from path; a published page\'s former address is retained as a redirect.'),
+  locale: localeSchema
+    .nullable()
+    .optional()
+    .describe('Language the page text is written in, as a two-letter ISO 639-1 code (e.g. "en", "zh"). Pass null to clear it: a page does not need a language. Omit to leave it unchanged. Refused if the page already has a translation in that language.'),
   baseRevisionId: z.string().uuid().optional().describe('Stale guard when changing properties after reading page'),
 };
 export type UpdatePagePropertiesInput = z.infer<z.ZodObject<typeof updatePagePropertiesSchema>>;
 
 export async function updatePageProperties(client: WikiApiClient, args: UpdatePagePropertiesInput) {
-  if (!args.title && !args.path && !args.slug) {
-    throw new Error('Provide title, path, or slug to update');
+  if (!args.title && !args.path && !args.slug && args.locale === undefined) {
+    throw new Error('Provide title, path, slug, or locale to update');
   }
 
   const response = await client.updatePageProperties(args.pageId, {
     title: args.title,
     path: args.path,
     slug: args.slug,
+    locale: args.locale,
     baseRevisionId: args.baseRevisionId,
   });
   return updatePropertiesResponse(response);

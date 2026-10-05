@@ -74,4 +74,47 @@ describe('PagePropertiesFields', () => {
     expect(html).toContain('AI assisted');
     expect(html).toContain('No label');
   });
+
+  describe('page language', () => {
+    const render = (props: { locale?: string | null; withHandler?: boolean }) =>
+      renderWithI18n(
+        <PagePropertiesFields
+          title="Guide"
+          onTitleChange={() => undefined}
+          locale={props.locale}
+          onLocaleChange={props.withHandler === false ? undefined : () => undefined}
+        />,
+      );
+
+    it('offers "Not set" and the supported languages, with "Not set" chosen when the page has none', () => {
+      const html = render({ locale: null });
+
+      expect(html).toContain('id="prop-locale"');
+      expect(html).toContain('Language');
+      expect(html).toContain('<option value="" selected="">Not set</option>');
+      expect(html).toContain('English (en)');
+      expect(html).toContain('Chinese (Simplified) (zh)');
+    });
+
+    it('chooses the language the page already has', () => {
+      const html = render({ locale: 'zh' });
+
+      expect(html).toContain('<option value="zh" selected="">Chinese (Simplified) (zh)</option>');
+      expect(html).not.toContain('<option value="" selected="">');
+    });
+
+    it('still shows a language outside the supported list instead of looking unset', () => {
+      // For example one carried in by a Wiki.js import.
+      const html = render({ locale: 'fr-CA' });
+
+      expect(html).toContain('<option value="fr-CA" selected="">fr-CA</option>');
+    });
+
+    it('is left out where the language cannot be changed', () => {
+      // A translation has no language of its own to set; so does a caller that
+      // does not know the page's language.
+      expect(render({ locale: undefined })).not.toContain('id="prop-locale"');
+      expect(render({ locale: 'en', withHandler: false })).not.toContain('id="prop-locale"');
+    });
+  });
 });

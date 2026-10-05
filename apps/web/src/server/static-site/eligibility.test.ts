@@ -3,7 +3,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { addressKey, buildPublishableSet, summarizeEligibility } from './eligibility';
+import { addressKey, buildPublishableSet, ROOT_SECTION, summarizeEligibility } from './eligibility';
 
 /**
  * FR-007's five conditions, each verified in isolation. A page that fails any
@@ -51,7 +51,8 @@ async function makePage(options: {
       // owns no independent slug and is always ''.
       slug: options.sourcePageId ? '' : options.path,
       path: options.path,
-      locale: options.locale ?? 'en',
+      // Nothing gives a page a language by default; a test that needs one says so.
+      locale: options.locale ?? null,
       title: options.title ?? options.path,
       authorId,
       visibility: options.visibility ?? 'public',
@@ -125,7 +126,7 @@ describe('buildPublishableSet', () => {
 
     const set = await buildPublishableSet();
     expect(set.pages.map((p) => p.path)).toEqual(['guides/setup']);
-    expect(set.pageIdsByAddress.has(addressKey('en', 'guides/setup'))).toBe(true);
+    expect(set.pageIdsByAddress.has(addressKey(ROOT_SECTION, 'guides/setup'))).toBe(true);
   });
 
   it('excludes a soft-deleted page', async () => {
@@ -228,30 +229,57 @@ describe('buildPublishableSet', () => {
     // 015/035 invariant: the source row owns translationGroupId=null,
     // sourcePageId=null; a translation row sets both, pointing back at the
     // source, and owns no independent slug of its own.
-    const sourceId = await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup', locale: 'en' });
-    await db.update(schema.pages).set({ translationGroupId: group }).where(eq(schema.pages.id, sourceId));
+    const sourceId = await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup' });
     await makePage({ spaceId: space, path: 'guides/setup', title: '安装', locale: 'zh', translationGroupId: group, sourcePageId: sourceId });
+    await makePage({ spaceId: space, path: 'guides/setup', title: 'Setup (en)', locale: 'en', translationGroupId: group, sourcePageId: sourceId });
 
     const set = await buildPublishableSet();
-    expect(set.translationGroups.get(group)?.get('en')).toBe('guides/setup');
     expect(set.translationGroups.get(group)?.get('zh')).toBe('guides/setup');
+    // English is a language like any other: it is a section of its own and
+    // never the original's.
+    expect(set.translationGroups.get(group)?.get('en')).toBe('guides/setup');
+  });
+
+  it('keeps an English translation apart from an original that has no language', async () => {
+    const space = await makeSpace('wiki-open', 'wiki', true);
+    const group = randomUUID();
+    const sourceId = await makePage({ spaceId: space, path: 'guide', title: '指南' });
+    await makePage({ spaceId: space, path: 'guide', title: 'Guide', locale: 'en', translationGroupId: group, sourcePageId: sourceId });
+
+    const set = await buildPublishableSet();
+    const byTitle = new Map(set.pages.map((page) => [page.title, page]));
+    expect(byTitle.get('指南')).toMatchObject({ locale: ROOT_SECTION, language: null });
+    expect(byTitle.get('Guide')).toMatchObject({ locale: 'en', language: 'en' });
+    expect(set.pageIdsByAddress.get(addressKey(ROOT_SECTION, 'guide'))).toBe(sourceId);
+    expect(set.pageIdsByAddress.get(addressKey('en', 'guide'))).not.toBe(sourceId);
+    expect(set.defaultLocale).toBe(ROOT_SECTION);
+  });
+
+  it('files an original under the root section whatever language it is written in', async () => {
+    const space = await makeSpace('wiki-open', 'wiki', true);
+    await makePage({ spaceId: space, path: 'zh-original', title: '原文', locale: 'zh' });
+
+    const set = await buildPublishableSet();
+    expect(set.pages[0]).toMatchObject({ locale: ROOT_SECTION, language: 'zh' });
   });
 
   it('does not group a translation whose sibling is not publishable', async () => {
     const space = await makeSpace('wiki-open', 'wiki', true);
     const group = randomUUID();
-    await makePage({ spaceId: space, path: 'p', title: 'EN', locale: 'en', translationGroupId: group });
+    const sourceId = await makePage({ spaceId: space, path: 'p', title: 'Source' });
+    await makePage({ spaceId: space, path: 'p', title: 'JA', locale: 'ja', translationGroupId: group, sourcePageId: sourceId });
     await makePage({
       spaceId: space,
       path: 'p',
       title: 'ZH',
       locale: 'zh',
       translationGroupId: group,
+      sourcePageId: sourceId,
       visibility: 'restricted',
     });
 
     const set = await buildPublishableSet();
-    expect([...(set.translationGroups.get(group)?.keys() ?? [])]).toEqual(['en']);
+    expect([...(set.translationGroups.get(group)?.keys() ?? [])]).toEqual(['ja']);
   });
 
   it('returns an empty set rather than throwing when the wiki has nothing publishable', async () => {

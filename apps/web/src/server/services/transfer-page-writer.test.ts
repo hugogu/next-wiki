@@ -164,6 +164,31 @@ describe('writeImportedPage', () => {
     expect(revision?.status).toBe('published');
   });
 
+  it('stores a page archived as undetermined with no language, and finds it again on re-import', async () => {
+    const first = await writeImportedPage({
+      actorUserId: adminId,
+      path: 'docs/no-language',
+      locale: 'und',
+      title: 'No language',
+      markdown: '# No language',
+      action: 'create',
+    });
+    const stored = await db.query.pages.findFirst({ where: eq(schema.pages.id, first.pageId!) });
+    expect(stored?.locale).toBeNull();
+
+    // The existing-page lookup must match "no language" too, or the same page
+    // would be imported a second time and trip the identity key.
+    const second = await writeImportedPage({
+      actorUserId: adminId,
+      path: 'docs/no-language',
+      locale: 'und',
+      title: 'No language again',
+      markdown: '# No language again',
+      action: 'create',
+    });
+    expect(second).toEqual({ pageId: first.pageId, revisionId: null, action: 'skip' });
+  });
+
   it('persists imported frontmatter tags as revision metadata and registry assignments', async () => {
     const result = await writeImportedPage({
       actorUserId: adminId,

@@ -29,6 +29,7 @@ const STRINGS: DocumentStrings = {
   onThisPage: 'On this page',
   toggleTheme: 'Toggle theme',
   languages: 'Languages',
+  original: 'Original',
   noResults: 'No results',
   translationMissing: 'Not available in this language',
 };

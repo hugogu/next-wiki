@@ -9,6 +9,7 @@ import { invalidatePublicContentCache } from '@/server/cache/public-cache';
 import { notifyPublicContentChanged } from '@/server/services/public-content-events';
 import { enqueuePublicPageWarmup } from '@/server/services/public-page-warmup';
 import { canonicalSpacePath } from '@/server/services/space-routes';
+import { routingLocale } from '@/server/services/page-locale';
 import { renderPageMarkdown } from '@/server/services/wiki-links';
 
 /**
@@ -75,7 +76,7 @@ export async function rerenderPage(ctx: PermCtx, pageId: string): Promise<Public
   let publishedChanged = false;
   for (const revision of revisions) {
     const source = await readMarkdownFromDatabase(revision);
-    const { html } = await renderPageMarkdown(space, source, { locale: page.locale });
+    const { html } = await renderPageMarkdown(space, source, { locale: routingLocale(page) });
     if (html === revision.contentHtml) continue;
     await db
       .update(schema.pageRevisions)
@@ -90,7 +91,7 @@ export async function rerenderPage(ctx: PermCtx, pageId: string): Promise<Public
   // reading a draft is served uncached.
   if (publishedChanged) {
     invalidatePublicContentCache();
-    await enqueuePublicPageWarmup(canonicalSpacePath(space, page.slug || page.path, page.locale));
+    await enqueuePublicPageWarmup(canonicalSpacePath(space, page.slug || page.path, routingLocale(page)));
     // The static site renders from source, so it carries the same stale
     // output until it is regenerated with the fixed pipeline. Git export, the
     // other listener, mirrors that same unchanged source and skips this reason.

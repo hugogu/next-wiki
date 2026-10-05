@@ -32,6 +32,8 @@ type EditPageInitial = {
   // 035: canonical public address — used to navigate back to the live reader
   // page. Unaffected by this form's path (tree-move) editing.
   slug: string;
+  /** The language the page is written in; null when none is set. */
+  locale: string | null;
   title: string;
   contentSource: string;
   canPublish: boolean;
@@ -69,6 +71,10 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
   const [newSlug, setNewSlug] = useState(initial.slug);
   const [committedSlug, setCommittedSlug] = useState(initial.slug);
   const [committedRevisionId, setCommittedRevisionId] = useState(initial.revisionId);
+  // The page's language: page metadata with no revision behind it, so like the
+  // path and address it is persisted straight from the properties panel.
+  const [locale, setLocale] = useState<string | null>(initial.locale);
+  const [committedLocale, setCommittedLocale] = useState<string | null>(initial.locale);
   const [initialMetadata] = useState(() => ({
     date: initial.metadata.date ?? '',
     summary: initial.metadata.summary ?? '',
@@ -148,9 +154,10 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
     const slugChanged = newSlug !== committedSlug;
     const visibilityChanged = initial.canSetVisibility && visibility !== initial.visibility;
     const aiContentLevelChanged = initial.canManageAiAttribution && aiContentLevel !== initial.aiContentLevel;
-    if (!pathChanged && !slugChanged && !visibilityChanged && !aiContentLevelChanged) {
+    const localeChanged = locale !== committedLocale;
+    if (!pathChanged && !slugChanged && !visibilityChanged && !aiContentLevelChanged && !localeChanged) {
       // Title and metadata edits in this panel save with the next draft; only
-      // path, address, and administrator visibility settings persist
+      // path, address, language, and administrator visibility settings persist
       // immediately here.
       setPropertiesOpen(false);
       return;
@@ -175,6 +182,15 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
     }
     setPropertiesSaving(true);
     try {
+      // First, so that a conflict leaves the rest of the panel unsaved.
+      if (localeChanged) {
+        const res = await apiPatch<PublicPagePropertiesInput, PublicPageResource>(
+          getPublicApiPageUrl(initial.pageId),
+          publicPagePropertiesInputSchema.parse({ locale }),
+        );
+        setCommittedLocale(res.locale);
+        setLocale(res.locale);
+      }
       if (nextPath || nextSlug) {
         const body = publicPagePropertiesInputSchema.parse({
           ...(nextPath ? { path: nextPath } : {}),
@@ -216,6 +232,8 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
         setPropertiesError(t('page.properties.error.slugReserved'));
       } else if (error.code === 'PAGE_SLUG_INVALID') {
         setPropertiesError(t('page.properties.error.slugInvalid'));
+      } else if (error.code === 'PAGE_LANGUAGE_CONFLICT') {
+        setPropertiesError(t('page.properties.error.languageConflict'));
       } else if (error.code === 'FORBIDDEN' || error.code === 'UNAUTHORIZED') {
         setPropertiesError(t('page.properties.error.forbidden'));
       } else if (error.code === 'STALE_REVISION') {
@@ -226,7 +244,7 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
     } finally {
       setPropertiesSaving(false);
     }
-  }, [newPath, committedPath, newSlug, committedSlug, committedRevisionId, aiContentLevel, initial.aiContentLevel, initial.canManageAiAttribution, initial.canSetVisibility, initial.pageId, initial.visibility, t, visibility]);
+  }, [newPath, committedPath, newSlug, committedSlug, locale, committedLocale, committedRevisionId, aiContentLevel, initial.aiContentLevel, initial.canManageAiAttribution, initial.canSetVisibility, initial.pageId, initial.visibility, t, visibility]);
 
   const save = useCallback(() => {
     handleSubmit(onSubmit)();
@@ -339,6 +357,8 @@ export function EditPageForm({ path, initial, space = 'wiki' }: { path: string; 
             onVisibilityChange={initial.canSetVisibility ? setVisibility : undefined}
             aiContentLevel={initial.canManageAiAttribution ? aiContentLevel : undefined}
             onAiContentLevelChange={initial.canManageAiAttribution ? setAiContentLevel : undefined}
+            locale={locale}
+            onLocaleChange={setLocale}
             error={propertiesError}
             saving={propertiesSaving}
             onSave={handleSaveProperties}

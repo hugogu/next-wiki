@@ -2,6 +2,7 @@ import { and, eq, inArray, isNull, isNotNull } from 'drizzle-orm';
 import type { StaticSiteExclusionCounts, StaticSiteExclusionReason } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import { translationLocale } from '@/server/services/page-locale';
 
 /**
  * The single decision point for what may be published (FR-007).
@@ -26,6 +27,19 @@ import * as schema from '@/server/db/schema';
  * and accuracy consequences than publishing an authored page.
  */
 
+/**
+ * Section the original pages are published in. The site groups pages into
+ * language sections: this one is served at the root, and every other section
+ * under `/{locale}/`. Originals get a key of their own instead of a language
+ * because a translation can be into any language — including the one an
+ * original happens to be written in, or has no language set for — and a
+ * translation must never share its original's address.
+ *
+ * `und` is the BCP 47 subtag for "undetermined", so it is also a valid locale
+ * wherever the section key reaches an `Intl` API.
+ */
+export const ROOT_SECTION = 'und';
+
 export type PublishablePage = {
   id: string;
   spaceId: string;
@@ -35,7 +49,12 @@ export type PublishablePage = {
   // translation owns no independent slug). `path` remains the tree-structure
   // key (nav nesting, breadcrumb ancestry); `slug` is the actual href.
   slug: string;
+  /** The language section the page is published in: `ROOT_SECTION` for an
+   * original, the translation's own language otherwise. */
   locale: string;
+  /** The language the page's text is written in, when known. Absent only in
+   * hand-built sets, where `locale` stands in for it. */
+  language?: string | null;
   title: string;
   translationGroupId: string | null;
   revisionId: string;
@@ -114,7 +133,7 @@ async function countExclusions(): Promise<{ counts: StaticSiteExclusionCounts; t
   return { counts, total };
 }
 
-export async function buildPublishableSet(defaultLocale = 'en'): Promise<PublishableSet> {
+export async function buildPublishableSet(defaultLocale = ROOT_SECTION): Promise<PublishableSet> {
   const rows = await db
     .select({
       id: schema.pages.id,
@@ -165,6 +184,8 @@ export async function buildPublishableSet(defaultLocale = 'en'): Promise<Publish
   const pages: PublishablePage[] = rows.map(({ sourcePageId, ...row }) => ({
     ...row,
     slug: sourcePageId ? (sourceSlugById.get(sourcePageId) ?? row.slug) : row.slug,
+    locale: sourcePageId ? translationLocale(row) : ROOT_SECTION,
+    language: row.locale,
     contentSource: row.contentSource ?? '',
   }));
 

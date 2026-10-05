@@ -336,6 +336,7 @@
         "slugTaken": "该地址已被其他页面占用。",
         "slugReserved": "该地址已被系统功能占用，请选择其他地址。",
         "slugInvalid": "该地址无效。",
+        "languageConflict": "此页面已有该语言的译文，或同一路径下已有另一个该语言的页面。请选择其他语言，或先移除对方。",
         "forbidden": "你没有权限编辑页面属性。",
         "generic": "更新属性失败。"
       }
@@ -454,7 +455,8 @@
         "view": "打开译文",
         "detail": "查看任务详情"
       },
-      "languageUnavailable": "无法选择 {language}：此页面的记录语言就是 {language}。",
+      "languageUnavailable": "无法选择 {language}：此页面的语言已设置为 {language}。",
+      "changeLanguage": "修改此页面的语言",
       "trackError": "无法读取任务状态，请到翻译管理中查看。",
       "error": "创建翻译任务失败。",
       "close": "关闭"
@@ -593,6 +595,9 @@
         "aiContentLevelLabel": "AI 内容标记",
         "aiContentLevelNone": "无标记",
         "aiContentLevelHint": "仅页面作者或管理员可以更改此声明，所有更改都会记录。",
+        "localeLabel": "语言",
+        "localeNone": "未设置",
+        "localeHint": "页面正文使用的语言，可以不设置；未设置语言的页面可以翻译为任何语言。",
         "frontmatterLabel": "将页面元数据写入 Markdown frontmatter",
         "frontmatterHint": "关闭时，标题、日期、标签和摘要仅保存在 Wiki 数据库中，不改写 Markdown 原文。",
         "pathLabel": "路径",
@@ -2235,6 +2240,7 @@
         "onThisPage": "本页目录",
         "toggleTheme": "切换浅色/深色外观",
         "languages": "语言",
+        "original": "原文",
         "noResults": "未找到结果。",
         "notFound": "已发布的站点上不存在该页面。它可能已被重命名，或已不再公开。",
         "translationMissing": "本页没有该语言的版本。此链接将前往该语言的首页。"
@@ -2865,6 +2871,7 @@
       "CONTENT_REJECTED": "AI 服务商拒绝了该内容。",
       "PROVIDER_UNAVAILABLE": "AI 服务商不可用。",
       "INVALID_RESPONSE": "模型返回的内容不可用。",
+      "OUTPUT_LIMIT_REACHED": "模型在翻译完成前就用完了输出长度上限，因此没有发布任何内容。",
       "CANCELLED": "请求已被取消。"
     }
   },

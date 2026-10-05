@@ -12,6 +12,7 @@ import {
   pgTable,
   text,
   timestamp,
+  unique,
   uniqueIndex,
   uuid,
 } from 'drizzle-orm/pg-core';
@@ -263,7 +264,12 @@ export const pages = pgTable(
     // Soft-deleted rows keep their slug — see `pages_space_slug_unique` below.
     slug: text('slug').notNull(),
     path: text('path').notNull(),
-    locale: text('locale').notNull().default('en'),
+    // The language the page's text is written in (ISO 639-1), or null when
+    // nobody has said. Optional by design: nothing assigns one by default, and
+    // an original may be left without. A translation row always has one — it is
+    // the language the translation is written in, and the prefix it is served
+    // under (see `routingLocale`).
+    locale: text('locale'),
     title: text('title').notNull(),
     authorId: uuid('author_id')
       .notNull()
@@ -303,7 +309,9 @@ export const pages = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
-    canonical: uniqueIndex().on(t.spaceId, t.path, t.locale),
+    // The tree identity key. A null locale (language not set) counts as a value
+    // of its own, so two originals still cannot share a path in a space.
+    canonical: unique('pages_space_path_locale_unique').on(t.spaceId, t.path, t.locale).nullsNotDistinct(),
     spaceIdx: index().on(t.spaceId),
     publishedListIdx: index().on(t.spaceId, t.currentPublishedVersionId).where(isNull(t.deletedAt)),
     // At most one translated page per (group, locale). Source pages have a null
@@ -313,6 +321,10 @@ export const pages = pgTable(
       .where(sql`${t.translationGroupId} is not null`),
     sourcePageIdx: index('pages_source_page_idx').on(t.sourcePageId),
     linkTargetPageIdx: index('pages_link_target_page_idx').on(t.linkTargetPageId),
+    translationHasLocale: check(
+      'pages_translation_has_locale',
+      sql`${t.translationGroupId} is null or ${t.locale} is not null`,
+    ),
     linkKindTargetPair: check(
       'pages_link_kind_target_pair',
       sql`(${t.kind} = 'link') = (${t.linkTargetPageId} is not null)`,
@@ -401,7 +413,7 @@ export const crossSpaceMigrationItems = pgTable(
     ordinal: integer('ordinal').notNull(),
     sourcePath: text('source_path').notNull(),
     destinationPath: text('destination_path').notNull(),
-    locale: text('locale').notNull(),
+    locale: text('locale'),
     status: crossSpaceMigrationItemStatusEnum('status').notNull().default('pending'),
     warning: text('warning'),
     failure: text('failure'),
@@ -448,7 +460,7 @@ export const pageRevisions = pgTable(
       .notNull()
       .references(() => pages.id),
     versionNumber: integer('version_number').notNull(),
-    locale: text('locale').notNull().default('en'),
+    locale: text('locale'),
     // 022 (Phase 11): open MIME-type string (was a `text/markdown` enum). Wiki
     // and generated revisions keep defaulting to markdown; raw revisions carry
     // the original source format. Grammar enforced by the CHECK below.

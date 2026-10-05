@@ -3,6 +3,7 @@ import { and, eq, isNull, max, ne, sql } from 'drizzle-orm';
 import { mimeTypeSchema, pageAddressSchema, pathSchema, rawInputKindSchema, rawSourceSchema, type RawInputKind, type RawSource } from '@next-wiki/shared';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
+import { localeEquals } from '@/server/services/page-locale';
 import { can, getActorUserId, pagePermissionOptions, spacePermissionOptions, type PermCtx } from '@/server/permissions';
 import { DomainError } from '@/server/errors';
 import { persistRevisionMetadata } from '@/server/services/page-metadata';
@@ -409,7 +410,7 @@ export async function relocateMirroredEntry(
       where: and(
         eq(schema.pages.spaceId, space.id),
         eq(schema.pages.path, parsedPath.data),
-        eq(schema.pages.locale, page.locale),
+        localeEquals(schema.pages.locale, page.locale),
         isNull(schema.pages.translationGroupId),
         ne(schema.pages.id, page.id),
       ),

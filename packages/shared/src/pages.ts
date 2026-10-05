@@ -33,6 +33,7 @@ export const aiAttributionClearanceListSchema = z.object({ items: z.array(aiAttr
 export const pageVisibilitySchema = z.enum(['public', 'registered', 'restricted']);
 export type PageVisibility = z.infer<typeof pageVisibilitySchema>;
 import { wikiAiChannelSchema } from './ai';
+import { localeCodeSchema } from './translations';
 
 export const slugSchema = z
   .string()
@@ -231,7 +232,10 @@ export const publicPageResourceSchema = z.object({
   // For a translation, this is its source page's slug (translations own no
   // independent address); `canonicalUrl` is the full address built from it.
   slug: z.string(),
-  locale: z.string(),
+  // The language the page's text is written in, or null when none is set.
+  // For a translation it is the language of the translation, and the prefix it
+  // is served under; an original is always served at its bare address.
+  locale: z.string().nullable(),
   title: z.string(),
   canonicalUrl: z.string().optional(),
   origin: z
@@ -537,9 +541,12 @@ export const publicPagePropertiesInputSchema = z.object({
   // 035: the canonical public address. Distinct from `path` — changing it
   // never moves the page in the tree, only where it is publicly reachable.
   slug: pageAddressSchema.optional(),
+  // The language the page's text is written in. `null` clears it (a page need
+  // not have one); omitting the field leaves it as it is.
+  locale: localeCodeSchema.nullable().optional(),
   baseRevisionId: z.string().uuid().optional(),
-}).strict().refine((value) => value.path || value.title || value.slug, {
-  message: 'Provide path, title, or slug',
+}).strict().refine((value) => value.path || value.title || value.slug || value.locale !== undefined, {
+  message: 'Provide path, title, slug, or locale',
 });
 export type PublicPagePropertiesInput = z.infer<typeof publicPagePropertiesInputSchema>;
 

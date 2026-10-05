@@ -33,11 +33,11 @@ export const GET = withPublicApi<{ id: string }>(async (request, { params }, ctx
 });
 
 /**
- * Update page properties (title and/or canonical path).
+ * Update page properties (title, canonical path, address, or language).
  *
  * @openapi
  * @summary Update public wiki page
- * @description Updates page title and/or canonical path through the public content API.
+ * @description Updates page title, canonical path, public address, and/or the language the page is written in. Changing the language creates no revision and does not move the page.
  * @tag Pages
  * @auth bearer
  * @pathParams PublicPageIdPathParams

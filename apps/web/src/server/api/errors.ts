@@ -190,6 +190,8 @@ export function mapDomainError(error: DomainError): NextResponse {
     case 'PAGE_ADDRESS_TAKEN':
     case 'ADDRESS_ALIAS_RETAINED':
     case 'PAGE_NOT_DELETED':
+    // Page language (042).
+    case 'PAGE_LANGUAGE_CONFLICT':
       return apiError(code, message, 409);
     default:
       return apiError('BAD_REQUEST', message, 400);

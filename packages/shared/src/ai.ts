@@ -583,7 +583,9 @@ export const wikiCitationSchema = z.object({
   // citation). Optional so citations persisted before this field existed
   // keep validating; link builders fall back to `path` on absence.
   slug: z.string().optional(),
-  locale: z.string(),
+  // Null when the cited page has no language set; citations stored before that
+  // was possible carry a string and keep validating.
+  locale: z.string().nullable(),
   revisionId: z.string().uuid(),
   revisionHash: z.string(),
   // Present for chunk-level (vector) retrieval results; absent for

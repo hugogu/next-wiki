@@ -129,7 +129,7 @@ describe('TranslatePageDialog outcome reporting', () => {
     vi.unstubAllGlobals();
   });
 
-  function mount(props: { sourceLocale?: string } = {}) {
+  function mount(props: { sourceLocale?: string | null; onChangeLanguage?: () => void } = {}) {
     container = document.createElement('div');
     document.body.appendChild(container);
     root = createRoot(container);
@@ -229,6 +229,10 @@ describe('TranslatePageDialog outcome reporting', () => {
       picker().querySelector(`option[value="${code}"]`) as HTMLOptionElement;
     const submitButton = () =>
       container.querySelector('button[type="submit"]') as HTMLButtonElement;
+    const changeLanguageButton = () =>
+      [...container.querySelectorAll('button')].find(
+        (candidate) => candidate.textContent === 'page.translate.changeLanguage',
+      );
 
     it('does not pre-select the language the page is recorded in', async () => {
       // Pre-selecting it would make the default action fail for every page.
@@ -251,6 +255,49 @@ describe('TranslatePageDialog outcome reporting', () => {
       expect(picker().value).toBe('en');
       expect(option('en').disabled).toBe(false);
       expect(container.textContent).not.toContain('page.translate.languageUnavailable');
+    });
+
+    it('offers every language, English included, when the page has no language set', async () => {
+      // A page nobody has given a language is not written in any of them.
+      stubFetch(runView(), null, ['en', 'zh']);
+      mount({ sourceLocale: null, onChangeLanguage: () => {} });
+      await flush();
+
+      expect(picker().value).toBe('en');
+      expect(option('en').disabled).toBe(false);
+      expect(container.textContent).not.toContain('page.translate.languageUnavailable');
+      expect(changeLanguageButton()).toBeUndefined();
+    });
+
+    describe('correcting the page language from here', () => {
+      it('offers it next to the hint, and hands over to whoever can change the language', async () => {
+        const onChangeLanguage = vi.fn();
+        stubFetch(runView(), null, ['en', 'zh']);
+        mount({ sourceLocale: 'en', onChangeLanguage });
+        await flush();
+
+        expect(container.textContent).toContain('page.translate.languageUnavailable');
+        expect(changeLanguageButton()).toBeDefined();
+        act(() => changeLanguageButton()!.click());
+        expect(onChangeLanguage).toHaveBeenCalledTimes(1);
+      });
+
+      it('is left out for a viewer who cannot change it', async () => {
+        stubFetch(runView(), null, ['en', 'zh']);
+        mount({ sourceLocale: 'en' });
+        await flush();
+
+        expect(container.textContent).toContain('page.translate.languageUnavailable');
+        expect(changeLanguageButton()).toBeUndefined();
+      });
+
+      it('is not a control inside the language label, which would make it part of the label', async () => {
+        stubFetch(runView(), null, ['en', 'zh']);
+        mount({ sourceLocale: 'en', onChangeLanguage: () => {} });
+        await flush();
+
+        expect(changeLanguageButton()!.closest('label')).toBeNull();
+      });
     });
 
     it('cannot be submitted when the page language is the only one configured', async () => {

@@ -46,7 +46,9 @@ describe('search candidate projection', () => {
       title: 'Search Architecture',
       canonicalUrl: `/wiki/${corpus.pages.english.path}`,
     });
-    expect(english?.page.locale).toBeTruthy();
+    // Nobody has said what language the fixture page is written in, and the
+    // projection reports that as it is rather than inventing one.
+    expect(english?.page.locale).toBeNull();
     // Projection is intentionally engine-neutral: provenance is added only by
     // the coordinator after this permission boundary has removed hidden pages.
     expect(english).not.toHaveProperty('engineSources');

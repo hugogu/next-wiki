@@ -1,4 +1,4 @@
-import { and, count, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
+import { and, count, countDistinct, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm';
 import type {
   TranslationDocumentList,
   TranslationDocumentQuery,
@@ -192,7 +192,6 @@ async function getDefaultSpaceId(): Promise<string> {
 type EligibleSource = {
   pageId: string;
   path: string;
-  locale: string;
   revisionId: string;
   contentHash: string;
 };
@@ -203,31 +202,34 @@ type EligibleSource = {
  * revision. For `mode: 'missing'`, pages that already have a fresh translation
  * for the target locale are excluded.
  *
- * A page cannot be translated into the language it is recorded in — the
+ * A page cannot be translated into the language it is written in — the
  * translated row would collide with the source on (space, path, locale) — so
- * those pages are skipped. They are skipped by name rather than in the query so
- * that an empty result can say whether that is the reason (`allInTargetLocale`).
+ * those pages are left out. A page with no language set is not written in any
+ * language the system knows of, so it can be translated into any, English
+ * included. `IS DISTINCT FROM` is what makes that hold: a plain `<>` is unknown
+ * for a null language and would drop exactly those pages.
+ *
+ * `allInTargetLocale` explains an empty result, so it is only worked out then.
  */
 async function resolveEligibleSources(
   spaceId: string,
   input: TranslationRunCreate,
 ): Promise<{ sources: EligibleSource[]; allInTargetLocale: boolean }> {
-  const conditions: SQL[] = [
+  const scoped: SQL[] = [
     eq(schema.pages.spaceId, spaceId),
     isNull(schema.pages.deletedAt),
     isNull(schema.pages.translationGroupId),
     sql`${schema.pages.currentPublishedVersionId} is not null`,
   ];
   if (input.scope.kind === 'page_ids') {
-    conditions.push(inArray(schema.pages.id, input.scope.pageIds));
+    scoped.push(inArray(schema.pages.id, input.scope.pageIds));
   } else if (input.scope.kind === 'paths') {
-    conditions.push(inArray(schema.pages.path, input.scope.paths));
+    scoped.push(inArray(schema.pages.path, input.scope.paths));
   }
-  const published: EligibleSource[] = await db
+  const rows: EligibleSource[] = await db
     .select({
       pageId: schema.pages.id,
       path: schema.pages.path,
-      locale: schema.pages.locale,
       revisionId: schema.pageRevisions.id,
       contentHash: schema.pageRevisions.contentHash,
     })
@@ -236,16 +238,15 @@ async function resolveEligibleSources(
       schema.pageRevisions,
       eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId),
     )
-    .where(and(...conditions));
+    .where(and(...scoped, sql`${schema.pages.locale} is distinct from ${input.targetLocale}`));
 
-  const rows = published.filter((r) => r.locale !== input.targetLocale);
-  const allInTargetLocale = published.length > 0 && rows.length === 0;
-
-  if (input.mode === 'all') return { sources: rows, allInTargetLocale };
+  if (rows.length === 0) {
+    return { sources: rows, allInTargetLocale: await isEntirelyInTargetLocale(scoped, input) };
+  }
+  if (input.mode === 'all') return { sources: rows, allInTargetLocale: false };
 
   // mode: 'missing' — drop pages that already have an up-to-date translation.
   const pageIds = rows.map((r) => r.pageId);
-  if (pageIds.length === 0) return { sources: rows, allInTargetLocale };
   const states = await db
     .select({
       sourcePageId: schema.pageTranslationStates.sourcePageId,
@@ -261,7 +262,34 @@ async function resolveEligibleSources(
   const fresh = new Set(
     states.filter((s) => s.freshness === 'fresh').map((s) => s.sourcePageId),
   );
-  return { sources: rows.filter((r) => !fresh.has(r.pageId)), allInTargetLocale };
+  return { sources: rows.filter((r) => !fresh.has(r.pageId)), allInTargetLocale: false };
+}
+
+/**
+ * Whether being written in the target language is the whole reason a request
+ * has nothing to translate: every page it names is a published source page in
+ * that language. A page it names that is unpublished, deleted or not a source
+ * page is a different reason, and reporting this one instead would mislead.
+ * Called once the language filter has already left nothing, so it only has to
+ * count the pages that were filtered out.
+ */
+async function isEntirelyInTargetLocale(
+  scoped: SQL[],
+  input: TranslationRunCreate,
+): Promise<boolean> {
+  const { scope } = input;
+  const named =
+    scope.kind === 'page_ids' ? new Set(scope.pageIds) : scope.kind === 'paths' ? new Set(scope.paths) : null;
+  const [row] = await db
+    .select({ covered: countDistinct(scope.kind === 'paths' ? schema.pages.path : schema.pages.id) })
+    .from(schema.pages)
+    .innerJoin(
+      schema.pageRevisions,
+      eq(schema.pageRevisions.id, schema.pages.currentPublishedVersionId),
+    )
+    .where(and(...scoped, eq(schema.pages.locale, input.targetLocale)));
+  const covered = row?.covered ?? 0;
+  return named ? covered === named.size : covered > 0;
 }
 
 /**

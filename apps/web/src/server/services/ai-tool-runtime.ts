@@ -617,7 +617,8 @@ function citationFromCandidate(value: unknown): AiCitation | null {
   const pageId = typeof candidate.pageId === 'string' ? candidate.pageId : null;
   const title = typeof candidate.title === 'string' ? candidate.title : null;
   const path = typeof candidate.path === 'string' ? candidate.path : null;
-  const locale = typeof candidate.locale === 'string' ? candidate.locale : 'en';
+  // A page with no language set is cited as such, not as English.
+  const locale = typeof candidate.locale === 'string' ? candidate.locale : null;
   const revisionId = typeof candidate.revisionId === 'string' ? candidate.revisionId : null;
   const revisionHash = typeof candidate.revisionHash === 'string' ? candidate.revisionHash : null;
   if (!pageId || !title || !path || !revisionId || !revisionHash) return null;
