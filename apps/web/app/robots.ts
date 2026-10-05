@@ -18,6 +18,11 @@ export const dynamic = 'force-dynamic';
  * We deliberately keep this permissive. Spaces that need to stay private are
  * already protected at the read layer (anonymous requests return 404), so
  * indexing the rest of the site is safe and helps SEO.
+ *
+ * Public share links (/s/<id>) are not disallowed here so social media and chat
+ * bots (e.g. Slack, Telegram, Twitter, Discord) can unfurl link previews.
+ * Search engine indexing is governed on the share route itself via `noindex` and
+ * canonical tags pointing to the primary page.
  */
 export default function robots(): MetadataRoute.Robots {
   const siteUrl = env.APP_URL.replace(/\/$/, '');
@@ -26,9 +31,6 @@ export default function robots(): MetadataRoute.Robots {
       {
         userAgent: '*',
         allow: '/',
-        // Public share links (/s/<id>) are for direct access, not indexing;
-        // they are noindex and canonicalise to the primary page anyway.
-        disallow: '/s/',
       },
     ],
     sitemap: `${siteUrl}/sitemap.xml`,

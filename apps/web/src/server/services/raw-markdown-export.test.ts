@@ -23,8 +23,10 @@ const translationLocales = vi.hoisted(() => ({
   getReservedLocalePrefixes: vi.fn(),
   isReservedLocalePrefix: vi.fn(),
 }));
+const readerRouting = vi.hoisted(() => ({ resolveReaderPage: vi.fn() }));
 
 vi.mock('@/server/services/pages', () => pageService);
+vi.mock('@/server/services/reader-routing', () => readerRouting);
 vi.mock('@/server/services/public-content', () => publicContent);
 vi.mock('@/server/db', () => ({ default: db, db }));
 vi.mock('@/server/content-store/read-router', () => ({ readMarkdownFromDatabase }));
@@ -41,11 +43,135 @@ function revision(overrides: { contentType?: string; contentSource?: string | nu
   };
 }
 
-describe('getWikiRawMarkdown', () => {
+describe('getWikiRawMarkdown by public address (035)', () => {
+  const space = { id: 'space-1', slug: 'default', kind: 'wiki', routePrefix: 'wiki' };
+
+  function resolvedOriginal(overrides: { legacy?: boolean } = {}) {
+    return {
+      kind: 'original',
+      page: { revisionId: 'rev-1', title: 'Foo' },
+      sourcePath: 'foo',
+      space,
+      legacy: overrides.legacy ?? false,
+    };
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    db.query.pageRevisions.findFirst.mockResolvedValue(revision({ contentSource: '# Foo\n' }));
+    readMarkdownFromDatabase.mockResolvedValue('# Foo\n');
+  });
+
+  it('serves the revision of the page the reader resolves for a space prefix and slug', async () => {
+    readerRouting.resolveReaderPage.mockResolvedValue(resolvedOriginal());
+
+    const result = await getWikiRawMarkdown(['wiki', 'foo']);
+
+    expect(result).toEqual({ kind: 'ok', content: '# Foo\n', title: 'Foo' });
+    expect(readerRouting.resolveReaderPage).toHaveBeenCalledWith(
+      expect.objectContaining({ actor: { kind: 'anonymous' } }),
+      ['wiki', 'foo'],
+    );
+    expect(pageService.getCachedPublicLivePage).not.toHaveBeenCalled();
+  });
+
+  it('serves a published translation the reader resolves from a locale and source slug', async () => {
+    readerRouting.resolveReaderPage.mockResolvedValue({
+      kind: 'translation',
+      page: { revisionId: 'rev-zh', title: 'Foo Zh' },
+      locale: 'zh',
+      sourcePath: 'foo',
+      space,
+      legacy: false,
+    });
+    db.query.pageRevisions.findFirst.mockResolvedValue(revision({ contentSource: '# Foo Zh\n' }));
+    readMarkdownFromDatabase.mockResolvedValue('# Foo Zh\n');
+
+    await expect(getWikiRawMarkdown(['wiki', 'zh', 'foo'])).resolves.toEqual({
+      kind: 'ok',
+      content: '# Foo Zh\n',
+      title: 'Foo Zh',
+    });
+    expect(db.query.pageRevisions.findFirst).toHaveBeenCalledTimes(1);
+  });
+
+  it('serves the target directly for a retained alias or legacy address instead of redirecting', async () => {
+    readerRouting.resolveReaderPage.mockResolvedValue(resolvedOriginal({ legacy: true }));
+
+    await expect(getWikiRawMarkdown(['wiki', 'old-slug'])).resolves.toEqual({
+      kind: 'ok',
+      content: '# Foo\n',
+      title: 'Foo',
+    });
+  });
+
+  // Next hands the route already-decoded segments and the resolver decodes its
+  // input again, so a literal `%` has to be re-encoded or the resolver throws.
+  it('re-encodes the already-decoded segments for the reader resolver', async () => {
+    readerRouting.resolveReaderPage.mockResolvedValue(resolvedOriginal());
+
+    await getWikiRawMarkdown(['wiki', '100%zz', 'release notes']);
+
+    expect(readerRouting.resolveReaderPage).toHaveBeenCalledWith(expect.anything(), [
+      'wiki',
+      '100%25zz',
+      'release%20notes',
+    ]);
+  });
+
+  it('answers not found rather than throwing for a literal percent sign that matches no page', async () => {
+    // Stand-in for the real resolver, which decodes its input like the reader does.
+    readerRouting.resolveReaderPage.mockImplementation(async (_ctx: unknown, segments: string[]) => {
+      segments.forEach((segment) => decodeURIComponent(segment));
+      return { kind: 'not_found' };
+    });
+    pageService.getCachedPublicLivePage.mockResolvedValue(null);
+    pageService.getReaderAccessStatus.mockResolvedValue(null);
+
+    await expect(getWikiRawMarkdown(['wiki', 'a%zz'])).resolves.toEqual({ kind: 'not_found' });
+  });
+
+  it('returns unsupported for a non-markdown revision', async () => {
+    readerRouting.resolveReaderPage.mockResolvedValue(resolvedOriginal());
+    db.query.pageRevisions.findFirst.mockResolvedValue(revision({ contentType: 'application/json' }));
+
+    await expect(getWikiRawMarkdown(['wiki', 'foo'])).resolves.toEqual({
+      kind: 'unsupported',
+      contentType: 'application/json',
+    });
+  });
+
+  it('reports an unpublished translation as unavailable without trying tree-path addresses', async () => {
+    readerRouting.resolveReaderPage.mockResolvedValue({
+      kind: 'unavailable',
+      locale: 'zh',
+      sourcePath: 'foo',
+      space,
+      legacy: false,
+    });
+
+    await expect(getWikiRawMarkdown(['wiki', 'zh', 'foo'])).resolves.toEqual({ kind: 'unavailable' });
+    expect(pageService.getCachedPublicLivePage).not.toHaveBeenCalled();
+    expect(pageService.getCachedPublicLiveTranslation).not.toHaveBeenCalled();
+  });
+
+  it('reports a page the anonymous reader may not see as forbidden without trying tree-path addresses', async () => {
+    readerRouting.resolveReaderPage.mockResolvedValue({ kind: 'forbidden', visibility: 'registered', legacy: false });
+
+    await expect(getWikiRawMarkdown(['wiki', 'members', 'guide'])).resolves.toEqual({ kind: 'forbidden' });
+    expect(pageService.getCachedPublicLivePage).not.toHaveBeenCalled();
+    expect(pageService.getReaderAccessStatus).not.toHaveBeenCalled();
+  });
+});
+
+// Before slug routing (035) a page's `.md` address was its tree path. When the
+// reader resolves nothing for an address, those older links must keep working.
+describe('getWikiRawMarkdown legacy tree-path fallback', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     translationLocales.getReservedLocalePrefixes.mockResolvedValue(new Set(['zh']));
     translationLocales.isReservedLocalePrefix.mockImplementation((_, segment) => segment === 'zh');
+    readerRouting.resolveReaderPage.mockResolvedValue({ kind: 'not_found' });
   });
 
   it('returns 404 when the page does not exist', async () => {
@@ -116,6 +242,15 @@ describe('getWikiRawMarkdown', () => {
 
     const result = await getWikiRawMarkdown(['foo']);
     expect(result).toEqual({ kind: 'unsupported', contentType: 'application/json' });
+  });
+
+  it('looks the tree path up with the segments as received, without decoding them again', async () => {
+    pageService.getCachedPublicLivePage.mockResolvedValue(null);
+    pageService.getReaderAccessStatus.mockResolvedValue(null);
+
+    await getWikiRawMarkdown(['docs', '100%zz']);
+
+    expect(pageService.getCachedPublicLivePage).toHaveBeenCalledWith('docs/100%zz');
   });
 });
 

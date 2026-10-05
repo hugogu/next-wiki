@@ -13,6 +13,13 @@ function metaContent(html: string, attribute: 'property' | 'name', key: string):
   return match?.[1] ?? null;
 }
 
+function alternateHref(html: string, type: string): string | null {
+  const link = html
+    .match(/<link\b[^>]*>/gi)
+    ?.find((tag) => /rel="alternate"/i.test(tag) && new RegExp(`type="${type}"`, 'i').test(tag));
+  return link?.match(/href="([^"]*)"/i)?.[1] ?? null;
+}
+
 async function login(page: Page) {
   await page.goto('/auth/login');
   await page.getByLabel('Email').fill('admin@example.com');
@@ -54,6 +61,30 @@ test.describe('reader page metadata', () => {
     expect(canonical).toContain(`/wiki/${path}`);
     const robots = await page.locator('meta[name="robots"]').getAttribute('content');
     expect(robots).toBe('noindex, nofollow');
+    // The Markdown export is anonymous-only, so a signed-in document (which may
+    // show a page anonymous readers cannot) must not advertise it.
+    await expect(page.locator('link[rel="alternate"][type="text/markdown"]')).toHaveCount(0);
+  });
+
+  // Agents and crawlers learn where a page's Markdown source lives from the
+  // document head rather than by guessing a URL, so the public document
+  // advertises it as an alternate and that URL must actually serve Markdown.
+  test('links an anonymous crawler to the page Markdown export', async ({ page, request }) => {
+    await login(page);
+    const path = `md-alternate-${Date.now()}`;
+    await createAndPublishPage(page, path, 'Markdown Alternate');
+
+    const html = await (await request.get(`/wiki/${path}`)).text();
+    const href = alternateHref(html, 'text/markdown');
+    expect(href).toBeTruthy();
+    // The host comes from APP_URL, which the e2e server does not point at its own port.
+    const exportPath = new URL(href!).pathname;
+    expect(exportPath).toBe(`/wiki/${path}.md`);
+
+    const markdown = await request.get(exportPath);
+    expect(markdown.status()).toBe(200);
+    expect(markdown.headers()['content-type']).toContain('text/markdown');
+    expect(await markdown.text()).toContain('Body content for the metadata regression test.');
   });
 
   // Link-preview regression: the reader route declared

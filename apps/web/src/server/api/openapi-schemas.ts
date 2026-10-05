@@ -2791,7 +2791,7 @@ export const WikiRawMarkdownPathParams = z
     path: z
       .string()
       .min(1)
-      .describe('Public wiki reader path, optionally prefixed with a translation locale (e.g. guides/setup or zh/guides/setup). Spans several path segments; each is URL-decoded.'),
+      .describe('Public reader address without the .md suffix: the space route prefix, an optional translation locale, then the page slug (e.g. wiki/guides-setup or wiki/zh/guides-setup). Spans several path segments; each is URL-decoded.'),
   })
   .describe('Public wiki raw Markdown path parameters.');
 
