@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { WikiApiClient } from '../api-client';
 import { batchUpdatePagesResponse } from '../shapes';
+import { booleanArg } from './_scalar-args';
 
 export const batchUpdatePagesSchema = {
   items: z
@@ -19,7 +20,7 @@ export const batchUpdatePagesSchema = {
     .min(1)
     .max(50)
     .describe('1-50 items to update; not transactional across items'),
-  dryRun: z.boolean().optional().describe('If true, returns a per-item preview without writing; defaults to false'),
+  dryRun: booleanArg().optional().describe('If true, returns a per-item preview without writing; defaults to false'),
 };
 export type BatchUpdatePagesInput = z.infer<z.ZodObject<typeof batchUpdatePagesSchema>>;
 

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { contentSpaceSchema, type WikiApiClient } from '../api-client';
 import { deleteFolderResponse } from '../shapes';
+import { booleanArg } from './_scalar-args';
 import { pathSchema } from '@next-wiki/shared';
 
 export const deleteFolderSchema = {
@@ -10,8 +11,7 @@ export const deleteFolderSchema = {
   space: contentSpaceSchema
     .optional()
     .describe('Content space slug; defaults to the default wiki space. Pass "raw" to delete a Raw space folder (admin-only).'),
-  dryRun: z
-    .boolean()
+  dryRun: booleanArg()
     .optional()
     .describe('If true, returns the affected page count without deleting; defaults to false'),
 };

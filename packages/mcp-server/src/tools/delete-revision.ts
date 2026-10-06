@@ -1,9 +1,10 @@
 import { z } from 'zod';
 import type { WikiApiClient } from '../api-client';
+import { numberArg } from './_scalar-args';
 
 export const deleteRevisionSchema = {
   pageId: z.string().uuid().describe('ID of the page the revision belongs to'),
-  version: z.number().int().min(1).describe('Revision version number to soft-delete'),
+  version: numberArg(z.number().int().min(1)).describe('Revision version number to soft-delete'),
 };
 export type DeleteRevisionInput = z.infer<z.ZodObject<typeof deleteRevisionSchema>>;
 

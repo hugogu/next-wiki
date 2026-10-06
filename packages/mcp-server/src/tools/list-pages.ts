@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { contentSpaceSchema, publicRawInputKindSchema, type WikiApiClient } from '../api-client';
 import { listPagesResponse } from '../shapes';
+import { numberArg } from './_scalar-args';
 
 // 046: 'all' (or omitting the field entirely) asks the server to fan out
 // across every space this API key may read — the server resolves that
@@ -25,7 +26,7 @@ export const listPagesSchema = {
   createdStart: z.string().datetime().optional().describe('Only include pages created at or after this ISO 8601 timestamp'),
   createdEnd: z.string().datetime().optional().describe('Only include pages created at or before this ISO 8601 timestamp'),
   order: z.enum(['path', 'recent', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).optional().describe('Result order; use createdAtDesc for newest pages first'),
-  limit: z.number().int().min(1).max(100).optional().describe('Maximum results; defaults to 20'),
+  limit: numberArg(z.number().int().min(1).max(100)).optional().describe('Maximum results; defaults to 20'),
   cursor: z.string().optional().describe('Pagination cursor from previous call'),
 };
 export type ListPagesInput = z.infer<z.ZodObject<typeof listPagesSchema>>;

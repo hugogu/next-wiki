@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import type { WikiApiClient } from '../api-client';
+import { numberArg } from './_scalar-args';
 
 export const findSimilarSchema = {
   title: z.string().optional().describe('Proposed page title'),
   path: z.string().optional().describe('Proposed page path'),
-  threshold: z.number().min(0).max(1).optional().describe('Minimum similarity score [0,1], default 0.5'),
+  threshold: numberArg(z.number().min(0).max(1)).optional().describe('Minimum similarity score [0,1], default 0.5'),
 };
 export type FindSimilarInput = z.infer<z.ZodObject<typeof findSimilarSchema>>;
 

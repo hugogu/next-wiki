@@ -171,6 +171,12 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `get_stats` | Wiki health overview and orphan detection |
 | `find_similar` | Check for existing similar pages |
 
+Integer, number, and boolean arguments are advertised with those types. Some
+hosts forward an agent's arguments as strings, so the server also accepts the
+plain spelling of one (`"2"`, `"0.5"`, `"true"`, `"false"`) and validates the
+converted value as usual. Anything else, such as `"two"`, `""`, or `"yes"`, is
+rejected.
+
 ## Resources
 
 Readable pages are exposed as MCP resources:
