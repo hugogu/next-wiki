@@ -59,12 +59,28 @@ describe('protectMathPipes', () => {
     expect(protectedRow('a \\\\$|x|$')).toContain(PLACEHOLDER);
   });
 
-  it('does not treat a backslash as escaping a closing delimiter', () => {
-    // Verified against remark-math: `$a \$ b$` is math with the body `a \`,
-    // i.e. the span ends at the `\$`, not past it.
-    const row = protectedRow('$a |b| \\$ c|d|$');
-    expect(row).toContain(`a ${PLACEHOLDER}b${PLACEHOLDER} \\`);
-    expect(row).toContain('c|d|');
+  it('treats an escaped dollar inside a span as content, so it does not end the span', () => {
+    // `\$` is a literal dollar sign in TeX, and the parser agrees (see
+    // `math-escaped-dollar.ts`): `$a \$ b$` is math with the body `a \$ b`, so
+    // the pipes on both sides of the `\$` are inside the span.
+    expect(protectedRow('$a |b| \\$ c|d|$')).toBe(
+      `| $a ${PLACEHOLDER}b${PLACEHOLDER} \\$ c${PLACEHOLDER}d${PLACEHOLDER}$ |`,
+    );
+  });
+
+  it('pairs backslashes inside a span, so an escaped backslash does not escape the dollar', () => {
+    // `\\` is a line break in TeX, leaving the `$` after it free to close the
+    // span; the pipes after it are then outside the math.
+    expect(protectedRow('$a\\\\$ |b|$')).toBe('| $a\\\\$ |b|$ |');
+    // An odd run leaves one backslash to escape the `$`, which then keeps the
+    // span open.
+    expect(protectedRow('$a\\\\\\$ |b|$')).toBe(`| $a\\\\\\$ ${PLACEHOLDER}b${PLACEHOLDER}$ |`);
+  });
+
+  it('does not let a backslash escape the closing backtick of a code span', () => {
+    // A code span has no escapes, so it ends at the first backtick; the math
+    // after it is a span of its own.
+    expect(protectedRow('`a\\` $|x|$')).toContain(PLACEHOLDER);
   });
 
   it('only closes a delimiter run of matching length', () => {
@@ -359,5 +375,63 @@ describe('renderMarkdown pipe-protection regressions', () => {
     expect(html).not.toContain(PLACEHOLDER);
     expect(html).toMatch(/<td>[\s\S]*rect[\s\S]*<\/td>\s*<td>[\s\S]*katex[\s\S]*<\/td>/);
     expect(texOf(html)).toContain('|x|');
+  });
+
+  describe('an escaped dollar sign inside math in a table', () => {
+    const allTexOf = (html: string) =>
+      [...html.matchAll(/<annotation encoding="application\/x-tex">([\s\S]*?)<\/annotation>/g)].map(
+        (match) => match[1],
+      );
+    const cellsPerRow = (html: string) =>
+      [...html.matchAll(/<tr[^>]*>([\s\S]*?)<\/tr>/g)].map((row) => row[1]!.match(/<t[dh][\s>]/g)?.length);
+
+    it('keeps each formula in its own cell, as in the reported cash-flow table', () => {
+      const source = [
+        '| 年份 | 现金流 | 折现因子 $(1.10)^{-t}$ | 现值 |',
+        '|------|--------|-----------------------|------|',
+        '| 0 | $-\\$100{,}000$ | 1.0000 | $-\\$100{,}000$ |',
+        '| 1 | $\\$30{,}000$ | 0.9091 | $\\$27{,}273$ |',
+        '| **合计** | **$\\$50{,}000$** | | **$\\$13{,}722$** |',
+      ].join('\n');
+      const { html } = renderMarkdown(source);
+
+      expect(cellsPerRow(html)).toEqual([4, 4, 4, 4]);
+      expect(html).toContain('<td>1.0000</td>');
+      expect(allTexOf(html)).toEqual([
+        '(1.10)^{-t}',
+        '-\\$100{,}000',
+        '-\\$100{,}000',
+        '\\$30{,}000',
+        '\\$27{,}273',
+        '\\$50{,}000',
+        '\\$13{,}722',
+      ]);
+      expect(html).not.toContain('katex-error');
+      expect(html).not.toContain(PLACEHOLDER);
+    });
+
+    it('still protects the pipes of a formula in another cell of the same table', () => {
+      // The scanner must pair `$` exactly as the parser does. If it does not,
+      // it strands a placeholder, `renderMarkdown` gives up the fix for the whole
+      // document, and the `|x|` below splits its cell.
+      const { html } = renderMarkdown('| price | bound |\n| --- | --- |\n| $\\$5$ | $|x| + 1$ |');
+
+      expect(cellsPerRow(html)).toEqual([2, 2]);
+      expect(allTexOf(html)).toEqual(['\\$5', '|x| + 1']);
+    });
+
+    it('protects pipes on both sides of the escaped dollar in one formula', () => {
+      const { html } = renderMarkdown('| a | b |\n| --- | --- |\n| $|x| \\$ |y|$ | z |');
+
+      expect(cellsPerRow(html)).toEqual([2, 2]);
+      expect(allTexOf(html)).toEqual(['|x| \\$ |y|']);
+    });
+
+    it('forms the table when the escaped dollar and the pipes are in a header formula', () => {
+      const { html } = renderMarkdown('| $\\$a|b$ | c |\n| --- | --- |\n| x | y |');
+
+      expect(html).toContain('<table');
+      expect(allTexOf(html)).toEqual(['\\$a|b']);
+    });
   });
 });

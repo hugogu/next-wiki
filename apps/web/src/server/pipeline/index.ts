@@ -5,7 +5,6 @@ import type { Root as MdastRoot } from 'mdast';
 import { defaultSchema } from 'hast-util-sanitize';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
 import remarkRehype from 'remark-rehype';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeKatex from 'rehype-katex';
@@ -16,6 +15,7 @@ import { visit } from 'unist-util-visit';
 import { env } from '@/server/config';
 import { validateImage } from '@/server/content-store/image-validation';
 import { markdownBody } from '@/server/metadata/frontmatter';
+import { remarkMathWithEscapedDollar } from './math-escaped-dollar';
 import { normalizeDisplayMath } from './normalize-display-math';
 import { hasUnrestoredPlaceholder, protectMathPipes, restoreMathPipes } from './protect-math-pipes';
 import { defaultWikiLinkHref, remarkWikiLink, type WikiLinkResolver } from './wikilink';
@@ -196,7 +196,7 @@ function toHtml(
 ): string {
   return unified()
     .use(remarkParse)
-    .use(remarkMath)
+    .use(remarkMathWithEscapedDollar)
     .use(remarkGfm)
     .use(() => remarkWikiLink(resolveWikiLink))
     .use(() => rewriteMarkdownLinks(resolveMarkdownLink))

@@ -95,6 +95,12 @@ importers:
       mermaid:
         specifier: ^11.15.0
         version: 11.15.0
+      micromark-extension-math:
+        specifier: ^3.1.0
+        version: 3.1.0
+      micromark-util-character:
+        specifier: ^2.1.1
+        version: 2.1.1
       next:
         specifier: 16.2.9
         version: 16.2.9(@babel/core@7.29.7)(@opentelemetry/api@1.9.0)(@playwright/test@1.60.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
@@ -240,6 +246,9 @@ importers:
       eslint-config-next:
         specifier: 16.2.9
         version: 16.2.9(eslint@9.39.4(jiti@1.21.7))(typescript@5.9.3)
+      micromark-util-types:
+        specifier: ^2.0.2
+        version: 2.0.2
       next-openapi-gen:
         specifier: ^1.4.3
         version: 1.4.3
