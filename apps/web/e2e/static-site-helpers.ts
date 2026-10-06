@@ -97,11 +97,26 @@ export async function createPublishedPage(
 }
 
 /**
+ * HTML for the plain documents these fixtures use, a heading and paragraphs. The
+ * live reader shows the stored HTML, so a fixture's text has to be in it.
+ */
+function plainDocumentHtml(markdown: string): string {
+  const escape = (text: string) => text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  return markdown
+    .split(/\n{2,}/)
+    .map((block) => block.trim())
+    .filter(Boolean)
+    .map((block) => (block.startsWith('# ') ? `<h1>${escape(block.slice(2))}</h1>` : `<p>${escape(block)}</p>`))
+    .join('\n');
+}
+
+/**
  * Insert a published translation of an existing page, laid out the way the
- * translation writer lays one out. A page is only addressed under a language
- * when it is a translation (labelling an original's language never moves it), so
- * a fixture that needs a language version has to be a real translation row.
- * Returns the translation's id.
+ * translation writer lays one out: a translation group anchored on the source,
+ * and a row in an enabled language. A page is only addressed under a language
+ * when it is a translation (labelling an original's language never moves it), and
+ * the reader lists a language version only when its language is enabled, so a
+ * fixture that needs one has to be all of that. Returns the translation's id.
  */
 export async function insertPublishedTranslation(
   sourcePageId: string,
@@ -111,15 +126,20 @@ export async function insertPublishedTranslation(
   try {
     const [original] = await sql<{ space_id: string; slug: string; path: string; author_id: string }[]>`
       SELECT space_id, slug, path, author_id FROM pages WHERE id = ${sourcePageId}`;
+    await sql`INSERT INTO translation_languages (code, enabled) VALUES (${input.locale}, true) ON CONFLICT (code) DO NOTHING`;
+    const [group] = await sql<{ id: string }[]>`
+      INSERT INTO translation_groups (source_page_id) VALUES (${sourcePageId})
+      ON CONFLICT (source_page_id) DO UPDATE SET updated_at = now()
+      RETURNING id`;
     const [translation] = await sql<{ id: string }[]>`
       INSERT INTO pages (space_id, slug, path, locale, title, author_id, nature, translation_group_id, source_page_id)
       VALUES (${original!.space_id}, ${original!.slug}, ${original!.path}, ${input.locale}, ${input.title}, ${original!.author_id},
-              'generated', gen_random_uuid(), ${sourcePageId})
+              'generated', ${group!.id}, ${sourcePageId})
       RETURNING id`;
     const hash = createHash('sha256').update(input.content).digest('hex');
     const [revision] = await sql<{ id: string }[]>`
       INSERT INTO page_revisions (page_id, version_number, locale, content_type, content_source, content_html, content_hash, author_id, status, actor_kind, published_at)
-      VALUES (${translation!.id}, 1, ${input.locale}, 'text/markdown', ${input.content}, ${`<h1>${input.title}</h1>`}, ${hash}, ${original!.author_id}, 'published', 'machine', now())
+      VALUES (${translation!.id}, 1, ${input.locale}, 'text/markdown', ${input.content}, ${plainDocumentHtml(input.content)}, ${hash}, ${original!.author_id}, 'published', 'machine', now())
       RETURNING id`;
     await sql`
       UPDATE pages SET current_published_version_id = ${revision!.id}, latest_version_id = ${revision!.id}
