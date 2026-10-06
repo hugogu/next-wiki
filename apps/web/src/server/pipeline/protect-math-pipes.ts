@@ -25,9 +25,9 @@
 import { unified } from 'unified';
 import remarkParse from 'remark-parse';
 import remarkGfm from 'remark-gfm';
-import remarkMath from 'remark-math';
 import type { Root } from 'mdast';
 import { visit } from 'unist-util-visit';
+import { remarkMathWithEscapedDollar } from './math-escaped-dollar';
 
 // U+E000, the first Private Use Area codepoint. A single character rather than a
 // longer sentinel, so the parser cannot tokenize it apart mid-flight; spelled via
@@ -47,7 +47,7 @@ const isDelimiterRow = (line: string) => {
   return content.includes('|') && TABLE_DELIMITER_ROW.test(content);
 };
 
-const rowFinder = unified().use(remarkParse).use(remarkMath).use(remarkGfm);
+const rowFinder = unified().use(remarkParse).use(remarkMathWithEscapedDollar).use(remarkGfm);
 
 /**
  * The 1-indexed lines making up table rows.
@@ -99,13 +99,19 @@ function runLength(text: string, start: number, char: string): number {
 
 /**
  * Index of the run of exactly `length` `char`s closing a span opened at `from`,
- * or -1. Two behaviours verified against remark-math rather than assumed: a run
- * only closes a run of its own length (`$$a$$$` is not math), and a backslash
- * does *not* escape the closing delimiter (`$a \$ b$` is math with body `a \`).
+ * or -1. Two behaviours verified against the parser rather than assumed: a run
+ * only closes a run of its own length (`$$a$$$` is not math), and in math a
+ * backslash makes the `$` or `\` after it plain content, so `$a \$ b$` is math
+ * with body `a \$ b` (see `math-escaped-dollar.ts`). A code span has no such
+ * escape: its backslash is just a character.
  */
 function findClosingRun(text: string, from: number, char: string, length: number): number {
   let index = from;
   while (index < text.length) {
+    if (char === '$' && text[index] === '\\' && (text[index + 1] === '$' || text[index + 1] === '\\')) {
+      index += 2;
+      continue;
+    }
     if (text[index] === char) {
       const run = runLength(text, index, char);
       if (run === length) return index;

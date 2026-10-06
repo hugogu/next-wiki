@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  buildTranslationInput,
   computeMaxOutputTokens,
   estimateTokens,
   isImplausiblyShortTranslation,
@@ -126,5 +127,24 @@ describe('reachedOutputLimit', () => {
     for (const reason of ['stop', 'end_turn', 'content_filter', 'tool_calls', null, undefined]) {
       expect(reachedOutputLimit(reason)).toBe(false);
     }
+  });
+});
+
+describe('buildTranslationInput', () => {
+  const build = () =>
+    buildTranslationInput({
+      actionId: 'action',
+      modelExternalId: 'model',
+      targetLocale: 'en',
+      sourceMarkdown: '| [[LLM 大语言模型]] |',
+      styleBody: null,
+      abortSignal: new AbortController().signal,
+    });
+
+  it('tells the model to keep a wikilink target and alias the translated text', () => {
+    // A title-style target is also the text a reader sees, so a model that
+    // translates it would silently point the link at a page that is not there.
+    expect(build().system).toContain('keep that text exactly as written');
+    expect(build().system).toContain('[[target|translated text]]');
   });
 });

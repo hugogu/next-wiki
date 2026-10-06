@@ -53,6 +53,29 @@ $$`;
     expect(html).toContain('katex-display');
   });
 
+  it('renders a backslash-escaped dollar sign inside inline math', () => {
+    const { html } = renderMarkdown('初始投入 $\\$100{,}000$，每年产生 $\\$30{,}000$ 现金流，折现率 $10\\%$：');
+    const tex = [...html.matchAll(/<annotation encoding="application\/x-tex">([\s\S]*?)<\/annotation>/g)].map(
+      (match) => match[1],
+    );
+
+    expect(tex).toEqual(['\\$100{,}000', '\\$30{,}000', '10\\%']);
+    expect(html).not.toContain('katex-error');
+  });
+
+  it('renders an escaped dollar sign in display math', () => {
+    const { html } = renderMarkdown('$$\nNPV = \\$13{,}722 > 0\n$$');
+    expect(html).toContain('katex-display');
+    expect(html).not.toContain('katex-error');
+  });
+
+  it('keeps an escaped dollar sign in prose literal, next to real math', () => {
+    const { html } = renderMarkdown('costs \\$5 and \\$6, where $x$ is the rate');
+    expect(html).toContain('costs $5 and $6, where');
+    expect(html).toContain('katex');
+    expect(html).not.toContain('katex-error');
+  });
+
   it('marks images for lazy, asynchronous loading', () => {
     const { html } = renderMarkdown('![alt](/api/assets/abc)');
     expect(html).toContain('loading="lazy"');
@@ -141,6 +164,21 @@ $$`;
     const { html } = renderMarkdown('[[docs/setup|Setup guide]] and [[docs/setup#install]]');
     expect(html).toContain('<a href="/docs/setup">Setup guide</a>');
     expect(html).toContain('<a href="/docs/setup#install">docs/setup#install</a>');
+  });
+
+  it('renders wikilinks in table cells, the shape of an index page', () => {
+    const { html } = renderMarkdown(
+      [
+        '| 主题 | 路径 |',
+        '|---|---|',
+        '| [[LLM 大语言模型]] | tech/ai/llm |',
+        // A bare `|` would end the cell, so an alias in a table escapes it.
+        '| [[tech/ai/mcp\\|MCP 协议]] | tech/ai/mcp |',
+      ].join('\n'),
+      { resolveWikiLink: (link) => `/wiki/${encodeURIComponent(link.target)}` },
+    );
+    expect(html).toContain(`<td><a href="/wiki/${encodeURIComponent('LLM 大语言模型')}">LLM 大语言模型</a></td>`);
+    expect(html).toContain('<td><a href="/wiki/tech%2Fai%2Fmcp">MCP 协议</a></td>');
   });
 
   it('resolves wikilinks through the supplied resolver', () => {

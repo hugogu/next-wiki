@@ -6,6 +6,7 @@ import {
   normalizeWikiLinkTarget,
   parseWikiLink,
   WIKILINK_PATTERN,
+  wikiLinkTitleKey,
 } from './wikilink';
 
 function parseAll(markdown: string) {
@@ -38,6 +39,14 @@ describe('wikilink syntax', () => {
     ]);
   });
 
+  it('collects the target of an alias written with an escaped pipe, as a table cell needs', () => {
+    // The renderer resolves the text after Markdown has dropped the backslash,
+    // so the pre-loaded candidates have to cover that spelling of the target.
+    expect(collectWikiLinkTargets('| [[ops/foo\\|Foo]] | [[Bar baz\\|b]] |')).toEqual(
+      expect.arrayContaining(['ops/foo', 'Bar baz']),
+    );
+  });
+
   it('addresses an unresolved target from the site root', () => {
     expect(defaultWikiLinkHref({ target: 'ops/foo', hash: '#setup', label: 'ops/foo' })).toBe(
       '/ops/foo#setup',
@@ -47,10 +56,11 @@ describe('wikilink syntax', () => {
 
 describe('matchWikiLinkTarget', () => {
   const pages = [
-    { path: 'knowledge/ops/foo', slug: 'knowledge/ops/foo' },
-    { path: 'archive/ops/bar', slug: 'archive/ops/bar' },
-    { path: 'notes/ops/bar', slug: 'notes/ops/bar' },
-    { path: 'guides/install', slug: 'setup' },
+    { path: 'knowledge/ops/foo', slug: 'knowledge/ops/foo', title: 'Foo' },
+    { path: 'archive/ops/bar', slug: 'archive/ops/bar', title: 'Bar (archived)' },
+    { path: 'notes/ops/bar', slug: 'notes/ops/bar', title: 'Bar (notes)' },
+    { path: 'guides/install', slug: 'setup', title: 'Install guide' },
+    { path: 'tech/ai/llm', slug: 'tech/ai/llm', title: 'LLM 大语言模型' },
   ];
 
   it('resolves a partial path that names exactly one page', () => {
@@ -71,5 +81,66 @@ describe('matchWikiLinkTarget', () => {
 
   it('returns null for a target no page carries', () => {
     expect(matchWikiLinkTarget('ops/missing', pages)).toBeNull();
+  });
+
+  describe('by title', () => {
+    it('resolves the title a page shows, whatever script it is written in', () => {
+      expect(matchWikiLinkTarget('LLM 大语言模型', pages)?.slug).toBe('tech/ai/llm');
+      expect(matchWikiLinkTarget('Install guide', pages)?.slug).toBe('setup');
+    });
+
+    it('ignores case and surrounding whitespace in the title', () => {
+      expect(matchWikiLinkTarget('llm 大语言模型', pages)?.slug).toBe('tech/ai/llm');
+      expect(matchWikiLinkTarget('  INSTALL GUIDE ', pages)?.slug).toBe('setup');
+      expect(
+        matchWikiLinkTarget('Spaced', [{ path: 'a', slug: 'a', title: ' spaced ' }])?.slug,
+      ).toBe('a');
+    });
+
+    it('does not match part of a title', () => {
+      expect(matchWikiLinkTarget('Install', pages)).toBeNull();
+      expect(matchWikiLinkTarget('LLM', pages)).toBeNull();
+    });
+
+    it('prefers an address over a title that happens to read the same', () => {
+      const candidates = [
+        { path: 'support/questions', slug: 'support/questions', title: 'FAQ' },
+        { path: 'guides/help', slug: 'faq', title: 'Help' },
+      ];
+      expect(matchWikiLinkTarget('faq', candidates)?.slug).toBe('faq');
+    });
+
+    it('prefers a title over a path suffix', () => {
+      const candidates = [
+        { path: 'guides/setup', slug: 'guides/setup', title: 'Getting started' },
+        { path: 'install/windows', slug: 'install/windows', title: 'Setup' },
+      ];
+      expect(matchWikiLinkTarget('setup', candidates)?.slug).toBe('install/windows');
+    });
+
+    it('refuses to guess when two pages share the title', () => {
+      const twins = [
+        { path: 'a/overview', slug: 'a/overview', title: 'Overview' },
+        { path: 'b/overview', slug: 'b/overview', title: 'Overview' },
+      ];
+      expect(matchWikiLinkTarget('Overview', twins)).toBeNull();
+    });
+
+    it('does not fall through to a path suffix once a title is ambiguous', () => {
+      const candidates = [
+        { path: 'x/setup', slug: 'x/setup', title: 'Third' },
+        { path: 'b/one', slug: 'b/one', title: 'Setup' },
+        { path: 'c/two', slug: 'c/two', title: 'Setup' },
+      ];
+      // `setup` is a path suffix of exactly one page, but two pages are titled
+      // "Setup": the author named a title, and that title does not name one page.
+      expect(matchWikiLinkTarget('setup', candidates)).toBeNull();
+    });
+  });
+});
+
+describe('wikiLinkTitleKey', () => {
+  it('folds case and trims, and keeps inner spacing', () => {
+    expect(wikiLinkTitleKey('  Vibe Coding 工具 ')).toBe('vibe coding 工具');
   });
 });

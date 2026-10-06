@@ -22,8 +22,18 @@ describe('createWikiLinkResolver', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     results.queue = [[
-      { id: 'multi-registry-id', path: 'knowledge/ops/multi-registry', slug: 'knowledge/ops/multi-registry' },
-      { id: 'docker-mirror-id', path: 'knowledge/ops/docker-mirror', slug: 'knowledge/ops/docker-mirror' },
+      {
+        id: 'multi-registry-id',
+        path: 'knowledge/ops/multi-registry',
+        slug: 'knowledge/ops/multi-registry',
+        title: 'Multi registry',
+      },
+      {
+        id: 'docker-mirror-id',
+        path: 'knowledge/ops/docker-mirror',
+        slug: 'knowledge/ops/docker-mirror',
+        title: 'Docker 镜像',
+      },
     ]];
   });
 
@@ -38,6 +48,28 @@ describe('createWikiLinkResolver', () => {
     const resolve = await createWikiLinkResolver(space, '[[ops/multi-registry#setup]]');
     expect(resolve({ target: 'ops/multi-registry', hash: '#setup', label: 'x' })).toBe(
       '/generated/knowledge/ops/multi-registry#setup',
+    );
+  });
+
+  it('resolves a target written as the page title to the page canonical URL', async () => {
+    const resolve = await createWikiLinkResolver(space, '| [[Docker 镜像]] |');
+    expect(resolve({ target: 'Docker 镜像', hash: '', label: 'Docker 镜像' })).toBe(
+      '/generated/knowledge/ops/docker-mirror',
+    );
+  });
+
+  it('matches a title regardless of case, and keeps a heading fragment', async () => {
+    const resolve = await createWikiLinkResolver(space, '[[multi REGISTRY#setup]]');
+    expect(resolve({ target: 'multi REGISTRY', hash: '#setup', label: 'x' })).toBe(
+      '/generated/knowledge/ops/multi-registry#setup',
+    );
+  });
+
+  it('addresses a title target as its translation when the render is for one', async () => {
+    results.queue.push([{ sourcePageId: 'docker-mirror-id' }]);
+    const resolve = await createWikiLinkResolver(space, '[[Docker 镜像]]', { locale: 'en' });
+    expect(resolve({ target: 'Docker 镜像', hash: '', label: 'x' })).toBe(
+      '/generated/en/knowledge/ops/docker-mirror',
     );
   });
 
@@ -76,7 +108,9 @@ describe('createWikiLinkResolver', () => {
 
   it('resolves on the caller transaction when one is supplied', async () => {
     const select = vi.fn(() => ({
-      from: () => ({ where: async () => [{ id: 'in-flight-id', path: 'in-flight', slug: 'in-flight' }] }),
+      from: () => ({
+        where: async () => [{ id: 'in-flight-id', path: 'in-flight', slug: 'in-flight', title: 'In flight' }],
+      }),
     }));
     const tx = { select } as unknown as WikiLinkExecutor;
     const resolve = await createWikiLinkResolver(space, '[[in-flight]]', { executor: tx });
@@ -96,8 +130,17 @@ describe('createWikiLinkResolver', () => {
 
 describe('createStaticWikiLinkResolver', () => {
   it('addresses a resolved target by tree path, for the artifact link rewriter', () => {
-    const resolve = createStaticWikiLinkResolver([{ path: 'guides/install', slug: 'setup' }]);
+    const resolve = createStaticWikiLinkResolver([
+      { path: 'guides/install', slug: 'setup', title: 'Install guide' },
+    ]);
     expect(resolve({ target: 'install', hash: '', label: 'install' })).toBe('/guides/install');
     expect(resolve({ target: 'missing', hash: '', label: 'missing' })).toBe('/missing');
+  });
+
+  it('resolves a title target the same way the wiki does', () => {
+    const resolve = createStaticWikiLinkResolver([
+      { path: 'tech/ai/llm', slug: 'llm', title: 'LLM 大语言模型' },
+    ]);
+    expect(resolve({ target: 'LLM 大语言模型', hash: '#token', label: 'x' })).toBe('/tech/ai/llm#token');
   });
 });

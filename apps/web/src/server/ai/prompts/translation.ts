@@ -18,6 +18,7 @@ const MARKDOWN_RULES = [
   'Do NOT translate or alter code inside fenced or inline code spans.',
   'Preserve YAML frontmatter keys and any structural values; translate only human-readable frontmatter text such as title and summary.',
   'Keep link targets, image paths, and HTML attributes unchanged; you may translate visible link text and image alt text.',
+  'A [[wikilink]] is a link whose target is the text between the brackets, so keep that text exactly as written. To translate what readers see, add an alias: [[target|translated text]], writing the | as \\| inside a table cell.',
   'Do not add, remove, or reorder sections. Do not add commentary, notes, or explanations.',
   'Do not restate or describe the task, and do not think out loud. Never write meta sentences such as "The user wants me to…", "I need to…", or "Here is the translation". Begin your response directly with the first line of the translated document.',
   'Return ONLY the translated Markdown document. Do not wrap the whole document in a code fence.',
