@@ -97,33 +97,29 @@ export async function createPublishedPage(
 }
 
 /**
- * A published Chinese translation of a page of its own, so the site has a `zh`
- * section while the welcome page has no Chinese version to switch to. A page is
- * only addressed under a language section when it is a translation; labelling an
- * original's language never moves it, so this has to be a real translation row,
- * laid out the way the translation writer lays one out. Returns its id.
+ * Insert a published translation of an existing page, laid out the way the
+ * translation writer lays one out. A page is only addressed under a language
+ * when it is a translation (labelling an original's language never moves it), so
+ * a fixture that needs a language version has to be a real translation row.
+ * Returns the translation's id.
  */
-export async function createAndPublishChinesePage(page: Page, key: string): Promise<string> {
-  const source = await createPublishedPage(page, key, {
-    path: 'translation-source-demo',
-    title: 'Translation source demo',
-    contentSource: '# Translation source demo\n\nA page that has a Chinese translation.',
-  });
-  const title = '中文搜索示例';
-  const content = `# ${title}\n\n这是一段用于测试中文搜索功能的示例文本。关键词：北京烤鸭。`;
+export async function insertPublishedTranslation(
+  sourcePageId: string,
+  input: { locale: string; title: string; content: string },
+): Promise<string> {
   const sql = postgres(process.env.E2E_DATABASE_URL ?? 'postgresql://wiki:wiki@127.0.0.1:15433/wiki_e2e_test');
   try {
-    const [original] = await sql<{ space_id: string; slug: string; author_id: string }[]>`
-      SELECT space_id, slug, author_id FROM pages WHERE id = ${source.id}`;
+    const [original] = await sql<{ space_id: string; slug: string; path: string; author_id: string }[]>`
+      SELECT space_id, slug, path, author_id FROM pages WHERE id = ${sourcePageId}`;
     const [translation] = await sql<{ id: string }[]>`
       INSERT INTO pages (space_id, slug, path, locale, title, author_id, nature, translation_group_id, source_page_id)
-      VALUES (${original!.space_id}, ${original!.slug}, ${source.path}, 'zh', ${title}, ${original!.author_id},
-              'generated', gen_random_uuid(), ${source.id})
+      VALUES (${original!.space_id}, ${original!.slug}, ${original!.path}, ${input.locale}, ${input.title}, ${original!.author_id},
+              'generated', gen_random_uuid(), ${sourcePageId})
       RETURNING id`;
-    const hash = createHash('sha256').update(content).digest('hex');
+    const hash = createHash('sha256').update(input.content).digest('hex');
     const [revision] = await sql<{ id: string }[]>`
       INSERT INTO page_revisions (page_id, version_number, locale, content_type, content_source, content_html, content_hash, author_id, status, actor_kind, published_at)
-      VALUES (${translation!.id}, 1, 'zh', 'text/markdown', ${content}, ${`<h1>${title}</h1>`}, ${hash}, ${original!.author_id}, 'published', 'machine', now())
+      VALUES (${translation!.id}, 1, ${input.locale}, 'text/markdown', ${input.content}, ${`<h1>${input.title}</h1>`}, ${hash}, ${original!.author_id}, 'published', 'machine', now())
       RETURNING id`;
     await sql`
       UPDATE pages SET current_published_version_id = ${revision!.id}, latest_version_id = ${revision!.id}
@@ -132,6 +128,24 @@ export async function createAndPublishChinesePage(page: Page, key: string): Prom
   } finally {
     await sql.end({ timeout: 5 });
   }
+}
+
+/**
+ * A published Chinese translation of a page of its own, so the static site has a
+ * `zh` section while the welcome page has no Chinese version to switch to.
+ */
+export async function createAndPublishChinesePage(page: Page, key: string): Promise<string> {
+  const source = await createPublishedPage(page, key, {
+    path: 'translation-source-demo',
+    title: 'Translation source demo',
+    contentSource: '# Translation source demo\n\nA page that has a Chinese translation.',
+  });
+  const title = '中文搜索示例';
+  return insertPublishedTranslation(source.id, {
+    locale: 'zh',
+    title,
+    content: `# ${title}\n\n这是一段用于测试中文搜索功能的示例文本。关键词：北京烤鸭。`,
+  });
 }
 
 export async function createAndPublishImagePage(page: Page, key: string): Promise<void> {
