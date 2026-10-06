@@ -1,9 +1,14 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import type { AiConversationDetail, AiConversationSummary } from '@next-wiki/shared';
 import { resolveSessionId } from './resolve-session-id';
 
 vi.stubGlobal('crypto', {
   randomUUID: vi.fn(() => '00000000-0000-4000-8000-000000000000'),
+});
+// The suite runs every file in one process, so a global left stubbed here would
+// reach whichever file runs next: with no `getRandomValues`, the uuid tests fail.
+afterAll(() => {
+  vi.unstubAllGlobals();
 });
 
 function makeConversation(key: string): AiConversationSummary {
