@@ -41,6 +41,7 @@ import {
 } from '@/lib/path';
 import { translationLanguageName } from '@next-wiki/shared';
 import { HeaderHybridSearch } from '@/components/search/HeaderHybridSearch';
+import { ToolbarMenu } from './ToolbarMenu';
 
 function IconButton({
   href,
@@ -142,73 +143,59 @@ function MoreActionsMenu({
   if (!showEdit && !showHistory && !showSettings && !showRerender && !showDelete && !hasLanguages && !onTranslate) return null;
 
   return (
-    <div className="group relative">
-      <button
-        type="button"
-        aria-label={t('page.header.actions')}
-        title={t('page.header.actions')}
-        className="inline-flex items-center justify-center w-9 h-9 rounded-md text-muted transition-colors hover:bg-surface-elevated hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-      >
-        <MoreHorizontalIcon />
-      </button>
-      {/* The outer padding preserves the visual gap without creating a gap in
-          the hover target, so the menu stays open while the pointer moves down. */}
-      <div className="invisible absolute right-0 top-full z-30 min-w-[12rem] pt-xs pointer-events-none opacity-0 transition-opacity group-hover:visible group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:visible group-focus-within:opacity-100 group-focus-within:pointer-events-auto">
-        <div className="rounded-md border border-border bg-surface p-xs shadow-lg">
-          {showEdit && (
-            <Link href={editHref} className="flex items-center gap-sm rounded-md px-md py-sm text-sm text-foreground transition-colors hover:bg-surface-elevated">
-              <EditIcon />
-              <span>{t('page.header.edit')}</span>
-            </Link>
-          )}
-          {showHistory && (
-            <Link href={historyHref} className="flex items-center gap-sm rounded-md px-md py-sm text-sm text-foreground transition-colors hover:bg-surface-elevated">
-              <HistoryIcon />
-              <span>{t('page.header.history')}</span>
-            </Link>
-          )}
-          {onTranslate && (
-            <button type="button" onClick={onTranslate} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
-              <LanguagesIcon />
-              <span>{t('page.header.translate')}</span>
-            </button>
-          )}
-          {showSettings && (
-            <button type="button" onClick={onOpenSettings} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
-              <SettingsIcon />
-              <span>{t('page.header.settings')}</span>
-            </button>
-          )}
-          {showRerender && (
-            <button type="button" onClick={onRequestRerender} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
-              <RefreshIcon />
-              <span>{t('page.header.rerender')}</span>
-            </button>
-          )}
-          {showDelete && (
-            <button type="button" onClick={onRequestDelete} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-danger transition-colors hover:bg-surface-elevated">
-              <TrashIcon />
-              <span>{t('editor.header.delete')}</span>
-            </button>
-          )}
-          {hasLanguages && (
-            <>
-              <div className="my-xs border-t border-border" />
-              <p className="px-md py-xs text-xs font-medium text-muted">{t('page.header.otherLanguages')}</p>
-              <LanguageLink href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath!) : getPageHref(pageContext.sourcePath!)} label={t('page.header.original')} active={!pageContext.currentLocale} />
-              {pageContext.translationLocales!.map((locale) => (
-                <LanguageLink
-                  key={locale}
-                  href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath!, locale) : getTranslatedPageHref(locale, pageContext.sourcePath!)}
-                  label={translationLanguageName(locale)}
-                  active={pageContext.currentLocale === locale}
-                />
-              ))}
-            </>
-          )}
-        </div>
-      </div>
-    </div>
+    <ToolbarMenu label={t('page.header.actions')} icon={<MoreHorizontalIcon />}>
+      {showEdit && (
+        <Link href={editHref} className="flex items-center gap-sm rounded-md px-md py-sm text-sm text-foreground transition-colors hover:bg-surface-elevated">
+          <EditIcon />
+          <span>{t('page.header.edit')}</span>
+        </Link>
+      )}
+      {showHistory && (
+        <Link href={historyHref} className="flex items-center gap-sm rounded-md px-md py-sm text-sm text-foreground transition-colors hover:bg-surface-elevated">
+          <HistoryIcon />
+          <span>{t('page.header.history')}</span>
+        </Link>
+      )}
+      {onTranslate && (
+        <button type="button" onClick={onTranslate} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
+          <LanguagesIcon />
+          <span>{t('page.header.translate')}</span>
+        </button>
+      )}
+      {showSettings && (
+        <button type="button" onClick={onOpenSettings} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
+          <SettingsIcon />
+          <span>{t('page.header.settings')}</span>
+        </button>
+      )}
+      {showRerender && (
+        <button type="button" onClick={onRequestRerender} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-foreground transition-colors hover:bg-surface-elevated">
+          <RefreshIcon />
+          <span>{t('page.header.rerender')}</span>
+        </button>
+      )}
+      {showDelete && (
+        <button type="button" onClick={onRequestDelete} className="flex w-full items-center gap-sm rounded-md px-md py-sm text-left text-sm text-danger transition-colors hover:bg-surface-elevated">
+          <TrashIcon />
+          <span>{t('editor.header.delete')}</span>
+        </button>
+      )}
+      {hasLanguages && (
+        <>
+          <div className="my-xs border-t border-border" />
+          <p className="px-md py-xs text-xs font-medium text-muted">{t('page.header.otherLanguages')}</p>
+          <LanguageLink href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath!) : getPageHref(pageContext.sourcePath!)} label={t('page.header.original')} active={!pageContext.currentLocale} />
+          {pageContext.translationLocales!.map((locale) => (
+            <LanguageLink
+              key={locale}
+              href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath!, locale) : getTranslatedPageHref(locale, pageContext.sourcePath!)}
+              label={translationLanguageName(locale)}
+              active={pageContext.currentLocale === locale}
+            />
+          ))}
+        </>
+      )}
+    </ToolbarMenu>
   );
 }
 
