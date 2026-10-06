@@ -39,6 +39,14 @@ describe('wikilink syntax', () => {
     ]);
   });
 
+  it('collects the target of an alias written with an escaped pipe, as a table cell needs', () => {
+    // The renderer resolves the text after Markdown has dropped the backslash,
+    // so the pre-loaded candidates have to cover that spelling of the target.
+    expect(collectWikiLinkTargets('| [[ops/foo\\|Foo]] | [[Bar baz\\|b]] |')).toEqual(
+      expect.arrayContaining(['ops/foo', 'Bar baz']),
+    );
+  });
+
   it('addresses an unresolved target from the site root', () => {
     expect(defaultWikiLinkHref({ target: 'ops/foo', hash: '#setup', label: 'ops/foo' })).toBe(
       '/ops/foo#setup',

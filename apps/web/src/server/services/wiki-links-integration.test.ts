@@ -126,6 +126,29 @@ describe('wikilinks in a stored page render', () => {
     expect(html).toContain('<a href="/wiki/tech/ai/vibe-coding-concepts">vibe coding 工具概念对比</a>');
   });
 
+  it('resolves an alias written with an escaped pipe, as a table cell needs', async () => {
+    await pageService.create(ctx, {
+      path: 'tech/ai/skill',
+      title: 'Skill 技能系统',
+      contentSource: '# Skill 技能系统\n',
+    });
+    const index = await pageService.create(ctx, {
+      path: 'tech/ai/index',
+      title: 'AI 知识体系',
+      contentSource: [
+        '| 主题 |',
+        '|------|',
+        '| [[ai/skill\\|按路径]] |',
+        '| [[skill 技能系统\\|按标题]] |',
+        '',
+      ].join('\n'),
+    });
+
+    const html = await latestHtml(index.pageId);
+    expect(html).toContain('<a href="/wiki/tech/ai/skill">按路径</a>');
+    expect(html).toContain('<a href="/wiki/tech/ai/skill">按标题</a>');
+  });
+
   it('prefers a page at the written address over another page with that title', async () => {
     await pageService.create(ctx, { path: 'faq', title: 'Help', contentSource: '# Help\n' });
     await pageService.create(ctx, { path: 'support/questions', title: 'FAQ', contentSource: '# FAQ\n' });

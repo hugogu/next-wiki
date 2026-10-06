@@ -55,14 +55,21 @@ export function normalizeWikiLinkTarget(target: string): string {
  * to be a superset of what `remarkWikiLink` will rewrite. Over-collecting costs
  * one extra row in a lookup and nothing else, while parsing the document twice
  * on every render would cost real time.
+ *
+ * One spelling differs between the two. A table cell cannot hold a bare `|`, so
+ * an alias there is written `[[target\|alias]]`; this scan sees the target with
+ * that backslash on it, while the renderer resolves the text after Markdown has
+ * dropped it. Both spellings are collected.
  */
 export function collectWikiLinkTargets(markdown: string): string[] {
   const targets = new Set<string>();
   for (const match of markdown.matchAll(WIKILINK_PATTERN)) {
     const link = parseWikiLink(match);
     if (!link) continue;
-    const target = normalizeWikiLinkTarget(link.target);
-    if (target) targets.add(target);
+    for (const written of [link.target, link.target.replace(/\\$/, '')]) {
+      const target = normalizeWikiLinkTarget(written);
+      if (target) targets.add(target);
+    }
   }
   return [...targets];
 }
