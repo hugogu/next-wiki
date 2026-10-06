@@ -37,6 +37,17 @@ conventions; see `.specify/memory/constitution.md` for binding principles.
 
 ## Recent Changes
 
+- 043-reader-language-switcher: Switching between a page and its translations
+  is a globe button in the header toolbar (`ReaderLanguageSwitcher`), shown only
+  when the page has translations, instead of the last section of the "···" menu
+  (both share the `ToolbarMenu` hover dropdown). The language a reader picks is
+  remembered in their browser (`lib/reading-language.ts`, `localStorage`), and
+  Original clears it. Opening the original address of a page that has a version in
+  that language switches to it with `router.replace` (query string and anchor
+  kept); an address that already names a language is never redirected. It runs in
+  the browser after load because public reader pages are cached static documents
+  that must not vary by cookie, so the first load flashes the original. See
+  `specs/043-reader-language-switcher/spec.md`.
 - 042-page-language: A page's language is now optional and set by people, not
   assumed. `pages.locale` is nullable with no default (`NULL` = nobody has said);
   the migration cleared the `en` placeholder from originals only. Only a
