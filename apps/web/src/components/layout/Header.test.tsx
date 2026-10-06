@@ -100,4 +100,51 @@ describe('Header localization', () => {
     expect(html).toContain('href="/zhuge-liang"');
     expect(html).not.toContain('href="/history/zhuge-liang"');
   });
+
+  describe('switching language', () => {
+    const render = (translationLocales: string[]) =>
+      renderToStaticMarkup(
+        <I18nProvider initialLocale="en" messages={enMessages}>
+          <Header
+            user={{ kind: 'anonymous' }}
+            pageContext={{
+              pageId: 'page-1',
+              path: 'zhuge-liang',
+              slug: 'zhuge-liang',
+              sourcePath: 'zhuge-liang',
+              routePrefix: 'wiki',
+              title: 'Zhuge Liang',
+              status: 'published',
+              canEdit: false,
+              canPublish: false,
+              version: 1,
+              space: 'wiki',
+              translationLocales,
+              currentLocale: null,
+            }}
+            onMenuClick={() => undefined}
+            siteName="next-wiki"
+          />
+        </I18nProvider>,
+      );
+
+    it('is a button of its own in the toolbar', () => {
+      const html = render(['en']);
+      expect(html).toContain('aria-label="Language"');
+      expect(html).toContain('href="/wiki/zhuge-liang"');
+      expect(html).toContain('href="/wiki/en/zhuge-liang"');
+    });
+
+    it('is no longer an entry at the end of the actions menu', () => {
+      const html = render(['en']);
+      expect(html).not.toContain('Other language versions');
+      // One way to switch, not two: each version is linked exactly once.
+      expect(html.split('href="/wiki/en/zhuge-liang"')).toHaveLength(2);
+      expect(html.split('href="/wiki/zhuge-liang"')).toHaveLength(2);
+    });
+
+    it('is left out for a page that has no translations', () => {
+      expect(render([])).not.toContain('aria-label="Language"');
+    });
+  });
 });

@@ -29,7 +29,6 @@ import { apiPost, apiDelete, type ApiError } from '@/lib/api/client';
 import { useHistory } from '@/lib/history';
 import {
   getConfiguredSpaceHref,
-  getPageHref,
   getSpaceHistoryHref,
   getPublicApiPageUrl,
   getPublicApiPagePublicationUrl,
@@ -37,10 +36,9 @@ import {
   getSpaceHref,
   getSpaceNewHref,
   getPublicApiPageRenderingUrl,
-  getTranslatedPageHref,
 } from '@/lib/path';
-import { translationLanguageName } from '@next-wiki/shared';
 import { HeaderHybridSearch } from '@/components/search/HeaderHybridSearch';
+import { ReaderLanguageSwitcher } from './ReaderLanguageSwitcher';
 import { ToolbarMenu } from './ToolbarMenu';
 
 function IconButton({
@@ -90,24 +88,11 @@ function IconButton({
   );
 }
 
-function LanguageLink({ href, label, active }: { href: string; label: string; active: boolean }) {
-  return (
-    <Link
-      href={href}
-      aria-current={active ? 'page' : undefined}
-      className={`block rounded-sm px-sm py-xs text-sm transition-colors hover:bg-surface-elevated ${
-        active ? 'font-medium text-primary' : 'text-foreground'
-      }`}
-    >
-      {label}
-    </Link>
-  );
-}
-
 /**
  * Hover/focus-triggered dropdown consolidating the reader-page page actions
- * (edit, history, re-render, settings, delete) and — when translations exist —
- * the language switcher. Renders nothing when there are no qualifying actions.
+ * (edit, history, translate, re-render, settings, delete). Renders nothing when
+ * there are no qualifying actions. Switching language is its own toolbar button
+ * (`ReaderLanguageSwitcher`), not an entry in here.
  */
 function MoreActionsMenu({
   pageContext,
@@ -128,7 +113,6 @@ function MoreActionsMenu({
 
   const editHref = getSpaceEditHref(pageContext.space ?? 'wiki', pageContext.path);
   const historyHref = getSpaceHistoryHref(pageContext.space ?? 'wiki', pageContext.path);
-  const hasLanguages = pageContext.sourcePath ? (pageContext.translationLocales?.length ?? 0) > 0 : false;
 
   // The static reader document carries no page-level canDelete; the menu only
   // offers destructive/configurable actions when the viewer is signed in.
@@ -140,7 +124,7 @@ function MoreActionsMenu({
   // without inventing a content change to trigger a save.
   const showRerender = pageContext.canEdit && Boolean(pageContext.pageId);
 
-  if (!showEdit && !showHistory && !showSettings && !showRerender && !showDelete && !hasLanguages && !onTranslate) return null;
+  if (!showEdit && !showHistory && !showSettings && !showRerender && !showDelete && !onTranslate) return null;
 
   return (
     <ToolbarMenu label={t('page.header.actions')} icon={<MoreHorizontalIcon />}>
@@ -179,21 +163,6 @@ function MoreActionsMenu({
           <TrashIcon />
           <span>{t('editor.header.delete')}</span>
         </button>
-      )}
-      {hasLanguages && (
-        <>
-          <div className="my-xs border-t border-border" />
-          <p className="px-md py-xs text-xs font-medium text-muted">{t('page.header.otherLanguages')}</p>
-          <LanguageLink href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath!) : getPageHref(pageContext.sourcePath!)} label={t('page.header.original')} active={!pageContext.currentLocale} />
-          {pageContext.translationLocales!.map((locale) => (
-            <LanguageLink
-              key={locale}
-              href={pageContext.routePrefix ? getConfiguredSpaceHref(pageContext.routePrefix, pageContext.sourcePath!, locale) : getTranslatedPageHref(locale, pageContext.sourcePath!)}
-              label={translationLanguageName(locale)}
-              active={pageContext.currentLocale === locale}
-            />
-          ))}
-        </>
       )}
     </ToolbarMenu>
   );
@@ -400,6 +369,8 @@ export function Header({
                   <PublishIcon />
                 </IconButton>
               )}
+
+              {pageContext && <ReaderLanguageSwitcher pageContext={pageContext} />}
 
               {pageContext && (
                 <MoreActionsMenu
