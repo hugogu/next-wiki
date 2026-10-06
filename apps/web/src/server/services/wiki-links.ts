@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, isNull, like, or, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, like, or, sql, type SQL } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { renderMarkdown, type MarkdownLinkResolver } from '@/server/pipeline';
@@ -7,6 +7,8 @@ import {
   encodeWikiLinkPath,
   matchWikiLinkTarget,
   normalizeWikiLinkTarget,
+  wikiLinkTitleKey,
+  type WikiLinkCandidate,
   type WikiLinkResolver,
 } from '@/server/pipeline/wikilink';
 import { canonicalSpacePath, type RouteableSpace } from '@/server/services/space-routes';
@@ -41,14 +43,19 @@ function escapeLikePattern(value: string): string {
 }
 
 /**
- * Candidate rows for the targets a document links to.
+ * Candidate rows for the targets a document links to: the pages whose slug or
+ * path is, or ends with, a target, and the pages a target names by title.
  *
  * Only live, non-translation pages of this space are eligible: a wikilink is a
  * reference to a page, and a translation resolves through its source page's
  * address rather than owning one.
  */
 async function findCandidates(executor: WikiLinkExecutor, spaceId: string, targets: string[]) {
-  const conditions: SQL[] = [];
+  const conditions: SQL[] = [
+    // A case-insensitive title match cannot use an index, so this scans the
+    // space's live pages, as the path-suffix `LIKE` below already does.
+    inArray(sql`lower(btrim(${schema.pages.title}))`, targets.map(wikiLinkTitleKey)),
+  ];
   for (const target of targets) {
     const suffix = `%/${escapeLikePattern(target)}`;
     conditions.push(
@@ -59,7 +66,12 @@ async function findCandidates(executor: WikiLinkExecutor, spaceId: string, targe
     );
   }
   return executor
-    .select({ id: schema.pages.id, path: schema.pages.path, slug: schema.pages.slug })
+    .select({
+      id: schema.pages.id,
+      path: schema.pages.path,
+      slug: schema.pages.slug,
+      title: schema.pages.title,
+    })
     .from(schema.pages)
     .where(
       and(
@@ -160,7 +172,7 @@ export async function renderPageMarkdown(
  * tree-path href onto the published artifact's address.
  */
 export function createStaticWikiLinkResolver(
-  candidates: readonly { path: string; slug: string }[],
+  candidates: readonly WikiLinkCandidate[],
 ): WikiLinkResolver {
   return (link) => {
     const target = normalizeWikiLinkTarget(link.target);

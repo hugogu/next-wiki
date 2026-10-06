@@ -98,6 +98,71 @@ describe('wikilinks in a stored page render', () => {
     );
   });
 
+  it('resolves a target written as the page title, in a table cell like an index page lists it', async () => {
+    await pageService.create(ctx, {
+      path: 'tech/ai/llm',
+      title: 'LLM 大语言模型',
+      contentSource: '# LLM 大语言模型\n',
+    });
+    await pageService.create(ctx, {
+      path: 'tech/ai/vibe-coding-concepts',
+      title: 'Vibe Coding 工具概念对比',
+      contentSource: '# Vibe Coding 工具概念对比\n',
+    });
+    const index = await pageService.create(ctx, {
+      path: 'tech/ai/index',
+      title: 'AI 知识体系',
+      contentSource: [
+        '| 主题 | 路径 |',
+        '|------|------|',
+        '| [[LLM 大语言模型]] | tech/ai/llm |',
+        '| [[vibe coding 工具概念对比]] | tech/ai/vibe-coding-concepts |',
+        '',
+      ].join('\n'),
+    });
+
+    const html = await latestHtml(index.pageId);
+    expect(html).toContain('<a href="/wiki/tech/ai/llm">LLM 大语言模型</a>');
+    expect(html).toContain('<a href="/wiki/tech/ai/vibe-coding-concepts">vibe coding 工具概念对比</a>');
+  });
+
+  it('prefers a page at the written address over another page with that title', async () => {
+    await pageService.create(ctx, { path: 'faq', title: 'Help', contentSource: '# Help\n' });
+    await pageService.create(ctx, { path: 'support/questions', title: 'FAQ', contentSource: '# FAQ\n' });
+    const source = await pageService.create(ctx, {
+      path: 'start',
+      title: 'Start',
+      contentSource: 'Read the [[faq]].\n',
+    });
+
+    expect(await latestHtml(source.pageId)).toContain('<a href="/wiki/faq">faq</a>');
+  });
+
+  it('does not guess between two pages that share a title', async () => {
+    await pageService.create(ctx, { path: 'a/overview', title: 'Overview', contentSource: '# A\n' });
+    await pageService.create(ctx, { path: 'b/overview', title: 'Overview', contentSource: '# B\n' });
+    const source = await pageService.create(ctx, {
+      path: 'start',
+      title: 'Start',
+      contentSource: 'See the [[Overview]].\n',
+    });
+
+    // Left as an unresolved link, addressed inside the space as written.
+    expect(await latestHtml(source.pageId)).toContain('<a href="/wiki/Overview">Overview</a>');
+  });
+
+  it('does not link to the title of a deleted page', async () => {
+    await pageService.create(ctx, { path: 'old/gone', title: 'Gone', contentSource: '# Gone\n' });
+    await pageService.remove(ctx, 'old/gone');
+    const source = await pageService.create(ctx, {
+      path: 'start',
+      title: 'Start',
+      contentSource: 'See [[Gone]].\n',
+    });
+
+    expect(await latestHtml(source.pageId)).toContain('<a href="/wiki/Gone">Gone</a>');
+  });
+
   it('links an unresolved target inside the space, and resolves it on re-render once the page exists', async () => {
     const source = await pageService.create(ctx, {
       path: 'knowledge/ops/planned',

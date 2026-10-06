@@ -67,31 +67,50 @@ export function collectWikiLinkTargets(markdown: string): string[] {
   return [...targets];
 }
 
-export type WikiLinkCandidate = { path: string; slug: string };
+export type WikiLinkCandidate = { path: string; slug: string; title: string };
+
+/**
+ * A title as a reader perceives it: case and surrounding whitespace tell two
+ * titles apart no better than they tell two words apart. The candidate lookup
+ * (`server/services/wiki-links.ts`) compares this same key in SQL, so a row the
+ * database returns for a title is one `matchWikiLinkTarget` can match.
+ */
+export function wikiLinkTitleKey(title: string): string {
+  return title.trim().toLowerCase();
+}
 
 /**
  * Pick the page a target refers to.
  *
  * A wikilink is written by hand (or by an agent mirroring a vault), so it is
- * rarely a page's full address: `[[ops/foo]]` is how someone refers to
- * `knowledge/ops/foo`. Exact addresses win first — an author who wrote the
- * whole thing gets exactly what they asked for — and only then does a path
- * suffix count, and only when it names one page. An ambiguous suffix resolves
- * to nothing rather than to a guess: silently linking to the wrong page is
- * worse than linking to a page that turns out not to exist.
+ * rarely a page's full address. People write one of three things: the address
+ * (`[[knowledge/ops/foo]]`), the tail of it (`[[ops/foo]]`), or the name the
+ * page shows (`[[Multi registry]]`, the way a page is linked in Obsidian).
+ *
+ * The rules run from the most exact claim to the loosest — slug, tree path,
+ * title, then a path suffix — and the first one that matches anything decides.
+ * Exact addresses win first: an author who wrote the whole thing gets exactly
+ * what they asked for. Within a rule, one page is a match and several are not:
+ * an ambiguous target resolves to nothing, and does not fall through to a
+ * looser rule, because silently linking to the wrong page is worse than
+ * linking to a page that turns out not to exist.
  */
 export function matchWikiLinkTarget<T extends WikiLinkCandidate>(
   target: string,
   candidates: readonly T[],
 ): T | null {
-  const exactSlug = candidates.filter((candidate) => candidate.slug === target);
-  if (exactSlug.length === 1) return exactSlug[0]!;
-  const exactPath = candidates.filter((candidate) => candidate.path === target);
-  if (exactPath.length === 1) return exactPath[0]!;
-  const suffix = candidates.filter(
+  const targetTitleKey = wikiLinkTitleKey(target);
+  const rules: Array<(candidate: T) => boolean> = [
+    (candidate) => candidate.slug === target,
+    (candidate) => candidate.path === target,
+    (candidate) => wikiLinkTitleKey(candidate.title) === targetTitleKey,
     (candidate) => candidate.slug.endsWith(`/${target}`) || candidate.path.endsWith(`/${target}`),
-  );
-  return suffix.length === 1 ? suffix[0]! : null;
+  ];
+  for (const rule of rules) {
+    const matches = candidates.filter(rule);
+    if (matches.length > 0) return matches.length === 1 ? matches[0]! : null;
+  }
+  return null;
 }
 
 export function encodeWikiLinkPath(path: string): string {

@@ -143,6 +143,21 @@ $$`;
     expect(html).toContain('<a href="/docs/setup#install">docs/setup#install</a>');
   });
 
+  it('renders wikilinks in table cells, the shape of an index page', () => {
+    const { html } = renderMarkdown(
+      [
+        '| 主题 | 路径 |',
+        '|---|---|',
+        '| [[LLM 大语言模型]] | tech/ai/llm |',
+        // A bare `|` would end the cell, so an alias in a table escapes it.
+        '| [[tech/ai/mcp\\|MCP 协议]] | tech/ai/mcp |',
+      ].join('\n'),
+      { resolveWikiLink: (link) => `/wiki/${encodeURIComponent(link.target)}` },
+    );
+    expect(html).toContain(`<td><a href="/wiki/${encodeURIComponent('LLM 大语言模型')}">LLM 大语言模型</a></td>`);
+    expect(html).toContain('<td><a href="/wiki/tech%2Fai%2Fmcp">MCP 协议</a></td>');
+  });
+
   it('resolves wikilinks through the supplied resolver', () => {
     const { html } = renderMarkdown('[[ops/foo]]', {
       resolveWikiLink: (link) => `/generated/knowledge/${link.target}`,
