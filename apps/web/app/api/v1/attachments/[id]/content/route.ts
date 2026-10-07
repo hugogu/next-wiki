@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { z } from 'zod';
+import { isInlineSafeAttachmentType } from '@next-wiki/shared';
 import { publicApiError, validationError } from '@/server/api/public-errors';
 import { withPublicApi } from '../../../_shared/route';
-import { isInlineSafeType } from '@/server/content-store/attachment-validation';
 import * as publicContent from '@/server/services/public-content';
 
 const paramsSchema = z.object({ id: z.string().uuid() });
@@ -36,7 +36,7 @@ export const GET = withPublicApi<{ id: string }>(async (_request, { params }, ct
     return publicApiError('INTERNAL_ERROR', 'Attachment storage is temporarily unavailable', 503);
   }
 
-  const disposition = isInlineSafeType(result.contentType) ? 'inline' : 'attachment';
+  const disposition = isInlineSafeAttachmentType(result.contentType) ? 'inline' : 'attachment';
   return new NextResponse(new Uint8Array(result.bytes), {
     status: 200,
     headers: {
