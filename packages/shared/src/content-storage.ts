@@ -82,6 +82,27 @@ export type PublicAssetUploadResult = z.infer<typeof publicAssetUploadResultSche
 export const attachmentCategorySchema = z.enum(['image', 'video', 'document']);
 export type AttachmentCategory = z.infer<typeof attachmentCategorySchema>;
 
+/**
+ * Attachment types a browser may render inline when a reader opens them
+ * (FR-014). A fixed, code-level allowlist — never administrator-configurable —
+ * and always a subset of the FR-010 storable types, so a type that could
+ * execute code in the wiki's own origin (HTML, SVG, ...) can never be served
+ * inline. The server derives `Content-Disposition` from it and the reader UI
+ * chooses "open in a new tab" vs "download" from the same list, so the two
+ * cannot drift apart.
+ */
+const INLINE_SAFE_ATTACHMENT_TYPES: ReadonlySet<string> = new Set([
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'application/pdf',
+]);
+
+export function isInlineSafeAttachmentType(contentType: string): boolean {
+  return INLINE_SAFE_ATTACHMENT_TYPES.has(contentType);
+}
+
 export const publicAttachmentResourceSchema = z.object({
   id: z.string().uuid(),
   pageId: z.string().uuid(),

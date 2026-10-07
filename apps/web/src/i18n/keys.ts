@@ -334,7 +334,6 @@ export const translationKeys = [
   "page.attachments.removeConfirm",
   "page.attachments.uploadError",
   "page.attachments.removeError",
-  "page.attachments.unavailable",
   "page.addresses.heading",
   "page.addresses.hint",
   "page.addresses.hintLabel",

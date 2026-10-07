@@ -1,9 +1,10 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
+import { renderMarkdown } from '@/server/pipeline';
 import * as pageService from '@/server/services/pages';
 import * as revisions from '@/server/services/revisions';
 import * as publicContent from '@/server/services/public-content';
@@ -131,6 +132,160 @@ describe('public content write facade', () => {
       order: 'path',
       include: [],
     })).resolves.toMatchObject({ items: [] });
+  });
+});
+
+describe('public content drafts and publication when a translation shares the page path', () => {
+  beforeEach(async () => {
+    await cleanup();
+    await ensurePublicApiDefaultSpace();
+  });
+
+  afterAll(async () => {
+    await cleanup();
+  });
+
+  type Side = 'original' | 'translation';
+  const sides: Side[] = ['original', 'translation'];
+
+  /**
+   * An original and its translation, laid out the way the translation writer
+   * does: the same (space, path), told apart only by locale. Each carries a
+   * published v1 and a v2 draft, so a write that resolves to the wrong row
+   * still succeeds, and the only way to catch it is to look at which page it
+   * landed on.
+   */
+  async function seedOriginalWithTranslation() {
+    const editor = await createPublicApiUser('shared-path-editor@example.com', 'editor');
+    const userCtx = buildUserCtx(editor.id, 'editor');
+    const path = 'shared-path/article';
+
+    // Path-based calls are unambiguous until the translation row exists.
+    const created = await pageService.create(userCtx, { path, title: 'Original', contentSource: '# Original v1' });
+    await revisions.publish(userCtx, { path, version: 1 });
+    const draft = await pageService.newDraft(userCtx, path, { title: 'Original', contentSource: '# Original v2' });
+    const original = { id: created.pageId, v1Id: created.versionId, v2Id: draft.versionId };
+
+    const source = await db.query.pages.findFirst({ where: eq(schema.pages.id, original.id) });
+    if (!source) throw new Error('Failed to read the original page');
+    const [group] = await db.insert(schema.translationGroups).values({ sourcePageId: source.id }).returning();
+    const [row] = await db
+      .insert(schema.pages)
+      .values({
+        spaceId: source.spaceId,
+        slug: source.slug,
+        path: source.path,
+        locale: 'zh',
+        title: 'Translation',
+        authorId: editor.id,
+        nature: 'generated',
+        translationGroupId: group!.id,
+        sourcePageId: source.id,
+      })
+      .returning();
+    const insertRevision = async (versionNumber: number, contentSource: string, status: 'published' | 'draft') => {
+      const { html, hash } = renderMarkdown(contentSource);
+      const [revision] = await db
+        .insert(schema.pageRevisions)
+        .values({
+          pageId: row!.id,
+          versionNumber,
+          locale: 'zh',
+          contentType: 'text/markdown',
+          contentSource,
+          contentHtml: html,
+          contentHash: hash,
+          authorId: editor.id,
+          status,
+          publishedAt: status === 'published' ? new Date() : null,
+        })
+        .returning();
+      return revision!;
+    };
+    const translationV1 = await insertRevision(1, '# Translation v1', 'published');
+    const translationV2 = await insertRevision(2, '# Translation v2', 'draft');
+    await db
+      .update(schema.pages)
+      .set({ currentPublishedVersionId: translationV1.id, latestVersionId: translationV2.id })
+      .where(eq(schema.pages.id, row!.id));
+    const translation = { id: row!.id, v1Id: translationV1.id, v2Id: translationV2.id };
+
+    const apiCtx = buildApiKeyCtx(editor.id, 'editor', ['view', 'create', 'edit'], 'editor-key');
+    return { apiCtx, original, translation };
+  }
+
+  /** Both rows, as the page under test and the one that must be left alone. */
+  function pick(seeded: Awaited<ReturnType<typeof seedOriginalWithTranslation>>, side: Side) {
+    return side === 'original'
+      ? { addressed: seeded.original, other: seeded.translation }
+      : { addressed: seeded.translation, other: seeded.original };
+  }
+
+  async function stateOf(pageId: string) {
+    const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
+    const rows = await db.query.pageRevisions.findMany({
+      where: eq(schema.pageRevisions.pageId, pageId),
+      orderBy: asc(schema.pageRevisions.versionNumber),
+    });
+    return {
+      latestVersionId: page?.latestVersionId ?? null,
+      publishedVersionId: page?.currentPublishedVersionId ?? null,
+      revisions: rows.map((row) => ({ version: row.versionNumber, status: row.status, source: row.contentSource })),
+    };
+  }
+
+  it.each(sides)('createDraft addressed at the %s writes the draft to that page only', async (side) => {
+    const seeded = await seedOriginalWithTranslation();
+    const { addressed, other } = pick(seeded, side);
+    const otherBefore = await stateOf(other.id);
+
+    const draft = await publicContent.createDraft(seeded.apiCtx, addressed.id, {
+      title: 'Edited',
+      contentSource: `# ${side} v3`,
+    });
+
+    expect(draft).toMatchObject({ pageId: addressed.id, version: 3, status: 'draft' });
+    const after = await stateOf(addressed.id);
+    expect(after.latestVersionId).toBe(draft.id);
+    expect(after.revisions.map((revision) => [revision.version, revision.source])).toEqual([
+      [1, expect.any(String)],
+      [2, expect.any(String)],
+      [3, `# ${side} v3`],
+    ]);
+    expect(await stateOf(other.id)).toEqual(otherBefore);
+  });
+
+  it.each(sides)('publishRevision addressed at the %s publishes that page only', async (side) => {
+    const seeded = await seedOriginalWithTranslation();
+    const { addressed, other } = pick(seeded, side);
+    const otherBefore = await stateOf(other.id);
+
+    const published = await publicContent.publishRevision(seeded.apiCtx, addressed.id, 2, {}, ['publishedRevision']);
+
+    expect(published.id).toBe(addressed.id);
+    expect(published.publishedRevision).toMatchObject({ id: addressed.v2Id, pageId: addressed.id, version: 2 });
+    const after = await stateOf(addressed.id);
+    expect(after.publishedVersionId).toBe(addressed.v2Id);
+    expect(after.revisions.map((revision) => revision.status)).toEqual(['published', 'published']);
+    expect(await stateOf(other.id)).toEqual(otherBefore);
+  });
+
+  it.each(sides)('updatePageMetadata addressed at the %s drafts the change on that page only', async (side) => {
+    const seeded = await seedOriginalWithTranslation();
+    const { addressed, other } = pick(seeded, side);
+    const otherBefore = await stateOf(other.id);
+
+    const updated = await publicContent.updatePageMetadata(seeded.apiCtx, addressed.id, {
+      baseRevisionId: addressed.v2Id,
+      tags: ['shared-path-tag'],
+    });
+
+    expect(updated.id).toBe(addressed.id);
+    expect(updated.latestRevision).toMatchObject({ pageId: addressed.id, version: 3, status: 'draft' });
+    const after = await stateOf(addressed.id);
+    expect(after.revisions.map((revision) => revision.version)).toEqual([1, 2, 3]);
+    expect(after.latestVersionId).toBe(updated.latestRevision?.id);
+    expect(await stateOf(other.id)).toEqual(otherBefore);
   });
 });
 

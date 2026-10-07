@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -321,6 +322,21 @@ describe('pageService US3', () => {
       await expect(
         pageService.newDraft(readerCtx, 'denied-edit', { title: 'T2', contentSource: 'c2' }),
       ).rejects.toThrow('permission');
+    });
+
+    it('resolves the page by id alone when a pageId is given', async () => {
+      const editor = await createUser('editor-draft-by-id@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      const { pageId } = await pageService.create(ctx, { path: 'draft-by-id', title: 'T', contentSource: 'v1' });
+
+      // The id identifies the page, so a path that names nothing is not consulted.
+      const result = await pageService.newDraft(ctx, 'no/such/path', { pageId, title: 'T', contentSource: 'v2' });
+      expect(result.versionNumber).toBe(2);
+
+      // An unknown id is not found even though the path exists: it never falls back to the path.
+      await expect(
+        pageService.newDraft(ctx, 'draft-by-id', { pageId: randomUUID(), title: 'T', contentSource: 'v3' }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
     });
   });
 

@@ -1772,7 +1772,11 @@ export async function setVisibility(
 export async function newDraft(
   ctx: PermCtx,
   path: string,
+  // `pageId` pins the page when the caller already knows it, and then alone
+  // identifies it: a path is shared by an original and its translations, which
+  // differ only by locale.
   input: {
+    pageId?: string;
     title: string;
     contentSource: string;
     baseRevisionId?: string;
@@ -1813,7 +1817,7 @@ export async function newDraft(
     const page = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),
-        eq(schema.pages.path, path),
+        input.pageId ? eq(schema.pages.id, input.pageId) : eq(schema.pages.path, path),
         isNull(schema.pages.deletedAt),
       ),
     });

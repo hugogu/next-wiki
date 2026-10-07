@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { gitRepositoryIdentity, isSameGitRepository } from './content-storage';
+import {
+  gitRepositoryIdentity,
+  isInlineSafeAttachmentType,
+  isSameGitRepository,
+} from './content-storage';
 
 /**
  * Deploy-key reuse between Git export and static site publishing depends on
@@ -61,5 +65,28 @@ describe('isSameGitRepository', () => {
     // because both failed to parse — that would offer key reuse where it cannot
     // work.
     expect(isSameGitRepository('garbage', 'garbage')).toBe(false);
+  });
+});
+
+describe('isInlineSafeAttachmentType', () => {
+  it.each(['application/pdf', 'image/png', 'image/jpeg', 'image/gif', 'image/webp'])(
+    'lets the browser render %s',
+    (contentType) => {
+      expect(isInlineSafeAttachmentType(contentType)).toBe(true);
+    },
+  );
+
+  // Anything that could run script in the wiki's origin, or that a browser
+  // cannot show, must stay a forced download.
+  it.each([
+    'image/svg+xml',
+    'text/html',
+    'text/plain',
+    'video/mp4',
+    'application/zip',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '',
+  ])('forces a download for %j', (contentType) => {
+    expect(isInlineSafeAttachmentType(contentType)).toBe(false);
   });
 });

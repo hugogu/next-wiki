@@ -1,4 +1,5 @@
 import { beforeAll, afterAll, describe, it, expect } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { and, eq } from 'drizzle-orm';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -68,6 +69,22 @@ describe('revisionService US4', () => {
       });
       expect(revision?.status).toBe('published');
       expect(revision?.publishedAt).toBeTruthy();
+    });
+
+    it('resolves the page by id alone when a pageId is given', async () => {
+      const editor = await createUser('editor-publish-by-id@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      const { pageId } = await pageService.create(ctx, { path: 'publish-by-id', title: 'T', contentSource: 'v1' });
+
+      // An unknown id is not found even though the path exists: it never falls back to the path.
+      await expect(
+        revisionService.publish(ctx, { path: 'publish-by-id', pageId: randomUUID(), version: 1 }),
+      ).rejects.toMatchObject({ code: 'NOT_FOUND' });
+
+      // The id identifies the page, so a path that names nothing is not consulted.
+      const result = await revisionService.publish(ctx, { path: 'no/such/path', pageId, version: 1 });
+      const page = await db.query.pages.findFirst({ where: eq(schema.pages.id, pageId) });
+      expect(page?.currentPublishedVersionId).toBe(result.versionId);
     });
 
     it('reader sees published content, not a newer draft', async () => {

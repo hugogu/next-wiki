@@ -19,7 +19,10 @@ function getUserId(ctx: PermCtx): string | null {
 
 export async function publish(
   ctx: PermCtx,
-  input: { path: string; version: number; expectedRevisionId?: string; space?: string },
+  // `pageId` pins the page when the caller already knows it, and then alone
+  // identifies it: a path is shared by an original and its translations, which
+  // differ only by locale.
+  input: { path: string; pageId?: string; version: number; expectedRevisionId?: string; space?: string },
 ): Promise<{ versionId: string }> {
   const userId = getUserId(ctx);
   if (!userId) {
@@ -38,7 +41,7 @@ export async function publish(
     const page = await tx.query.pages.findFirst({
       where: and(
         eq(schema.pages.spaceId, space.id),
-        eq(schema.pages.path, input.path),
+        input.pageId ? eq(schema.pages.id, input.pageId) : eq(schema.pages.path, input.path),
         isNull(schema.pages.deletedAt),
       ),
     });

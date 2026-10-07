@@ -847,7 +847,7 @@ export async function createDraft(ctx: PermCtx, pageId: string, input: PublicDra
   const draftInput = space.kind === 'generated' && input.contentSource
     ? { ...input, contentSource: adaptGeneratedContent(input.contentSource, page.path, input.title) }
     : input;
-  const created = await pageService.newDraft(ctx, page.path, draftInput, space.slug);
+  const created = await pageService.newDraft(ctx, page.path, { ...draftInput, pageId: page.id }, space.slug);
   const revision = await getRevision(ctx, page.id, created.versionNumber);
   if (!revision) throw new DomainError('NOT_FOUND', 'Created revision is not visible');
   return revision;
@@ -1020,6 +1020,7 @@ export async function publishRevision(
   if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
   await revisionService.publish(ctx, {
     path: page.path,
+    pageId: page.id,
     version,
     expectedRevisionId: input.expectedRevisionId,
     space: space.slug,
@@ -2466,6 +2467,7 @@ export async function updatePageMetadata(ctx: PermCtx, pageId: string, input: Pu
   const source = (await readMarkdownFromDatabase(latest)) ?? '';
   const patched = patchMetadata(source, input, page.title);
   await pageService.newDraft(ctx, page.path, {
+    pageId: page.id,
     title: patched.metadata.title,
     contentSource: patched.source,
     baseRevisionId: input.baseRevisionId,
