@@ -1,9 +1,9 @@
 import { z } from 'zod';
 import { contentSpaceSchema, type WikiApiClient } from '../api-client';
+import { booleanArg } from './_scalar-args';
 
 export const getStatsSchema = {
-  includeOrphans: z
-    .boolean()
+  includeOrphans: booleanArg()
     .optional()
     .describe('Include pages with zero inbound links (default false)'),
   space: contentSpaceSchema.optional().describe('Content space to summarize'),

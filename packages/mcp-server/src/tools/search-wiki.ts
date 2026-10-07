@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { contentSpaceSchema, publicRawInputKindSchema, type WikiApiClient } from '../api-client';
 import { searchWikiResponse } from '../shapes';
+import { booleanArg, numberArg } from './_scalar-args';
 
 // 046: 'all' (or omitting the field entirely) asks the server to fan out
 // across every space this API key may read — the server resolves that
@@ -14,8 +15,8 @@ export const searchWikiSpaceSchema = z
   );
 
 export const searchWikiSchema = {
-  includeAiGenerated: z.boolean().optional().describe('Include AI-generated pages; defaults to true'),
-  includeAiAssisted: z.boolean().optional().describe('Include AI-assisted pages (AI-generated content edited by a human); defaults to true'),
+  includeAiGenerated: booleanArg().optional().describe('Include AI-generated pages; defaults to true'),
+  includeAiAssisted: booleanArg().optional().describe('Include AI-assisted pages (AI-generated content edited by a human); defaults to true'),
   query: z.string().min(1).max(200).describe('Search term'),
   scope: z.enum(['path', 'title', 'content', 'all']).optional().describe('Search scope; defaults to all'),
   pathPrefix: z.string().optional().describe('Restrict matching to pages under a directory subtree (e.g. "docs")'),
@@ -23,12 +24,8 @@ export const searchWikiSchema = {
   filterType: z.string().min(1).max(200).optional().describe('Exact OKF frontmatter type filter (generated space only)'),
   filterInputKind: publicRawInputKindSchema.optional().describe('Raw-only: exact capture-channel filter, independent from filterType'),
   filterCategoryId: z.string().uuid().optional().describe('Raw-only: taxonomy category id filter, independent from filterType'),
-  limit: z.number().int().min(1).max(100).optional().describe('Maximum results; defaults to 20'),
-  excerptLength: z
-    .number()
-    .int()
-    .min(20)
-    .max(500)
+  limit: numberArg(z.number().int().min(1).max(100)).optional().describe('Maximum results; defaults to 20'),
+  excerptLength: numberArg(z.number().int().min(20).max(500))
     .optional()
     .describe('Approximate characters of context around the matched keyword in each excerpt; defaults to 100'),
   createdStart: z.string().datetime().optional().describe('Only include pages created at or after this ISO 8601 timestamp'),
@@ -38,7 +35,7 @@ export const searchWikiSchema = {
   filterTag: z.string().optional().describe('Structured page tag filter (normalized exact match)'),
   filterStatus: z.string().optional().describe('Frontmatter status filter (exact match)'),
   filterOwner: z.string().optional().describe('Frontmatter owner filter (exact match)'),
-  filterHasFrontmatter: z.boolean().optional().describe('Filter for pages with / without any frontmatter'),
+  filterHasFrontmatter: booleanArg().optional().describe('Filter for pages with / without any frontmatter'),
   order: z.enum(['relevance', 'createdAtAsc', 'createdAtDesc', 'updatedAtAsc', 'updatedAtDesc']).optional().describe('Result order; use createdAtDesc for newest pages first instead of relevance'),
 };
 export type SearchWikiInput = z.infer<z.ZodObject<typeof searchWikiSchema>>;

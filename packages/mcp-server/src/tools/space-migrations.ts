@@ -1,6 +1,7 @@
 import { pathSchema } from '@next-wiki/shared';
 import { z } from 'zod';
 import type { WikiApiClient } from '../api-client';
+import { booleanArg, numberArg } from './_scalar-args';
 
 const selectionSchema = z.discriminatedUnion('kind', [
   z.object({ kind: z.literal('page'), pageId: z.string().uuid() }),
@@ -12,11 +13,11 @@ export const previewSpaceMigrationSchema = {
   destinationSpaceId: z.string().uuid(),
   destinationPathPrefix: pathSchema.optional(),
   visibility: z.enum(['public', 'registered', 'restricted']).optional(),
-  adaptOkf: z.boolean().optional(),
+  adaptOkf: booleanArg().optional(),
 };
 export const startSpaceMigrationSchema = { previewId: z.string().uuid(), fingerprint: z.string().min(16) };
 export const getSpaceMigrationSchema = { id: z.string().uuid() };
-export const listSpaceMigrationItemsSchema = { id: z.string().uuid(), limit: z.number().int().min(1).max(100).optional(), cursor: z.string().uuid().optional() };
+export const listSpaceMigrationItemsSchema = { id: z.string().uuid(), limit: numberArg(z.number().int().min(1).max(100)).optional(), cursor: z.string().uuid().optional() };
 export const cancelSpaceMigrationSchema = { id: z.string().uuid() };
 
 export const previewSpaceMigration = (client: WikiApiClient, args: z.infer<z.ZodObject<typeof previewSpaceMigrationSchema>>) => client.previewSpaceMigration({ ...args, adaptOkf: args.adaptOkf ?? true });

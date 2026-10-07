@@ -1,10 +1,11 @@
 import { z } from 'zod';
 import type { WikiApiClient } from '../api-client';
 import { publishPageResponse } from '../shapes';
+import { numberArg } from './_scalar-args';
 
 export const publishPageSchema = {
   pageId: z.string().uuid().describe('Page UUID'),
-  version: z.number().int().min(1).describe('Revision version number to publish'),
+  version: numberArg(z.number().int().min(1)).describe('Revision version number to publish'),
   expectedRevisionId: z.string().uuid().optional().describe('Revision UUID for optimistic concurrency'),
 };
 export type PublishPageInput = z.infer<z.ZodObject<typeof publishPageSchema>>;

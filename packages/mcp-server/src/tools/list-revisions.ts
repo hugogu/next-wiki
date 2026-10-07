@@ -1,11 +1,12 @@
 import { z } from 'zod';
 import type { WikiApiClient } from '../api-client';
 import { listRevisionsResponse } from '../shapes';
+import { numberArg } from './_scalar-args';
 
 export const listRevisionsSchema = {
   pageId: z.string().uuid().describe('Page UUID'),
   status: z.enum(['published', 'draft', 'all']).optional().describe('Filter by revision status'),
-  limit: z.number().int().min(1).max(100).optional().describe('Maximum results; defaults to 20'),
+  limit: numberArg(z.number().int().min(1).max(100)).optional().describe('Maximum results; defaults to 20'),
   cursor: z.string().optional().describe('Pagination cursor'),
 };
 export type ListRevisionsInput = z.infer<z.ZodObject<typeof listRevisionsSchema>>;
