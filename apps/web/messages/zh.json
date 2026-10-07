@@ -504,8 +504,7 @@
       "removeConfirmMessage": "确定要从此页面移除“{name}”吗？此操作无法撤销。",
       "removeConfirm": "移除",
       "uploadError": "附件上传失败。",
-      "removeError": "移除附件失败。",
-      "unavailable": "该附件已不可用。"
+      "removeError": "移除附件失败。"
     },
     "addresses": {
       "heading": "访问地址",

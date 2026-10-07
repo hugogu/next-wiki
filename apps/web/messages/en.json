@@ -504,8 +504,7 @@
       "removeConfirmMessage": "Remove \"{name}\" from this page? This cannot be undone.",
       "removeConfirm": "Remove",
       "uploadError": "Failed to attach file.",
-      "removeError": "Failed to remove attachment.",
-      "unavailable": "This attachment is no longer available."
+      "removeError": "Failed to remove attachment."
     },
     "addresses": {
       "heading": "Addresses",

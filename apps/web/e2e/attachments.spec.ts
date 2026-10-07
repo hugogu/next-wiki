@@ -58,13 +58,17 @@ test.describe('page attachments happy path (US1-US3)', () => {
     await expect(page.getByText('notes.txt')).toBeVisible({ timeout: 15_000 });
 
     // US2: download — a browser-safe type (PNG) opens inline in a new tab
-    // rather than forcing a download (FR-014).
+    // rather than forcing a download (FR-014). It is a plain link to the
+    // content URL, so the browser opens the tab inside the click (a tab opened
+    // by script after a fetch can be blocked as a pop-up) and the tab keeps
+    // the real URL instead of a throwaway `blob:` one.
     const [inlineTab] = await Promise.all([
       context.waitForEvent('page'),
       page.getByText('pixel.png').click(),
     ]);
     await inlineTab.waitForLoadState();
-    expect(inlineTab.url()).toContain('blob:');
+    expect(inlineTab.url()).toMatch(/\/api\/v1\/attachments\/[0-9a-f-]{36}\/content$/);
+    expect(await inlineTab.evaluate(() => document.contentType)).toBe('image/png');
     await inlineTab.close();
 
     // A non-safe type (plain text) forces a real download with the exact
