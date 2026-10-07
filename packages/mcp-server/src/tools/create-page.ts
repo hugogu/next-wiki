@@ -8,13 +8,18 @@ import {
   type WikiApiClient,
 } from '../api-client';
 import { createPageResponse } from '../shapes';
+import { bodyFilePathSchema, resolveBody } from './_page-body';
 
 export const createPageSchema = {
   path: pathSchema.describe('Tree path (organizational location), e.g. docs/getting-started'),
   // 035: the canonical public address. Defaults to `path` when omitted.
   slug: pathSchema.optional().describe('Canonical public address. Defaults to path when omitted.'),
   title: z.string().min(1).max(200).describe('Page title'),
-  contentSource: z.string().default('').describe('Markdown source content; required for raw entries.'),
+  contentSource: z
+    .string()
+    .default('')
+    .describe('Markdown source content, passed inline (not a file path; use filePath to read a file). Required for raw entries unless filePath is given.'),
+  filePath: bodyFilePathSchema,
   locale: z.string().min(1).max(20).optional().describe('Locale; defaults to wiki default'),
   space: contentSpaceSchema.optional().describe(
     "Target space. MCP defaults to 'generated' for AI-authored pages. Pass an explicit value to override it."
@@ -32,11 +37,13 @@ export async function createPage(client: WikiApiClient, args: CreatePageInput) {
   // MCP is the AI boundary. New AI-authored pages default to generated; callers
   // may select another active space explicitly.
   const space = args.space ?? 'generated';
+  // contentSource defaults to '', so an empty value counts as "not given".
+  const contentSource = (await resolveBody(args.contentSource || undefined, args.filePath)) ?? '';
   const response = await client.createPage({
     path: args.path,
     slug: args.slug,
     title: args.title,
-    contentSource: args.contentSource,
+    contentSource,
     locale: args.locale,
     space,
     nature: args.nature ?? 'generated',

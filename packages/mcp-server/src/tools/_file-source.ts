@@ -2,8 +2,9 @@ import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 
 /**
- * Shared defensive filesystem-read helpers for the `filePath` source of
- * `upload_image` and `attach_file` MCP tools.
+ * Shared defensive filesystem-read helpers for the `filePath` source of the
+ * `upload_image` and `attach_file` MCP tools and, as text (see
+ * `readTextFromPath`), of `create_page` and `save_draft`.
  *
  * Threat model: the agent and the MCP server run as the same user, and the
  * allow-list directories are paths the user has explicitly trusted. The
@@ -138,4 +139,69 @@ export async function readFromPath(filePath: string): Promise<Uint8Array> {
 
   const buf = await fs.readFile(reReal);
   return new Uint8Array(buf);
+}
+
+const TEXT_EXTENSIONS = ['.md', '.markdown', '.txt'];
+
+/** Upper bound for a page body read from a file; far above any real page. */
+export const MAX_TEXT_BYTES = 2 * 1024 * 1024;
+
+/** True when the operator listed directories in NEXT_WIKI_MCP_FILE_ALLOW_DIRS. */
+export function hasExplicitAllowedDirs(): boolean {
+  return (process.env.NEXT_WIKI_MCP_FILE_ALLOW_DIRS ?? '').trim().length > 0;
+}
+
+/**
+ * Read a page body (Markdown or plain text) from a file on the server host.
+ *
+ * Held to more than `readFromPath`, because the result becomes searchable and
+ * possibly published text, and the server may be able to read files the agent
+ * cannot:
+ *   - the path must be absolute. `~` is deliberately not expanded: the server
+ *     can run as a different user than the agent, so it could silently resolve
+ *     to the wrong home directory, and a relative path resolves against a
+ *     working directory the agent does not know;
+ *   - the allow-list must be set explicitly, with no default to the server cwd;
+ *   - only .md, .markdown and .txt files;
+ *   - non-empty, at most MAX_TEXT_BYTES, valid UTF-8 without NUL bytes.
+ */
+export async function readTextFromPath(filePath: string): Promise<string> {
+  if (!path.isAbsolute(filePath)) {
+    throw new Error(
+      `filePath must be an absolute path (got "${filePath}"). "~" and relative paths are not expanded: ` +
+        `the MCP server may run as a different user, or from a different directory, than the agent.`,
+    );
+  }
+  if (!TEXT_EXTENSIONS.includes(path.extname(filePath).toLowerCase())) {
+    throw new Error(
+      `filePath must be a Markdown or plain-text file (${TEXT_EXTENSIONS.join(', ')}): ${filePath}`,
+    );
+  }
+  if (!hasExplicitAllowedDirs()) {
+    throw new Error(
+      'Reading a page body from a file is off until NEXT_WIKI_MCP_FILE_ALLOW_DIRS lists the directories ' +
+        'the MCP server may read (colon-separated absolute paths).',
+    );
+  }
+
+  const bytes = await readFromPath(filePath);
+  if (bytes.byteLength === 0) {
+    throw new Error(`filePath is empty: ${filePath}`);
+  }
+  if (bytes.byteLength > MAX_TEXT_BYTES) {
+    throw new Error(
+      `filePath is ${bytes.byteLength} bytes; a page body read from a file is limited to ${MAX_TEXT_BYTES} bytes: ${filePath}`,
+    );
+  }
+
+  let text: string;
+  try {
+    text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+  } catch {
+    throw new Error(`filePath is not valid UTF-8 text: ${filePath}`);
+  }
+  if (text.includes('\u0000')) {
+    throw new Error(`filePath looks binary (contains NUL bytes): ${filePath}`);
+  }
+  return text;
 }

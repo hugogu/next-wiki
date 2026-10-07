@@ -127,6 +127,9 @@ Add to `~/.openclaw/openclaw.json` (JSON5, comments and trailing commas allowed)
         env: {
           NEXT_WIKI_API_URL: "http://localhost:3000/api/v1",
           NEXT_WIKI_API_KEY: "your-api-key",
+          // Optional: lets create_page / save_draft read long pages from files,
+          // see "Page body from a file". Absolute, colon-separated directories.
+          // NEXT_WIKI_MCP_FILE_ALLOW_DIRS: "/path/to/agent/workspace",
         },
       },
     },
@@ -135,6 +138,10 @@ Add to `~/.openclaw/openclaw.json` (JSON5, comments and trailing commas allowed)
 ```
 
 Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot-apply.
+
+OpenClaw caps the size of a tool call, so a long page cannot be sent inline. Pass
+`filePath` instead of `contentSource` to `create_page` or `save_draft`; see
+[Page body from a file](#page-body-from-a-file).
 
 ## Tools
 
@@ -145,11 +152,11 @@ Apply with `openclaw config validate` or reload the gateway; `mcp.*` changes hot
 | `get_semantic_search_results` | Poll results from `submit_semantic_search` |
 | `list_pages` | List visible pages |
 | `get_page` | Get page details and Markdown source, including its canonical address and alias list |
-| `create_page` | Create a new page (raw entries: verbatim body + optional original bytes); response includes the resulting address |
+| `create_page` | Create a new page (raw entries: verbatim body + optional original bytes); the body is inline or read from a file; response includes the resulting address |
 | `append_raw_entry` | Append an immutable chunk to a raw entry |
 | `list_raw_categories` | List the raw taxonomy categories (LLM Wiki mode) |
 | `create_raw_category` | Create a raw taxonomy category (LLM Wiki mode) |
-| `save_draft` | Save a draft revision |
+| `save_draft` | Save a draft revision; the body is inline or read from a file |
 | `update_page_properties` | Update page title/path/address, or set the language the page is written in |
 | `publish_page` | Publish a draft revision |
 | `list_revisions` | List revision history |
@@ -230,6 +237,33 @@ alias so old links keep working.
   by hand in the web UI).
 - There is no MCP tool yet to add or remove an alias directly; that
   management currently lives only in the web UI's Page Properties dialog.
+
+### Page body from a file
+
+A host that caps the size of a tool call cannot carry a long page inline.
+`create_page` and `save_draft` therefore accept `filePath` instead of
+`contentSource`: the server reads the Markdown from a file on its own host.
+Provide exactly one of the two.
+
+```json
+{"pageId":"<page id>","title":"Harness engineering","filePath":"/srv/agent/workspace/harness.md"}
+```
+
+The server enforces these rules:
+
+- **Absolute path only.** `~` and relative paths are rejected, not expanded: the
+  server can run as a different user than the agent, so `~` could silently
+  resolve to the wrong home directory.
+- **`NEXT_WIKI_MCP_FILE_ALLOW_DIRS` must be set** to the directories the server
+  may read (colon-separated absolute paths). There is no default for page
+  bodies. When set, the same variable also replaces the working-directory
+  default of `upload_image` and `attach_file`. Keep it narrow: a dedicated
+  workspace folder, not a home directory.
+- Only `.md`, `.markdown`, and `.txt` files, as UTF-8 without NUL bytes,
+  non-empty and at most 2 MB.
+- The server reads the file as its own user, so it must be able to see and read
+  it. A server running as another user or in a container cannot read the
+  agent's files; send `contentSource` inline there.
 
 ### LLM Wiki mode
 
