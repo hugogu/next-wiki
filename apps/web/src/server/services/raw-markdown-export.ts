@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
-import { buildAnonymousCtx, type Actor } from '@/server/permissions';
+import { buildAnonymousCtx, type Actor, type PermCtx } from '@/server/permissions';
 import { readMarkdownFromDatabase } from '@/server/content-store/read-router';
 import * as pageService from '@/server/services/pages';
 import * as publicContent from '@/server/services/public-content';
@@ -30,9 +30,12 @@ export type RawMarkdownResult =
  * re-encoded for it, because decoding a literal `%` that survived the first
  * decode (`/x%25y.md`) throws a URIError and would answer 500 instead of 404.
  */
-export async function getWikiRawMarkdown(segments: string[]): Promise<RawMarkdownResult> {
+export async function getWikiRawMarkdown(
+  segments: string[],
+  ctx: PermCtx = buildAnonymousCtx(),
+): Promise<RawMarkdownResult> {
   const resolved = await resolveReaderPage(
-    buildAnonymousCtx(),
+    ctx,
     segments.map((segment) => encodeURIComponent(segment)),
   );
   switch (resolved.kind) {
@@ -44,7 +47,7 @@ export async function getWikiRawMarkdown(segments: string[]): Promise<RawMarkdow
     case 'forbidden':
       return { kind: 'forbidden' };
     case 'not_found':
-      return getWikiRawMarkdownByTreePath(segments);
+      return getWikiRawMarkdownByTreePath(segments, ctx);
   }
 }
 
@@ -53,13 +56,16 @@ export async function getWikiRawMarkdown(segments: string[]): Promise<RawMarkdow
  * (`/<tree path>.md`), which is no longer a public address. Keep them resolving
  * so existing links and scripts do not break.
  */
-async function getWikiRawMarkdownByTreePath(segments: string[]): Promise<RawMarkdownResult> {
+async function getWikiRawMarkdownByTreePath(segments: string[], ctx: PermCtx): Promise<RawMarkdownResult> {
+  const isAnonymous = ctx.actor.kind === 'anonymous';
   const fullPath = segments.join('/');
 
   if (segments.length >= 2 && isReservedLocalePrefix(await getReservedLocalePrefixes(), segments[0]!)) {
     const locale = segments[0]!;
     const sourcePath = segments.slice(1).join('/');
-    const translation = await pageService.getCachedPublicLiveTranslation(locale, sourcePath);
+    const translation = isAnonymous
+      ? await pageService.getCachedPublicLiveTranslation(locale, sourcePath)
+      : await pageService.getLiveTranslation(ctx, locale, sourcePath);
     if (translation.kind === 'page') {
       return readRevisionMarkdown(translation.page.revisionId, translation.page.title);
     }
@@ -72,9 +78,11 @@ async function getWikiRawMarkdownByTreePath(segments: string[]): Promise<RawMark
     // not_found → fall through to original resolution of the full path.
   }
 
-  const original = await pageService.getCachedPublicLivePage(fullPath);
+  const original = isAnonymous
+    ? await pageService.getCachedPublicLivePage(fullPath)
+    : await pageService.getLive(ctx, fullPath);
   if (!original) {
-    return (await pageService.getReaderAccessStatus(buildAnonymousCtx(), fullPath))?.kind === 'forbidden'
+    return (await pageService.getReaderAccessStatus(ctx, fullPath))?.kind === 'forbidden'
       ? { kind: 'forbidden' }
       : { kind: 'not_found' };
   }

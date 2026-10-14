@@ -89,6 +89,16 @@ test.describe('LLM Wiki space navigation', () => {
     await setWritingMode('copilot');
   });
 
+  test('signed-in admin reads restricted generated Markdown at its reader address', async ({ page, request }) => {
+    await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
+    const response = await page.goto('/generated/generated.md');
+    expect(response!.status()).toBe(200);
+    expect(response!.headers()['content-type']).toContain('text/markdown');
+    expect(response!.headers()['cache-control']).toBe('private, no-store');
+    await expect(page.locator('body')).toContainText('# Generated E2E page');
+    expect((await request.get('/generated/generated.md')).status()).toBe(403);
+  });
+
   test('admin switches spaces and sees route-derived breadcrumbs', async ({ page }) => {
     await login(page, ADMIN_EMAIL, ADMIN_PASSWORD);
     const modeResponse = await page.request.get('/api/settings/writing-mode');

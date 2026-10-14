@@ -6,9 +6,9 @@ import { clickSignInSubmit } from './test-helpers';
  * A page's Markdown export is its reader address plus `.md`. Slug routing (035)
  * made the reader address independent of the tree path, so the export has to
  * resolve the way the HTML reader does — by slug and by alias — while `.md`
- * links made before that (by tree path) keep working. The export is
- * anonymous-only, so every request here uses the session-less `request`
- * fixture: exactly what an agent or crawler sees.
+ * links made before that (by tree path) keep working. The export uses the same
+ * read permissions as the HTML reader; the session-less `request` fixture checks
+ * anonymous access and `page` checks signed-in access.
  */
 
 const E2E_DATABASE_URL =
@@ -112,6 +112,13 @@ test.describe('Markdown export (.md)', () => {
 
       expect((await request.get(`/wiki/${draftSlug}.md`)).status()).toBe(404);
       expect((await request.get(`/wiki/${membersSlug}.md`)).status()).toBe(403);
+      const signedIn = await page.goto(`/wiki/${membersSlug}.md`);
+      expect(signedIn!.status()).toBe(200);
+      expect(signedIn!.headers()['content-type']).toContain('text/markdown');
+      expect(signedIn!.headers()['cache-control']).toBe('private, no-store');
+      await expect(page.locator('body')).toContainText('Registered readers only.');
+      const legacy = await page.request.get(`/${membersSlug}.md`);
+      expect(legacy.status()).toBe(200);
       expect((await request.get(`/wiki/md-export-missing-${stamp}.md`)).status()).toBe(404);
     } finally {
       await page.request.delete(`/api/v1/pages/${draftId}`);

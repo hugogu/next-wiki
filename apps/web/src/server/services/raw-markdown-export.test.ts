@@ -5,6 +5,8 @@ const pageService = vi.hoisted(() => ({
   getCachedPublicLivePage: vi.fn(),
   getCachedPublicLiveTranslation: vi.fn(),
   getReaderAccessStatus: vi.fn(),
+  getLive: vi.fn(),
+  getLiveTranslation: vi.fn(),
 }));
 
 const publicContent = vi.hoisted(() => ({
@@ -73,6 +75,13 @@ describe('getWikiRawMarkdown by public address (035)', () => {
       ['wiki', 'foo'],
     );
     expect(pageService.getCachedPublicLivePage).not.toHaveBeenCalled();
+  });
+
+  it('uses the signed-in reader context for generated pages and aliases', async () => {
+    const ctx = { actor: { kind: 'user' as const, userId: 'admin-1', role: 'admin' as const } };
+    readerRouting.resolveReaderPage.mockResolvedValue(resolvedOriginal());
+    await expect(getWikiRawMarkdown(['generated', 'guide'], ctx)).resolves.toMatchObject({ kind: 'ok' });
+    expect(readerRouting.resolveReaderPage).toHaveBeenCalledWith(ctx, ['generated', 'guide']);
   });
 
   it('serves a published translation the reader resolves from a locale and source slug', async () => {
@@ -172,6 +181,16 @@ describe('getWikiRawMarkdown legacy tree-path fallback', () => {
     translationLocales.getReservedLocalePrefixes.mockResolvedValue(new Set(['zh']));
     translationLocales.isReservedLocalePrefix.mockImplementation((_, segment) => segment === 'zh');
     readerRouting.resolveReaderPage.mockResolvedValue({ kind: 'not_found' });
+  });
+
+  it('checks legacy tree paths with the signed-in permissions', async () => {
+    const ctx = { actor: { kind: 'user' as const, userId: 'admin-1', role: 'admin' as const } };
+    pageService.getLive.mockResolvedValue({ revisionId: 'rev-1', title: 'Private' });
+    db.query.pageRevisions.findFirst.mockResolvedValue(revision());
+    readMarkdownFromDatabase.mockResolvedValue('# Private');
+    await expect(getWikiRawMarkdown(['legacy', 'guide'], ctx)).resolves.toMatchObject({ kind: 'ok' });
+    expect(pageService.getLive).toHaveBeenCalledWith(ctx, 'legacy/guide');
+    expect(pageService.getCachedPublicLivePage).not.toHaveBeenCalled();
   });
 
   it('returns 404 when the page does not exist', async () => {

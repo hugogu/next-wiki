@@ -8,6 +8,8 @@ const rawMarkdown = vi.hoisted(() => ({
   UNSUPPORTED_STATUS_CODE: 415,
 }));
 
+const auth = vi.hoisted(() => ({ getCurrentActor: vi.fn() }));
+vi.mock('@/server/services/auth', () => auth);
 vi.mock('@/server/services/raw-markdown-export', () => rawMarkdown);
 
 import * as route from './route';
@@ -17,6 +19,7 @@ const context = (path: string[]) => ({ params: Promise.resolve({ path }) });
 describe('/api/raw-md/[...path]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    auth.getCurrentActor.mockResolvedValue({ kind: 'anonymous' });
   });
 
   it('returns raw markdown with text/markdown header', async () => {
@@ -36,7 +39,17 @@ describe('/api/raw-md/[...path]', () => {
   it('passes the segments Next already decoded to the service untouched', async () => {
     rawMarkdown.getWikiRawMarkdown.mockResolvedValue({ kind: 'not_found' });
     await route.GET(new NextRequest('http://localhost/api/raw-md/wiki/a%25zz'), context(['wiki', 'a%zz']));
-    expect(rawMarkdown.getWikiRawMarkdown).toHaveBeenCalledWith(['wiki', 'a%zz']);
+    expect(rawMarkdown.getWikiRawMarkdown).toHaveBeenCalledWith(['wiki', 'a%zz'], { actor: { kind: 'anonymous' } });
+  });
+
+  it('forwards the signed-in actor and prevents caching private Markdown', async () => {
+    const actor = { kind: 'user', userId: 'admin-1', role: 'admin' };
+    auth.getCurrentActor.mockResolvedValue(actor);
+    rawMarkdown.getWikiRawMarkdown.mockResolvedValue({ kind: 'ok', content: '# Private', title: 'Private' });
+    const response = await route.GET(new NextRequest('http://localhost/api/raw-md/generated/guide'), context(['generated', 'guide']));
+    expect(rawMarkdown.getWikiRawMarkdown).toHaveBeenCalledWith(['generated', 'guide'], { actor });
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store');
+    expect(response.status).toBe(200);
   });
 
   it('returns 404 for not found pages', async () => {

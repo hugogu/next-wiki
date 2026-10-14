@@ -168,10 +168,9 @@ export async function buildReaderMetadata(
     alternates: {
       canonical: `${siteUrl}${canonicalPath}`,
       languages,
-      // The Markdown export lives at the reader address plus `.md` and serves
-      // anonymous readers only. The public route resolves anonymously, so every
-      // page it renders is exportable; the signed-in route may show a page that
-      // is not, so it must not promise a URL that would answer 403.
+      // The Markdown export lives at the reader address plus `.md` and uses
+      // the same read permissions as the HTML reader. Only public reader routes
+      // advertise exports to crawlers.
       ...(indexable ? { types: { 'text/markdown': `${siteUrl}${canonicalPath}.md` } } : {}),
     },
     openGraph: {
