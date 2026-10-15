@@ -127,7 +127,7 @@ export function createNativeToolPlanner(
     const calls: NeutralToolCall[] = [];
     try {
       for await (const event of streamTextWithRetry(
-        () =>
+        (signal) =>
           deps.adapter.streamText({
             actionId: deps.actionId,
             modelExternalId: deps.modelExternalId,
@@ -137,9 +137,9 @@ export function createNativeToolPlanner(
             maxOutputTokens: deps.maxOutputTokens(deps.system, prompt),
             temperature: deps.temperature,
             timeoutMs: null,
-            abortSignal: deps.abortSignal,
+            abortSignal: signal,
           }),
-        { signal: deps.abortSignal },
+        { signal: deps.abortSignal, actionId: deps.actionId, modelExternalId: deps.modelExternalId },
       )) {
         if (event.type === 'delta') text += event.text;
         else if (event.type === 'reasoning_delta') {
@@ -207,7 +207,7 @@ async function streamPlainText(
   let reasoningBytes = 0;
   try {
     for await (const event of streamTextWithRetry(
-      () =>
+      (signal) =>
         deps.adapter.streamText({
           actionId: deps.actionId,
           modelExternalId: deps.modelExternalId,
@@ -216,9 +216,9 @@ async function streamPlainText(
           maxOutputTokens: deps.maxOutputTokens(deps.system, prompt),
           temperature: deps.temperature,
           timeoutMs: null,
-          abortSignal: deps.abortSignal,
+          abortSignal: signal,
         }),
-      { signal: deps.abortSignal },
+      { signal: deps.abortSignal, actionId: deps.actionId, modelExternalId: deps.modelExternalId },
     )) {
       if (event.type === 'delta') output += event.text;
       else if (event.type === 'reasoning_delta') {

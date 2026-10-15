@@ -9,6 +9,7 @@ import type {
   NeutralToolResult,
 } from '@next-wiki/shared';
 import { logger } from '@/server/logger';
+import { createRepetitionGuard } from './repetition';
 
 export type ProviderCredentials = {
   apiKey?: string;
@@ -180,6 +181,7 @@ const SAFE_CODES = new Set<AiApiErrorCode>([
   'TIMEOUT',
   'PROVIDER_UNAVAILABLE',
   'INVALID_RESPONSE',
+  'RESPONSE_LOOP',
   'CANCELLED',
   'MODEL_NOT_FOUND',
 ]);
@@ -291,17 +293,46 @@ export const STREAM_RETRY_BASE_DELAY_MS = 750;
  * drop during the reasoning phase (the common case for deep-reasoning models)
  * is retried. The retried attempt may re-emit reasoning, which the caller
  * appends; this is preferable to losing the whole turn.
+ *
+ * A model that falls into a repetition loop never finishes on its own, so each
+ * attempt is also watched for one (see `repetition.ts`). On a loop the attempt
+ * is aborted — `invoke` must hand the `signal` it receives to the provider
+ * request, so the connection closes and generation stops — and the stream
+ * fails with a non-retryable `RESPONSE_LOOP`, since retrying the same prompt
+ * would most likely loop again.
  */
 export async function* streamTextWithRetry(
-  invoke: () => AsyncIterable<TextGenerationEvent>,
+  invoke: (signal: AbortSignal) => AsyncIterable<TextGenerationEvent>,
   options: { maxRetries?: number; baseDelayMs?: number; signal?: AbortSignal; actionId?: string; providerName?: string; modelExternalId?: string } = {},
 ): AsyncGenerator<TextGenerationEvent> {
   const maxRetries = options.maxRetries ?? STREAM_RETRY_MAX_DEFAULT;
   const baseDelayMs = options.baseDelayMs ?? STREAM_RETRY_BASE_DELAY_MS;
   let committed = false;
   for (let attempt = 0; ; attempt += 1) {
+    const attemptAbort = new AbortController();
+    const signal = options.signal ? AbortSignal.any([options.signal, attemptAbort.signal]) : attemptAbort.signal;
+    // A fresh guard per attempt: a retried attempt starts its output over.
+    const repetition = createRepetitionGuard();
     try {
-      for await (const event of invoke()) {
+      for await (const event of invoke(signal)) {
+        const loop = repetition.observe(event);
+        if (loop) {
+          attemptAbort.abort();
+          logger.warn('AI stream stopped: repetitive output', {
+            actionId: options.actionId,
+            providerName: options.providerName,
+            modelExternalId: options.modelExternalId,
+            ...loop,
+          });
+          throw new AiProviderError(
+            'RESPONSE_LOOP',
+            `Repetitive ${loop.channel === 'reasoning' ? 'reasoning' : 'reply'} output detected; generation was stopped.`,
+            false,
+            undefined,
+            // Metrics only. The repeated text itself is user data and stays in the action's event log.
+            { repetition: loop },
+          );
+        }
         if (event.type === 'delta') committed = true;
         yield event;
       }

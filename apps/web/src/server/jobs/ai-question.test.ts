@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { asc, eq } from 'drizzle-orm';
 import { vi } from 'vitest';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -34,7 +34,9 @@ vi.mock('@/server/services/ai-admin', async (original) => {
 });
 
 import { createToolEnabledWikiQuestion, createWikiQuestion } from '@/server/services/ai-question';
+import { getWorkflowByAction } from '@/server/services/ai-tool-runtime';
 import { AiProviderError } from '@/server/ai/types';
+import { registerAiActionHandler, runAiAction } from './ai-actions';
 import {
   createBatchedReasoningAppender,
   runToolEnabledWikiQuestionAction,
@@ -452,7 +454,8 @@ describe('Wiki question worker', () => {
     });
   });
 
-  it('uses a dedicated planner for tools and streams the final answer from wiki_text', async () => {
+  /** Gives tool planning its own model, so the final answer comes from a second `wiki_text` call. */
+  async function assignDedicatedPlanner() {
     const answerModel = await db.query.aiModels.findFirst({
       where: eq(schema.aiModels.externalId, 'text'),
     });
@@ -478,6 +481,11 @@ describe('Wiki question worker', () => {
       modelId: plannerModel!.id,
       updatedBy: userId,
     });
+    return plannerModel!;
+  }
+
+  it('uses a dedicated planner for tools and streams the final answer from wiki_text', async () => {
+    const plannerModel = await assignDedicatedPlanner();
     streamText
       .mockImplementationOnce(async function* () {
         yield { type: 'reasoning_delta', text: 'The planner has finished the tool workflow.' };
@@ -516,9 +524,102 @@ describe('Wiki question worker', () => {
       status: 'completed',
       resultMetadata: expect.objectContaining({
         dedicatedPlanner: true,
-        plannerModelId: plannerModel!.id,
+        plannerModelId: plannerModel.id,
       }),
       usageMetadata: expect.objectContaining({ inputTokens: 18, outputTokens: 8 }),
+    });
+  });
+
+  describe('when the model falls into a repetition loop', () => {
+    /** A provider stream that never ends by itself; only an aborted request stops it. */
+    function stuckModel(type: 'reasoning_delta' | 'delta') {
+      const request: { signal?: AbortSignal } = {};
+      return {
+        request,
+        implementation: async function* (input: { abortSignal: AbortSignal }) {
+          request.signal = input.abortSignal;
+          for (let i = 0; i < 100_000 && !input.abortSignal.aborted; i += 1) {
+            yield { type, text: 'We should also note that axis=-1 is used in pandas. Thus answer.\n\n' };
+          }
+        },
+      };
+    }
+
+    async function expectStoppedAsLoop(actionId: string, loopEvent: 'reasoning_delta' | 'text_delta') {
+      const action = await db.query.aiActions.findFirst({ where: eq(schema.aiActions.id, actionId) });
+      expect(action).toMatchObject({ status: 'failed', errorCode: 'RESPONSE_LOOP' });
+      // Metrics only: the repeated text must not be copied into the diagnostic columns.
+      expect(action?.errorDetail).toContain('"repetition"');
+      expect(action?.errorDetail).not.toContain('Thus answer');
+      const events = await db.query.aiActionEvents.findMany({
+        where: eq(schema.aiActionEvents.actionId, actionId),
+        orderBy: asc(schema.aiActionEvents.id),
+      });
+      // What the chat sees: the text streamed so far, then a terminal error — never a completion.
+      expect(events.some((event) => event.type === loopEvent)).toBe(true);
+      expect(events.at(-1)).toMatchObject({ type: 'error', payload: { code: 'RESPONSE_LOOP' } });
+      expect(events.some((event) => event.type === 'completed')).toBe(false);
+    }
+
+    beforeEach(() => {
+      registerAiActionHandler('wiki_question', runWikiQuestionAction);
+    });
+
+    it.each([
+      ['reasoning_delta', 'reasoning_delta'],
+      ['delta', 'text_delta'],
+    ] as const)('fails a plain question that loops in %s, and closes the provider request', async (type, loopEvent) => {
+      const model = stuckModel(type);
+      streamText.mockImplementation(model.implementation);
+      const action = await createWikiQuestion(buildUserCtx(userId, 'reader'), {
+        question: 'Explain axis=-1',
+        mode: 'retrieval',
+      });
+
+      await runAiAction(action.id);
+
+      expect(streamText).toHaveBeenCalledTimes(1);
+      expect(model.request.signal?.aborted).toBe(true);
+      await expectStoppedAsLoop(action.id, loopEvent);
+    });
+
+    it('fails a tool-enabled turn whose planner loops, and marks the workflow failed', async () => {
+      const model = stuckModel('reasoning_delta');
+      streamText.mockImplementation(model.implementation);
+      const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
+        question: 'Explain axis=-1',
+        mode: 'retrieval',
+        requestedReview: 'admin_review',
+      });
+      if (created.fallback) throw new Error('Expected a tool-enabled action');
+
+      await runAiAction(created.action.id);
+
+      expect(model.request.signal?.aborted).toBe(true);
+      await expectStoppedAsLoop(created.action.id, 'reasoning_delta');
+      expect(await getWorkflowByAction(created.action.id)).toMatchObject({ status: 'failed' });
+    });
+
+    it('fails a tool-enabled turn whose dedicated answer model loops', async () => {
+      await assignDedicatedPlanner();
+      const model = stuckModel('delta');
+      streamText
+        .mockImplementationOnce(async function* () {
+          yield { type: 'delta', text: 'Planner has what it needs.' };
+        })
+        .mockImplementationOnce(model.implementation);
+      const created = await createToolEnabledWikiQuestion(buildUserCtx(userId, 'reader'), {
+        question: 'Explain axis=-1',
+        requestedReview: 'admin_review',
+      });
+      if (created.fallback) throw new Error('Expected a tool-enabled action');
+
+      await runAiAction(created.action.id);
+
+      expect(streamText).toHaveBeenCalledTimes(2);
+      expect(streamText.mock.calls[1]![0]).toMatchObject({ modelExternalId: 'text' });
+      expect(model.request.signal?.aborted).toBe(true);
+      await expectStoppedAsLoop(created.action.id, 'text_delta');
     });
   });
 

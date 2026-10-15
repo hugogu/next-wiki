@@ -228,6 +228,39 @@ describe('planner equivalence', () => {
     }
   });
 
+  describe('a model stuck in a repetition loop', () => {
+    const LOOP_LINE = 'We should also note that axis=-1 is used in pandas. Thus answer.\n';
+
+    // Each case closes the provider connection for real: `loopStopped` only
+    // resolves once the fixture sees the client hang up, so these fail if the
+    // planner merely stops reading instead of aborting the request.
+    it.each([
+      ['native', 'reasoning'],
+      ['native', 'content'],
+      ['text', 'reasoning'],
+      ['text', 'content'],
+    ] as const)('stops the %s planner when the %s repeats, and closes the request', async (protocol, channel) => {
+      const fixture = await startAiProviderFixture({ loop: { channel, text: LOOP_LINE } });
+      const reasoning: string[] = [];
+      try {
+        const planner = protocol === 'native'
+          ? createNativeToolPlanner({
+              ...deps(fixture.baseUrl, reasoning, []),
+              tools: () => listToolDefinitions().filter((tool) => tool.name === 'search_wiki'),
+            })
+          : createTextProtocolPlanner(deps(fixture.baseUrl, reasoning, []));
+
+        await expect(planner(STATE)).rejects.toMatchObject({ code: 'RESPONSE_LOOP', retryable: false });
+        await fixture.loopStopped;
+        // A loop is not retried with the same prompt: one request, no more.
+        expect(fixture.requests).toHaveLength(1);
+        if (channel === 'reasoning') expect(reasoning.join('')).toContain('Thus answer.');
+      } finally {
+        await fixture.close();
+      }
+    }, 10_000);
+  });
+
   it('reports usage through the same callback from either protocol', async () => {
     const nativeUsage: number[] = [];
     const textUsage: number[] = [];

@@ -29,8 +29,16 @@ export async function startAiProviderFixture(options: {
   /** OpenRouter-style in-band SSE error: a `chat.completion.chunk` with empty
    * `choices` and an `error` field, instead of a non-2xx response. */
   streamError?: { code?: number; message: string; errorType?: string };
+  /** A model stuck in a loop: streams `text` on the given channel until the
+   * client disconnects, never finishing on its own. `loopStopped` resolves
+   * once that connection has closed. */
+  loop?: { channel: 'content' | 'reasoning'; text: string };
 } = {}) {
   const requests: Array<{ path: string; body: unknown }> = [];
+  let markLoopStopped!: () => void;
+  const loopStopped = new Promise<void>((resolve) => {
+    markLoopStopped = resolve;
+  });
   const dimensions = options.embeddingDimensions ?? 3;
   const toolMode = options.toolMode ?? 'none';
   let textResponseIndex = 0;
@@ -145,6 +153,24 @@ export async function startAiProviderFixture(options: {
         );
         return response.end();
       }
+      if (options.loop) {
+        const field = options.loop.channel === 'reasoning' ? 'reasoning_content' : 'content';
+        const frame = `data: ${JSON.stringify({ choices: [{ delta: { [field]: options.loop.text.repeat(50) } }] })}\n\n`;
+        let closed = false;
+        response.on('close', () => {
+          closed = true;
+          markLoopStopped();
+        });
+        while (!closed) {
+          if (!response.write(frame)) {
+            await Promise.race([once(response, 'drain'), once(response, 'close')]);
+          } else {
+            // Yield so a client disconnect is noticed between frames.
+            await new Promise((resolve) => setImmediate(resolve));
+          }
+        }
+        return;
+      }
       if (wantsTools && toolMode !== 'none') {
         for (const frame of openAiToolFrames(toolMode)) response.write(`data: ${frame}\n\n`);
         return response.end('data: [DONE]\n\n');
@@ -164,6 +190,7 @@ export async function startAiProviderFixture(options: {
   return {
     baseUrl: `http://127.0.0.1:${address.port}`,
     requests,
+    loopStopped,
     close: async () => {
       server.close();
       server.closeAllConnections();

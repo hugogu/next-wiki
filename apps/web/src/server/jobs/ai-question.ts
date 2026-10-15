@@ -288,7 +288,7 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
       );
       try {
         for await (const event of streamTextWithRetry(
-          () =>
+          (signal) =>
             adapter.streamText({
               actionId,
               modelExternalId: textModel.externalId,
@@ -296,10 +296,10 @@ async function runPlainWikiQuestionAction(actionId: string): Promise<void> {
               messages: [{ role: 'user', content: prompt.user }],
               maxOutputTokens,
               temperature: 0.1,
-              abortSignal: cancellation.signal,
+              abortSignal: signal,
               timeoutMs: null,
             }),
-          { signal: cancellation.signal },
+          { signal: cancellation.signal, actionId, modelExternalId: textModel.externalId },
         )) {
           if (await isCancellationRequested(actionId))
             throw new DomainError('CANCELLED', 'Question action was cancelled');
@@ -674,7 +674,7 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
         },
       );
       for await (const event of streamTextWithRetry(
-        () =>
+        (signal) =>
           answerAdapter.streamText({
             actionId,
             modelExternalId: textModel.externalId,
@@ -686,10 +686,10 @@ async function runToolEnabledWikiQuestionActionWithoutDataCache(actionId: string
               textModel.maxOutputTokens,
             ),
             temperature: 0.1,
-            abortSignal: cancellation.signal,
+            abortSignal: signal,
             timeoutMs: null,
           }),
-        { signal: cancellation.signal },
+        { signal: cancellation.signal, actionId, modelExternalId: textModel.externalId },
       )) {
         if (await isCancellationRequested(actionId)) {
           throw new DomainError('CANCELLED', 'Tool-enabled question was cancelled');
