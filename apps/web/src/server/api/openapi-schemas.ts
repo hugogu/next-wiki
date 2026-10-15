@@ -1032,7 +1032,7 @@ export const PublicImageContentType = z.enum([
 export const PublicAuthor = z
   .object({
     id: z.string().uuid().nullable().describe('Author user identifier, or null when the author is not disclosed.'),
-    displayName: z.string().nullable().describe('Author display name, or null when not available.'),
+    displayName: z.string().nullable().describe('Author profile display name, falling back to the account email local part (text before @) when unset.'),
   })
   .describe('Public author identity visible to the caller.');
 

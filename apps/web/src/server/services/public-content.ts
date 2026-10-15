@@ -3,6 +3,7 @@ import { and, asc, desc, eq, exists, gte, ilike, inArray, isNotNull, isNull, lte
 import { stringify as stringifyYaml } from 'yaml';
 import { db } from '@/server/db';
 import { aiContentFilterSql, getAiContentLevel, type AiSearchIncludes } from './ai-content-level';
+import { getUserDisplayName } from './user-display-name';
 import * as schema from '@/server/db/schema';
 import type {
   PublicAssetResource,
@@ -224,7 +225,7 @@ async function minimalDeletedPageResource(space: { slug: string }, page: PageRow
 async function author(id: string | null) {
   if (!id) return { id: null, displayName: null };
   const row = await db.query.users.findFirst({ where: eq(schema.users.id, id) });
-  return { id, displayName: row?.displayName ?? null };
+  return { id, displayName: getUserDisplayName(row) };
 }
 
 async function revisionSummary(ctx: PermCtx, space: SpaceRow, page: PageRow, revision: RevisionRow | null) {

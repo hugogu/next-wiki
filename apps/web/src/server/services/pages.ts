@@ -3,6 +3,7 @@ import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, 
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/server/db';
 import { getAiContentLevel } from './ai-content-level';
+import { getUserDisplayName } from './user-display-name';
 import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, can, type PermCtx, getActorUserId, pagePermissionOptions, spacePermissionOptions } from '@/server/permissions';
 import { renderMarkdown } from '@/server/pipeline';
@@ -55,6 +56,10 @@ const ADMIN_SORT_DIRECTIONS = new Set<AdminPageSortDirection>(['asc', 'desc']);
 const HTML_LINK_RE = /<a\b[^>]*\bhref=(["'])(.*?)\1/gi;
 const PAGE_REVISION_LOCK_SEED = 0x036;
 const adminPublishedRevision = alias(schema.pageRevisions, 'admin_published_revision');
+
+function userDisplayNameSql() {
+  return sql<string>`coalesce(nullif(btrim(${schema.users.displayName}), ''), split_part(${schema.users.email}, '@', 1))`;
+}
 
 function getUserId(ctx: PermCtx): string | null {
   return getActorUserId(ctx);
@@ -342,7 +347,7 @@ export async function listPublished(
       title: schema.pages.title,
       authorId: schema.pages.authorId,
       visibility: schema.pages.visibility,
-      authorDisplayName: schema.users.displayName,
+      authorDisplayName: userDisplayNameSql(),
       revisionId: schema.pageRevisions.id,
       contentHtml: schema.pageRevisions.contentHtml,
       publishedAt: schema.pageRevisions.publishedAt,
@@ -518,7 +523,7 @@ export async function listAdminPages(
   const sortExpression = readOnly && sort === 'updatedAt'
     ? sql<Date>`coalesce(${adminPublishedRevision.publishedAt}, ${adminPublishedRevision.createdAt})`
     : readOnly && sort === 'author'
-      ? sql`coalesce(${schema.users.displayName}, ${schema.pages.authorId}::text)`
+      ? userDisplayNameSql()
     : orderExpression(sort);
   const rows = sort === 'edits'
     ? await db
@@ -531,7 +536,7 @@ export async function listAdminPages(
           latestVersionId: schema.pages.latestVersionId,
           kind: schema.pages.kind,
           nature: schema.pages.nature,
-          authorDisplayName: schema.users.displayName,
+          authorDisplayName: userDisplayNameSql(),
           authorEmail: schema.users.email,
           editCount: count(schema.pageRevisions.id),
           latestVersion: max(schema.pageRevisions.versionNumber),
@@ -576,7 +581,7 @@ export async function listAdminPages(
           latestVersionId: schema.pages.latestVersionId,
           kind: schema.pages.kind,
           nature: schema.pages.nature,
-          authorDisplayName: schema.users.displayName,
+          authorDisplayName: userDisplayNameSql(),
           authorEmail: schema.users.email,
           createdAt: schema.pages.createdAt,
           updatedAt: schema.pages.updatedAt,
@@ -820,7 +825,7 @@ async function livePageForRow(ctx: PermCtx, space: SpaceRow, page: PageRow): Pro
       contentHash: revision.contentHash,
       version: revision.versionNumber,
       publishedAt: revision.publishedAt?.toISOString() ?? null,
-      authorDisplayName: author?.displayName ?? null,
+      authorDisplayName: getUserDisplayName(author),
       authorId: page.authorId,
       visibility: page.visibility,
       status: 'published',
@@ -857,7 +862,7 @@ async function livePageForRow(ctx: PermCtx, space: SpaceRow, page: PageRow): Pro
     contentHash: draft.contentHash,
     version: draft.versionNumber,
     publishedAt: null,
-    authorDisplayName: author?.displayName ?? null,
+    authorDisplayName: getUserDisplayName(author),
     authorId: page.authorId,
     visibility: page.visibility,
     status: 'draft',
@@ -1037,7 +1042,7 @@ export async function getLiveTranslation(
       contentHash: revision.contentHash,
       version: revision.versionNumber,
       publishedAt: revision.publishedAt?.toISOString() ?? null,
-      authorDisplayName: author?.displayName ?? null,
+      authorDisplayName: getUserDisplayName(author),
       authorId: translation.authorId,
       visibility: translation.visibility,
       status: 'published',
@@ -1143,7 +1148,7 @@ export async function getLiveTranslationBySlug(
       contentHash: revision.contentHash,
       version: revision.versionNumber,
       publishedAt: revision.publishedAt?.toISOString() ?? null,
-      authorDisplayName: author?.displayName ?? null,
+      authorDisplayName: getUserDisplayName(author),
       authorId: translation.authorId,
       visibility: translation.visibility,
       status: 'published',
@@ -2343,7 +2348,7 @@ export async function getHistory(ctx: PermCtx, path: string, spaceSlug?: string)
       version: schema.pageRevisions.versionNumber,
       status: schema.pageRevisions.status,
       authorId: schema.pageRevisions.authorId,
-      authorDisplayName: schema.users.displayName,
+      authorDisplayName: userDisplayNameSql(),
       createdAt: schema.pageRevisions.createdAt,
       contentHash: schema.pageRevisions.contentHash,
     })
@@ -2440,7 +2445,7 @@ export async function getRevision(
     status: revision.status,
     contentHtml: revision.contentHtml,
     contentSource: await readRevisionMarkdown(revision),
-    authorDisplayName: author?.displayName ?? null,
+    authorDisplayName: getUserDisplayName(author),
     createdAt: revision.createdAt.toISOString(),
   };
 }

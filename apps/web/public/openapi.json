@@ -4365,7 +4365,7 @@
               "string",
               "null"
             ],
-            "description": "Author display name, or null when not available."
+            "description": "Author profile display name, falling back to the account email local part (text before @) when unset."
           }
         },
         "required": [
