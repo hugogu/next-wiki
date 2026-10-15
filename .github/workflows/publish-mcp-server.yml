@@ -1,6 +1,12 @@
 name: Publish @next-wiki/mcp-server
 
 on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to publish (must match the package version)
+        required: true
+        type: string
   push:
     tags:
       - 'mcp-server-v*'
@@ -14,6 +20,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.release_tag || github.ref }}
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -24,7 +32,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22
-          registry-url: 'https://registry.npmjs.org'
+
+      - name: Setup npm with trusted publishing support
+        run: npm install --global npm@11.14.1 --registry=https://registry.npmjs.org
+
+      - name: Verify release tag
+        env:
+          RELEASE_TAG: ${{ inputs.release_tag || github.ref_name }}
+        run: |
+          node -e 'const pkg = require("./packages/mcp-server/package.json"); if (process.env.RELEASE_TAG !== "mcp-server-v" + pkg.version) throw new Error("Release tag must match the package version");'
+          npm --version
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -46,6 +63,4 @@ jobs:
 
       - name: Publish to npm
         working-directory: packages/mcp-server
-        run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: npm publish --provenance --access public --loglevel=verbose
