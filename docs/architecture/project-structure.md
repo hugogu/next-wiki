@@ -1,6 +1,6 @@
 # Project Structure
 
-**Status**: Constitutionally binding. Referenced by Core Principle P9 (Explicit
+**Status**: Constitutionally binding. Referenced by Core Principle P10 (Explicit
 Over Implicit) in `.specify/memory/constitution.md`.
 **Change control**: This layout is NON-NEGOTIABLE. AI agents MUST NOT generate a
 different directory structure. Any deviation requires a constitution amendment.
