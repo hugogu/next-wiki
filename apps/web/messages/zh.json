@@ -2660,6 +2660,7 @@
       },
       "errors": {
         "invalidResponse": "AI 未能生成有效的 Wiki 操作，请重试或换一种说法。",
+        "responseLoop": "AI 陷入了重复输出，Wiki AI 已自动停止本次回复。请重试或换一种问法。",
         "providerUnavailable": "AI 服务暂时不可用，请稍后重试。",
         "rateLimited": "AI 服务当前繁忙，请稍后重试。",
         "connectionFailed": "无法连接 Wiki AI，请重试。",

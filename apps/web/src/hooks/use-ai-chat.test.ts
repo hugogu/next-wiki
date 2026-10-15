@@ -179,6 +179,10 @@ describe('useAiChat payload helpers', () => {
       code: 'INVALID_RESPONSE',
       message: 'The AI provider repeatedly returned an invalid tool call.',
     })).toBe('ai.chat.errors.invalidResponse');
+    expect(wikiAiErrorTranslationKey({
+      code: 'RESPONSE_LOOP',
+      message: 'Repetitive reasoning output detected; generation was stopped.',
+    })).toBe('ai.chat.errors.responseLoop');
     expect(wikiAiErrorTranslationKey({ code: 'PROVIDER_UNAVAILABLE' }))
       .toBe('ai.chat.errors.providerUnavailable');
     expect(wikiAiErrorTranslationKey({ code: 'NETWORK_ERROR' }))

@@ -1982,6 +1982,7 @@ export const translationKeys = [
   "ai.chat.history.deleteConfirmMessage",
   "ai.chat.history.deleteError",
   "ai.chat.errors.invalidResponse",
+  "ai.chat.errors.responseLoop",
   "ai.chat.errors.providerUnavailable",
   "ai.chat.errors.rateLimited",
   "ai.chat.errors.connectionFailed",

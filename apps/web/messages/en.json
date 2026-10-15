@@ -2660,6 +2660,7 @@
       },
       "errors": {
         "invalidResponse": "The AI could not produce a valid Wiki operation. Retry or rephrase the request.",
+        "responseLoop": "The AI got stuck repeating itself, so Wiki AI stopped the reply. Retry or rephrase your question.",
         "providerUnavailable": "The AI provider is temporarily unavailable. Please retry shortly.",
         "rateLimited": "The AI provider is busy. Please retry shortly.",
         "connectionFailed": "The connection to Wiki AI failed. Please retry.",

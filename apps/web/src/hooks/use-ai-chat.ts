@@ -175,6 +175,7 @@ export function wikiAiErrorTranslationKey(error: {
 }): TranslationKey {
   const code = typeof error.code === 'string' ? error.code : '';
   if (code === 'INVALID_RESPONSE') return 'ai.chat.errors.invalidResponse';
+  if (code === 'RESPONSE_LOOP') return 'ai.chat.errors.responseLoop';
   if (code === 'PROVIDER_UNAVAILABLE') return 'ai.chat.errors.providerUnavailable';
   if (code === 'RATE_LIMITED') return 'ai.chat.errors.rateLimited';
   if (code === 'CANCELLED') return 'ai.chat.conversationView.responseStopped';
