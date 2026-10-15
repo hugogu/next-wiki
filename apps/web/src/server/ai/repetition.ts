@@ -17,13 +17,15 @@ import type { TextGenerationEvent } from './types';
  * per window. The one word that changes in each round stays uncovered, which
  * is why a loop with a changing word scores about 0.9 rather than 1.0.
  *
- * Thresholds were measured, not guessed. Across this repo's Markdown specs,
- * TypeScript and JSON, ordinary text never exceeds ~0.75 on any window. Loops
- * reach 0.99+ when the repeated text is exact and 0.87–0.92 when one word
- * changes per round. Highly regular but legitimate data (a 200-entry YAML or
- * HTML list) overlaps the second group once it is 8 KB or longer; a loop never
- * ends while such data does, so longer windows trade latency for safety and
- * only the shortest window demands near-exact repetition.
+ * Thresholds were measured, not guessed. Across this repo's hand-written
+ * Markdown specs, TypeScript and JSON, ordinary text never exceeds ~0.75 on any
+ * window; generated artifacts (the OpenAPI document, the lockfile) reach 0.9+,
+ * but no model writes those. Loops reach 0.99+ when the repeated text is exact
+ * and 0.87–0.92 when one word changes per round. Highly regular but legitimate
+ * data (a 200-entry YAML or HTML list) overlaps the second group once it is
+ * 8 KB or longer; a loop never ends while such data does, so longer windows
+ * trade latency for safety and only the shortest window demands near-exact
+ * repetition.
  */
 
 export type RepetitionTier = {
