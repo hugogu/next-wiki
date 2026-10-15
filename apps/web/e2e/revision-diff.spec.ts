@@ -111,3 +111,62 @@ test('compares two revisions without requesting a server diff endpoint', async (
   await expect(page.getByRole('button', { name: 'Version 3' })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Version 2' })).toHaveCount(0);
 });
+
+test('picks versions in the page: the highlight moves at once and revisions load on demand', async ({ page }) => {
+  const path = `history-picking-${Date.now()}`;
+  await login(page);
+  const create = await page.request.post('/api/v1/pages', {
+    data: { path, title: 'History picking', contentSource: 'Body of version one' },
+  });
+  expect(create.status()).toBe(201);
+  const { id } = (await create.json()) as { id: string };
+  for (const word of ['two', 'three', 'four']) {
+    const draft = await page.request.post(`/api/v1/pages/${id}/drafts`, {
+      data: { title: 'History picking', contentSource: `Body of version ${word}` },
+    });
+    expect(draft.status()).toBe(201);
+  }
+
+  // A pick used to be a navigation that re-ran the History page on the server;
+  // now it is only a request for the revision that is not on the page yet.
+  const historyRenders: string[] = [];
+  const revisionLoads: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (url.pathname.startsWith('/h/') && url.searchParams.has('_rsc')) historyRenders.push(url.pathname);
+    if (/^\/api\/pages\/[^/]+\/revisions\/\d+$/.test(url.pathname)) revisionLoads.push(url.pathname);
+  });
+
+  await page.goto(`/h/${path}`);
+  await expect(page.getByText('Comparing v3 to v4')).toBeVisible();
+  // The version buttons only work once React has hydrated them.
+  await page.waitForFunction(() => {
+    const button = document.querySelector('ul button[aria-pressed]');
+    return !!button && Object.keys(button).some((key) => key.startsWith('__reactProps$'));
+  });
+
+  await page.getByRole('button', { name: /Version 1/ }).click();
+  await expect(page.getByRole('button', { name: /Version 1/ })).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.getByText('Body of version one')).toBeVisible();
+  await expect(page).toHaveURL(`/h/${path}?selected=1`);
+
+  await page.getByRole('button', { name: /Version 2/ }).click();
+  await expect(page.getByText('Comparing v1 to v2')).toBeVisible();
+  await expect(page).toHaveURL(`/h/${path}?compare=1..2`);
+
+  // Source/Preview is a display option: it changes the address, not the data.
+  await page.getByRole('button', { name: 'Preview' }).click();
+  await expect(page.getByLabel('Later revision preview')).toContainText('Body of version two');
+  await expect(page).toHaveURL(`/h/${path}?compare=1..2&view=preview`);
+
+  // Versions 3 and 4 came with the page; only 1 and 2 had to be fetched, once each.
+  await page.getByRole('button', { name: /Version 4/ }).click();
+  await expect(page.getByText('Body of version four')).toBeVisible();
+  expect(revisionLoads).toEqual([`/api/pages/${id}/revisions/1`, `/api/pages/${id}/revisions/2`]);
+  expect(historyRenders).toEqual([]);
+
+  // The address is a complete description of the view: a reload shows the same thing.
+  await page.goto(`/h/${path}?compare=1..2&view=preview`);
+  await expect(page.getByText('Comparing v1 to v2')).toBeVisible();
+  await expect(page.getByLabel('Earlier revision preview')).toContainText('Body of version one');
+});

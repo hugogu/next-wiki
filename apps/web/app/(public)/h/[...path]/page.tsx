@@ -11,12 +11,13 @@ import {
   getHistoryHref,
   getSpaceHref,
   defaultComparePair,
+  parseRevisionDiffOptions,
   parseRevisionPair,
   type ReaderSpace,
 } from '@/lib/path';
 import { getStaticLocale, getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
-import { markdownBodyLineOffset } from '@/server/metadata/frontmatter';
+import { toHistoryRevision } from '@/server/api/history-revision';
 
 export const dynamic = 'force-dynamic';
 
@@ -44,6 +45,9 @@ export default async function HistoryPage({
   const path = getPagePathFromParams(raw);
   const actor = await getCurrentActor();
   const query = await searchParams;
+  const queryParams = new URLSearchParams(
+    Object.entries(query).flatMap(([key, value]) => (typeof value === 'string' ? [[key, value]] : [])),
+  );
   const spaceParam = typeof query.space === 'string' ? query.space : undefined;
   const space: ReaderSpace | undefined =
     spaceParam === 'generated' ? 'generated' : spaceParam === 'raw' ? 'raw' : spaceParam === 'wiki' ? 'wiki' : undefined;
@@ -55,10 +59,7 @@ export default async function HistoryPage({
       ? Number(selectedValue)
       : undefined;
   if (pair?.reversed) {
-    const next = new URLSearchParams();
-    Object.entries(query).forEach(([key, value]) => {
-      if (typeof value === 'string') next.set(key, value);
-    });
+    const next = new URLSearchParams(queryParams);
     next.set('compare', `${pair.earlier}..${pair.later}`);
     redirect(`${getHistoryHref(path)}${next.toString() ? `?${next}` : ''}`);
   }
@@ -129,6 +130,19 @@ export default async function HistoryPage({
     notFound();
   }
 
+  // The client component owns the selection from here: it starts from what the
+  // URL asked for, loads other revisions as they are picked, and keeps the
+  // address bar in step itself. Revision content is sent only for the first view.
+  const initialSelection = shownPair
+    ? [shownPair.earlier, shownPair.later]
+    : selectedVersion
+      ? [selectedVersion]
+      : [];
+  const initialRevisions = (shownPair ? comparedRevisions : [selectedRevision]).flatMap((revision) =>
+    revision ? [toHistoryRevision(revision)] : [],
+  );
+  const initialOptions = parseRevisionDiffOptions(queryParams);
+
   return (
     <Layout pageContext={pageContext} space={space}>
       <div className="mx-auto max-w-7xl px-lg py-xl">
@@ -147,29 +161,20 @@ export default async function HistoryPage({
           </EmptyState>
         ) : (
           <HistoryRevisionSelector
+            // Server-driven navigations (a deleted revision, a link to another
+            // comparison) start the client state over; in-page picks never reach here.
+            key={[
+              revisions.map((revision) => revision.version).join(','),
+              initialSelection.join('..'),
+              JSON.stringify(initialOptions),
+            ].join('|')}
             path={path}
-            pageId={page?.pageId}
+            pageId={page.pageId}
             space={space ?? 'wiki'}
-            currentVersion={page?.version}
-            selectedPair={shownPair ? { earlier: shownPair.earlier, later: shownPair.later } : undefined}
-            selectedVersion={selectedVersion}
-            earlier={
-              comparedRevisions[0]
-                ? {
-                    ...comparedRevisions[0],
-                    previewLineOffset: markdownBodyLineOffset(comparedRevisions[0].contentSource),
-                  }
-                : undefined
-            }
-            later={
-              comparedRevisions[1]
-                ? {
-                    ...comparedRevisions[1],
-                    previewLineOffset: markdownBodyLineOffset(comparedRevisions[1].contentSource),
-                  }
-                : undefined
-            }
-            selectedRevision={selectedRevision ?? undefined}
+            currentVersion={page.version}
+            initialSelection={initialSelection}
+            initialRevisions={initialRevisions}
+            initialOptions={initialOptions}
             revisions={revisions.map((revision) => ({
               version: revision.version,
               status: revision.status,

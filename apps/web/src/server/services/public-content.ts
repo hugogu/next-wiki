@@ -1519,6 +1519,7 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
     );
   }
 
+  const filterType = extractTypeFilter(query);
   const rows = await db
     .select({
       id: schema.pages.id,
@@ -1529,7 +1530,10 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
       visibility: schema.pages.visibility,
       kind: schema.pages.kind,
       currentPublishedVersionId: schema.pages.currentPublishedVersionId,
-      contentSource: schema.pageRevisions.contentSource,
+      // The Markdown is only needed to evaluate `filter[type]`; selecting it
+      // for every page just to build the tree would pull the whole space's
+      // content out of Postgres.
+      contentSource: filterType ? schema.pageRevisions.contentSource : sql<string | null>`null`,
     })
     .from(schema.pages)
     .leftJoin(schema.pageRevisions, eq(schema.pages.latestVersionId, schema.pageRevisions.id))
@@ -1545,7 +1549,6 @@ export async function getPageTree(ctx: PermCtx, query: PublicPageTreeQuery): Pro
   };
   const visible: Row[] = [];
   const userId = getActorUserId(ctx);
-  const filterType = extractTypeFilter(query);
   for (const row of rows) {
     const status: Row['status'] = row.currentPublishedVersionId ? 'published' : 'draft';
     if (query.status === 'draft' && status !== 'draft') continue;

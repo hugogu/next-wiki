@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { eq } from 'drizzle-orm';
+import type { PublicPageTreeNode } from '@next-wiki/shared';
 import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx, type PermCtx } from '@/server/permissions';
@@ -174,6 +175,119 @@ describe('public content read facade', () => {
     // Folders (beta, zebra) sort ahead of files (apple, mango); each group A→Z.
     expect(root.children.map((child) => child.segment)).toEqual(['beta', 'zebra', 'apple', 'mango']);
     expect(root.children.map((child) => child.pageId === null)).toEqual([true, true, false, false]);
+  });
+
+  // A page's Markdown is only needed to evaluate the optional frontmatter
+  // `type` filter, so the unfiltered tree (sidebar, lazy expansion) must be
+  // built without reading it, while both paths still agree on what each actor
+  // may see.
+  describe('page tree frontmatter type filter', () => {
+    type TreeActors = { editorCtx: PermCtx; adminCtx: PermCtx };
+    type TreeCase = {
+      label: string;
+      actor: (actors: TreeActors) => PermCtx;
+      status: 'published' | 'all';
+      visible: string[];
+      guides: string[];
+    };
+
+    async function seedTypedPages(): Promise<TreeActors> {
+      const editor = await createPublicApiUser('tree-type-editor@example.com', 'editor');
+      const admin = await createPublicApiUser('tree-type-admin@example.com', 'admin');
+      const editorCtx = buildUserCtx(editor.id, 'editor');
+      for (const [name, type, published] of [
+        ['guide-draft', 'guide', false],
+        ['guide-published', 'guide', true],
+        ['guide-restricted', 'guide', true],
+        ['note-published', 'note', true],
+        ['plain-published', null, true],
+      ] as const) {
+        const path = `docs/${name}`;
+        const contentSource = type ? `---\ntype: ${type}\n---\n\n# ${name}` : `# ${name}`;
+        await pageService.create(editorCtx, { path, title: name, contentSource });
+        if (published) await revisions.publish(editorCtx, { path, version: 1 });
+      }
+      await db.update(schema.pages).set({ visibility: 'restricted' }).where(eq(schema.pages.path, 'docs/guide-restricted'));
+      return { editorCtx, adminCtx: buildUserCtx(admin.id, 'admin') };
+    }
+
+    function pageNodes(node: PublicPageTreeNode): PublicPageTreeNode[] {
+      return node.children.flatMap((child) => [...(child.pageId ? [child] : []), ...pageNodes(child)]);
+    }
+
+    /** SQL text of every statement `run` sends to Postgres (the postgres-js driver executes through `unsafe`). */
+    async function executedSql(run: () => Promise<unknown>): Promise<string[]> {
+      const unsafe = vi.spyOn(db.$client, 'unsafe');
+      try {
+        await run();
+        return unsafe.mock.calls.map(([statement]) => statement);
+      } finally {
+        unsafe.mockRestore();
+      }
+    }
+
+    it.each<TreeCase>([
+      {
+        label: 'an anonymous reader',
+        actor: () => buildAnonymousCtx(),
+        status: 'published',
+        visible: ['guide-published', 'note-published', 'plain-published'],
+        guides: ['guide-published'],
+      },
+      {
+        label: 'the author, drafts included',
+        actor: ({ editorCtx }) => editorCtx,
+        status: 'all',
+        visible: ['guide-draft', 'guide-published', 'note-published', 'plain-published'],
+        guides: ['guide-draft', 'guide-published'],
+      },
+      {
+        label: 'an admin, restricted pages included',
+        actor: ({ adminCtx }) => adminCtx,
+        status: 'all',
+        visible: ['guide-draft', 'guide-published', 'guide-restricted', 'note-published', 'plain-published'],
+        guides: ['guide-draft', 'guide-published', 'guide-restricted'],
+      },
+    ])('builds the same tree with and without a type filter for $label', async ({ actor, status, visible, guides }) => {
+      const ctx = actor(await seedTypedPages());
+
+      const unfiltered = await publicContent.getPageTree(ctx, { status });
+      expect(pageNodes(unfiltered.root).map((node) => node.segment)).toEqual(visible);
+      expect(unfiltered.pageCount).toBe(visible.length);
+
+      // Both spellings of the filter only remove pages; every remaining node is untouched.
+      for (const filter of [{ 'filter[type]': 'guide' }, { filterType: 'guide' }]) {
+        const filtered = await publicContent.getPageTree(ctx, { status, ...filter });
+        expect(pageNodes(filtered.root).map((node) => node.segment)).toEqual(guides);
+        expect(filtered.pageCount).toBe(guides.length);
+        expect(pageNodes(filtered.root)).toEqual(
+          pageNodes(unfiltered.root).filter((node) => guides.includes(node.segment)),
+        );
+      }
+
+      const unmatched = await publicContent.getPageTree(ctx, { status, 'filter[type]': 'no-such-type' });
+      expect(unmatched).toMatchObject({ root: { children: [] }, pageCount: 0 });
+    });
+
+    it('does not read page Markdown when no type filter is requested', async () => {
+      const { adminCtx } = await seedTypedPages();
+
+      const statements = await executedSql(() => publicContent.getPageTree(adminCtx, { status: 'all' }));
+
+      expect(statements.length).toBeGreaterThan(0);
+      expect(statements.filter((statement) => statement.includes('content_source'))).toEqual([]);
+    });
+
+    it.each([{ 'filter[type]': 'guide' }, { filterType: 'guide' }])(
+      'reads page Markdown to evaluate the type filter %o',
+      async (filter) => {
+        const { adminCtx } = await seedTypedPages();
+
+        const statements = await executedSql(() => publicContent.getPageTree(adminCtx, { status: 'all', ...filter }));
+
+        expect(statements.some((statement) => statement.includes('content_source'))).toBe(true);
+      },
+    );
   });
 
   it('resolves requested private spaces and denies them once Copilot mode is active', async () => {

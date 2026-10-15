@@ -3439,6 +3439,36 @@
         ],
         "description": "Generated Git export SSH key pair (public half)."
       },
+      "HistoryRevisionView": {
+        "type": "object",
+        "properties": {
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Revision version number."
+          },
+          "contentSource": {
+            "type": "string",
+            "description": "Markdown source of the revision."
+          },
+          "contentHtml": {
+            "type": "string",
+            "description": "Rendered HTML of the revision."
+          },
+          "previewLineOffset": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Frontmatter lines before the body, so preview diff anchors line up with source line numbers."
+          }
+        },
+        "required": [
+          "version",
+          "contentSource",
+          "contentHtml",
+          "previewLineOffset"
+        ],
+        "description": "One revision as the Version history view renders it."
+      },
       "HybridPageSearchInput": {
         "type": "object",
         "discriminator": {
@@ -4049,6 +4079,27 @@
           "kind"
         ],
         "description": "The address that was removed."
+      },
+      "PageRevisionViewPathParams": {
+        "type": "object",
+        "properties": {
+          "pageId": {
+            "type": "string",
+            "format": "uuid",
+            "description": "Stable page identifier."
+          },
+          "version": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 2147483647,
+            "description": "Revision version number."
+          }
+        },
+        "required": [
+          "pageId",
+          "version"
+        ],
+        "description": "Page revision path parameters for the Version history view."
       },
       "PageVisibilityPathParams": {
         "type": "object",
@@ -21465,6 +21516,55 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PublicPageResource"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/pages/{pageId}/revisions/{version}": {
+      "get": {
+        "operationId": "get-pages-{pageId}-revisions-{version}",
+        "summary": "Get a page revision for Version history",
+        "description": "Returns one revision's Markdown source and rendered HTML, with the frontmatter line offset the preview diff needs. The Version history page loads revisions here as they are selected instead of re-rendering the whole page. Applies the same read and draft visibility as the history page itself. Session only; not callable with a Bearer key.",
+        "tags": [
+          "Pages"
+        ],
+        "parameters": [
+          {
+            "in": "path",
+            "name": "pageId",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Stable page identifier."
+            },
+            "description": "Stable page identifier.",
+            "example": "550e8400-e29b-41d4-a716-446655440000"
+          },
+          {
+            "in": "path",
+            "name": "version",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 2147483647,
+              "description": "Revision version number."
+            },
+            "description": "Revision version number.",
+            "example": 1
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryRevisionView"
                 }
               }
             }

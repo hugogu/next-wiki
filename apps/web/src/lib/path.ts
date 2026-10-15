@@ -235,6 +235,11 @@ export function getPublicApiPageRevisionUrl(pageId: string, version: number): st
   return `/api/v1/pages/${encodeURIComponent(pageId)}/revisions/${version}`;
 }
 
+/** Session-authenticated JSON for one revision, as the History view loads it. */
+export function getPageRevisionViewUrl(pageId: string, version: number): string {
+  return `/api/pages/${encodeURIComponent(pageId)}/revisions/${version}`;
+}
+
 export function getPublicApiPagePublicationUrl(pageId: string, version: number): string {
   return `/api/v1/pages/${encodeURIComponent(pageId)}/revisions/${version}/publication`;
 }
