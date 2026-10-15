@@ -200,6 +200,8 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
             tags={page.metadata?.tags ?? []}
             tagsLabel={t('page.metadata.tags')}
             outlineLabel={t('page.read.outline')}
+            outlineCollapseLabel={t('page.read.outlineCollapse')}
+            outlineExpandLabel={t('page.read.outlineExpand')}
           />
         </div>
       </div>

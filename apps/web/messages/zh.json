@@ -275,6 +275,8 @@
       "createdOn": "创建于 {date}",
       "authorSuffix": "，作者 {name}",
       "outline": "目录",
+      "outlineCollapse": "收起目录",
+      "outlineExpand": "展开目录",
       "accessDeniedTitle": "无权访问",
       "registeredAccessDenied": "注册或登录账号后即可查看此页面。",
       "restrictedAccessDenied": "你没有权限查看此页面。",
