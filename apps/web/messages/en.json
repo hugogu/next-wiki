@@ -361,6 +361,10 @@
         "ready": "Two revisions selected",
         "selectHint": "Select two revisions"
       },
+      "revision": {
+        "loadError": "Could not load version {version}.",
+        "retry": "Retry"
+      },
       "delete": {
         "action": "Delete version {version}",
         "title": "Delete revision?",

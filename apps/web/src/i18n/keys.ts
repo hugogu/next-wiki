@@ -228,6 +228,8 @@ export const translationKeys = [
   "page.history.compare.submit",
   "page.history.compare.ready",
   "page.history.compare.selectHint",
+  "page.history.revision.loadError",
+  "page.history.revision.retry",
   "page.history.delete.action",
   "page.history.delete.title",
   "page.history.delete.message",

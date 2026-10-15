@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef } from 'react';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
-import { buildDiffRows, withContext, type DiffKind, type DiffRow } from '@/lib/revision-diff';
+import type { DiffKind, DiffRow } from '@/lib/revision-diff';
 
 type ChangedKind = Exclude<DiffKind, 'unchanged'>;
 
@@ -64,7 +64,9 @@ function PreviewPane({
   label: string;
   paneRef: React.RefObject<HTMLDivElement | null>;
 }) {
-  useEffect(() => {
+  // Before paint: a revision swapped in by a state update would otherwise show
+  // unhighlighted and unfiltered for a frame, and lay out twice.
+  useLayoutEffect(() => {
     paneRef.current?.querySelectorAll<HTMLElement>('[data-line]').forEach((element) => {
       const kind = changes.get(Number(element.dataset.line));
       const color =
@@ -89,7 +91,7 @@ function PreviewPane({
         !visibleLines.has(Number(element.dataset.line)) && !element.querySelector('[data-line]'),
       );
     });
-  }, [changes, paneRef, visibleLines]);
+  }, [html, changes, paneRef, visibleLines]);
 
   return (
     <div
@@ -103,33 +105,31 @@ function PreviewPane({
 }
 
 export function RevisionPreviewDiff({
-  before,
-  after,
+  rows,
   beforeHtml,
   afterHtml,
   beforeLineOffset,
   afterLineOffset,
-  context,
-  ignoreWhitespace,
   sync,
 }: {
-  before: string;
-  after: string;
+  rows: DiffRow[];
   beforeHtml: string;
   afterHtml: string;
   beforeLineOffset: number;
   afterLineOffset: number;
-  context: number | 'full';
-  ignoreWhitespace: boolean;
   sync: boolean;
 }) {
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const echo = useRef<'left' | 'right' | null>(null);
-  const rows = withContext(buildDiffRows(before, after, ignoreWhitespace), context);
-  const offsets = { left: beforeLineOffset, right: afterLineOffset };
-  const changedLines = previewChangedLineKinds(rows, offsets);
-  const visibleLines = previewLineNumbers(rows, offsets);
+  const changedLines = useMemo(
+    () => previewChangedLineKinds(rows, { left: beforeLineOffset, right: afterLineOffset }),
+    [rows, beforeLineOffset, afterLineOffset],
+  );
+  const visibleLines = useMemo(
+    () => previewLineNumbers(rows, { left: beforeLineOffset, right: afterLineOffset }),
+    [rows, beforeLineOffset, afterLineOffset],
+  );
 
   useEffect(() => {
     const left = leftRef.current;

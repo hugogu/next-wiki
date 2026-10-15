@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef } from 'react';
-import { buildDiffRows, withContext, type DiffRow } from '@/lib/revision-diff';
+import { useEffect, useRef } from 'react';
+import type { DiffRow } from '@/lib/revision-diff';
 
 function Cell({ line, kind }: { line?: { number: number; text: string }; kind: string }) {
   const changeStyle =
@@ -39,26 +39,10 @@ function Cell({ line, kind }: { line?: { number: number; text: string }; kind: s
   );
 }
 
-export function RevisionSourceDiff({
-  before,
-  after,
-  context,
-  ignoreWhitespace,
-  sync,
-}: {
-  before: string;
-  after: string;
-  context: number | 'full';
-  ignoreWhitespace: boolean;
-  sync: boolean;
-}) {
+export function RevisionSourceDiff({ rows, sync }: { rows: DiffRow[]; sync: boolean }) {
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
   const echo = useRef<'left' | 'right' | null>(null);
-  const rows = useMemo(
-    () => withContext(buildDiffRows(before, after, ignoreWhitespace), context),
-    [before, after, context, ignoreWhitespace],
-  );
   useEffect(() => {
     const link = (from: HTMLDivElement, to: HTMLDivElement, side: 'left' | 'right') => () => {
       if (!sync || echo.current === side) {

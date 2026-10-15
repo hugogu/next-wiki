@@ -1,39 +1,36 @@
 'use client';
 
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo } from 'react';
 import { Select } from '@/components/ui/Select';
 import { Switch } from '@/components/ui/Switch';
 import { ToggleButton } from '@/components/ui/ToggleButton';
 import { useTranslation } from '@/i18n/client';
-import { parseRevisionDiffOptions } from '@/lib/path';
-import { buildDiffRows } from '@/lib/revision-diff';
+import type { HistoryRevision } from '@/lib/history-revision';
+import type { RevisionDiffOptions } from '@/lib/path';
+import { buildDiffRows, withContext } from '@/lib/revision-diff';
 import { RevisionSourceDiff } from './RevisionSourceDiff';
 import { RevisionPreviewDiff } from './RevisionPreviewDiff';
 
-type Revision = {
-  version: number;
-  contentSource: string;
-  contentHtml: string;
-  previewLineOffset: number;
-};
-export function RevisionDiffView({ earlier, later }: { earlier: Revision; later: Revision }) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const params = useSearchParams();
+export function RevisionDiffView({
+  earlier,
+  later,
+  options,
+  onOptionsChange,
+}: {
+  earlier: HistoryRevision;
+  later: HistoryRevision;
+  options: RevisionDiffOptions;
+  onOptionsChange: (patch: Partial<RevisionDiffOptions>) => void;
+}) {
   const { t } = useTranslation();
-  const options = parseRevisionDiffOptions(new URLSearchParams(params.toString()));
-  const hasChanges = buildDiffRows(
-    earlier.contentSource,
-    later.contentSource,
-    options.ignoreWhitespace,
-  ).some((row) => row.kind !== 'unchanged');
-  const update = (patch: Record<string, string | null>) => {
-    const next = new URLSearchParams(params.toString());
-    Object.entries(patch).forEach(([key, value]) =>
-      value === null ? next.delete(key) : next.set(key, value),
-    );
-    router.replace(`${pathname}${next.size ? `?${next}` : ''}`, { scroll: false });
-  };
+  // One diff per pair, shared by the "no changes" notice and whichever pane is
+  // showing: the panes used to each recompute it on every render.
+  const allRows = useMemo(
+    () => buildDiffRows(earlier.contentSource, later.contentSource, options.ignoreWhitespace),
+    [earlier.contentSource, later.contentSource, options.ignoreWhitespace],
+  );
+  const rows = useMemo(() => withContext(allRows, options.context), [allRows, options.context]);
+  const hasChanges = useMemo(() => allRows.some((row) => row.kind !== 'unchanged'), [allRows]);
   return (
     <section className="space-y-md">
       <div className="flex flex-wrap items-center gap-sm">
@@ -47,14 +44,16 @@ export function RevisionDiffView({ earlier, later }: { earlier: Revision; later:
             { value: 'preview', label: t('page.diff.preview') },
           ]}
           value={options.view}
-          onChange={(view) => update({ view: view === 'source' ? null : 'preview' })}
+          onChange={(view) => onOptionsChange({ view })}
         />
         <label className="inline-flex items-center gap-xs text-sm">
           {t('page.diff.context')}
           <Select
             value={String(options.context)}
             onChange={(event) =>
-              update({ context: event.target.value === '3' ? null : event.target.value })
+              onOptionsChange({
+                context: event.target.value === 'full' ? 'full' : Number(event.target.value),
+              })
             }
           >
             <option value="0">0</option>
@@ -68,14 +67,14 @@ export function RevisionDiffView({ earlier, later }: { earlier: Revision; later:
           {t('page.diff.ignoreWhitespace')}
           <Switch
             checked={options.ignoreWhitespace}
-            onClick={() => update({ ignoreWhitespace: options.ignoreWhitespace ? null : '1' })}
+            onClick={() => onOptionsChange({ ignoreWhitespace: !options.ignoreWhitespace })}
           />
         </label>
         <label className="inline-flex items-center gap-xs text-sm">
           {t('page.diff.syncScroll')}
           <Switch
             checked={options.sync}
-            onClick={() => update({ sync: options.sync ? '0' : null })}
+            onClick={() => onOptionsChange({ sync: !options.sync })}
           />
         </label>
       </div>
@@ -85,23 +84,14 @@ export function RevisionDiffView({ earlier, later }: { earlier: Revision; later:
         </p>
       )}
       {options.view === 'source' ? (
-        <RevisionSourceDiff
-          before={earlier.contentSource}
-          after={later.contentSource}
-          context={options.context}
-          ignoreWhitespace={options.ignoreWhitespace}
-          sync={options.sync}
-        />
+        <RevisionSourceDiff rows={rows} sync={options.sync} />
       ) : (
         <RevisionPreviewDiff
-          before={earlier.contentSource}
-          after={later.contentSource}
+          rows={rows}
           beforeHtml={earlier.contentHtml}
           afterHtml={later.contentHtml}
           beforeLineOffset={earlier.previewLineOffset}
           afterLineOffset={later.previewLineOffset}
-          context={options.context}
-          ignoreWhitespace={options.ignoreWhitespace}
           sync={options.sync}
         />
       )}

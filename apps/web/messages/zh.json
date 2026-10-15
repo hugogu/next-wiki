@@ -361,6 +361,10 @@
         "ready": "已选择两个版本",
         "selectHint": "请选择两个版本"
       },
+      "revision": {
+        "loadError": "无法加载版本 {version}。",
+        "retry": "重试"
+      },
       "delete": {
         "action": "删除版本 {version}",
         "title": "删除此版本？",
