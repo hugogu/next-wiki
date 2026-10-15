@@ -190,6 +190,36 @@ article .prose > h1:first-child {
   padding-right: calc(2.25rem + var(--space-md));
 }
 
+/* The reader's right sidebar can be folded away to a thin rail so the article
+   gets the room (see lib/outline-preference.ts). The saved choice is mirrored on
+   <html> before the first paint, so these rules lay the page out right from the
+   start and the text never re-wraps after it has loaded. Only a sidebar that
+   carries an Outline can collapse, and only a grid that holds one makes room for
+   the rail. */
+.reader-sidebar-rail {
+  display: none;
+}
+
+@screen xl {
+  html[data-outline-collapsed] .reader-grid[data-has-outline] {
+    grid-template-columns: minmax(0, 1fr) 2.75rem;
+  }
+
+  html[data-outline-collapsed] .reader-sidebar[data-collapsible] {
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  html[data-outline-collapsed] .reader-sidebar[data-collapsible] .reader-sidebar-body {
+    display: none;
+  }
+
+  html[data-outline-collapsed] .reader-sidebar[data-collapsible] .reader-sidebar-rail {
+    display: flex;
+    justify-content: center;
+  }
+}
+
 .prose h2 {
   font-size: var(--font-size-h2);
 }
