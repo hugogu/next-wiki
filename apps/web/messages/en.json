@@ -275,6 +275,8 @@
       "createdOn": "Created {date}",
       "authorSuffix": " by {name}",
       "outline": "Outline",
+      "outlineCollapse": "Collapse outline",
+      "outlineExpand": "Expand outline",
       "accessDeniedTitle": "Access denied",
       "registeredAccessDenied": "Create an account or sign in to view this page.",
       "restrictedAccessDenied": "You do not have permission to view this page.",

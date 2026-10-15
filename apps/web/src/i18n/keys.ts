@@ -168,6 +168,8 @@ export const translationKeys = [
   "page.read.createdOn",
   "page.read.authorSuffix",
   "page.read.outline",
+  "page.read.outlineCollapse",
+  "page.read.outlineExpand",
   "page.read.accessDeniedTitle",
   "page.read.registeredAccessDenied",
   "page.read.restrictedAccessDenied",

@@ -210,7 +210,14 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
               </div>
             </footer>
           </article>
-          <PageSidebar headings={headings} tags={page.metadata.tags} tagsLabel={t('page.metadata.tags')} outlineLabel={t('page.read.outline') ?? 'Outline'} />
+          <PageSidebar
+            headings={headings}
+            tags={page.metadata.tags}
+            tagsLabel={t('page.metadata.tags')}
+            outlineLabel={t('page.read.outline') ?? 'Outline'}
+            outlineCollapseLabel={t('page.read.outlineCollapse')}
+            outlineExpandLabel={t('page.read.outlineExpand')}
+          />
         </div>
         {jsonLd && <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />}
       </div>
