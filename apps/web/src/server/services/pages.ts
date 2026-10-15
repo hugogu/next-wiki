@@ -2394,7 +2394,6 @@ export async function getRevision(
   version: number,
   spaceSlug?: string,
 ): Promise<RevisionView | null> {
-  const userId = getUserId(ctx);
   const space = await resolveSpace(spaceSlug);
   if (!space) return null;
 
@@ -2410,7 +2409,41 @@ export async function getRevision(
   });
 
   if (!page) return null;
+  return revisionViewForPage(ctx, space, page, version);
+}
 
+/**
+ * `getRevision` addressed by page id, with the same visibility rules. History
+ * loads revisions one at a time as they are selected, and a page id stays valid
+ * if the page is moved while the History view is open.
+ */
+export async function getRevisionByPageId(
+  ctx: PermCtx,
+  pageId: string,
+  version: number,
+): Promise<RevisionView | null> {
+  const page = await db.query.pages.findFirst({
+    where: and(
+      eq(schema.pages.id, pageId),
+      isNull(schema.pages.deletedAt),
+      // Same as the path-addressed lookup: the source/original page only.
+      isNull(schema.pages.translationGroupId),
+    ),
+  });
+  if (!page) return null;
+
+  const space = await getSpaceById(page.spaceId);
+  if (!space) return null;
+  return revisionViewForPage(ctx, space, page, version);
+}
+
+async function revisionViewForPage(
+  ctx: PermCtx,
+  space: SpaceRow,
+  page: PageRow,
+  version: number,
+): Promise<RevisionView | null> {
+  const userId = getUserId(ctx);
   const isPageAuthor = userId ? page.authorId === userId : false;
   if (!can(ctx, 'read', { kind: 'page', pageId: page.id }, pagePermissionOptions(space, page, { isAuthor: isPageAuthor }))) {
     return null;

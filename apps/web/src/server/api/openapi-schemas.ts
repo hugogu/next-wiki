@@ -2778,6 +2778,26 @@ export const PageVisibilityPathParams = z
   .object({ pageId: z.string().uuid().describe('Stable page identifier.') })
   .describe('Page visibility path parameters.');
 
+export const PageRevisionViewPathParams = z
+  .object({
+    pageId: z.string().uuid().describe('Stable page identifier.'),
+    version: z.coerce.number().int().min(1).max(2_147_483_647).describe('Revision version number.'),
+  })
+  .describe('Page revision path parameters for the Version history view.');
+
+export const HistoryRevisionView = z
+  .object({
+    version: z.number().int().min(1).describe('Revision version number.'),
+    contentSource: z.string().describe('Markdown source of the revision.'),
+    contentHtml: z.string().describe('Rendered HTML of the revision.'),
+    previewLineOffset: z
+      .number()
+      .int()
+      .min(0)
+      .describe('Frontmatter lines before the body, so preview diff anchors line up with source line numbers.'),
+  })
+  .describe('One revision as the Version history view renders it.');
+
 export const AdminTagIdPathParams = z
   .object({ tagId: z.string().uuid().describe('Tag identifier.') })
   .describe('Admin tag path parameters.');

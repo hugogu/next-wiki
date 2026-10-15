@@ -462,6 +462,61 @@ describe('pageService US3', () => {
     });
   });
 
+  describe('getRevisionByPageId', () => {
+    it('returns the same revision view as the path-addressed lookup', async () => {
+      const editor = await createUser('editor-rev-by-id@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      const { pageId } = await pageService.create(ctx, { path: 'rev-by-id', title: 'T', contentSource: '# One' });
+
+      const byId = await pageService.getRevisionByPageId(ctx, pageId, 1);
+
+      expect(byId).toEqual(await pageService.getRevision(ctx, 'rev-by-id', 1));
+      expect(byId?.contentSource).toBe('# One');
+    });
+
+    it('keeps resolving a page after it is moved to another path', async () => {
+      const editor = await createUser('editor-rev-by-id-move@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      const { pageId } = await pageService.create(ctx, { path: 'rev-by-id-before', title: 'T', contentSource: '# One' });
+      await pageService.updateProperties(ctx, 'rev-by-id-before', { path: 'rev-by-id-after' });
+
+      expect(await pageService.getRevisionByPageId(ctx, pageId, 1)).toMatchObject({ version: 1, contentSource: '# One' });
+    });
+
+    it('applies the same visibility rules as the path-addressed lookup', async () => {
+      const editor = await createUser('editor-rev-by-id-visibility@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      const anonymous = buildAnonymousCtx();
+      const { pageId } = await pageService.create(ctx, { path: 'rev-by-id-public', title: 'T', contentSource: 'published' });
+      await revisionsService.publish(ctx, { path: 'rev-by-id-public', version: 1 });
+      await pageService.newDraft(ctx, 'rev-by-id-public', { title: 'T', contentSource: 'draft' });
+      const restricted = await pageService.create(ctx, {
+        path: 'rev-by-id-restricted',
+        title: 'T',
+        contentSource: 'private',
+        visibility: 'restricted',
+      });
+      await revisionsService.publish(ctx, { path: 'rev-by-id-restricted', version: 1 });
+
+      expect(await pageService.getRevisionByPageId(anonymous, pageId, 1)).toMatchObject({ contentSource: 'published' });
+      expect(await pageService.getRevisionByPageId(anonymous, pageId, 2)).toBeNull();
+      expect(await pageService.getRevisionByPageId(anonymous, restricted.pageId, 1)).toBeNull();
+      expect(await pageService.getRevisionByPageId(ctx, pageId, 2)).toMatchObject({ contentSource: 'draft' });
+    });
+
+    it('returns null for an unknown page, a deleted page and a missing version', async () => {
+      const editor = await createUser('editor-rev-by-id-missing@example.com', 'editor');
+      const ctx = buildUserCtx(editor.id, 'editor');
+      const { pageId } = await pageService.create(ctx, { path: 'rev-by-id-missing', title: 'T', contentSource: 'c' });
+
+      expect(await pageService.getRevisionByPageId(ctx, randomUUID(), 1)).toBeNull();
+      expect(await pageService.getRevisionByPageId(ctx, pageId, 99)).toBeNull();
+
+      await pageService.remove(ctx, 'rev-by-id-missing');
+      expect(await pageService.getRevisionByPageId(ctx, pageId, 1)).toBeNull();
+    });
+  });
+
   describe('remove', () => {
     it('soft-deletes a page for the author', async () => {
       const editor = await createUser('editor-delete@example.com', 'editor');
