@@ -15,6 +15,7 @@ import { buildUserAppearanceCss } from '@/server/appearance/style';
 import { getSiteName } from '@/server/services/site-settings';
 import { resolveSiteSocialImage, toMetadataImage } from '@/server/services/social-image';
 import { env } from '@/server/config';
+import { outlineBootstrapScript } from '@/lib/outline-preference';
 import type { Metadata } from 'next';
 import 'katex/dist/katex.min.css';
 import './globals.css';
@@ -148,6 +149,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <style id="app-reading-theme" dangerouslySetInnerHTML={{ __html: readingThemeCss }} />
         <script dangerouslySetInnerHTML={{ __html: cryptoRandomUuidPolyfillScript }} />
         <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+        <script dangerouslySetInnerHTML={{ __html: outlineBootstrapScript }} />
         {analyticsScriptContent ? (
           <script id="app-analytics" dangerouslySetInnerHTML={{ __html: analyticsScriptContent }} />
         ) : null}

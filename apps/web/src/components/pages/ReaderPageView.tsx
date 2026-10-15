@@ -159,7 +159,10 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
             {t('page.read.draftBanner')}
           </div>
         )}
-        <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <div
+          className="reader-grid grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_18rem]"
+          data-has-outline={headings.length > 0 || undefined}
+        >
           <article className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-has-share={showShare || undefined} data-testid="page-reader-article">
             {showShare && (
               <div className="absolute right-lg top-md z-10">

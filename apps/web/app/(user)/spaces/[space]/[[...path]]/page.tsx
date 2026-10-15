@@ -126,7 +126,10 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
             {t('page.read.draftBanner')}
           </div>
         )}
-        <div className="grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_18rem]">
+        <div
+          className="reader-grid grid min-w-0 flex-1 grid-cols-1 xl:grid-cols-[minmax(0,1fr)_18rem]"
+          data-has-outline={headings.length > 0 || undefined}
+        >
           <article className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-testid="space-page-reader">
             <nav
               aria-label={t('space.reader.breadcrumbs')}
