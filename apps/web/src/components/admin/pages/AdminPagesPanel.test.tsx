@@ -247,4 +247,22 @@ describe('AdminPagesPanel visibility', () => {
     expect(html).toMatch(/<select[^>]*name="visibility"/);
     expect(html).toMatch(/<option value="restricted" selected="">admin\.pages\.visibility\.restricted<\/option>/);
   });
+
+  it('keeps the folder filter in the filter form', () => {
+    const list: AdminPageListResult = {
+      items: [],
+      totalItems: 0,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: { folder: 'news/2026' },
+    };
+
+    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{ folder: 'news/2026' }} />);
+
+    expect(html).toContain('admin.pages.filters.folder');
+    expect(html).toMatch(/<input[^>]*name="folder"[^>]*value="news\/2026"/);
+  });
 });

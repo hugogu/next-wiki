@@ -139,13 +139,22 @@ export function AdminPagesPanel({
         <input type="hidden" name="sort" value={list.sort} />
         <input type="hidden" name="direction" value={list.direction} />
         {currentSpace !== 'default' && <input type="hidden" name="space" value={currentSpace} />}
-        <div className="grid items-end gap-sm md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.7fr)_minmax(9rem,0.65fr)_minmax(9rem,0.65fr)_minmax(10rem,0.7fr)_auto_auto]">
+        <div className="grid items-end gap-sm md:grid-cols-2 xl:grid-cols-[minmax(14rem,1.5fr)_minmax(10rem,1fr)_minmax(9rem,0.65fr)_minmax(9rem,0.65fr)_minmax(10rem,0.7fr)_auto_auto]">
           <label className="space-y-xs">
             <span className="text-xs font-medium text-muted">{t('admin.pages.filters.keyword')}</span>
             <input
               name="keyword"
               defaultValue={list.filters.keyword ?? ''}
               placeholder={t('admin.pages.filters.keywordPlaceholder')}
+              className="w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground"
+            />
+          </label>
+          <label className="space-y-xs">
+            <span className="text-xs font-medium text-muted">{t('admin.pages.filters.folder')}</span>
+            <input
+              name="folder"
+              defaultValue={list.filters.folder ?? ''}
+              placeholder={t('admin.pages.filters.folderPlaceholder')}
               className="w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground"
             />
           </label>

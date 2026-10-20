@@ -805,6 +805,8 @@
       "filters": {
         "keyword": "搜索",
         "keywordPlaceholder": "标题、作者或路径",
+        "folder": "文件夹",
+        "folderPlaceholder": "例如 news/2026",
         "title": "标题",
         "author": "作者",
         "path": "目录路径",

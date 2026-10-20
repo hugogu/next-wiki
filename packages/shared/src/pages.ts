@@ -414,6 +414,8 @@ export type AdminPageListFilters = {
   /** 022: which content space to list (default wiki when omitted). */
   space?: string;
   visibility?: PageVisibility;
+  /** The page at this path and every page below it. */
+  folder?: string;
 };
 
 /** 022: move a page to another content space (Admin, LLM Wiki mode). Raw is not

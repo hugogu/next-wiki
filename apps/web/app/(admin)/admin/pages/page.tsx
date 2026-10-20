@@ -22,6 +22,7 @@ type AdminPagesSearchParams = Promise<{
   dateTo?: string;
   space?: string;
   visibility?: string;
+  folder?: string;
 }>;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -52,6 +53,7 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
     dateTo: first(params.dateTo),
     space: first(params.space),
     visibility: first(params.visibility),
+    folder: first(params.folder),
   };
 
   const spaceFilterEnabled = await isLlmWikiMode();
@@ -72,6 +74,7 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
         // is read-only, so signed-in viewers may use it as well.
         space: spaceFilterEnabled ? query.space : undefined,
         visibility: pageVisibilitySchema.safeParse(query.visibility).data,
+        folder: query.folder,
       },
     },
   );

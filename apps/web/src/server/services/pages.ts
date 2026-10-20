@@ -145,6 +145,7 @@ function clampPageSize(value: number | undefined): number {
 }
 
 function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilters {
+  const folder = filters.folder?.trim().replace(/^\/+|\/+$/g, '');
   return {
     ...(filters.keyword?.trim() ? { keyword: filters.keyword.trim() } : {}),
     ...(filters.title?.trim() ? { title: filters.title.trim() } : {}),
@@ -155,6 +156,7 @@ function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilter
     ...(filters.tag?.trim() ? { tag: normalizeTagName(filters.tag) } : {}),
     ...(filters.space?.trim() ? { space: filters.space.trim() } : {}),
     ...(pageVisibilitySchema.safeParse(filters.visibility).success ? { visibility: filters.visibility } : {}),
+    ...(folder ? { folder } : {}),
   };
 }
 
@@ -200,6 +202,7 @@ function adminPageConditions(
     filters.title ? ilike(schema.pages.title, `%${filters.title}%`) : undefined,
     filters.path ? ilike(schema.pages.path, `%${filters.path}%`) : undefined,
     filters.visibility ? eq(schema.pages.visibility, filters.visibility) : undefined,
+    filters.folder ? pathInFolder(filters.folder) : undefined,
     filters.author
       ? includeAuthorEmail
         ? or(

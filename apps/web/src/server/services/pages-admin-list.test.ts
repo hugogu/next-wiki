@@ -102,6 +102,25 @@ describe('listAdminPages', () => {
     expect(unknown.filters.visibility).toBeUndefined();
   });
 
+  it('filters by a folder: its own page and everything below it', async () => {
+    const admin = await createPublicApiUser('admin-list-folder@example.com', 'admin');
+    const ctx = buildUserCtx(admin.id, 'admin');
+    for (const path of ['news', 'news/today', 'news/2026/10', 'newsletter', 'old/news', 'news_x/a', 'newsxx/a']) {
+      await pageService.create(ctx, { path, title: path, contentSource: `# ${path}` });
+    }
+
+    const folder = await pageService.listAdminPages(ctx, { sort: 'path', direction: 'asc', filters: { folder: ' /news/ ' } });
+    expect(folder.items.map((item) => item.path)).toEqual(['news', 'news/2026/10', 'news/today']);
+    expect(folder.filters.folder).toBe('news');
+
+    const underscore = await pageService.listAdminPages(ctx, { filters: { folder: 'news_x' } });
+    expect(underscore.items.map((item) => item.path)).toEqual(['news_x/a']);
+
+    const blank = await pageService.listAdminPages(ctx, { filters: { folder: ' / ' } });
+    expect(blank.totalItems).toBe(7);
+    expect(blank.filters.folder).toBeUndefined();
+  });
+
   it('limits a signed-in non-admin to public pages and machine-generated pages from the same account', async () => {
     const admin = await createPublicApiUser('admin-list-scope-admin@example.com', 'admin');
     const owner = await createPublicApiUser('admin-list-scope-owner@example.com', 'editor');

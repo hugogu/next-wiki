@@ -555,6 +555,8 @@ export const translationKeys = [
   "admin.pages.stats.totalLinks",
   "admin.pages.filters.keyword",
   "admin.pages.filters.keywordPlaceholder",
+  "admin.pages.filters.folder",
+  "admin.pages.filters.folderPlaceholder",
   "admin.pages.filters.title",
   "admin.pages.filters.author",
   "admin.pages.filters.path",

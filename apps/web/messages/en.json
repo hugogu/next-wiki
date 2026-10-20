@@ -805,6 +805,8 @@
       "filters": {
         "keyword": "Search",
         "keywordPlaceholder": "Title, author, or path",
+        "folder": "Folder",
+        "folderPlaceholder": "e.g. news/2026",
         "title": "Title",
         "author": "Author",
         "path": "Directory path",
