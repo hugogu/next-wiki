@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, ne, or, sql, inArray, like } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, ne, or, sql, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/server/db';
 import { getAiContentLevel } from './ai-content-level';
@@ -12,6 +12,7 @@ import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
 import { assertPathNotReserved } from '@/server/routes/reserved-paths';
 import { assertAddressAvailable, setSlug } from '@/server/services/page-addresses';
+import { pathInFolder } from '@/server/services/page-folders';
 import { pathSchema, pageAddressSchema, localeCodeSchema } from '@next-wiki/shared';
 import type {
   AdminPageListFilters,
@@ -1542,13 +1543,6 @@ export async function removeFolder(
     throw new DomainError('FORBIDDEN', 'You do not have permission to delete pages in this space');
   }
 
-  // `pathSchema` allows underscores, which PostgreSQL `LIKE` treats as
-  // single-character wildcards — escape them so a prefix like `foo_bar` only
-  // matches that exact subtree, not `fooXbar/...`. Backslash is the default
-  // LIKE escape character; escape it first so a hostile path can't smuggle a
-  // partial wildcard past us.
-  const escapedPrefix = pathPrefix.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-
   const rows = await db
     .select({
       id: schema.pages.id,
@@ -1562,10 +1556,7 @@ export async function removeFolder(
         eq(schema.pages.spaceId, space.id),
         isNull(schema.pages.deletedAt),
         isNull(schema.pages.translationGroupId),
-        or(
-          eq(schema.pages.path, pathPrefix),
-          like(schema.pages.path, `${escapedPrefix}/%`),
-        ),
+        pathInFolder(pathPrefix),
       ),
     );
 
