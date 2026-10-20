@@ -2902,6 +2902,208 @@
         ],
         "description": "Result of a storage backend connection check."
       },
+      "BulkPageVisibilityInput": {
+        "type": "object",
+        "properties": {
+          "scope": {
+            "$ref": "#/components/schemas/BulkPageVisibilityScope"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "registered",
+              "restricted"
+            ],
+            "description": "Visibility every page in scope should have."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Report what would change without changing anything."
+          }
+        },
+        "required": [
+          "scope",
+          "visibility"
+        ],
+        "description": "Bulk page visibility change."
+      },
+      "BulkPageVisibilityResult": {
+        "type": "object",
+        "properties": {
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "public",
+              "registered",
+              "restricted"
+            ],
+            "description": "The requested visibility."
+          },
+          "dryRun": {
+            "type": "boolean",
+            "description": "Whether this was a dry run."
+          },
+          "matched": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Pages in scope; deleted pages and unknown ids are not counted."
+          },
+          "pending": {
+            "type": "object",
+            "properties": {
+              "total": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "public": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "registered": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "restricted": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "unpublished": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "Of the pending pages, those never published."
+              }
+            },
+            "required": [
+              "total",
+              "public",
+              "registered",
+              "restricted",
+              "unpublished"
+            ],
+            "description": "Pages in scope that did not have the requested visibility before this request, by their visibility then."
+          },
+          "changed": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Pages this request changed; always 0 for a dry run."
+          },
+          "remaining": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Pending pages still to change; repeat the request until this is 0."
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "pageId": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "outcome": {
+                  "type": "string",
+                  "enum": [
+                    "changed",
+                    "unchanged",
+                    "not_found"
+                  ]
+                },
+                "previousVisibility": {
+                  "type": [
+                    "string",
+                    "null"
+                  ],
+                  "enum": [
+                    "public",
+                    "registered",
+                    "restricted"
+                  ],
+                  "description": "Visibility before this request; null when the page was not found."
+                }
+              },
+              "required": [
+                "pageId",
+                "outcome",
+                "previousVisibility"
+              ]
+            },
+            "description": "Each requested page for a pages scope, or each page changed by this request for a folder scope. Empty for a dry run."
+          }
+        },
+        "required": [
+          "visibility",
+          "dryRun",
+          "matched",
+          "pending",
+          "changed",
+          "remaining",
+          "results"
+        ],
+        "description": "Outcome of a bulk page visibility change."
+      },
+      "BulkPageVisibilityScope": {
+        "type": "object",
+        "discriminator": {
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "pages"
+                ]
+              },
+              "pageIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                "minItems": 1,
+                "maxItems": 500,
+                "description": "Pages to change, at most 500."
+              }
+            },
+            "required": [
+              "kind",
+              "pageIds"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "folder"
+                ]
+              },
+              "space": {
+                "type": "string",
+                "maxLength": 100,
+                "pattern": "^[a-z0-9][a-z0-9-]*$",
+                "description": "Space slug; the Wiki space when omitted."
+              },
+              "pathPrefix": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 200,
+                "pattern": "^[a-z0-9]([a-z0-9_/-]*[a-z0-9])?$",
+                "description": "Folder: the page at this path and every page below it. The whole space when omitted."
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          }
+        ],
+        "description": "Chosen pages, or the source pages in a folder of one space (translations are not included)."
+      },
       "ChangeEmailInput": {
         "type": "object",
         "properties": {
@@ -12967,6 +13169,38 @@
         ],
         "parameters": [],
         "responses": {}
+      }
+    },
+    "/admin/pages/visibility": {
+      "post": {
+        "operationId": "post-admin-pages-visibility",
+        "summary": "Set the visibility of many pages",
+        "description": "Gives chosen pages, or every source page in a folder of one space (the whole space when pathPrefix is omitted), the same visibility. Each changed page is audited individually. At most 500 pages change per request, in path order; repeat the request while remaining is above 0. With dryRun, nothing changes and the counts describe what would. Administrator session only; not callable with a Bearer key.",
+        "tags": [
+          "Admin"
+        ],
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkPageVisibilityInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkPageVisibilityResult"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/admin/pages/{id}/move": {
