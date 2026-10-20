@@ -144,6 +144,7 @@ export function BulkVisibilityDialog({
           <Select
             value={visibility}
             disabled={applying}
+            aria-label={t('admin.pages.bulk.visibilityLabel')}
             onChange={(event) => {
               setApplyError(null);
               setVisibility(event.target.value as PageVisibility | '');

@@ -180,7 +180,7 @@ export function AdminPagesPanel({
           </label>
           <label className="space-y-xs">
             <span className="text-xs font-medium text-muted">{t('admin.pages.filters.visibility')}</span>
-            <Select name="visibility" defaultValue={list.filters.visibility ?? ''}>
+            <Select name="visibility" defaultValue={list.filters.visibility ?? ''} aria-label={t('admin.pages.filters.visibility')}>
               <option value="">{t('admin.pages.filters.visibilityAll')}</option>
               {PAGE_VISIBILITIES.map((visibility) => (
                 <option key={visibility} value={visibility}>{t(`admin.pages.visibility.${visibility}`)}</option>
