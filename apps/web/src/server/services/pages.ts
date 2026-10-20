@@ -13,6 +13,7 @@ import { assertNotMigrating } from '@/server/services/migration';
 import { assertPathNotReserved } from '@/server/routes/reserved-paths';
 import { assertAddressAvailable, setSlug } from '@/server/services/page-addresses';
 import { pathInFolder } from '@/server/services/page-folders';
+import { setPagesVisibility } from '@/server/services/page-visibility';
 import { pathSchema, pageAddressSchema, localeCodeSchema } from '@next-wiki/shared';
 import type {
   AdminPageListFilters,
@@ -1740,28 +1741,17 @@ export async function create(
   return created;
 }
 
-/** Set the anonymous-read decision without changing publication state. */
+/**
+ * Set the anonymous-read decision without changing publication state. One
+ * page takes the same path as many, so the change is audited the same way.
+ */
 export async function setVisibility(
   ctx: PermCtx,
   pageId: string,
   visibility: 'public' | 'registered' | 'restricted',
 ): Promise<'public' | 'registered' | 'restricted'> {
-  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
-    throw new DomainError('FORBIDDEN', 'Only Administrators can change page visibility');
-  }
-  const page = await db.query.pages.findFirst({
-    where: and(eq(schema.pages.id, pageId), isNull(schema.pages.deletedAt)),
-  });
-  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  const space = await getSpaceById(page.spaceId);
-  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
-
-  await db
-    .update(schema.pages)
-    .set({ visibility, updatedAt: new Date() })
-    .where(eq(schema.pages.id, page.id));
-  invalidatePublicContentCache();
-  await notifyPublicContentChanged('publish');
+  const { results } = await setPagesVisibility(ctx, { scope: { kind: 'pages', pageIds: [pageId] }, visibility });
+  if (results[0]?.outcome === 'not_found') throw new DomainError('NOT_FOUND', 'Page not found');
   return visibility;
 }
 

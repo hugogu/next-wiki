@@ -6,6 +6,7 @@ import { db, closeDb } from '@/server/db';
 import * as schema from '@/server/db/schema';
 import { buildAnonymousCtx, buildApiKeyCtx, buildUserCtx } from '@/server/permissions';
 import { setPagesVisibility } from '@/server/services/page-visibility';
+import * as pageService from '@/server/services/pages';
 import { createAdminUser, resetSetupOnboardingState } from '../../../test/setup-onboarding-fixtures';
 import { createPublicApiUser } from '../../../test/public-wiki-api-fixtures';
 
@@ -266,6 +267,22 @@ describe('setPagesVisibility', () => {
     expect(third).toMatchObject({ pending: { total: 0 }, changed: 0, remaining: 0, results: [] });
     expect(await visibilityAuditPaths()).toHaveLength(total);
     expect(events.notifyPublicContentChanged).toHaveBeenCalledTimes(2);
+  });
+
+  it('audits a single-page change the same way and refuses a missing page', async () => {
+    const pageId = await insertPage({ path: 'single', visibility: 'public' });
+    const editor = await createPublicApiUser('single-visibility-editor@example.com', 'editor');
+    const ctx = buildUserCtx(adminId, 'admin');
+
+    await expect(pageService.setVisibility(ctx, pageId, 'registered')).resolves.toBe('registered');
+    await expect(pageService.setVisibility(ctx, randomUUID(), 'public')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+    await expect(pageService.setVisibility(buildUserCtx(editor.id, 'editor'), pageId, 'public'))
+      .rejects.toMatchObject({ code: 'FORBIDDEN' });
+
+    expect(await visibilityOf(pageId)).toBe('registered');
+    expect(await visibilityAuditPaths()).toEqual([
+      { path: `/pages/${pageId}/visibility?from=public&to=registered`, userId: adminId },
+    ]);
   });
 
   it('refuses a folder in a space that does not exist', async () => {
