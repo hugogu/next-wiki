@@ -15,6 +15,8 @@ import { ArrowDownIcon, HistoryIcon, SearchIcon, XIcon } from '@/components/icon
 import { getSpaceDraftReviewHref, getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { EditableTagList } from '@/components/pages/EditableTagList';
 import { AdminPageStats } from './AdminPageStats';
+import { PageSelectCheckbox, PageSelectionProvider, SelectAllPagesCheckbox } from './AdminPageSelection';
+import { BulkVisibilityAction } from './BulkVisibilityAction';
 import { DeletePageButton } from './DeletePageButton';
 import { MovePageButton } from './MovePageButton';
 
@@ -204,115 +206,128 @@ export function AdminPagesPanel({
         </div>
       </form>
 
-      <DataTable>
-        <DataTableHead>
-          <tr>
-            <DataTableHeader aria-sort={sortAriaValue(list, 'title')}>
-              <SortHeader t={t} query={query} list={list} sort="title">{t('admin.pages.table.title')}</SortHeader>
-            </DataTableHeader>
-            <DataTableHeader>{t('admin.pages.table.status')}</DataTableHeader>
-            <DataTableHeader>{t('admin.pages.table.visibility')}</DataTableHeader>
-            <DataTableHeader aria-sort={sortAriaValue(list, 'author')}>
-              <SortHeader t={t} query={query} list={list} sort="author">{t('admin.pages.table.author')}</SortHeader>
-            </DataTableHeader>
-            <DataTableHeader align="right" aria-sort={sortAriaValue(list, 'edits')}>
-              <SortHeader t={t} query={query} list={list} sort="edits">{t('admin.pages.table.edits')}</SortHeader>
-            </DataTableHeader>
-            <DataTableHeader aria-sort={sortAriaValue(list, 'updatedAt')}>
-              <SortHeader t={t} query={query} list={list} sort="updatedAt">{t('admin.pages.table.updatedAt')}</SortHeader>
-            </DataTableHeader>
-            {canManage && <DataTableHeader align="right">{t('admin.pages.table.actions')}</DataTableHeader>}
-          </tr>
-        </DataTableHead>
-        <DataTableBody>
-          {list.items.length === 0 ? (
-            <DataTableRow>
-              <DataTableCell colSpan={canManage ? 7 : 6} className="py-lg text-center text-muted">
-                {t('admin.pages.empty')}
-              </DataTableCell>
-            </DataTableRow>
-          ) : (
-            list.items.map((page) => {
-              const pageSpace = readerSpaceFromSlug(page.spaceSlug);
-              const hasPendingDraft = canManage && page.status !== 'published';
-              // 035: a pending-draft review is a history/revision URL (path-
-              // addressed); a published page's link is its reader address (slug).
-              const pageHref = hasPendingDraft
-                ? getSpaceDraftReviewHref(pageSpace, page.path, page.latestVersion)
-                : getSpaceHref(pageSpace, page.slug);
-              return (
-                <DataTableRow key={page.id}>
-                  <DataTableCell className="max-w-sm font-medium">
-                    <Link
-                      href={pageHref}
-                      className="block truncate rounded-sm text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
-                    >
-                      <HighlightedText text={page.title} keyword={list.filters.keyword} />
-                    </Link>
-                    <code className="mt-0.5 block truncate text-xs font-normal text-muted"><HighlightedText text={page.path} keyword={list.filters.keyword} /></code>
-                    <div className="mt-xs">
-                      <EditableTagList
-                        tags={page.tags}
-                        pageId={page.id}
-                        canEdit={canManage}
-                        ariaLabel={t('page.metadata.tags')}
-                      />
-                    </div>
-                  </DataTableCell>
-                  <DataTableCell>
-                    <span className="inline-flex items-center gap-xs rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">
-                      {t(`admin.pages.status.${page.status}` as TranslationKey)}
-                    </span>
-                  </DataTableCell>
-                  <DataTableCell>
-                    <span
-                      className={`inline-flex items-center rounded-md border px-sm py-xs text-xs ${
-                        page.visibility === 'public' ? 'border-primary text-primary' : 'border-border text-muted'
-                      }`}
-                    >
-                      {t(`admin.pages.visibility.${page.visibility}`)}
-                    </span>
-                  </DataTableCell>
-                  <DataTableCell className="text-muted">
-                    <HighlightedText
-                      text={page.authorDisplayName ?? (canManage ? page.authorEmail : t('common.unknownAuthor'))}
-                      keyword={list.filters.keyword}
-                    />
-                  </DataTableCell>
-                  <DataTableCell align="right">{page.editCount}</DataTableCell>
-                  <DataTableCell className="text-muted">
-                    {new Date(page.updatedAt).toLocaleString()}
-                  </DataTableCell>
-                  {canManage && (
-                    <DataTableCell align="right">
-                      <div className="flex items-center justify-end gap-xs">
-                        {hasPendingDraft && (
-                          <Link
-                            href={pageHref}
-                            aria-label={t('admin.pages.actions.reviewDraft')}
-                            title={t('admin.pages.actions.reviewDraft')}
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-elevated hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
-                          >
-                            <HistoryIcon className="h-4 w-4" />
-                          </Link>
-                        )}
-                        {spaceFilterEnabled && page.kind === 'native' && currentSpace !== 'raw' && (
-                          <MovePageButton
-                            pageId={page.id}
-                            title={page.title}
-                            sourceSpaceKind={currentSpace === 'generated' ? 'generated' : 'wiki'}
-                          />
-                        )}
-                        <DeletePageButton pageId={page.id} title={page.title} />
+      <PageSelectionProvider pageIds={list.items.map((page) => page.id)}>
+        {canManage && <BulkVisibilityAction space={currentSpace} folder={list.filters.folder} />}
+        <DataTable>
+          <DataTableHead>
+            <tr>
+              {canManage && (
+                <DataTableHeader className="w-10">
+                  <SelectAllPagesCheckbox />
+                </DataTableHeader>
+              )}
+              <DataTableHeader aria-sort={sortAriaValue(list, 'title')}>
+                <SortHeader t={t} query={query} list={list} sort="title">{t('admin.pages.table.title')}</SortHeader>
+              </DataTableHeader>
+              <DataTableHeader>{t('admin.pages.table.status')}</DataTableHeader>
+              <DataTableHeader>{t('admin.pages.table.visibility')}</DataTableHeader>
+              <DataTableHeader aria-sort={sortAriaValue(list, 'author')}>
+                <SortHeader t={t} query={query} list={list} sort="author">{t('admin.pages.table.author')}</SortHeader>
+              </DataTableHeader>
+              <DataTableHeader align="right" aria-sort={sortAriaValue(list, 'edits')}>
+                <SortHeader t={t} query={query} list={list} sort="edits">{t('admin.pages.table.edits')}</SortHeader>
+              </DataTableHeader>
+              <DataTableHeader aria-sort={sortAriaValue(list, 'updatedAt')}>
+                <SortHeader t={t} query={query} list={list} sort="updatedAt">{t('admin.pages.table.updatedAt')}</SortHeader>
+              </DataTableHeader>
+              {canManage && <DataTableHeader align="right">{t('admin.pages.table.actions')}</DataTableHeader>}
+            </tr>
+          </DataTableHead>
+          <DataTableBody>
+            {list.items.length === 0 ? (
+              <DataTableRow>
+                <DataTableCell colSpan={canManage ? 8 : 6} className="py-lg text-center text-muted">
+                  {t('admin.pages.empty')}
+                </DataTableCell>
+              </DataTableRow>
+            ) : (
+              list.items.map((page) => {
+                const pageSpace = readerSpaceFromSlug(page.spaceSlug);
+                const hasPendingDraft = canManage && page.status !== 'published';
+                // 035: a pending-draft review is a history/revision URL (path-
+                // addressed); a published page's link is its reader address (slug).
+                const pageHref = hasPendingDraft
+                  ? getSpaceDraftReviewHref(pageSpace, page.path, page.latestVersion)
+                  : getSpaceHref(pageSpace, page.slug);
+                return (
+                  <DataTableRow key={page.id}>
+                    {canManage && (
+                      <DataTableCell className="w-10">
+                        <PageSelectCheckbox pageId={page.id} title={page.title} />
+                      </DataTableCell>
+                    )}
+                    <DataTableCell className="max-w-sm font-medium">
+                      <Link
+                        href={pageHref}
+                        className="block truncate rounded-sm text-foreground hover:text-primary focus:outline-none focus:ring-2 focus:ring-primary/50"
+                      >
+                        <HighlightedText text={page.title} keyword={list.filters.keyword} />
+                      </Link>
+                      <code className="mt-0.5 block truncate text-xs font-normal text-muted"><HighlightedText text={page.path} keyword={list.filters.keyword} /></code>
+                      <div className="mt-xs">
+                        <EditableTagList
+                          tags={page.tags}
+                          pageId={page.id}
+                          canEdit={canManage}
+                          ariaLabel={t('page.metadata.tags')}
+                        />
                       </div>
                     </DataTableCell>
-                  )}
-                </DataTableRow>
-              );
-            })
-          )}
-        </DataTableBody>
-      </DataTable>
+                    <DataTableCell>
+                      <span className="inline-flex items-center gap-xs rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">
+                        {t(`admin.pages.status.${page.status}` as TranslationKey)}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell>
+                      <span
+                        className={`inline-flex items-center rounded-md border px-sm py-xs text-xs ${
+                          page.visibility === 'public' ? 'border-primary text-primary' : 'border-border text-muted'
+                        }`}
+                      >
+                        {t(`admin.pages.visibility.${page.visibility}`)}
+                      </span>
+                    </DataTableCell>
+                    <DataTableCell className="text-muted">
+                      <HighlightedText
+                        text={page.authorDisplayName ?? (canManage ? page.authorEmail : t('common.unknownAuthor'))}
+                        keyword={list.filters.keyword}
+                      />
+                    </DataTableCell>
+                    <DataTableCell align="right">{page.editCount}</DataTableCell>
+                    <DataTableCell className="text-muted">
+                      {new Date(page.updatedAt).toLocaleString()}
+                    </DataTableCell>
+                    {canManage && (
+                      <DataTableCell align="right">
+                        <div className="flex items-center justify-end gap-xs">
+                          {hasPendingDraft && (
+                            <Link
+                              href={pageHref}
+                              aria-label={t('admin.pages.actions.reviewDraft')}
+                              title={t('admin.pages.actions.reviewDraft')}
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-elevated hover:text-foreground focus:outline-none focus:ring-2 focus:ring-primary/50"
+                            >
+                              <HistoryIcon className="h-4 w-4" />
+                            </Link>
+                          )}
+                          {spaceFilterEnabled && page.kind === 'native' && currentSpace !== 'raw' && (
+                            <MovePageButton
+                              pageId={page.id}
+                              title={page.title}
+                              sourceSpaceKind={currentSpace === 'generated' ? 'generated' : 'wiki'}
+                            />
+                          )}
+                          <DeletePageButton pageId={page.id} title={page.title} />
+                        </div>
+                      </DataTableCell>
+                    )}
+                  </DataTableRow>
+                );
+              })
+            )}
+          </DataTableBody>
+        </DataTable>
+      </PageSelectionProvider>
 
       <div className="flex flex-col items-center justify-between gap-sm sm:flex-row">
         <p className="text-sm text-muted">
