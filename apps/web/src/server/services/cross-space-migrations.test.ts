@@ -136,6 +136,24 @@ describe('cross-space migration workflow', () => {
     expect(new Set(warmedHrefs).size).toBeGreaterThanOrEqual(2);
   });
 
+  it('selects only the named folder when its name contains an underscore', async () => {
+    for (const path of ['foo_bar', 'foo_bar/a', 'fooxbar/a', 'foo_barx/b']) {
+      await create(admin, { path, title: path, contentSource: `# ${path}` });
+    }
+    const [wiki, generated] = await Promise.all([
+      db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'default') }),
+      db.query.spaces.findFirst({ where: eq(schema.spaces.slug, 'generated') }),
+    ]);
+
+    const preview = await previewCrossSpaceMigration(admin, {
+      selection: { kind: 'folder', sourceSpaceId: wiki!.id, pathPrefix: 'foo_bar' },
+      destinationSpaceId: generated!.id,
+      adaptOkf: true,
+    });
+
+    expect(preview.items.map((item) => item.sourcePath).sort()).toEqual(['foo_bar', 'foo_bar/a']);
+  });
+
   it('rejects unresolved destination conflicts and paginates by a stable cursor order', async () => {
     const first = await create(admin, { path: 'imports/first', title: 'First', contentSource: '# First' });
     await create(admin, { path: 'imports/second', title: 'Second', contentSource: '# Second' });
