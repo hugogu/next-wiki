@@ -72,6 +72,36 @@ describe('listAdminPages', () => {
     expect(pendingUpdate).toMatchObject({ status: 'published_with_draft', latestVersion: 2 });
   });
 
+  it("shows each page's visibility and filters by it", async () => {
+    const admin = await createPublicApiUser('admin-list-visibility@example.com', 'admin');
+    const ctx = buildUserCtx(admin.id, 'admin');
+    for (const visibility of ['public', 'registered', 'restricted'] as const) {
+      await pageService.create(ctx, {
+        path: `visibility/${visibility}`,
+        title: `${visibility} page`,
+        contentSource: `# ${visibility}`,
+        visibility,
+      });
+    }
+
+    const all = await pageService.listAdminPages(ctx, { sort: 'path', direction: 'asc' });
+    expect(all.items.map((item) => [item.path, item.visibility])).toEqual([
+      ['visibility/public', 'public'],
+      ['visibility/registered', 'registered'],
+      ['visibility/restricted', 'restricted'],
+    ]);
+
+    const registered = await pageService.listAdminPages(ctx, { filters: { visibility: 'registered' } });
+    expect(registered.items.map((item) => item.path)).toEqual(['visibility/registered']);
+    expect(registered.filters.visibility).toBe('registered');
+
+    const unknown = await pageService.listAdminPages(ctx, {
+      filters: { visibility: 'internal' as unknown as 'public' },
+    });
+    expect(unknown.totalItems).toBe(3);
+    expect(unknown.filters.visibility).toBeUndefined();
+  });
+
   it('limits a signed-in non-admin to public pages and machine-generated pages from the same account', async () => {
     const admin = await createPublicApiUser('admin-list-scope-admin@example.com', 'admin');
     const owner = await createPublicApiUser('admin-list-scope-owner@example.com', 'editor');

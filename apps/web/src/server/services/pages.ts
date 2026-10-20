@@ -14,7 +14,7 @@ import { assertPathNotReserved } from '@/server/routes/reserved-paths';
 import { assertAddressAvailable, setSlug } from '@/server/services/page-addresses';
 import { pathInFolder } from '@/server/services/page-folders';
 import { setPagesVisibility } from '@/server/services/page-visibility';
-import { pathSchema, pageAddressSchema, localeCodeSchema } from '@next-wiki/shared';
+import { pathSchema, pageAddressSchema, localeCodeSchema, pageVisibilitySchema } from '@next-wiki/shared';
 import type {
   AdminPageListFilters,
   AdminPageListItem,
@@ -154,6 +154,7 @@ function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilter
     ...(filters.dateTo?.trim() ? { dateTo: filters.dateTo.trim() } : {}),
     ...(filters.tag?.trim() ? { tag: normalizeTagName(filters.tag) } : {}),
     ...(filters.space?.trim() ? { space: filters.space.trim() } : {}),
+    ...(pageVisibilitySchema.safeParse(filters.visibility).success ? { visibility: filters.visibility } : {}),
   };
 }
 
@@ -198,6 +199,7 @@ function adminPageConditions(
     keywordCondition,
     filters.title ? ilike(schema.pages.title, `%${filters.title}%`) : undefined,
     filters.path ? ilike(schema.pages.path, `%${filters.path}%`) : undefined,
+    filters.visibility ? eq(schema.pages.visibility, filters.visibility) : undefined,
     filters.author
       ? includeAuthorEmail
         ? or(
@@ -538,6 +540,7 @@ export async function listAdminPages(
           latestVersionId: schema.pages.latestVersionId,
           kind: schema.pages.kind,
           nature: schema.pages.nature,
+          visibility: schema.pages.visibility,
           authorDisplayName: userDisplayNameSql(),
           authorEmail: schema.users.email,
           editCount: count(schema.pageRevisions.id),
@@ -583,6 +586,7 @@ export async function listAdminPages(
           latestVersionId: schema.pages.latestVersionId,
           kind: schema.pages.kind,
           nature: schema.pages.nature,
+          visibility: schema.pages.visibility,
           authorDisplayName: userDisplayNameSql(),
           authorEmail: schema.users.email,
           createdAt: schema.pages.createdAt,
@@ -691,6 +695,7 @@ export async function listAdminPages(
         spaceSlug: space.slug,
         kind: row.kind,
         nature: row.nature,
+        visibility: row.visibility,
       };
     }),
     totalItems,

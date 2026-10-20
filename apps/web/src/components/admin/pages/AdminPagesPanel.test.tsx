@@ -74,6 +74,7 @@ function nativePage(overrides: Partial<AdminPageListItem> = {}): AdminPageListIt
     spaceSlug: 'raw',
     kind: 'native',
     nature: 'original',
+    visibility: 'public',
     ...overrides,
   };
 }
@@ -222,5 +223,28 @@ describe('AdminPagesPanel draft review links', () => {
 
     expect(html).toContain('href="/raw/conversations/feishu/2026/07/21/action-1"');
     expect(html).not.toContain('admin.pages.actions.reviewDraft');
+  });
+});
+
+describe('AdminPagesPanel visibility', () => {
+  it('shows each page’s visibility and keeps the chosen visibility filter', () => {
+    const list: AdminPageListResult = {
+      items: [nativePage({ id: 'page-1', spaceSlug: 'default' }), nativePage({ id: 'page-2', visibility: 'restricted', spaceSlug: 'default' })],
+      totalItems: 2,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: { visibility: 'restricted' },
+    };
+
+    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{ visibility: 'restricted' }} />);
+
+    expect(html).toContain('admin.pages.table.visibility');
+    expect(html).toContain('admin.pages.visibility.public');
+    expect(html).toContain('admin.pages.visibility.restricted');
+    expect(html).toMatch(/<select[^>]*name="visibility"/);
+    expect(html).toMatch(/<option value="restricted" selected="">admin\.pages\.visibility\.restricted<\/option>/);
   });
 });

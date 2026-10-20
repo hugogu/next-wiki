@@ -812,12 +812,15 @@
         "dateTo": "Updated to",
         "apply": "Apply filters",
         "reset": "Reset",
-        "space": "Space"
+        "space": "Space",
+        "visibility": "Visibility",
+        "visibilityAll": "Any visibility"
       },
       "table": {
         "title": "Title",
         "path": "Path",
         "status": "Status",
+        "visibility": "Visibility",
         "author": "Author",
         "edits": "Edits",
         "updatedAt": "Updated",
@@ -829,6 +832,11 @@
         "published_with_draft": "Published + draft",
         "deleted": "Deleted",
         "linked": "linked"
+      },
+      "visibility": {
+        "public": "Public",
+        "registered": "Registered users",
+        "restricted": "Restricted"
       },
       "actions": {
         "view": "View page",

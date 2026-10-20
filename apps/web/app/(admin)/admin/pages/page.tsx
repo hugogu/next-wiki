@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { redirect } from 'next/navigation';
+import { pageVisibilitySchema } from '@next-wiki/shared';
 import { Layout } from '@/components/ui/Layout';
 import { AdminPagesPanel } from '@/components/admin/pages/AdminPagesPanel';
 import { getCurrentActor } from '@/server/services/auth';
@@ -20,6 +21,7 @@ type AdminPagesSearchParams = Promise<{
   dateFrom?: string;
   dateTo?: string;
   space?: string;
+  visibility?: string;
 }>;
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -49,6 +51,7 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
     dateFrom: first(params.dateFrom),
     dateTo: first(params.dateTo),
     space: first(params.space),
+    visibility: first(params.visibility),
   };
 
   const spaceFilterEnabled = await isLlmWikiMode();
@@ -68,6 +71,7 @@ export default async function AdminPagesPage({ searchParams }: { searchParams: A
         // Raw/generated spaces exist only in LLM Wiki mode. The filter itself
         // is read-only, so signed-in viewers may use it as well.
         space: spaceFilterEnabled ? query.space : undefined,
+        visibility: pageVisibilitySchema.safeParse(query.visibility).data,
       },
     },
   );

@@ -395,6 +395,7 @@ export type AdminPageListItem = {
   spaceSlug: string;
   kind: 'native' | 'link';
   nature: 'original' | 'generated';
+  visibility: PageVisibility;
 };
 
 export type AdminPageListFilters = {
@@ -412,6 +413,7 @@ export type AdminPageListFilters = {
   tag?: string;
   /** 022: which content space to list (default wiki when omitted). */
   space?: string;
+  visibility?: PageVisibility;
 };
 
 /** 022: move a page to another content space (Admin, LLM Wiki mode). Raw is not

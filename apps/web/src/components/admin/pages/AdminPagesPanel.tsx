@@ -10,6 +10,7 @@ import {
   DataTableRow,
 } from '@/components/ui/DataTable';
 import { Pagination } from '@/components/ui/Pagination';
+import { Select } from '@/components/ui/Select';
 import { ArrowDownIcon, HistoryIcon, SearchIcon, XIcon } from '@/components/icons';
 import { getSpaceDraftReviewHref, getSpaceHref, readerSpaceFromSlug } from '@/lib/path';
 import { EditableTagList } from '@/components/pages/EditableTagList';
@@ -18,6 +19,8 @@ import { DeletePageButton } from './DeletePageButton';
 import { MovePageButton } from './MovePageButton';
 
 type QueryMap = Record<string, string | undefined>;
+
+const PAGE_VISIBILITIES = ['public', 'registered', 'restricted'] as const;
 
 function buildAdminPagesHref(query: QueryMap, overrides: QueryMap): string {
   const params = new URLSearchParams();
@@ -136,7 +139,7 @@ export function AdminPagesPanel({
         <input type="hidden" name="sort" value={list.sort} />
         <input type="hidden" name="direction" value={list.direction} />
         {currentSpace !== 'default' && <input type="hidden" name="space" value={currentSpace} />}
-        <div className="grid items-end gap-sm md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.7fr)_minmax(9rem,0.65fr)_minmax(9rem,0.65fr)_auto_auto]">
+        <div className="grid items-end gap-sm md:grid-cols-2 xl:grid-cols-[minmax(16rem,1.7fr)_minmax(9rem,0.65fr)_minmax(9rem,0.65fr)_minmax(10rem,0.7fr)_auto_auto]">
           <label className="space-y-xs">
             <span className="text-xs font-medium text-muted">{t('admin.pages.filters.keyword')}</span>
             <input
@@ -164,6 +167,15 @@ export function AdminPagesPanel({
               className="w-full rounded-md border border-border bg-background px-sm py-sm text-sm text-foreground"
             />
           </label>
+          <label className="space-y-xs">
+            <span className="text-xs font-medium text-muted">{t('admin.pages.filters.visibility')}</span>
+            <Select name="visibility" defaultValue={list.filters.visibility ?? ''}>
+              <option value="">{t('admin.pages.filters.visibilityAll')}</option>
+              {PAGE_VISIBILITIES.map((visibility) => (
+                <option key={visibility} value={visibility}>{t(`admin.pages.visibility.${visibility}`)}</option>
+              ))}
+            </Select>
+          </label>
           <Link
             href="/admin/pages"
             aria-label={t('admin.pages.filters.reset')}
@@ -190,6 +202,7 @@ export function AdminPagesPanel({
               <SortHeader t={t} query={query} list={list} sort="title">{t('admin.pages.table.title')}</SortHeader>
             </DataTableHeader>
             <DataTableHeader>{t('admin.pages.table.status')}</DataTableHeader>
+            <DataTableHeader>{t('admin.pages.table.visibility')}</DataTableHeader>
             <DataTableHeader aria-sort={sortAriaValue(list, 'author')}>
               <SortHeader t={t} query={query} list={list} sort="author">{t('admin.pages.table.author')}</SortHeader>
             </DataTableHeader>
@@ -205,7 +218,7 @@ export function AdminPagesPanel({
         <DataTableBody>
           {list.items.length === 0 ? (
             <DataTableRow>
-              <DataTableCell colSpan={canManage ? 6 : 5} className="py-lg text-center text-muted">
+              <DataTableCell colSpan={canManage ? 7 : 6} className="py-lg text-center text-muted">
                 {t('admin.pages.empty')}
               </DataTableCell>
             </DataTableRow>
@@ -240,6 +253,15 @@ export function AdminPagesPanel({
                   <DataTableCell>
                     <span className="inline-flex items-center gap-xs rounded-md border border-border px-sm py-xs text-xs capitalize text-muted">
                       {t(`admin.pages.status.${page.status}` as TranslationKey)}
+                    </span>
+                  </DataTableCell>
+                  <DataTableCell>
+                    <span
+                      className={`inline-flex items-center rounded-md border px-sm py-xs text-xs ${
+                        page.visibility === 'public' ? 'border-primary/40 text-primary' : 'border-border text-muted'
+                      }`}
+                    >
+                      {t(`admin.pages.visibility.${page.visibility}`)}
                     </span>
                   </DataTableCell>
                   <DataTableCell className="text-muted">

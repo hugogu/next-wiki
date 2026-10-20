@@ -812,12 +812,15 @@
         "dateTo": "更新结束日期",
         "apply": "应用筛选",
         "reset": "重置",
-        "space": "空间"
+        "space": "空间",
+        "visibility": "可见性",
+        "visibilityAll": "全部可见性"
       },
       "table": {
         "title": "标题",
         "path": "路径",
         "status": "状态",
+        "visibility": "可见性",
         "author": "作者",
         "edits": "编辑数",
         "updatedAt": "最后更新",
@@ -829,6 +832,11 @@
         "published_with_draft": "已发布，有待审核草稿",
         "deleted": "已删除",
         "linked": "链接"
+      },
+      "visibility": {
+        "public": "公开",
+        "registered": "已注册用户",
+        "restricted": "受限"
       },
       "actions": {
         "view": "查看页面",
