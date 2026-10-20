@@ -267,7 +267,7 @@ export function AdminPagesPanel({
                   <DataTableCell>
                     <span
                       className={`inline-flex items-center rounded-md border px-sm py-xs text-xs ${
-                        page.visibility === 'public' ? 'border-primary/40 text-primary' : 'border-border text-muted'
+                        page.visibility === 'public' ? 'border-primary text-primary' : 'border-border text-muted'
                       }`}
                     >
                       {t(`admin.pages.visibility.${page.visibility}`)}
