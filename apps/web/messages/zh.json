@@ -805,6 +805,8 @@
       "filters": {
         "keyword": "搜索",
         "keywordPlaceholder": "标题、作者或路径",
+        "folder": "文件夹",
+        "folderPlaceholder": "例如 news/2026",
         "title": "标题",
         "author": "作者",
         "path": "目录路径",
@@ -812,12 +814,15 @@
         "dateTo": "更新结束日期",
         "apply": "应用筛选",
         "reset": "重置",
-        "space": "空间"
+        "space": "空间",
+        "visibility": "可见性",
+        "visibilityAll": "全部可见性"
       },
       "table": {
         "title": "标题",
         "path": "路径",
         "status": "状态",
+        "visibility": "可见性",
         "author": "作者",
         "edits": "编辑数",
         "updatedAt": "最后更新",
@@ -829,6 +834,11 @@
         "published_with_draft": "已发布，有待审核草稿",
         "deleted": "已删除",
         "linked": "链接"
+      },
+      "visibility": {
+        "public": "公开",
+        "registered": "已注册用户",
+        "restricted": "受限"
       },
       "actions": {
         "view": "查看页面",
@@ -842,6 +852,34 @@
         "message": "确定删除“{title}”吗?页面会被隐藏，并触发索引协调任务。",
         "confirm": "删除页面",
         "error": "无法删除页面。"
+      },
+      "bulk": {
+        "selectPage": "选择 {title}",
+        "selectAll": "选择本页显示的所有页面",
+        "selected": "已选择 {count} 个页面",
+        "clearSelection": "清除选择",
+        "open": "设置可见性…",
+        "title": "设置页面可见性",
+        "description": "一次更改多个页面的阅读权限，不影响已发布的内容。",
+        "scopeLabel": "要更改的页面",
+        "scopeSelected": "选中的页面（{count}）",
+        "scopeFolder": "{space} 中 {folder} 下的所有页面",
+        "scopeSpace": "{space} 中的所有页面",
+        "visibilityLabel": "新的可见性",
+        "visibilityPlaceholder": "选择可见性",
+        "counting": "正在统计页面…",
+        "summary": "范围内共 {matched} 个页面，其中 {count} 个将被更改。",
+        "missing": "{count} 个选中的页面已不存在，将被跳过。",
+        "breakdown": "它们当前为：公开 {public} 个，已注册用户 {registered} 个，受限 {restricted} 个。",
+        "publicWarning": "{count} 个页面将对所有人公开，无需登录即可阅读。",
+        "publicWarningRestricted": "其中 {count} 个当前为受限页面，目前只有管理员可以阅读。",
+        "publicWarningUnpublished": "其中 {count} 个从未发布过，一旦发布就会对所有人公开。",
+        "apply": "更改 {count} 个页面",
+        "applyIdle": "更改可见性",
+        "progress": "已更改 {changed}/{total} 个页面…",
+        "done": "已将 {count} 个页面设为{visibility}。",
+        "error": "无法更改页面可见性。",
+        "partialError": "已更改 {changed}/{total} 个页面后失败：{message}"
       },
       "empty": "没有符合当前筛选条件的页面。",
       "sortBy": "按 {column} 排序",

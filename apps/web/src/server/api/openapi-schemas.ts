@@ -2778,6 +2778,62 @@ export const PageVisibilityPathParams = z
   .object({ pageId: z.string().uuid().describe('Stable page identifier.') })
   .describe('Page visibility path parameters.');
 
+export const BulkPageVisibilityScope = z
+  .discriminatedUnion('kind', [
+    z.object({
+      kind: z.literal('pages'),
+      pageIds: z.array(z.string().uuid()).min(1).max(500).describe('Pages to change, at most 500.'),
+    }),
+    z.object({
+      kind: z.literal('folder'),
+      space: z.string().max(100).regex(/^[a-z0-9][a-z0-9-]*$/).optional().describe('Space slug; the Wiki space when omitted.'),
+      pathPrefix: z
+        .string()
+        .min(1)
+        .max(200)
+        .regex(/^[a-z0-9]([a-z0-9_/-]*[a-z0-9])?$/)
+        .optional()
+        .describe('Folder: the page at this path and every page below it. The whole space when omitted.'),
+    }),
+  ])
+  .describe('Chosen pages, or the source pages in a folder of one space (translations are not included).');
+
+export const BulkPageVisibilityInput = z
+  .object({
+    scope: BulkPageVisibilityScope,
+    visibility: z.enum(['public', 'registered', 'restricted']).describe('Visibility every page in scope should have.'),
+    dryRun: z.boolean().optional().describe('Report what would change without changing anything.'),
+  })
+  .describe('Bulk page visibility change.');
+
+export const BulkPageVisibilityResult = z
+  .object({
+    visibility: z.enum(['public', 'registered', 'restricted']).describe('The requested visibility.'),
+    dryRun: z.boolean().describe('Whether this was a dry run.'),
+    matched: z.number().int().min(0).describe('Pages in scope; deleted pages and unknown ids are not counted.'),
+    pending: z
+      .object({
+        total: z.number().int().min(0),
+        public: z.number().int().min(0),
+        registered: z.number().int().min(0),
+        restricted: z.number().int().min(0),
+        unpublished: z.number().int().min(0).describe('Of the pending pages, those never published.'),
+      })
+      .describe('Pages in scope that did not have the requested visibility before this request, by their visibility then.'),
+    changed: z.number().int().min(0).describe('Pages this request changed; always 0 for a dry run.'),
+    remaining: z.number().int().min(0).describe('Pending pages still to change; repeat the request until this is 0.'),
+    results: z
+      .array(
+        z.object({
+          pageId: z.string().uuid(),
+          outcome: z.enum(['changed', 'unchanged', 'not_found']),
+          previousVisibility: z.enum(['public', 'registered', 'restricted']).nullable().describe('Visibility before this request; null when the page was not found.'),
+        }),
+      )
+      .describe('Each requested page for a pages scope, or each page changed by this request for a folder scope. Empty for a dry run.'),
+  })
+  .describe('Outcome of a bulk page visibility change.');
+
 export const PageRevisionViewPathParams = z
   .object({
     pageId: z.string().uuid().describe('Stable page identifier.'),

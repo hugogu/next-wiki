@@ -805,6 +805,8 @@
       "filters": {
         "keyword": "Search",
         "keywordPlaceholder": "Title, author, or path",
+        "folder": "Folder",
+        "folderPlaceholder": "e.g. news/2026",
         "title": "Title",
         "author": "Author",
         "path": "Directory path",
@@ -812,12 +814,15 @@
         "dateTo": "Updated to",
         "apply": "Apply filters",
         "reset": "Reset",
-        "space": "Space"
+        "space": "Space",
+        "visibility": "Visibility",
+        "visibilityAll": "Any visibility"
       },
       "table": {
         "title": "Title",
         "path": "Path",
         "status": "Status",
+        "visibility": "Visibility",
         "author": "Author",
         "edits": "Edits",
         "updatedAt": "Updated",
@@ -829,6 +834,11 @@
         "published_with_draft": "Published + draft",
         "deleted": "Deleted",
         "linked": "linked"
+      },
+      "visibility": {
+        "public": "Public",
+        "registered": "Registered users",
+        "restricted": "Restricted"
       },
       "actions": {
         "view": "View page",
@@ -842,6 +852,34 @@
         "message": "Delete \"{title}\"? This hides the page and queues index reconciliation.",
         "confirm": "Delete page",
         "error": "Could not delete page."
+      },
+      "bulk": {
+        "selectPage": "Select {title}",
+        "selectAll": "Select all pages shown",
+        "selected": "{count, plural, one {# page selected} other {# pages selected}}",
+        "clearSelection": "Clear selection",
+        "open": "Set visibility…",
+        "title": "Set page visibility",
+        "description": "Change who can read many pages at once. What is published does not change.",
+        "scopeLabel": "Pages to change",
+        "scopeSelected": "Selected pages ({count})",
+        "scopeFolder": "Every page in {space} under {folder}",
+        "scopeSpace": "Every page in {space}",
+        "visibilityLabel": "New visibility",
+        "visibilityPlaceholder": "Choose visibility",
+        "counting": "Counting pages…",
+        "summary": "{matched, plural, one {# page} other {# pages}} in scope, {count} of them will change.",
+        "missing": "{count, plural, one {# selected page no longer exists and will be skipped.} other {# selected pages no longer exist and will be skipped.}}",
+        "breakdown": "They are now: {public} public, {registered} for registered users, {restricted} restricted.",
+        "publicWarning": "{count, plural, one {# page} other {# pages}} will become readable by anyone, without signing in.",
+        "publicWarningRestricted": "{count, plural, one {# of them is restricted now, so only administrators can read it today.} other {# of them are restricted now, so only administrators can read them today.}}",
+        "publicWarningUnpublished": "{count, plural, one {# of them has never been published; it becomes public as soon as it is published.} other {# of them have never been published; they become public as soon as they are published.}}",
+        "apply": "Change {count, plural, one {# page} other {# pages}}",
+        "applyIdle": "Change visibility",
+        "progress": "Changed {changed} of {total} pages…",
+        "done": "Changed {count, plural, one {# page} other {# pages}} to {visibility}.",
+        "error": "Could not change page visibility.",
+        "partialError": "Changed {changed} of {total} pages, then failed: {message}"
       },
       "empty": "No pages match the current filters.",
       "sortBy": "Sort by {column}",

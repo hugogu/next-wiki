@@ -395,6 +395,7 @@ export type AdminPageListItem = {
   spaceSlug: string;
   kind: 'native' | 'link';
   nature: 'original' | 'generated';
+  visibility: PageVisibility;
 };
 
 export type AdminPageListFilters = {
@@ -412,6 +413,9 @@ export type AdminPageListFilters = {
   tag?: string;
   /** 022: which content space to list (default wiki when omitted). */
   space?: string;
+  visibility?: PageVisibility;
+  /** The page at this path and every page below it. */
+  folder?: string;
 };
 
 /** 022: move a page to another content space (Admin, LLM Wiki mode). Raw is not
@@ -422,6 +426,64 @@ export const pageMoveInputSchema = z.object({
   visibility: pageVisibilitySchema.optional(),
 });
 export type PageMoveInput = z.infer<typeof pageMoveInputSchema>;
+
+/** Most pages one bulk visibility request changes; a larger folder takes several requests. */
+export const MAX_BULK_VISIBILITY_PAGES = 500;
+
+/**
+ * The pages a bulk visibility change covers: chosen pages, or a folder of one
+ * space (the folder's own page and everything below it; the whole space when
+ * `pathPrefix` is left out). A folder covers source pages, not translations.
+ */
+export const bulkPageVisibilityScopeSchema = z.discriminatedUnion('kind', [
+  z.object({
+    kind: z.literal('pages'),
+    pageIds: z.array(z.string().uuid()).min(1).max(MAX_BULK_VISIBILITY_PAGES),
+  }).strict(),
+  z.object({
+    kind: z.literal('folder'),
+    space: slugSchema.optional(),
+    pathPrefix: pathSchema.optional(),
+  }).strict(),
+]);
+
+export const bulkPageVisibilityInputSchema = z.object({
+  scope: bulkPageVisibilityScopeSchema,
+  visibility: pageVisibilitySchema,
+  /** Report what would change without changing anything. */
+  dryRun: z.boolean().optional(),
+}).strict();
+export type BulkPageVisibilityInput = z.infer<typeof bulkPageVisibilityInputSchema>;
+
+export const bulkPageVisibilityResultSchema = z.object({
+  visibility: pageVisibilitySchema,
+  dryRun: z.boolean(),
+  /** Pages in scope; deleted pages and unknown ids are not counted. */
+  matched: z.number().int().nonnegative(),
+  /** Pages in scope that did not have the requested visibility before this request. */
+  pending: z.object({
+    total: z.number().int().nonnegative(),
+    public: z.number().int().nonnegative(),
+    registered: z.number().int().nonnegative(),
+    restricted: z.number().int().nonnegative(),
+    /** Of those, pages that have never been published. */
+    unpublished: z.number().int().nonnegative(),
+  }),
+  /** Pages this request changed; always 0 for a dry run. */
+  changed: z.number().int().nonnegative(),
+  /** Pending pages still to change; repeat the request until this is 0. */
+  remaining: z.number().int().nonnegative(),
+  /**
+   * Each requested page's outcome for a `pages` scope, or each page this
+   * request changed for a `folder` scope. Empty for a dry run.
+   */
+  results: z.array(z.object({
+    pageId: z.string().uuid(),
+    outcome: z.enum(['changed', 'unchanged', 'not_found']),
+    previousVisibility: pageVisibilitySchema.nullable(),
+  })),
+});
+export type BulkPageVisibilityResult = z.infer<typeof bulkPageVisibilityResultSchema>;
 
 export type AdminPageListResult = {
   items: AdminPageListItem[];

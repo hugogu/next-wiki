@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, ne, or, sql, inArray, like } from 'drizzle-orm';
+import { eq, and, isNotNull, isNull, desc, exists, max, count, asc, ilike, gte, lte, ne, or, sql, inArray } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/server/db';
 import { getAiContentLevel } from './ai-content-level';
@@ -12,7 +12,9 @@ import { syncRevisionAssetRefs } from '@/server/services/content-assets';
 import { assertNotMigrating } from '@/server/services/migration';
 import { assertPathNotReserved } from '@/server/routes/reserved-paths';
 import { assertAddressAvailable, setSlug } from '@/server/services/page-addresses';
-import { pathSchema, pageAddressSchema, localeCodeSchema } from '@next-wiki/shared';
+import { pathInFolder } from '@/server/services/page-folders';
+import { setPagesVisibility } from '@/server/services/page-visibility';
+import { pathSchema, pageAddressSchema, localeCodeSchema, pageVisibilitySchema } from '@next-wiki/shared';
 import type {
   AdminPageListFilters,
   AdminPageListItem,
@@ -143,6 +145,7 @@ function clampPageSize(value: number | undefined): number {
 }
 
 function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilters {
+  const folder = filters.folder?.trim().replace(/^\/+|\/+$/g, '');
   return {
     ...(filters.keyword?.trim() ? { keyword: filters.keyword.trim() } : {}),
     ...(filters.title?.trim() ? { title: filters.title.trim() } : {}),
@@ -152,6 +155,8 @@ function compactFilters(filters: AdminPageListFilters = {}): AdminPageListFilter
     ...(filters.dateTo?.trim() ? { dateTo: filters.dateTo.trim() } : {}),
     ...(filters.tag?.trim() ? { tag: normalizeTagName(filters.tag) } : {}),
     ...(filters.space?.trim() ? { space: filters.space.trim() } : {}),
+    ...(pageVisibilitySchema.safeParse(filters.visibility).success ? { visibility: filters.visibility } : {}),
+    ...(folder ? { folder } : {}),
   };
 }
 
@@ -196,6 +201,8 @@ function adminPageConditions(
     keywordCondition,
     filters.title ? ilike(schema.pages.title, `%${filters.title}%`) : undefined,
     filters.path ? ilike(schema.pages.path, `%${filters.path}%`) : undefined,
+    filters.visibility ? eq(schema.pages.visibility, filters.visibility) : undefined,
+    filters.folder ? pathInFolder(filters.folder) : undefined,
     filters.author
       ? includeAuthorEmail
         ? or(
@@ -536,6 +543,7 @@ export async function listAdminPages(
           latestVersionId: schema.pages.latestVersionId,
           kind: schema.pages.kind,
           nature: schema.pages.nature,
+          visibility: schema.pages.visibility,
           authorDisplayName: userDisplayNameSql(),
           authorEmail: schema.users.email,
           editCount: count(schema.pageRevisions.id),
@@ -581,6 +589,7 @@ export async function listAdminPages(
           latestVersionId: schema.pages.latestVersionId,
           kind: schema.pages.kind,
           nature: schema.pages.nature,
+          visibility: schema.pages.visibility,
           authorDisplayName: userDisplayNameSql(),
           authorEmail: schema.users.email,
           createdAt: schema.pages.createdAt,
@@ -689,6 +698,7 @@ export async function listAdminPages(
         spaceSlug: space.slug,
         kind: row.kind,
         nature: row.nature,
+        visibility: row.visibility,
       };
     }),
     totalItems,
@@ -1542,13 +1552,6 @@ export async function removeFolder(
     throw new DomainError('FORBIDDEN', 'You do not have permission to delete pages in this space');
   }
 
-  // `pathSchema` allows underscores, which PostgreSQL `LIKE` treats as
-  // single-character wildcards — escape them so a prefix like `foo_bar` only
-  // matches that exact subtree, not `fooXbar/...`. Backslash is the default
-  // LIKE escape character; escape it first so a hostile path can't smuggle a
-  // partial wildcard past us.
-  const escapedPrefix = pathPrefix.replace(/\\/g, '\\\\').replace(/%/g, '\\%').replace(/_/g, '\\_');
-
   const rows = await db
     .select({
       id: schema.pages.id,
@@ -1562,10 +1565,7 @@ export async function removeFolder(
         eq(schema.pages.spaceId, space.id),
         isNull(schema.pages.deletedAt),
         isNull(schema.pages.translationGroupId),
-        or(
-          eq(schema.pages.path, pathPrefix),
-          like(schema.pages.path, `${escapedPrefix}/%`),
-        ),
+        pathInFolder(pathPrefix),
       ),
     );
 
@@ -1749,28 +1749,17 @@ export async function create(
   return created;
 }
 
-/** Set the anonymous-read decision without changing publication state. */
+/**
+ * Set the anonymous-read decision without changing publication state. One
+ * page takes the same path as many, so the change is audited the same way.
+ */
 export async function setVisibility(
   ctx: PermCtx,
   pageId: string,
   visibility: 'public' | 'registered' | 'restricted',
 ): Promise<'public' | 'registered' | 'restricted'> {
-  if (ctx.actor.kind !== 'user' || ctx.actor.role !== 'admin') {
-    throw new DomainError('FORBIDDEN', 'Only Administrators can change page visibility');
-  }
-  const page = await db.query.pages.findFirst({
-    where: and(eq(schema.pages.id, pageId), isNull(schema.pages.deletedAt)),
-  });
-  if (!page) throw new DomainError('NOT_FOUND', 'Page not found');
-  const space = await getSpaceById(page.spaceId);
-  if (!space) throw new DomainError('NOT_FOUND', 'Space not found');
-
-  await db
-    .update(schema.pages)
-    .set({ visibility, updatedAt: new Date() })
-    .where(eq(schema.pages.id, page.id));
-  invalidatePublicContentCache();
-  await notifyPublicContentChanged('publish');
+  const { results } = await setPagesVisibility(ctx, { scope: { kind: 'pages', pageIds: [pageId] }, visibility });
+  if (results[0]?.outcome === 'not_found') throw new DomainError('NOT_FOUND', 'Page not found');
   return visibility;
 }
 

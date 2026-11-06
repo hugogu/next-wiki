@@ -17,6 +17,16 @@ vi.mock('./MovePageButton', () => ({
   MovePageButton: () => <button data-testid="move-page-button">move</button>,
 }));
 vi.mock('./DeletePageButton', () => ({ DeletePageButton: () => null }));
+vi.mock('./BulkVisibilityAction', () => ({
+  BulkVisibilityAction: ({ space, folder }: { space: string; folder?: string }) => (
+    <div data-testid="bulk-visibility" data-space={space} data-folder={folder ?? ''} />
+  ),
+}));
+vi.mock('./AdminPageSelection', () => ({
+  PageSelectionProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  PageSelectCheckbox: ({ pageId }: { pageId: string }) => <input type="checkbox" data-select-page={pageId} />,
+  SelectAllPagesCheckbox: () => <input type="checkbox" data-select-all="" />,
+}));
 vi.mock('@/components/pages/EditableTagList', () => ({
   EditableTagList: ({ canEdit }: { canEdit?: boolean }) => <span data-can-edit={String(canEdit)} />,
 }));
@@ -74,6 +84,7 @@ function nativePage(overrides: Partial<AdminPageListItem> = {}): AdminPageListIt
     spaceSlug: 'raw',
     kind: 'native',
     nature: 'original',
+    visibility: 'public',
     ...overrides,
   };
 }
@@ -222,5 +233,83 @@ describe('AdminPagesPanel draft review links', () => {
 
     expect(html).toContain('href="/raw/conversations/feishu/2026/07/21/action-1"');
     expect(html).not.toContain('admin.pages.actions.reviewDraft');
+  });
+});
+
+describe('AdminPagesPanel visibility', () => {
+  it('shows each page’s visibility and keeps the chosen visibility filter', () => {
+    const list: AdminPageListResult = {
+      items: [nativePage({ id: 'page-1', spaceSlug: 'default' }), nativePage({ id: 'page-2', visibility: 'restricted', spaceSlug: 'default' })],
+      totalItems: 2,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: { visibility: 'restricted' },
+    };
+
+    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{ visibility: 'restricted' }} />);
+
+    expect(html).toContain('admin.pages.table.visibility');
+    expect(html).toContain('admin.pages.visibility.public');
+    expect(html).toContain('admin.pages.visibility.restricted');
+    expect(html).toMatch(/<select[^>]*name="visibility"/);
+    expect(html).toMatch(/<option value="restricted" selected="">admin\.pages\.visibility\.restricted<\/option>/);
+  });
+
+  it('keeps the folder filter in the filter form', () => {
+    const list: AdminPageListResult = {
+      items: [],
+      totalItems: 0,
+      currentPage: 1,
+      totalPages: 1,
+      pageSize: 30,
+      sort: 'updatedAt',
+      direction: 'desc',
+      filters: { folder: 'news/2026' },
+    };
+
+    const html = renderToStaticMarkup(<AdminPagesPanel t={t} list={list} query={{ folder: 'news/2026' }} />);
+
+    expect(html).toContain('admin.pages.filters.folder');
+    expect(html).toMatch(/<input[^>]*name="folder"[^>]*value="news\/2026"/);
+  });
+});
+
+describe('AdminPagesPanel bulk visibility', () => {
+  const list: AdminPageListResult = {
+    items: [nativePage({ id: 'page-1', spaceSlug: 'generated' }), nativePage({ id: 'page-2', spaceSlug: 'generated' })],
+    totalItems: 2,
+    currentPage: 1,
+    totalPages: 1,
+    pageSize: 30,
+    sort: 'updatedAt',
+    direction: 'desc',
+    filters: { space: 'generated', folder: 'news' },
+  };
+
+  it('offers administrators row selection and one bulk visibility action for the current space and folder', () => {
+    const html = renderToStaticMarkup(
+      <AdminPagesPanel t={t} list={list} query={{ space: 'generated', folder: 'news' }} spaceFilterEnabled />,
+    );
+
+    expect(html.match(/data-testid="bulk-visibility"/g)).toHaveLength(1);
+    expect(html).toContain('data-space="generated"');
+    expect(html).toContain('data-folder="news"');
+    expect(html).toContain('data-select-all=""');
+    expect(html).toContain('data-select-page="page-1"');
+    expect(html).toContain('data-select-page="page-2"');
+  });
+
+  it('keeps selection and bulk changes away from read-only viewers', () => {
+    const html = renderToStaticMarkup(
+      <AdminPagesPanel t={t} list={list} query={{ space: 'generated' }} canManage={false} spaceFilterEnabled />,
+    );
+
+    expect(html).not.toContain('data-testid="bulk-visibility"');
+    expect(html).not.toContain('data-select-all');
+    expect(html).not.toContain('data-select-page');
+    expect(html).toContain('admin.pages.table.visibility');
   });
 });

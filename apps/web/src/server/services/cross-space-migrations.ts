@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { and, asc, eq, gt, inArray, isNull, ne, or, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, inArray, isNull, ne, sql } from 'drizzle-orm';
 import type { PermCtx } from '@/server/permissions';
 import { db } from '@/server/db';
 import * as schema from '@/server/db/schema';
@@ -8,6 +8,7 @@ import { enqueue, QUEUES } from '@/server/jobs/runtime';
 import { assertNoSwitchInProgress, assertSpaceKindAllowed } from '@/server/services/writing-mode';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { localeEquals, routingLocale } from '@/server/services/page-locale';
+import { pathInFolder } from '@/server/services/page-folders';
 import { renderPageMarkdown } from '@/server/services/wiki-links';
 import { deriveOkfTypeFromPath, ensureOkfConformance, ensureOkfConceptPath } from '@/server/services/okf';
 import { readMarkdownWithFallback } from '@/server/content-store/read-router';
@@ -82,7 +83,7 @@ async function resolveSelection(input: SpaceMigrationPreviewInput) {
         eq(schema.pages.spaceId, sourceSpaceId),
         isNull(schema.pages.deletedAt),
         eq(schema.pages.kind, 'native'),
-        or(eq(schema.pages.path, basePath), sql`${schema.pages.path} like ${`${basePath}/%`}`),
+        pathInFolder(basePath),
       ),
       orderBy: [asc(schema.pages.path), asc(schema.pages.locale)],
     });

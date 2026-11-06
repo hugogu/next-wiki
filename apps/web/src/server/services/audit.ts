@@ -11,8 +11,11 @@ import type {
   AuthStatus,
   AuditEntryType,
   AuditOrigin,
+  PageVisibility,
   RequestLogSettingsAuditMetadata,
 } from '@next-wiki/shared';
+
+type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export type AuditEntryInput = {
   keyId: string | null;
@@ -214,6 +217,33 @@ export function auditAddressRelease(
     authStatus: 'authenticated',
     errorMessage: null,
   });
+}
+
+/**
+ * 032 (FR-015): one entry per page whose visibility changed, whether one page
+ * changed or a whole folder did. Written through the caller's transaction, so
+ * a visibility change is never committed without its audit entry. The old and
+ * new visibility are encoded in the synthetic path, like the address entries
+ * above.
+ */
+export async function auditPageVisibilityChanges(
+  executor: DbExecutor,
+  userId: string,
+  changes: { pageId: string; from: PageVisibility; to: PageVisibility }[],
+): Promise<void> {
+  if (changes.length === 0) return;
+  await executor.insert(schema.apiAuditEntries).values(changes.map((change) => ({
+    keyId: null,
+    userId,
+    entryType: 'api',
+    origin: 'web' as const,
+    method: 'PUT',
+    path: `/pages/${change.pageId}/visibility?from=${change.from}&to=${change.to}`,
+    statusCode: 200,
+    durationMs: 0,
+    authStatus: 'authenticated',
+    errorMessage: null,
+  })));
 }
 
 export function auditImmediateToolMutation(
