@@ -123,8 +123,9 @@ function withHasChildrenFlag(nodes: PublicPageTreeNode[]): LazyPublicPageTreeNod
 async function fetchBranchChildren(
   pathPrefix: string,
   space: ReaderSpace,
+  status: 'all' | 'published',
 ): Promise<LazyPublicPageTreeNode[]> {
-  const params = new URLSearchParams({ pathPrefix });
+  const params = new URLSearchParams({ pathPrefix, status });
   if (space !== 'wiki') params.set('space', space);
   const response = await fetch(`/api/v1/tree?${params.toString()}`, {
     headers: { accept: 'application/json' },
@@ -698,6 +699,8 @@ export function Navigator({
     side: 'right',
   });
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(ancestorPaths(currentPath)));
+  // Match the initial tree; the API still checks draft permissions per page.
+  const branchStatus = user.kind === 'user' ? 'all' : 'published';
   const adminNavHrefs = ADMIN_GROUPS.flatMap((group) => group.items.map((item) => item.href));
   const userCenterNavHrefs = USER_CENTER_ITEMS.map((item) => item.href);
   const [branchCache, setBranchCache] = useState<Record<string, LazyPublicPageTreeNode[]>>({});
@@ -743,7 +746,7 @@ export function Navigator({
       if (branchCache[path] || inflight.current.has(path)) return;
       inflight.current.add(path);
       setBranchLoad((prev) => ({ ...prev, [path]: 'loading' }));
-      fetchBranchChildren(path, space)
+      fetchBranchChildren(path, space, branchStatus)
         .then((children) => {
           setBranchCache((prev) => ({ ...prev, [path]: children }));
           setBranchLoad((prev) => {
@@ -763,7 +766,7 @@ export function Navigator({
           inflight.current.delete(path);
         });
     },
-    [branchCache, space],
+    [branchCache, space, branchStatus],
   );
 
   // Drop lazily-loaded branches at/under a deleted subtree so a refreshed tree
