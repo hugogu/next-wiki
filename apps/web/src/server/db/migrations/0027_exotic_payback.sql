@@ -1,0 +1,1 @@
+ALTER TABLE "users" ADD COLUMN "navigation_mode" text DEFAULT 'tree' NOT NULL;

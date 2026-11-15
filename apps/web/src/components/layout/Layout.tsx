@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import type { ReactNode } from 'react';
 import * as authService from '@/server/services/auth';
-import * as publicContent from '@/server/services/public-content';
+import { getCachedPageNavigation, getPageNavigation } from '@/server/services/page-navigation';
+import { getPreferences } from '@/server/services/user-center';
 import { AppShell } from './AppShell';
 import type { PageContext } from './types';
 import { buildAnonymousCtx, isDemoReadOnly } from '@/server/permissions';
@@ -23,6 +24,7 @@ export async function Layout({
   staticPublic = false,
   space,
   routePrefix,
+  navigationPath,
 }: {
   children: ReactNode;
   pageContext?: PageContext;
@@ -33,6 +35,7 @@ export async function Layout({
   staticPublic?: boolean;
   space?: ReaderSpace;
   routePrefix?: string;
+  navigationPath?: string;
 }) {
   // staticPublic output is cached and shared by every visitor (ISR). Resolving
   // the real per-request session here would bake one visitor's identity into
@@ -47,15 +50,15 @@ export async function Layout({
     }
   }
 
-  // Sidebar page tree: ship only top-level nodes plus the full subtree of
-  // every node that lies on the current page's ancestor chain. Other branches
-  // start collapsed with a `hasChildren` flag so the client can lazy-load them
-  // on expand via `/api/v1/tree?pathPrefix=…`. This keeps the initial HTML
-  // payload proportional to sidebar depth instead of wiki size.
-  const treeResult = !staticPublic && space
-    ? await publicContent.getPageTree({ actor }, { status: 'all', space })
-    : await publicContent.getCachedPublishedPageTree();
-  const tree = sparsifyTree(treeResult.root, pageContext?.path);
+  const navigationMode = !staticPublic && actor.kind === 'user'
+    ? (await getPreferences({ actor }))?.navigationMode ?? 'tree'
+    : 'tree';
+  const currentPath = navigationPath ?? pageContext?.path ?? '';
+  const query = { path: currentPath, mode: navigationMode, space: space ?? 'wiki', status: 'all' as const };
+  const treeResult = admin || userCenter ? null : actor.kind === 'anonymous'
+    ? await getCachedPageNavigation(query)
+    : await getPageNavigation({ actor }, query);
+  const tree = treeResult ? sparsifyTree(treeResult.root, currentPath) : [];
   const aiEntitlements =
     actor.kind === 'user'
       ? await getMyEntitlements({ actor }).catch(() => null)
@@ -70,6 +73,8 @@ export async function Layout({
     <AppShell
       user={actor}
       tree={tree}
+      navigationMode={navigationMode}
+      navigationPath={navigationPath}
       pageContext={pageContext}
       admin={admin}
       demoReadOnly={admin ? isDemoReadOnly() : false}

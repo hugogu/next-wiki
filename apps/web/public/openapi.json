@@ -4332,6 +4332,13 @@
       "PreferencesView": {
         "type": "object",
         "properties": {
+          "navigationMode": {
+            "type": "string",
+            "enum": [
+              "tree",
+              "current"
+            ]
+          },
           "theme": {
             "type": [
               "string",
@@ -4361,6 +4368,7 @@
           }
         },
         "required": [
+          "navigationMode",
           "theme",
           "locale",
           "webResearchPreference"
@@ -6087,6 +6095,46 @@
         ],
         "description": "Additive patch for the supported page metadata fields."
       },
+      "PublicPageNavigationQuery": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/PublicPagePath"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  ""
+                ]
+              }
+            ],
+            "default": "",
+            "description": "Organizational path; empty for root."
+          },
+          "space": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "published",
+              "all"
+            ],
+            "default": "published"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "tree",
+              "current"
+            ],
+            "default": "current"
+          }
+        },
+        "description": "Bounded navigation projection. Current returns direct children; tree includes root and ancestor levels."
+      },
       "PublicPagePath": {
         "type": "string",
         "minLength": 1,
@@ -6728,6 +6776,10 @@
               "deleted"
             ],
             "description": "Page status when a page exists, otherwise null."
+          },
+          "hasChildren": {
+            "type": "boolean",
+            "description": "Whether readable descendants exist; shallow navigation omits their metadata."
           },
           "children": {
             "type": "array",
@@ -12273,6 +12325,14 @@
       "UpdatePreferencesInput": {
         "type": "object",
         "properties": {
+          "navigationMode": {
+            "type": "string",
+            "enum": [
+              "tree",
+              "current"
+            ],
+            "description": "Sidebar navigation: full tree or direct children of the current path."
+          },
           "theme": {
             "type": [
               "string",
@@ -27347,6 +27407,90 @@
         }
       }
     },
+    "/v1/navigation": {
+      "get": {
+        "operationId": "get-v1-navigation",
+        "summary": "Get path-scoped page navigation",
+        "description": "Returns direct children of path in current mode, or root and ancestor levels in tree mode.",
+        "tags": [
+          "Tree"
+        ],
+        "parameters": [
+          {
+            "in": "query",
+            "name": "path",
+            "required": false,
+            "schema": {
+              "oneOf": [
+                {
+                  "$ref": "#/components/schemas/PublicPagePath"
+                },
+                {
+                  "type": "string",
+                  "enum": [
+                    ""
+                  ]
+                }
+              ],
+              "default": "",
+              "description": "Organizational path; empty for root."
+            },
+            "description": "Organizational path; empty for root."
+          },
+          {
+            "in": "query",
+            "name": "space",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "published",
+                "all"
+              ],
+              "default": "published"
+            }
+          },
+          {
+            "in": "query",
+            "name": "mode",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "tree",
+                "current"
+              ],
+              "default": "current"
+            }
+          }
+        ],
+        "security": [
+          {
+            "BearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PublicPageTreeResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/tree": {
       "get": {
         "operationId": "get-v1-tree",
@@ -27702,7 +27846,7 @@
       "patch": {
         "operationId": "patch-user-preferences",
         "summary": "Update preferences",
-        "description": "Updates the signed-in user's theme, locale, and external web-research preference.",
+        "description": "Updates the signed-in user's theme, locale, navigation mode (tree or current), and external web-research preference.",
         "tags": [
           "User"
         ],

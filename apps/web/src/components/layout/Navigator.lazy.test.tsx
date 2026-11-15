@@ -74,3 +74,28 @@ describe('Navigator lazy branches', () => {
     }
   });
 });
+
+it('loads nested shallow branches once and keeps them in memory when collapsed', async () => {
+  const fetch = vi.fn(async (url: string) => {
+    const path = new URL(url, 'https://wiki.test').searchParams.get('path');
+    return Response.json({ root: { children: path === 'guides'
+      ? [{ path: 'guides/tools', segment: 'tools', title: null, pageId: null, slug: null, status: null, hasChildren: true, children: [] }]
+      : [{ path: 'guides/tools/cli', segment: 'cli', title: 'CLI', pageId: 'cli', slug: 'cli', status: 'published', hasChildren: false, children: [] }] } });
+  });
+  vi.stubGlobal('fetch', fetch);
+  const container = document.createElement('div');
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(<Navigator tree={[{ path: 'guides', segment: 'guides', title: 'Guides', pageId: 'guides', slug: 'guides', status: 'published', hasChildren: true, children: [] }]} user={{ kind: 'anonymous' }} isOpen={false} onClose={() => {}} />));
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="guides"]')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="tools"]')!.click());
+    expect(container.querySelector('a[href="/cli"]')).not.toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="tools"]')!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>('button[aria-label="tools"]')!.click());
+    expect(container.querySelector('a[href="/cli"]')).not.toBeNull();
+    expect(fetch).toHaveBeenCalledTimes(2);
+  } finally {
+    act(() => root.unmount());
+    vi.unstubAllGlobals();
+  }
+});

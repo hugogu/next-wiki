@@ -773,6 +773,7 @@ export const publicPageTreeNodeSchema: z.ZodType<PublicPageTreeNode> = z.object(
   // (no `pageId` of its own) exactly like `pageId`/`title`/`status`.
   slug: z.string().nullable(),
   status: publicPageStatusSchema.nullable(),
+  hasChildren: z.boolean().optional(),
   children: z.lazy(() => z.array(publicPageTreeNodeSchema)),
 });
 export type PublicPageTreeNode = {
@@ -782,6 +783,7 @@ export type PublicPageTreeNode = {
   pageId: string | null;
   slug: string | null;
   status: PublicPageStatus | null;
+  hasChildren?: boolean;
   children: PublicPageTreeNode[];
 };
 
@@ -790,6 +792,14 @@ export const publicPageTreeResponseSchema = z.object({
   pageCount: z.number().int().nonnegative(),
 });
 export type PublicPageTreeResponse = z.infer<typeof publicPageTreeResponseSchema>;
+
+export const publicPageNavigationQuerySchema = z.object({
+  path: pathSchema.or(z.literal('')).default(''),
+  space: z.string().optional(),
+  status: z.enum(['published', 'all']).default('published'),
+  mode: z.enum(['tree', 'current']).default('current'),
+});
+export type PublicPageNavigationQuery = z.infer<typeof publicPageNavigationQuerySchema>;
 
 // ---- 008: Maintenance & Intelligence schemas ----
 

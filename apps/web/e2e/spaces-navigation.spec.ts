@@ -111,9 +111,9 @@ test.describe('LLM Wiki space navigation', () => {
 
     await page.goto('/spaces/generated/e2e/generated');
     const breadcrumbs = page.locator('nav[aria-label="Breadcrumbs"]');
-    await expect(breadcrumbs.getByRole('link', { name: 'Generated' })).toHaveAttribute('href', '/spaces/generated');
-    await expect(breadcrumbs.getByRole('link', { name: 'e2e' })).toHaveAttribute('href', '/spaces/generated/e2e');
-    await expect(breadcrumbs.getByText('generated', { exact: true })).toBeVisible();
+    await expect(breadcrumbs.getByRole('link', { name: 'Generated' })).toHaveAttribute('href', '/pages/browse/generated');
+    await expect(breadcrumbs.getByRole('link', { name: 'e2e' })).toHaveAttribute('href', '/pages/browse/generated/e2e');
+    await expect(breadcrumbs.getByText('Generated E2E page', { exact: true })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Generated E2E page' })).toBeVisible();
 
     await switcher.getByRole('link', { name: 'Raw' }).click();

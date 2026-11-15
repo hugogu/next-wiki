@@ -30,6 +30,8 @@ function isSessionUser(value: unknown): value is SessionUser {
 export function AppShell({
   user: initialUser,
   tree,
+  navigationMode,
+  navigationPath,
   pageContext,
   admin = false,
   demoReadOnly = false,
@@ -154,7 +156,8 @@ export function AppShell({
             tree={tree}
             admin={admin}
             userCenter={userCenter}
-            currentPath={resolvedPageContext?.path}
+            currentPath={navigationPath ?? resolvedPageContext?.path}
+            navigationMode={navigationMode}
             isOpen={navOpen}
             onClose={() => setNavOpen(false)}
             user={user}

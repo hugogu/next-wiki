@@ -2426,7 +2426,7 @@
     },
     "webResearch": {
       "pageTitle": "User Settings",
-      "pageDescription": "Manage your personal AI and external research preferences.",
+      "pageDescription": "Manage your navigation, AI, and external research preferences.",
       "title": "External web research",
       "description": "When enabled, Wiki AI may send a question to the configured search provider after Wiki evidence is insufficient. This preference is saved to your account.",
       "enabled": "Use external web research when Wiki evidence is insufficient",
@@ -2936,6 +2936,19 @@
       "code": "403",
       "message": "You do not have permission to view this page.",
       "backHome": "Back to wiki home"
+    }
+  },
+  "navigation": {
+    "wiki": "Wiki",
+    "parent": "Parent directory",
+    "children": "Browse child pages",
+    "empty": "No child pages in this directory.",
+    "settings": {
+      "title": "Navigation mode",
+      "description": "Choose the full tree, or show only the current page’s direct children to reduce navigation data and load pages faster. Breadcrumbs let you return to parent directories.",
+      "tree": "Page tree",
+      "current": "Current directory",
+      "saved": "Navigation mode saved."
     }
   }
 }

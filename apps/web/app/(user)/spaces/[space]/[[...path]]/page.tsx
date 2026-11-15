@@ -1,11 +1,12 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 import { notFound, redirect } from 'next/navigation';
 import { Layout } from '@/components/ui/Layout';
 import { ContentRenderer } from '@/components/renderer/ContentRenderer';
 import { RawContentRenderer } from '@/components/pages/raw-content/RawContentRenderer';
 import { AttachmentsPanel } from '@/components/page/AttachmentsPanel';
 import { ConversationStatusBadge } from '@/components/chat/ConversationSessionView';
+import { getPageBreadcrumbs } from '@/server/services/page-navigation';
+import { PageBreadcrumbs } from '@/components/pages/PageBreadcrumbs';
 import { PageMetadata } from '@/components/pages/PageMetadata';
 import { PageSidebar } from '@/components/pages/PageSidebar';
 import { ProvenanceIndicators } from '@/components/pages/ProvenanceIndicators';
@@ -30,11 +31,6 @@ type Params = Promise<{ space: string; path?: string[] }>;
 async function resolvePrivateSpace(value: string): Promise<SpaceRow | null> {
   const resolved = await resolveSpacePrefix(value);
   return resolved && (resolved.space.kind === 'raw' || resolved.space.kind === 'generated') ? resolved.space : null;
-}
-
-function workspaceHref(prefix: string, path?: string): string {
-  const root = `/spaces/${encodeURIComponent(prefix)}`;
-  return path ? `${root}/${path.split('/').map(encodeURIComponent).join('/')}` : root;
 }
 
 export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
@@ -78,6 +74,7 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
     redirect(page.canonicalUrl ?? canonicalSpacePath(space, page.slug));
   }
 
+  const breadcrumbAncestors = await getPageBreadcrumbs({ actor }, page.path, space.slug);
   const bodyHtml = injectHeadingIds((await renderPageMarkdown(space, page.contentSource ?? '', { locale: page.locale })).html);
   const headings = extractHeadings(bodyHtml);
   const latestRevision = page.latestRevision;
@@ -131,35 +128,21 @@ export default async function SpaceReaderPage({ params }: { params: Params }) {
           data-has-outline={headings.length > 0 || undefined}
         >
           <article className="page-reader-article relative mx-auto w-full min-w-0 max-w-5xl px-lg py-md" data-testid="space-page-reader">
-            <nav
-              aria-label={t('space.reader.breadcrumbs')}
-              className="mb-lg flex flex-wrap items-center gap-xs text-sm text-muted"
-            >
-              <Link className="hover:text-foreground" href={workspaceHref(space.routePrefix ?? space.kind)}>{space.name}</Link>
-              {segments.map((segment, index) => {
-                const segmentPath = segments.slice(0, index + 1).join('/');
-                const isCurrent = index === segments.length - 1;
-                return (
-                  <span key={segmentPath} className="flex items-center gap-xs">
-                    <span aria-hidden="true">/</span>
-                    {isCurrent ? (
-                      <span className="text-foreground" aria-current="page">{segment}</span>
-                    ) : (
-                      <Link className="hover:text-foreground" href={workspaceHref(space.routePrefix ?? space.kind, segmentPath)}>{segment}</Link>
-                    )}
-                  </span>
-                );
-              })}
-              <ProvenanceIndicators
-                key={page.latestRevision?.id}
-                aiContentLevel={page.aiContentLevel}
-                pageId={page.id}
-                revisionId={page.latestRevision?.id}
-                canClear={can({ actor }, 'clear_ai_attribution', { kind: 'page', pageId: page.id }, { isAuthor: actor.kind === 'user' && actor.userId === page.author.id })}
-                className="flex items-center gap-xs"
+            <div className="flex items-start gap-sm">
+              <PageBreadcrumbs ancestors={breadcrumbAncestors} space={space.kind}
+                routePrefix={space.routePrefix ?? space.kind} rootLabel={space.name}
+                label={t('space.reader.breadcrumbs')} title={page.title}
+                indicators={<ProvenanceIndicators
+                  key={page.latestRevision?.id}
+                  aiContentLevel={page.aiContentLevel}
+                  pageId={page.id}
+                  revisionId={page.latestRevision?.id}
+                  canClear={can({ actor }, 'clear_ai_attribution', { kind: 'page', pageId: page.id }, { isAuthor: actor.kind === 'user' && actor.userId === page.author.id })}
+                  className="flex items-center gap-xs"
+                />}
               />
               {conversation && <ConversationStatusBadge status={conversation.status} className="ml-auto" />}
-            </nav>
+            </div>
             <PageMetadata
               date={page.metadata?.date ?? null}
               summary={page.metadata?.summary ?? null}

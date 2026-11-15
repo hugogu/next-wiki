@@ -177,6 +177,7 @@ export const users = pgTable(
     displayName: text('display_name'),
     themePreference: text('theme_preference'),
     localePreference: text('locale_preference'),
+    navigationMode: text('navigation_mode').notNull().default('tree'),
     // Per-user opt-in for external web research. This is separate from the
     // admin-managed AI entitlement and connector availability.
     webResearchPreference: boolean('web_research_preference').notNull().default(false),

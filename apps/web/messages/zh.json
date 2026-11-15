@@ -2426,7 +2426,7 @@
     },
     "webResearch": {
       "pageTitle": "用户设置",
-      "pageDescription": "管理你的个人 AI 与外部联网研究偏好。",
+      "pageDescription": "管理你的导航、个人 AI 与外部联网研究偏好。",
       "title": "外部联网研究",
       "description": "启用后，当 Wiki 证据不足时，Wiki AI 可以将问题发送给系统配置的搜索服务商。此偏好会保存到你的账号。",
       "enabled": "在 Wiki 证据不足时使用外部联网研究",
@@ -2936,6 +2936,19 @@
       "code": "403",
       "message": "你没有权限查看此页面。",
       "backHome": "返回首页"
+    }
+  },
+  "navigation": {
+    "wiki": "Wiki",
+    "parent": "上级目录",
+    "children": "浏览子页面",
+    "empty": "此目录下没有子页面。",
+    "settings": {
+      "title": "导航模式",
+      "description": "选择页面树，或只显示当前页面的直接子级，以减少导航数据、加快页面加载。可通过面包屑返回上级目录。",
+      "tree": "页面树",
+      "current": "当前目录",
+      "saved": "导航模式已保存。"
     }
   }
 }

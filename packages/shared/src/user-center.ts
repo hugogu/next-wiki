@@ -18,11 +18,14 @@ export type ChangePasswordInput = z.infer<typeof changePasswordInputSchema>;
 
 export const themePreferenceSchema = z.enum(['light', 'dark', 'auto']);
 export const localePreferenceSchema = z.enum(['en', 'zh']);
+export const navigationModeSchema = z.enum(['tree', 'current']);
+export type NavigationMode = z.infer<typeof navigationModeSchema>;
 
 export const updatePreferencesInputSchema = z.object({
   theme: themePreferenceSchema.nullable().optional(),
   locale: localePreferenceSchema.nullable().optional(),
   webResearchPreference: z.boolean().optional(),
+  navigationMode: navigationModeSchema.optional(),
 });
 export type UpdatePreferencesInput = z.infer<typeof updatePreferencesInputSchema>;
 
@@ -30,5 +33,6 @@ export const preferencesViewSchema = z.object({
   theme: themePreferenceSchema.nullable(),
   locale: localePreferenceSchema.nullable(),
   webResearchPreference: z.boolean(),
+  navigationMode: navigationModeSchema,
 });
 export type PreferencesView = z.infer<typeof preferencesViewSchema>;
