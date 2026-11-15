@@ -133,6 +133,7 @@ export async function updatePreferences(
   if (input.theme !== undefined) updates.themePreference = input.theme;
   if (input.locale !== undefined) updates.localePreference = input.locale;
   if (input.webResearchPreference !== undefined) updates.webResearchPreference = input.webResearchPreference;
+  if (input.navigationMode !== undefined) updates.navigationMode = input.navigationMode;
 
   const [updated] = await db
     .update(schema.users)
@@ -148,6 +149,7 @@ export async function updatePreferences(
     theme: updated.themePreference as PreferencesView['theme'],
     locale: updated.localePreference as PreferencesView['locale'],
     webResearchPreference: updated.webResearchPreference,
+    navigationMode: updated.navigationMode as PreferencesView['navigationMode'],
   };
 }
 
@@ -157,7 +159,7 @@ export async function getPreferences(ctx: PermCtx): Promise<PreferencesView | nu
 
   const user = await db.query.users.findFirst({
     where: eq(schema.users.id, userId),
-    columns: { themePreference: true, localePreference: true, webResearchPreference: true },
+    columns: { themePreference: true, localePreference: true, webResearchPreference: true, navigationMode: true },
   });
 
   if (!user) return null;
@@ -166,5 +168,6 @@ export async function getPreferences(ctx: PermCtx): Promise<PreferencesView | nu
     theme: (user.themePreference as PreferencesView['theme']) ?? null,
     locale: (user.localePreference as PreferencesView['locale']) ?? null,
     webResearchPreference: user.webResearchPreference,
+    navigationMode: user.navigationMode as PreferencesView['navigationMode'],
   };
 }

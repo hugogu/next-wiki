@@ -46,9 +46,11 @@ export type AppShellProps = {
    * Top-level sidebar entries, each carrying `hasChildren` to indicate
    * whether the node has descendants on the server. The current page's
    * ancestor chain is pre-expanded; other branches are empty arrays that the
-   * Navigator hydrates lazily via `/api/v1/tree?pathPrefix=…`.
+   * Navigator hydrates lazily via `/api/v1/navigation?path=…`.
    */
   tree: LazyPublicPageTreeNode[];
+  navigationMode?: 'tree' | 'current';
+  navigationPath?: string;
   pageContext?: PageContext;
   admin?: boolean;
   /** NEXT_WIKI_DEMO_READONLY (see server/permissions). Shows a banner in the admin shell; enforcement itself lives in the permission chokepoint. */

@@ -204,6 +204,7 @@ export const ChangePasswordInput = z
 
 export const UpdatePreferencesInput = z
   .object({
+    navigationMode: z.enum(['tree', 'current']).optional().describe('Sidebar navigation: full tree or direct children of the current path.'),
     theme: z
       .enum(['light', 'dark', 'auto'])
       .nullable()
@@ -219,6 +220,7 @@ export const UpdatePreferencesInput = z
 
 export const PreferencesView = z
   .object({
+    navigationMode: z.enum(['tree', 'current']),
     theme: z.enum(['light', 'dark', 'auto']).nullable().describe('Preferred theme, or null when using the default.'),
     locale: z.enum(['en', 'zh']).nullable().describe('Preferred locale, or null when using the default.'),
     webResearchPreference: z.boolean().describe('Whether external web research is enabled for this user.'),
@@ -1989,6 +1991,7 @@ export const PublicPageTreeNode: z.ZodType<{
   pageId: string | null;
   slug: string | null;
   status: 'draft' | 'published' | 'deleted' | null;
+  hasChildren?: boolean;
   children: unknown[];
 }> = z
   .object({
@@ -1998,9 +2001,17 @@ export const PublicPageTreeNode: z.ZodType<{
     pageId: z.string().uuid().nullable().describe('Page id when a page exists at this path, otherwise null.'),
     slug: z.string().nullable().describe('Canonical public address (035) when a page exists at this path, otherwise null.'),
     status: z.enum(['draft', 'published', 'deleted']).nullable().describe('Page status when a page exists, otherwise null.'),
+    hasChildren: z.boolean().optional().describe('Whether readable descendants exist; shallow navigation omits their metadata.'),
     children: z.array(z.lazy(() => PublicPageTreeNode)).describe('Child nodes ordered by path segment.'),
   })
   .describe('A single node in the public wiki page directory tree.');
+
+export const PublicPageNavigationQuery = z.object({
+  path: PublicPagePath.or(z.literal('')).optional().default('').describe('Organizational path; empty for root.'),
+  space: z.string().optional(),
+  status: z.enum(['published', 'all']).optional().default('published'),
+  mode: z.enum(['tree', 'current']).optional().default('current'),
+}).describe('Bounded navigation projection. Current returns direct children; tree includes root and ancestor levels.');
 
 export const PublicPageTreeQuery = z
   .object({

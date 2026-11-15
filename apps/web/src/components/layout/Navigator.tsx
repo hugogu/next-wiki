@@ -40,6 +40,8 @@ import { getConfiguredSpaceHref, getPublicApiPageUrl, getSpaceHref, getSpaceNewH
 import { useTranslation } from '@/i18n/client';
 import type { LazyPublicPageTreeNode } from '@/lib/page-tree';
 import type { Actor } from '@/server/permissions';
+import { DirectoryItems } from './DirectoryItems';
+import { getDirectoryHref } from '@/lib/navigation';
 import { NavFooterMenu } from './NavFooterMenu';
 import { AiChatHistory } from '@/components/chat/AiChatHistory';
 import type { WritingMode } from '@next-wiki/shared';
@@ -110,7 +112,7 @@ function withHasChildrenFlag(nodes: PublicPageTreeNode[]): LazyPublicPageTreeNod
     pageId: node.pageId,
     slug: node.slug,
     status: node.status,
-    hasChildren: node.children.length > 0,
+    hasChildren: node.hasChildren ?? node.children.length > 0,
     children: withHasChildrenFlag(node.children),
   }));
 }
@@ -125,9 +127,9 @@ async function fetchBranchChildren(
   space: ReaderSpace,
   status: 'all' | 'published',
 ): Promise<LazyPublicPageTreeNode[]> {
-  const params = new URLSearchParams({ pathPrefix, status });
+  const params = new URLSearchParams({ path: pathPrefix, status, mode: 'current' });
   if (space !== 'wiki') params.set('space', space);
-  const response = await fetch(`/api/v1/tree?${params.toString()}`, {
+  const response = await fetch(`/api/v1/navigation?${params.toString()}`, {
     headers: { accept: 'application/json' },
     credentials: 'same-origin',
   });
@@ -433,6 +435,7 @@ export function Navigator({
   routePrefix,
   writingMode,
   aiChatMaximized = false,
+  navigationMode = 'tree',
 }: {
   tree: LazyPublicPageTreeNode[];
   admin?: boolean;
@@ -445,6 +448,7 @@ export function Navigator({
   routePrefix?: string;
   writingMode?: WritingMode;
   aiChatMaximized?: boolean;
+  navigationMode?: 'tree' | 'current';
 }) {
   const { t } = useTranslation();
   // Editors and admins may create pages, so they get the per-row "new child"
@@ -793,11 +797,12 @@ export function Navigator({
     ): LazyPublicPageTreeNode | undefined {
       for (const node of nodes) {
         if (node.path === target) return node;
-        const found = findNode(node.children, target);
+        const found = findNode(node.children.length ? node.children : branchCache[node.path] ?? [], target);
         if (found) return found;
       }
       return undefined;
     }
+    if (navigationMode === 'current') return;
     for (const path of expanded) {
       const node = findNode(tree, path);
       if (!node) continue;
@@ -810,7 +815,7 @@ export function Navigator({
         loadBranch(path);
       }
     }
-  }, [expanded, tree, branchCache, branchLoad, loadBranch]);
+  }, [expanded, tree, branchCache, branchLoad, loadBranch, navigationMode]);
 
   // Keep the page-tree scroll position across navigations (the nav remounts on
   // each page load, which would otherwise jump it back to the top).
@@ -965,7 +970,16 @@ export function Navigator({
             </div>
           ) : (
             <>
-              {tree.length === 0 ? (
+              {navigationMode === 'current' && currentPath && (
+                <Link href={getDirectoryHref(space, currentPath.split('/').slice(0, -1).join('/'))}
+                  className="mb-sm block rounded-md px-sm py-1 text-sm text-muted hover:bg-surface-elevated hover:text-foreground">
+                  ← {t('navigation.parent')}
+                </Link>
+              )}
+              {navigationMode === 'current' ? (
+                tree.length ? <DirectoryItems nodes={tree} space={space} routePrefix={routePrefix} onNavigate={onClose} childrenLabel={t('navigation.children')} />
+                  : <p className="p-md text-sm text-muted">{t('navigation.empty')}</p>
+              ) : tree.length === 0 ? (
                 <p className="text-sm text-muted p-md">{t('layout.nav.empty')}</p>
               ) : (
                 <ul className="space-y-0.5">

@@ -11,14 +11,15 @@ import { buildPageDescription, stripLeadingTitleHeading } from '@/lib/seo';
 import { resolvePageSocialImage } from '@/server/services/social-image';
 import { canonicalSpacePath } from '@/server/services/space-routes';
 import { getReadablePublishedTranslationLocales, getCachedPublishedTranslationLocales } from '@/server/services/pages';
-import { getCachedPublishedPageTree, getPageTree, getRevision } from '@/server/services/public-content';
+import { getRevision } from '@/server/services/public-content';
 import type { ResolvedReaderPage } from '@/server/services/reader-routing';
 import { can, pagePermissionOptions, type Actor } from '@/server/permissions';
 import type { Locale } from '@/i18n/config';
 import { getDictionary } from '@/i18n/server';
 import { createAppFormatter } from '@/i18n/formatter';
 import { env } from '@/server/config';
-import { getBreadcrumbNodes } from '@/lib/page-tree';
+import { getCachedPageBreadcrumbs, getPageBreadcrumbs } from '@/server/services/page-navigation';
+import { PageBreadcrumbs } from './PageBreadcrumbs';
 
 type Props = {
   actor: Actor;
@@ -85,13 +86,13 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
     page.status === 'draft' &&
     (canEdit || isAuthor || (actor.kind === 'user' && actor.role === 'admin'));
   const siteUrl = env.APP_URL.replace(/\/$/, '');
-  const [translationLocales, tree, rawRevision, socialImage] = await Promise.all([
+  const [translationLocales, breadcrumbAncestors, rawRevision, socialImage] = await Promise.all([
     staticPublic
       ? getCachedPublishedTranslationLocales(resolved.sourcePath, resolved.space.slug)
       : getReadablePublishedTranslationLocales({ actor }, resolved.sourcePath, resolved.space.slug),
     staticPublic
-      ? getCachedPublishedPageTree(resolved.space.slug)
-      : getPageTree({ actor }, { status: 'all', space: resolved.space.slug }),
+      ? getCachedPageBreadcrumbs(page.path, resolved.space.slug)
+      : getPageBreadcrumbs({ actor }, page.path, resolved.space.slug),
     resolved.space.kind === 'raw'
       ? getRevision({ actor }, page.pageId, page.version)
       : Promise.resolve(null),
@@ -99,9 +100,6 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
       ? resolvePageSocialImage(page.contentHtml, siteUrl)
       : Promise.resolve(null),
   ]);
-  const breadcrumbAncestors = getBreadcrumbNodes(tree.root, page.path)
-    .slice(0, -1)
-    .filter((node) => node.pageId && node.slug);
   const createdAt = new Date(rawRevision?.createdAt ?? page.createdAt);
   const rawAuthorName = rawRevision?.source && typeof rawRevision.source.apiKeyName === 'string'
     ? rawRevision.source.apiKeyName
@@ -169,33 +167,21 @@ export async function ReaderPageView({ actor, locale, resolved, staticPublic }: 
                 <ShareButton pageId={page.pageId} title={page.title} />
               </div>
             )}
-            <nav
-              aria-label={t('space.reader.breadcrumbs')}
-              className="mb-lg flex flex-wrap items-center gap-xs text-sm text-muted"
-            >
-              <Link className="hover:text-foreground" href={canonicalSpacePath(resolved.space, '')}>
-                {resolved.space.name}
-              </Link>
-              {breadcrumbAncestors.map((node) => (
-                <span key={node.path} className="flex items-center gap-xs">
-                  <span aria-hidden="true">/</span>
-                  <Link className="hover:text-foreground" href={canonicalSpacePath(resolved.space, node.slug!)}>
-                    {node.title ?? node.segment}
-                  </Link>
-                </span>
-              ))}
-              <span className="flex items-center gap-xs">
-                <span aria-hidden="true">/</span>
-                <span className="text-foreground" aria-current="page">{page.title}</span>
-                <ProvenanceIndicators
-                  key={page.revisionId}
-                  aiContentLevel={page.aiContentLevel}
-                  pageId={page.pageId}
-                  revisionId={page.revisionId}
-                  canClear={can({ actor }, 'clear_ai_attribution', { kind: 'page', pageId: page.pageId }, { isAuthor })}
-                />
-              </span>
-            </nav>
+            <PageBreadcrumbs
+              ancestors={breadcrumbAncestors}
+              space={resolved.space.kind}
+              routePrefix={pageContext.routePrefix}
+              rootLabel={resolved.space.kind === 'wiki' ? t('navigation.wiki') : resolved.space.name}
+              label={t('space.reader.breadcrumbs')}
+              title={page.title}
+              indicators={<ProvenanceIndicators
+                key={page.revisionId}
+                aiContentLevel={page.aiContentLevel}
+                pageId={page.pageId}
+                revisionId={page.revisionId}
+                canClear={can({ actor }, 'clear_ai_attribution', { kind: 'page', pageId: page.pageId }, { isAuthor })}
+              />}
+            />
             <PageMetadata
               date={page.metadata.date}
               summary={page.metadata.summary}

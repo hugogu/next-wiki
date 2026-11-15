@@ -5,7 +5,7 @@ import type { PublicPageTreeNode } from '@next-wiki/shared';
  * tell the difference between "this branch has no children" and "we did not
  * ship the children because we want lazy loading". Children are only filled
  * in for nodes that lie on the current page's ancestor chain; everything else
- * starts empty and is fetched on demand via `/api/v1/tree?pathPrefix=`.
+ * starts empty and is fetched on demand via `/api/v1/navigation?path=`.
  */
 export type LazyPublicPageTreeNode = Omit<PublicPageTreeNode, 'children'> & {
   hasChildren: boolean;
@@ -77,7 +77,7 @@ export function sparsifyTree(
       pageId: node.pageId,
       slug: node.slug,
       status: node.status,
-      hasChildren: node.children.length > 0,
+      hasChildren: node.hasChildren ?? node.children.length > 0,
       children: keepFull ? node.children.map((c) => sparsify(c, false)) : [],
     };
   }

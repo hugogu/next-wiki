@@ -132,6 +132,17 @@ describe('user-center service', () => {
       expect(row?.webResearchPreference).toBe(true);
     });
 
+    it('persists navigation mode without overwriting other preferences', async () => {
+      const user = await createTestUser({ email: 'navigation@example.com' });
+      const ctx = buildUserCtx(user.id, user.role);
+      expect((await userCenterService.getPreferences(ctx))?.navigationMode).toBe('tree');
+      await userCenterService.updatePreferences(ctx, { navigationMode: 'current', theme: 'dark' });
+      await userCenterService.updatePreferences(ctx, { webResearchPreference: true });
+      expect(await userCenterService.getPreferences(ctx)).toMatchObject({ navigationMode: 'current', theme: 'dark', webResearchPreference: true });
+      await userCenterService.updatePreferences(ctx, { navigationMode: 'tree' });
+      expect((await userCenterService.getPreferences(ctx))?.navigationMode).toBe('tree');
+    });
+
     it('rejects anonymous actor', async () => {
       await expect(
         userCenterService.updatePreferences(buildAnonymousCtx(), { theme: 'dark' }),

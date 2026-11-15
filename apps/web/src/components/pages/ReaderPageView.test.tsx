@@ -42,7 +42,7 @@ vi.mock('@/i18n/formatter', () => ({
   createAppFormatter: () => ({ dateTime: (date: Date, format: string) => `${format}:${date.toISOString()}` }),
 }));
 vi.mock('@/server/config', () => ({ env: { APP_URL: 'https://wiki.example' } }));
-vi.mock('@/lib/page-tree', () => ({ getBreadcrumbNodes: () => [] }));
+vi.mock('@/server/services/page-navigation', () => ({ getCachedPageBreadcrumbs: async () => [], getPageBreadcrumbs: async () => [] }));
 
 import { ReaderPageView } from './ReaderPageView';
 
